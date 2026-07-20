@@ -27,8 +27,10 @@ export default function VehicleFilter({ brands, models, cats, counts = {}, compa
 
   return (
     <form onSubmit={cauta}
-      className={`bg-white rounded-xl p-4 grid gap-3 text-ink shadow-card ${compact ? "sm:grid-cols-[1fr,1fr,1fr,auto]" : "sm:grid-cols-2 lg:grid-cols-[1fr,1fr,1fr,auto]"}`}>
-      <div className="fld">
+      className={`bg-white rounded-xl p-4 grid gap-3 text-ink shadow-card grid-cols-1 ${compact
+        ? "sm:grid-cols-2 lg:grid-cols-[1fr,1.4fr,1.4fr,auto]"
+        : "sm:grid-cols-2"}`}>
+      <div className="fld min-w-0">
         <label>1 · Marca</label>
         <select value={marca} onChange={(e) => { setMarca(e.target.value); setModel(""); }}>
           <option value="">Toate mărcile</option>
@@ -36,7 +38,7 @@ export default function VehicleFilter({ brands, models, cats, counts = {}, compa
             return <option key={b.id} value={b.slug}>{b.nume}{Object.keys(counts).length ? ` · ${n} piese` : ""}</option>; })}
         </select>
       </div>
-      <div className="fld">
+      <div className="fld min-w-0">
         <label>2 · Modelul</label>
         <select value={model} onChange={(e) => setModel(e.target.value)} disabled={!marca}>
           <option value="">{marca ? "Toate modelele" : "Alege întâi marca"}</option>
@@ -44,14 +46,14 @@ export default function VehicleFilter({ brands, models, cats, counts = {}, compa
             return <option key={m.id} value={m.slug}>{m.nume}{Object.keys(counts).length ? ` · ${n} piese` : ""}</option>; })}
         </select>
       </div>
-      <div className="fld">
+      <div className="fld min-w-0">
         <label>3 · Piesa</label>
         <select name="categorie">
           <option value="">Toate categoriile</option>
           {cats.map((c) => <option key={c.id} value={c.slug}>{c.nume}</option>)}
         </select>
       </div>
-      <button className="btn-acc self-end h-[46px]">Caută piese</button>
+      <button className={`btn-acc self-end h-[46px] w-full ${compact ? "lg:w-auto" : ""}`}>Caută piese</button>
     </form>
   );
 }
