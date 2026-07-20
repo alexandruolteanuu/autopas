@@ -34,7 +34,7 @@ export default function Header() {
           <span className="block font-disp font-medium text-[10px] tracking-[0.5em] text-white/60">DEZMEMBRĂRI</span>
         </Link>
         <form action="/piese" className="hidden md:flex flex-1">
-          <input name="q" placeholder="Caută piesă, cod OEM sau descrie liber… ex. «far stânga golf 6»"
+          <input name="q" placeholder="Caută piesă sau cod OEM…"
             className="flex-1 rounded-l-lg px-4 py-2.5 text-ink text-sm outline-none" />
           <button className="bg-acc rounded-r-lg px-5 font-disp font-bold text-sm uppercase">Caută</button>
         </form>
