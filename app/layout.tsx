@@ -5,18 +5,19 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import CookieBanner from "@/components/CookieBanner";
 import { CartProvider } from "@/components/CartContext";
+import WhatsAppFloat from "@/components/WhatsAppFloat";
+import { CONFIG } from "@/lib/config";
 
-// Fonturile sunt LOCALE (în proiect) — diacritice garantate, fără dependență de servicii externe.
-const barlow = localFont({
+// Fontul Poppins (local) — un singur font, patru grosimi, diacritice românești garantate.
+const poppins = localFont({
   src: [
-    { path: "./fonts/BarlowCondensed-Medium.ttf", weight: "500" },
-    { path: "./fonts/BarlowCondensed-SemiBold.ttf", weight: "600" },
-    { path: "./fonts/BarlowCondensed-Bold.ttf", weight: "700" },
-    { path: "./fonts/BarlowCondensed-Black.ttf", weight: "900" },
+    { path: "./fonts/Poppins-Regular.ttf", weight: "400" },
+    { path: "./fonts/Poppins-Medium.ttf", weight: "500" },
+    { path: "./fonts/Poppins-SemiBold.ttf", weight: "600" },
+    { path: "./fonts/Poppins-Bold.ttf", weight: "700" },
   ],
-  variable: "--font-barlow",
+  variable: "--font-poppins",
 });
-const inter = localFont({ src: "./fonts/Inter.ttf", variable: "--font-inter" });
 
 export const metadata: Metadata = {
   title: { default: "Autopas Dezmembrări — piese auto testate, cu garanție", template: "%s · Autopas Dezmembrări" },
@@ -25,13 +26,14 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ro" className={`${barlow.variable} ${inter.variable}`}>
+    <html lang="ro" className={poppins.variable}>
       <body>
         <CartProvider>
           <Header />
           <main className="min-h-[60vh]">{children}</main>
           <Footer />
           <CookieBanner />
+          <WhatsAppFloat phone={CONFIG.whatsapp} />
         </CartProvider>
       </body>
     </html>
