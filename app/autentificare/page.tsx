@@ -30,7 +30,7 @@ export default function Autentificare() {
   return (
     <div className="mx-auto max-w-md px-4 py-12">
       <div className="dim justify-center">Contul meu</div>
-      <h1 className="font-disp font-black uppercase text-3xl mt-2 text-center">{mod === "login" ? "Autentificare" : "Creează cont"}</h1>
+      <h1 className="font-disp font-bold text-3xl mt-2 text-center">{mod === "login" ? "Autentificare" : "Creează cont"}</h1>
       <div className="flex gap-2 justify-center mt-4">
         {(["login","register"] as const).map((m) => (
           <button key={m} onClick={() => { setMod(m); setMsg(""); }}
