@@ -33,13 +33,13 @@ export default function Cont() {
   if (!gata) return <div className="mx-auto max-w-3xl px-4 py-20 text-center text-mut">Se încarcă…</div>;
   if (!email)
     return <div className="mx-auto max-w-md px-4 py-20 text-center">
-      <h1 className="font-disp font-black uppercase text-2xl">Nu ești autentificat</h1>
+      <h1 className="font-disp font-bold text-2xl">Nu ești autentificat</h1>
       <Link href="/autentificare" className="btn-acc mt-5">Intră în cont</Link></div>;
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
       <div className="dim">Contul meu</div>
       <div className="flex items-center justify-between mt-2 mb-6">
-        <h1 className="font-disp font-black uppercase text-3xl">Comenzile mele</h1>
+        <h1 className="font-disp font-bold text-3xl">Comenzile mele</h1>
         <div className="text-right text-sm"><b>{email}</b><br />
           <button onClick={iesi} className="text-mut hover:text-acc underline underline-offset-2">Ieși din cont</button></div>
       </div>
