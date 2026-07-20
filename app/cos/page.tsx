@@ -10,7 +10,7 @@ export default function Cos() {
     return (
       <div className="mx-auto max-w-2xl px-4 py-20 text-center">
         <div className="text-6xl mb-4">🛒</div>
-        <h1 className="font-disp font-black uppercase text-3xl">Coșul tău e gol</h1>
+        <h1 className="font-disp font-bold text-3xl">Coșul tău e gol</h1>
         <p className="text-mut mt-2">Dar depozitul nostru nu e. Piesele așteaptă.</p>
         <div className="mt-6 flex gap-3 justify-center">
           <Link href="/piese" className="btn-acc">Vezi piesele pe stoc</Link>
@@ -21,7 +21,7 @@ export default function Cos() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <div className="dim">Acasă / Coșul meu</div>
-      <h1 className="font-disp font-black uppercase text-3xl mt-2 mb-6">Coșul meu <span className="text-mut text-lg">· {items.length} {items.length === 1 ? "produs" : "produse"}</span></h1>
+      <h1 className="font-disp font-bold text-3xl mt-2 mb-6">Coșul meu <span className="text-mut text-lg">· {items.length} {items.length === 1 ? "produs" : "produse"}</span></h1>
       <div className="grid lg:grid-cols-[1fr,340px] gap-6 items-start">
         <div className="card divide-y divide-line">
           {items.map((i) => (
@@ -37,7 +37,7 @@ export default function Cos() {
           ))}
         </div>
         <div className="card p-5 space-y-3 text-sm">
-          <b className="font-disp uppercase tracking-widest text-[13px]">Sumar comandă</b>
+          <b className="font-disp font-semibold text-[13px]">Sumar comandă</b>
           <div className="flex justify-between"><span>Subtotal</span><b>{lei(total)}</b></div>
           <div className="flex justify-between text-mut"><span>Livrare</span><span>de la {lei(Math.min(...CURIERI.map(c => c.pret)))} — aleasă la checkout</span></div>
           <div className="flex justify-between border-t border-line pt-3 text-base"><span>Total estimat</span>
