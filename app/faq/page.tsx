@@ -14,7 +14,7 @@ export default function Faq() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
       <div className="dim">Acasă / Întrebări frecvente</div>
-      <h1 className="font-disp font-black uppercase text-3xl mt-2 mb-6">Întrebări frecvente</h1>
+      <h1 className="font-disp font-bold text-3xl mt-2 mb-6">Întrebări frecvente</h1>
       <div className="space-y-3">
         {FAQ.map(([q, a]) => (
           <details key={q} className="card p-4 group">
