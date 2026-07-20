@@ -14,7 +14,7 @@ export default function LegalPage({ params }: { params: { slug: string } }) {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 grid lg:grid-cols-[240px,1fr] gap-8">
       <aside className="card p-4 h-fit text-sm lg:sticky lg:top-24">
-        <b className="font-disp uppercase tracking-widest text-[12px] text-mut">Documente</b>
+        <b className="font-disp font-semibold text-[12px] text-mut">Documente</b>
         <ul className="mt-2 space-y-1.5">
           {LEGAL.map((d) => (
             <li key={d.slug}><Link href={`/legal/${d.slug}`}
@@ -25,11 +25,11 @@ export default function LegalPage({ params }: { params: { slug: string } }) {
       </aside>
       <article>
         <div className="dim">Informații legale</div>
-        <h1 className="font-disp font-black uppercase text-3xl mt-2 mb-6">{doc.titlu}</h1>
+        <h1 className="font-disp font-bold text-3xl mt-2 mb-6">{doc.titlu}</h1>
         <div className="space-y-6">
           {doc.sectiuni.map((s) => (
             <section key={s.h}>
-              <h2 className="font-disp font-bold text-lg uppercase tracking-wide">{s.h}</h2>
+              <h2 className="font-disp font-semibold text-lg">{s.h}</h2>
               {s.p.map((p, i) => <p key={i} className="text-[15px] leading-relaxed mt-2 text-steel">{p}</p>)}
             </section>
           ))}
