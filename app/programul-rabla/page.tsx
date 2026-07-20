@@ -13,18 +13,18 @@ export default function Rabla() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <div className="dim">Acasă / Programul Rabla</div>
-      <h1 className="font-disp font-black uppercase text-3xl mt-2">Programul Rabla — simplu, cu certificat pe loc</h1>
+      <h1 className="font-disp font-bold text-3xl mt-2">Programul Rabla — simplu, cu certificat pe loc</h1>
       <p className="text-mut mt-2 max-w-2xl">Suntem centru autorizat pentru tratarea vehiculelor scoase din uz: preluăm mașina ta veche și îți emitem <b className="text-ink">certificatul de distrugere</b> — actul de care ai nevoie ca să primești ecotichetul Rabla.</p>
       <div className="grid lg:grid-cols-2 gap-8 mt-8 items-start">
         <div className="space-y-4">
           {PASI.map(([t, d], i) => (
             <div key={t} className="card p-4 flex gap-4">
-              <span className="w-9 h-9 rounded-full bg-acc text-white font-disp font-black grid place-items-center shrink-0">{i + 1}</span>
+              <span className="w-9 h-9 rounded-full bg-acc text-white font-disp font-bold grid place-items-center shrink-0">{i + 1}</span>
               <div><b>{t}</b><p className="text-sm text-mut mt-0.5">{d}</p></div>
             </div>
           ))}
           <div className="card p-4 text-sm">
-            <b className="font-disp uppercase tracking-widest text-[13px]">Acte necesare</b>
+            <b className="font-disp font-semibold text-[13px]">Acte necesare</b>
             <ul className="mt-2 space-y-1 text-mut">
               <li>• Cartea de identitate a vehiculului (CIV) și certificatul de înmatriculare</li>
               <li>• Actul de identitate al proprietarului</li>
@@ -35,7 +35,7 @@ export default function Rabla() {
         </div>
         <div>
           <div className="card p-5 mb-4 bg-ink text-white border-ink">
-            <b className="font-disp uppercase text-lg">Vrei să predai mașina prin Rabla?</b>
+            <b className="font-disp font-semibold text-lg">Vrei să predai mașina prin Rabla?</b>
             <p className="text-white/70 text-sm mt-1">Completează formularul — te sunăm în aceeași zi lucrătoare cu toți pașii.</p>
           </div>
           <IntakeForm tip="rabla" />
