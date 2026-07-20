@@ -41,7 +41,7 @@ export default async function Home() {
               Piese pe stoc, fiecare fotografiată real, testată în atelier și livrată cu garanție de 30 de zile.
             </p>
             {/* FILTRUL pe liste fixe — marcă → model → piesă (fără scriere liberă) */}
-            <div className="mt-7"><VehicleFilter brands={brands} models={models} cats={cats} counts={counts} compact /></div>
+            <div className="mt-7"><VehicleFilter brands={brands} models={models} cats={cats} counts={counts} /></div>
             <p className="text-white/50 text-sm mt-3">Cauți după cod OEM? Folosește căutarea din bara de sus.</p>
                       </div>
           {/* Mașini intrate recent — direct din baza de date */}
