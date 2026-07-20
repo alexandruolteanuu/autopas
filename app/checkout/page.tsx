@@ -44,18 +44,18 @@ export default function Checkout() {
 
   if (items.length === 0 && stare === "idle")
     return <div className="mx-auto max-w-xl px-4 py-20 text-center">
-      <h1 className="font-disp font-black uppercase text-2xl">Coșul e gol</h1>
+      <h1 className="font-disp font-bold text-2xl">Coșul e gol</h1>
       <Link href="/piese" className="btn-acc mt-5">Vezi piesele</Link></div>;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <div className="dim">Coș → <b className="text-ink">Livrare și plată</b> → Confirmare</div>
-      <h1 className="font-disp font-black uppercase text-3xl mt-2 mb-6">Finalizează comanda</h1>
+      <h1 className="font-disp font-bold text-3xl mt-2 mb-6">Finalizează comanda</h1>
       <form onSubmit={trimite} className="grid lg:grid-cols-[1fr,340px] gap-6 items-start">
         <div className="space-y-5">
           {/* 1. Datele tale */}
           <div className="card p-5">
-            <b className="font-disp uppercase tracking-widest text-[13px]">1 · Datele tale</b>
+            <b className="font-disp font-semibold text-[13px]">1 · Datele tale</b>
             <div className="flex gap-2 mt-3">
               {(["pf","firma"] as const).map((t) => (
                 <button type="button" key={t} onClick={() => setTip(t)}
@@ -78,7 +78,7 @@ export default function Checkout() {
           </div>
           {/* 2. Curier */}
           <div className="card p-5">
-            <b className="font-disp uppercase tracking-widest text-[13px]">2 · Alege curierul</b>
+            <b className="font-disp font-semibold text-[13px]">2 · Alege curierul</b>
             <div className="mt-3 space-y-2">
               {CURIERI.map((c) => (
                 <label key={c.id} className={`flex items-center gap-3 rounded-lg border-2 px-4 py-3 cursor-pointer ${curier === c.id ? "border-acc bg-acc/5" : "border-line"}`}>
@@ -92,7 +92,7 @@ export default function Checkout() {
           </div>
           {/* 3. Plata */}
           <div className="card p-5">
-            <b className="font-disp uppercase tracking-widest text-[13px]">3 · Metoda de plată</b>
+            <b className="font-disp font-semibold text-[13px]">3 · Metoda de plată</b>
             <div className="mt-3 space-y-2">
               {[["ramburs","Ramburs la curier","plătești când primești piesa"],["transfer","Transfer bancar","primești proforma pe e-mail"]].map(([id,t,d]) => (
                 <label key={id} className={`flex items-center gap-3 rounded-lg border-2 px-4 py-3 cursor-pointer ${plata === id ? "border-acc bg-acc/5" : "border-line"}`}>
@@ -113,7 +113,7 @@ export default function Checkout() {
         </div>
         {/* Sumar */}
         <div className="card p-5 space-y-3 text-sm lg:sticky lg:top-24">
-          <b className="font-disp uppercase tracking-widest text-[13px]">Comanda ta</b>
+          <b className="font-disp font-semibold text-[13px]">Comanda ta</b>
           {items.map((i) => (
             <div key={i.id} className="flex justify-between gap-3"><span className="text-mut">{i.nume.slice(0, 42)}…</span><b className="whitespace-nowrap">{lei(i.pret)}</b></div>
           ))}
