@@ -16,7 +16,7 @@ export default function ProductCard({ p }: { p: Product }) {
         <Link href={`/piese/${p.slug}`} className="font-semibold text-[13.5px] leading-snug hover:text-acc">{p.nume}</Link>
         <div className="font-disp text-[11px] tracking-wider text-mut uppercase">Cod OEM {p.oem}{p.ani ? ` · ${p.ani}` : ""}</div>
         <div className="mt-auto pt-2 flex items-center justify-between gap-2">
-          <span className="font-disp font-black text-xl text-acc">{lei(Number(p.pret_lei), p.pret_sufix)}</span>
+          <span className="font-disp font-bold text-xl text-acc">{lei(Number(p.pret_lei), p.pret_sufix)}</span>
           <AddToCart p={p} />
         </div>
       </div>
