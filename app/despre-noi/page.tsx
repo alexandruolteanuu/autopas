@@ -4,13 +4,13 @@ export default function DespreNoi() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
       <div className="dim">Autopas Dezmembrări · Piatra-Neamț</div>
-      <h1 className="font-disp font-black uppercase text-3xl mt-2">Despre noi</h1>
+      <h1 className="font-disp font-bold text-3xl mt-2">Despre noi</h1>
       <div className="mt-5 space-y-4 leading-relaxed">
         <p>Autopas Dezmembrări este un centru autorizat de dezmembrări auto din Piatra-Neamț, specializat în vânzarea de piese auto second-hand verificate. Oferim piese pentru o gamă largă de mărci și modele, cu fotografii reale ale fiecărui produs și informații complete despre proveniență.</p>
         <p>Fiecare vehicul care intră în curtea noastră trece printr-un proces controlat: identificare, dezmembrare, verificarea pieselor, fotografiere și etichetare cu cod OEM. Toate piesele vândute beneficiază de garanție și pot fi returnate conform legislației în vigoare.</p>
       </div>
       <div className="card p-5 mt-6">
-        <b className="font-disp uppercase tracking-widest text-[13px]">Activitate autorizată</b>
+        <b className="font-disp font-semibold text-[13px]">Activitate autorizată</b>
         <ul className="mt-3 space-y-2 text-sm">
           {["Autorizație de mediu pentru tratarea vehiculelor scoase din uz",
             "Autorizat RAR pentru dezmembrare și emiterea certificatului de distrugere",
