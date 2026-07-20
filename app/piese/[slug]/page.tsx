@@ -5,6 +5,7 @@ import AddToCart from "@/components/AddToCart";
 import ProductCard from "@/components/ProductCard";
 import { lei } from "@/lib/format";
 import Link from "next/link";
+import { waLink } from "@/lib/config";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -45,7 +46,7 @@ export default async function Produs({ params }: { params: { slug: string } }) {
         </div>
         {/* Detalii */}
         <div>
-          <h1 className="font-disp font-black uppercase text-[26px] leading-tight">{prod.nume}</h1>
+          <h1 className="font-disp font-bold text-[25px] leading-tight">{prod.nume}</h1>
           <div className="mt-3 flex flex-wrap gap-2 text-[12px] font-bold">
             <span className="px-2.5 py-1 rounded-md bg-ink text-white">Cod OEM: {prod.oem}</span>
             {prod.ani && <span className="px-2.5 py-1 rounded-md bg-paper border border-line">{prod.ani}</span>}
@@ -53,14 +54,14 @@ export default async function Produs({ params }: { params: { slug: string } }) {
           {/* Nota de stare A/B/C */}
           <div className="card p-3.5 mt-4 flex items-center gap-3">
             {(["A","B","C"] as const).map((s) => (
-              <span key={s} className={`w-8 h-8 grid place-items-center rounded-md font-disp font-black
+              <span key={s} className={`w-8 h-8 grid place-items-center rounded-md font-disp font-bold
                 ${s === prod.stare ? "bg-ok text-white" : "bg-paper text-mut border border-line"}`}>{s}</span>
             ))}
             <div className="text-sm"><b>Stare {prod.stare}</b> — {stareTxt}.
               {prod.stare_nota && <span className="text-mut"> Notă: {prod.stare_nota}.</span>}</div>
           </div>
           <div className="mt-5 flex items-end gap-3">
-            <span className="font-disp font-black text-4xl text-acc">{lei(Number(prod.pret_lei), prod.pret_sufix)}</span>
+            <span className="font-disp font-bold text-4xl text-acc">{lei(Number(prod.pret_lei), prod.pret_sufix)}</span>
             <span className="text-mut text-sm mb-1.5">TVA inclus</span>
           </div>
           <div className="mt-2 flex gap-2 text-[12px] font-bold">
@@ -69,8 +70,8 @@ export default async function Produs({ params }: { params: { slug: string } }) {
           </div>
           <div className="mt-5 grid sm:grid-cols-2 gap-3">
             <AddToCart p={prod} mare />
-            <a href="https://wa.me/40740123456" target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center justify-center rounded-lg bg-[#1FA463] text-white px-6 py-3.5 font-disp font-bold uppercase tracking-wide hover:brightness-110">
+            <a href={waLink(`Bună! Mă interesează: ${prod.nume} (OEM ${prod.oem}).`)} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center justify-center rounded-lg bg-[#1FA463] text-white px-6 py-3.5 font-semibold hover:brightness-110">
               Întreabă pe WhatsApp</a>
           </div>
           <div className="mt-4 grid sm:grid-cols-2 gap-2 text-sm">
@@ -80,7 +81,7 @@ export default async function Produs({ params }: { params: { slug: string } }) {
           {/* Compatibilitate */}
           {prod.compat.length > 0 && (
             <div className="card p-4 mt-5">
-              <b className="font-disp uppercase tracking-widest text-[13px]">Compatibilitate — se potrivește pe:</b>
+              <b className="font-disp font-semibold text-[13px]">Compatibilitate — se potrivește pe:</b>
               <ul className="mt-2 space-y-1.5 text-sm">
                 {prod.compat.map((c) => <li key={c} className="flex gap-2"><span className="text-ok font-bold">✓</span>{c}</li>)}
               </ul>
@@ -94,13 +95,13 @@ export default async function Produs({ params }: { params: { slug: string } }) {
       {dinAceeasi.length > 0 && (
         <section className="mt-12">
           <div className="dim">Provine din: {prod.vehicles?.nume} · {prod.vehicles?.an} · dezmembrare completă</div>
-          <h2 className="font-disp font-black uppercase text-2xl mt-2 mb-5">Din aceeași mașină dezmembrată</h2>
+          <h2 className="font-disp font-bold text-2xl mt-2 mb-5">Din aceeași mașină dezmembrată</h2>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{dinAceeasi.map((x) => <ProductCard key={x.id} p={x} />)}</div>
         </section>
       )}
       {similare.length > 0 && (
         <section className="mt-12">
-          <h2 className="font-disp font-black uppercase text-2xl mb-5">Piese similare</h2>
+          <h2 className="font-disp font-bold text-2xl mb-5">Piese similare</h2>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{similare.map((x) => <ProductCard key={x.id} p={x} />)}</div>
         </section>
       )}
