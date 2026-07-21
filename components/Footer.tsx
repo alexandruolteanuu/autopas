@@ -44,13 +44,18 @@ export default function Footer({ firma = FIRMA_IMPLICITA }: { firma?: Firma }) {
             <li><Link href="/legal/anpc-si-sol" className="hover:text-acc">A.N.P.C.</Link></li>
             <li><Link href="/legal/anpc-si-sol" className="hover:text-acc">A.N.P.C. — SAL</Link></li>
           </ul>
-          {/* Bannerele ANPC/SOL — imagini standard pe fundal alb.
-              IMPORTANT: înlocuiește public/anpc-sal.png și public/anpc-sol.png cu fișierele oficiale (pași în README). */}
+          {/* Bannerele oficiale ANPC — dimensiunea legală 250×50 px (Ordinul 449/2022).
+              Fișierele din public/anpc-sal.png și public/anpc-sol.png trebuie să fie cele OFICIALE,
+              descărcate de pe anpc.ro/ce-este-sal. */}
           <div className="mt-4 space-y-2">
-            <a href="https://anpc.ro/ce-este-sal/" target="_blank" rel="noopener noreferrer" className="block w-[250px]">
-              <img src="/anpc-sal.png" alt="ANPC — Soluționarea Alternativă a Litigiilor" className="w-full rounded-md" /></a>
-            <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener noreferrer" className="block w-[250px]">
-              <img src="/anpc-sol.png" alt="SOL — Soluționarea Online a Litigiilor" className="w-full rounded-md" /></a>
+            <a href="https://anpc.ro/ce-este-sal/" target="_blank" rel="noopener noreferrer"
+              className="block w-[250px] max-w-full">
+              <img src="/anpc-sal.png" alt="ANPC — Soluționarea Alternativă a Litigiilor"
+                width={250} height={50} className="w-[250px] max-w-full h-auto" /></a>
+            <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener noreferrer"
+              className="block w-[250px] max-w-full">
+              <img src="/anpc-sol.png" alt="SOL — Soluționarea Online a Litigiilor"
+                width={250} height={50} className="w-[250px] max-w-full h-auto" /></a>
           </div>
         </div>
       </div>
