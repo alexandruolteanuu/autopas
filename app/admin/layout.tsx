@@ -19,6 +19,8 @@ const MENIU = [
   { href: "/admin/comenzi", t: "Comenzi", ic: "⬚", roluri: ["admin", "operator", "contabil"], badge: "comenzi" },
   { href: "/admin/cereri", t: "Cereri (Inbox)", ic: "✉", roluri: ["admin", "operator"], badge: "cereri" },
   { href: "/admin/produse", t: "Produse / Inventar", ic: "⚙", roluri: ["admin", "operator"] },
+  { href: "/admin/categorii", t: "Categorii", ic: "☰", roluri: ["admin"] },
+  { href: "/admin/marci", t: "Mărci și modele", ic: "✧", roluri: ["admin"] },
   { href: "/admin/masini", t: "Mașini la dezmembrat", ic: "⛭", roluri: ["admin", "operator"] },
   { href: "/admin/expedieri", t: "Expedieri (AWB)", ic: "⇥", roluri: ["admin", "operator"] },
   { href: "/admin/clienti", t: "Clienți", ic: "☺", roluri: ["admin", "operator"] },
@@ -177,7 +179,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               )}
             </div>
             {rol !== "contabil" && (
-              <Link href="/admin/produse?adauga=1" className="btn-acc !py-2 !px-4 text-sm whitespace-nowrap">+ Adaugă piesă</Link>
+              <Link href="/admin/produse/nou" className="btn-acc !py-2 !px-4 text-sm whitespace-nowrap">+ Adaugă piesă</Link>
             )}
           </div>
         </header>
