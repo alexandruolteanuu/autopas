@@ -1,9 +1,10 @@
+import Breadcrumbs from "@/components/Breadcrumbs";
 export const metadata = { title: "Despre noi" };
 // Varianta STANDARD cerută în feedback — fără date inventate, adresa doar Piatra-Neamț.
 export default function DespreNoi() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
-      <div className="dim">Autopas Dezmembrări · Piatra-Neamț</div>
+      <Breadcrumbs items={[{ t: "Acasă", href: "/" }, { t: "Despre noi" }]} />
       <h1 className="font-disp font-bold text-3xl mt-2">Despre noi</h1>
       <div className="mt-5 space-y-4 leading-relaxed">
         <p>Autopas Dezmembrări este un centru autorizat de dezmembrări auto din Piatra-Neamț, specializat în vânzarea de piese auto second-hand verificate. Oferim piese pentru o gamă largă de mărci și modele, cu fotografii reale ale fiecărui produs și informații complete despre proveniență.</p>
