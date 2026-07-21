@@ -8,7 +8,7 @@ import FavButton from "@/components/FavButton";
 import BackLink from "@/components/BackLink";
 import { TrustIcon } from "@/components/TrustBar";
 import { lei } from "@/lib/format";
-import { waLink } from "@/lib/config";
+import { getSetariServer, waLinkCu } from "@/lib/settings";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -20,6 +20,7 @@ export default async function Produs({ params }: { params: { slug: string } }) {
   const { data: p } = await sb.from("products").select("*, categories(*), vehicles(*)").eq("slug", params.slug).single();
   if (!p) notFound();
   const prod = p as Product;
+  const { firma } = await getSetariServer();
   await sb.rpc("vazut_produs", { p_id: prod.id });
 
   const models = ((await sb.from("models").select("*")).data ?? []) as Model[];
@@ -103,7 +104,7 @@ export default async function Produs({ params }: { params: { slug: string } }) {
             {prod.stoc > 0
               ? <div className="flex-1 min-w-[190px]"><AddToCart p={prod} mare /></div>
               : <div className="flex-1 min-w-[190px] rounded-xl bg-line text-steel px-5 py-3 text-sm font-medium text-center">Stoc epuizat — vezi piese similare</div>}
-            <a href={waLink(`Bună! Mă interesează: ${prod.nume}${prod.oem ? ` (OEM ${prod.oem})` : ""} — cod ${prod.cod_intern ?? ""}.`)}
+            <a href={waLinkCu(firma.whatsapp, `Bună! Mă interesează: ${prod.nume}${prod.oem ? ` (OEM ${prod.oem})` : ""} — cod ${prod.cod_intern ?? ""}.`)}
               target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center justify-center rounded-xl bg-[#1FA463] text-white px-5 py-3 text-sm font-semibold hover:brightness-110">
               Întreabă pe WhatsApp</a>
