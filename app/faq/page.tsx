@@ -1,9 +1,9 @@
 export const metadata = { title: "Întrebări frecvente" };
 const FAQ = [
-  ["Piesele sunt testate?","Da. Piesele cu valoare (alternatoare, electromotoare, turbine, compresoare) sunt testate în atelier înainte de listare. Starea fiecărei piese (A/B/C) este afișată clar pe pagina produsului."],
-  ["Ce garanție primesc?","30 de zile de la livrare, pentru toate piesele, cu factura și eticheta OEM intactă. Detalii complete în pagina Certificat de garanție."],
+  ["Piesele sunt testate?","Da. Piesele cu valoare (alternatoare, electromotoare, turbine, compresoare) sunt testate în atelier și verificate înainte de livrare. Fiecare piesă are descriere, fotografii reale și codul OEM."],
+  ["Ce garanție primesc?","30 de zile de la livrare, conform regulamentului, pentru toate piesele, cu factura și eticheta intactă. Detalii complete în pagina Certificat de garanție."],
   ["Cum verific dacă piesa se potrivește pe mașina mea?","Fiecare produs are lista de compatibilitate. Dacă nu ești sigur, trimite-ne seria de șasiu (VIN) pe WhatsApp — verificăm noi, gratuit."],
-  ["Cât durează livrarea și cât costă?","24–48 de ore prin FAN Courier (19,90 lei), Cargus (21,50 lei) sau Sameday easybox (14,90 lei). Piesele voluminoase se livrează paletizat, cu tarif comunicat înainte de expediere."],
+  ["Cât durează livrarea și cât costă?","1–3 zile lucrătoare prin FAN Courier (19,90 lei), Cargus (21,50 lei) sau Sameday easybox (14,90 lei). Piesele voluminoase se livrează paletizat, cu tarif comunicat înainte de expediere."],
   ["Pot returna piesa?","Da, în 14 zile calendaristice, conform OUG 34/2014, folosind Formularul de retur din subsol. Dacă piesa e neconformă, transportul de retur îl plătim noi."],
   ["Cum plătesc?","Ramburs la curier sau transfer bancar (proformă). Plata cu cardul online va fi disponibilă în curând."],
   ["Cumpărați mașini pentru dezmembrare?","Da — avariate, defecte sau vechi. Plata pe loc, transport gratuit cu platforma în zona Neamț și certificat de distrugere emis imediat. Vezi paginile «Predă mașina» și «Programul Rabla»."],
