@@ -56,7 +56,8 @@ export default function Setari() {
         <form onSubmit={(e) => { e.preventDefault();
           const f = new FormData(e.currentTarget);
           const nou: Firma = { denumire: String(f.get("denumire")), cui: String(f.get("cui")), reg_com: String(f.get("reg_com")),
-            iban: String(f.get("iban")), serie_factura: String(f.get("serie")), telefon: String(f.get("telefon")), email: String(f.get("email")) };
+            iban: String(f.get("iban")), serie_factura: String(f.get("serie")), telefon: String(f.get("telefon")),
+            email: String(f.get("email")), whatsapp: String(f.get("whatsapp")).replace(/\D/g, "") };
           setFirma(nou); salveaza("firma", nou); }}
           className="card p-5 grid gap-3 text-sm">
           <b className="font-disp font-semibold text-[13px]">Date firmă și fiscale</b>
@@ -70,6 +71,9 @@ export default function Setari() {
           </div>
           <div className="fld"><label>IBAN</label><input name="iban" defaultValue={firma.iban} placeholder="RO…" /></div>
           <div className="fld"><label>E-mail comenzi</label><input name="email" type="email" defaultValue={firma.email} /></div>
+          <div className="fld"><label>Număr WhatsApp <span className="font-normal text-mut">(format internațional, ex. 40740123456)</span></label>
+            <input name="whatsapp" defaultValue={firma.whatsapp} placeholder="40740123456" /></div>
+          <p className="text-[11px] text-mut -mt-1">Se aplică instant pe tot site-ul: butonul plutitor, pagina de produs, butoanele din admin.</p>
           <button className="btn-acc" disabled={!eAdmin}>Salvează datele firmei</button>
         </form>
 
@@ -94,6 +98,10 @@ export default function Setari() {
           <div className="card p-5 text-sm">
             <b className="font-disp font-semibold text-[13px]">Echipa și rolurile</b>
             <p className="text-xs text-mut mt-1">Conturile se creează prin înregistrare pe site; aici le atribui rolul.</p>
+            {useri.length <= 1 && (
+              <p className="text-[11px] text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg px-2.5 py-2 mt-2">
+                Dacă vezi doar contul tău, rulează migrarea <b>admin-fix.sql</b> — până atunci baza de date nu îi arată adminului ceilalți utilizatori.</p>
+            )}
             <div className="mt-3 divide-y divide-line">
               {useri.map((u) => (
                 <div key={u.id} className="py-2.5 flex items-center gap-3">
