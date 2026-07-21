@@ -17,7 +17,13 @@ function ProduseInner() {
   const [prods, setProds] = useState<Prod[]>([]);
   const [q, setQ] = useState("");
   const [msg, setMsg] = useState("");
+  const [total, setTotal] = useState(0);
   const [cats, setCats] = useState<{ id: number; slug: string; nume: string; parent_id: number | null }[]>([]);
+  const [filtruCat, setFiltruCat] = useState("");
+  const [filtruStare, setFiltruStare] = useState<"" | "publicat" | "ascuns" | "epuizat">("");
+  const [sel, setSel] = useState<number[]>([]);
+  const [pagina, setPagina] = useState(0);
+  const PE_PAGINA = 50;
   useEffect(() => {
     const sb = sbBrowser(); if (!sb) return;
     sb.from("categories").select("id,slug,nume,parent_id").order("ordine")
@@ -27,10 +33,15 @@ function ProduseInner() {
 
   const incarca = useCallback(async () => {
     const sb = sbBrowser(); if (!sb) return;
-    let query = sb.from("products").select("*").order("created_at", { ascending: false }).limit(300);
-    if (q.trim()) query = query.or(`oem.ilike.%${q}%,nume.ilike.%${q}%`);
-    setProds(((await query).data ?? []) as Prod[]);
-  }, [q]);
+    let query = sb.from("products").select("*", { count: "exact" }).order("created_at", { ascending: false });
+    if (q.trim()) query = query.or(`oem.ilike.%${q}%,nume.ilike.%${q}%,cod_intern.ilike.%${q}%`);
+    if (filtruCat) query = query.or(`categorie_id.eq.${filtruCat},subcategorie_id.eq.${filtruCat}`);
+    if (filtruStare === "publicat") query = query.eq("publicat", true);
+    if (filtruStare === "ascuns") query = query.eq("publicat", false);
+    if (filtruStare === "epuizat") query = query.lte("stoc", 0);
+    const { data, count } = await query.range(pagina * PE_PAGINA, pagina * PE_PAGINA + PE_PAGINA - 1);
+    setProds((data ?? []) as Prod[]); setTotal(count ?? 0); setSel([]);
+  }, [q, filtruCat, filtruStare, pagina]);
   useEffect(() => { const t = setTimeout(incarca, q ? 300 : 0); return () => clearTimeout(t); }, [incarca, q]);
 
 
@@ -89,6 +100,20 @@ function ProduseInner() {
     incarca();
   }
 
+  async function inMasa(actiune: "publica" | "ascunde" | "sterge") {
+    if (sel.length === 0) return;
+    const sb = sbBrowser()!;
+    if (actiune === "sterge") {
+      if (!confirm(`Ștergi ${sel.length} piese? Cele care apar în comenzi vor fi doar ascunse.`)) return;
+      for (const id of sel) await sb.rpc("sterge_produs", { p_id: id });
+      setMsg(`✓ ${sel.length} piese procesate.`);
+    } else {
+      await sb.from("products").update({ publicat: actiune === "publica" }).in("id", sel);
+      setMsg(`✓ ${sel.length} piese ${actiune === "publica" ? "publicate" : "ascunse"}.`);
+    }
+    incarca();
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-end justify-between flex-wrap gap-3">
@@ -98,8 +123,24 @@ function ProduseInner() {
 
       <div className="grid gap-4 items-start">
         <div className="space-y-3">
-          <div className="flex gap-2">
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Caută după cod OEM sau denumire…"
+          <div className="flex flex-wrap gap-2">
+            <select value={filtruCat} onChange={(e) => { setFiltruCat(e.target.value); setPagina(0); }}
+              className="rounded-xl border-2 border-line px-3 py-2.5 text-sm outline-none focus:border-acc">
+              <option value="">Toate categoriile</option>
+              {cats.filter((c) => !c.parent_id).map((c) => (
+                <optgroup key={c.id} label={c.nume}>
+                  <option value={c.id}>{c.nume} (tot)</option>
+                  {cats.filter((s) => s.parent_id === c.id).map((s) => <option key={s.id} value={s.id}>— {s.nume}</option>)}
+                </optgroup>))}
+            </select>
+            <select value={filtruStare} onChange={(e) => { setFiltruStare(e.target.value as any); setPagina(0); }}
+              className="rounded-xl border-2 border-line px-3 py-2.5 text-sm outline-none focus:border-acc">
+              <option value="">Toate stările</option>
+              <option value="publicat">Doar publicate</option>
+              <option value="ascuns">Doar ascunse</option>
+              <option value="epuizat">Stoc epuizat</option>
+            </select>
+            <input value={q} onChange={(e) => { setQ(e.target.value); setPagina(0); }} placeholder="Caută OEM, denumire sau cod intern…"
               className="flex-1 rounded-xl border-2 border-line px-4 py-2.5 text-sm outline-none focus:border-acc" />
             <label className="rounded-xl border-2 border-line px-4 py-2.5 text-sm font-semibold cursor-pointer hover:border-acc whitespace-nowrap"
               title="Coloane: nume;oem;pret;stoc;greutate;cost;ani;categorie_slug">
@@ -108,9 +149,25 @@ function ProduseInner() {
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) importCsv(f); e.target.value = ""; }} />
             </label>
           </div>
+          {sel.length > 0 && (
+            <div className="card px-4 py-2.5 flex items-center gap-3 text-sm bg-acc/5 border-acc">
+              <b>{sel.length} selectate</b>
+              <button onClick={() => inMasa("publica")} className="text-ok font-semibold">Publică</button>
+              <button onClick={() => inMasa("ascunde")} className="text-steel font-semibold">Ascunde</button>
+              <button onClick={() => inMasa("sterge")} className="text-red-600 font-semibold">Șterge</button>
+              <button onClick={() => setSel([])} className="ml-auto text-mut text-xs">renunț</button>
+            </div>
+          )}
           <div className="card divide-y divide-line">
+            <div className="px-4 py-2 flex items-center gap-3 text-xs text-mut bg-paper">
+              <input type="checkbox" checked={sel.length === prods.length && prods.length > 0}
+                onChange={(e) => setSel(e.target.checked ? prods.map((x) => x.id) : [])} />
+              <span>{total} piese în total{total > PE_PAGINA ? ` · pagina ${pagina + 1} din ${Math.ceil(total / PE_PAGINA)}` : ""}</span>
+            </div>
             {prods.map((p) => (
               <div key={p.id} className="px-4 py-3 flex items-center gap-3 text-sm">
+                <input type="checkbox" checked={sel.includes(p.id)}
+                  onChange={(e) => setSel(e.target.checked ? [...sel, p.id] : sel.filter((x) => x !== p.id))} />
                 {p.poze && p.poze.length > 0
                   ? <img src={p.poze[0]} alt="" className="w-12 h-10 object-cover rounded-lg border border-line shrink-0" />
                   : <span className="w-12 h-10 rounded-lg border border-line bg-paper grid place-items-center text-[9px] text-mut shrink-0">fără poză</span>}
@@ -132,6 +189,15 @@ function ProduseInner() {
             ))}
             {prods.length === 0 && <p className="p-8 text-center text-mut text-sm">Nicio piesă găsită.</p>}
           </div>
+          {total > PE_PAGINA && (
+            <div className="flex items-center justify-center gap-2 text-sm">
+              <button disabled={pagina === 0} onClick={() => setPagina(pagina - 1)}
+                className="rounded-xl border-2 border-line px-4 py-1.5 font-semibold disabled:opacity-40">← Înapoi</button>
+              <span className="text-mut">pagina {pagina + 1} / {Math.ceil(total / PE_PAGINA)}</span>
+              <button disabled={(pagina + 1) * PE_PAGINA >= total} onClick={() => setPagina(pagina + 1)}
+                className="rounded-xl border-2 border-line px-4 py-1.5 font-semibold disabled:opacity-40">Înainte →</button>
+            </div>
+          )}
         </div>
 
         
