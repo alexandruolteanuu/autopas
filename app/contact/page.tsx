@@ -1,3 +1,4 @@
+import Breadcrumbs from "@/components/Breadcrumbs";
 import ContactForm from "@/components/ContactForm";
 import PartRequestForm from "@/components/PartRequestForm";
 export const metadata = { title: "Contact" };
@@ -5,7 +6,7 @@ export const metadata = { title: "Contact" };
 export default function Contact() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <div className="dim">Acasă / Contact</div>
+      <Breadcrumbs items={[{ t: "Acasă", href: "/" }, { t: "Contact" }]} />
       <h1 className="font-disp font-bold text-3xl mt-2 mb-7">Contact</h1>
       <div className="grid lg:grid-cols-3 gap-6 items-start">
         <div className="card p-5 space-y-3 text-sm">
