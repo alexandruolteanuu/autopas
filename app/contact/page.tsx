@@ -1,9 +1,13 @@
 import Breadcrumbs from "@/components/Breadcrumbs";
 import ContactForm from "@/components/ContactForm";
 import PartRequestForm from "@/components/PartRequestForm";
+import { getSetariServer } from "@/lib/settings";
 export const metadata = { title: "Contact" };
 
-export default function Contact() {
+export const dynamic = "force-dynamic";
+
+export default async function Contact() {
+  const { firma } = await getSetariServer();
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <Breadcrumbs items={[{ t: "Acasă", href: "/" }, { t: "Contact" }]} />
@@ -11,9 +15,9 @@ export default function Contact() {
       <div className="grid lg:grid-cols-3 gap-6 items-start">
         <div className="card p-5 space-y-3 text-sm">
           <b className="font-disp font-semibold text-[13px]">Date de contact</b>
-          <p>☎ <b>0740 123 456</b><br /><span className="text-mut">L–V 08–17 · S 09–13</span></p>
-          <p>💬 WhatsApp: <b>0740 123 456</b><br /><span className="text-mut">trimite cod OEM sau poze cu piesa</span></p>
-          <p>✉ comenzi@autopas.ro</p>
+          <p>☎ <b>{firma.telefon}</b><br /><span className="text-mut">L–V 08–17 · S 09–13</span></p>
+          <p>💬 WhatsApp: <b>{firma.telefon}</b><br /><span className="text-mut">trimite cod OEM sau poze cu piesa</span></p>
+          <p>✉ {firma.email}</p>
           <p>📍 Piatra-Neamț, jud. Neamț<br /><span className="text-mut">ridicare personală cu programare</span></p>
         </div>
         <div><b className="font-disp font-semibold text-[13px] block mb-3">Scrie-ne un mesaj</b><ContactForm /></div>
