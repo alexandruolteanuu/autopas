@@ -3,6 +3,9 @@ import type { Product, Category, Brand, Model } from "@/lib/types";
 import AddToCart from "@/components/AddToCart";
 import ProductCard from "@/components/ProductCard";
 import ProductGallery from "@/components/ProductGallery";
+import Breadcrumbs from "@/components/Breadcrumbs";
+import FavButton from "@/components/FavButton";
+import BackLink from "@/components/BackLink";
 import { TrustIcon } from "@/components/TrustBar";
 import { lei } from "@/lib/format";
 import { waLink } from "@/lib/config";
@@ -17,9 +20,8 @@ export default async function Produs({ params }: { params: { slug: string } }) {
   const { data: p } = await sb.from("products").select("*, categories(*), vehicles(*)").eq("slug", params.slug).single();
   if (!p) notFound();
   const prod = p as Product;
-  await sb.rpc("vazut_produs", { p_id: prod.id }); // statistica din admin
+  await sb.rpc("vazut_produs", { p_id: prod.id });
 
-  // marca + modelele compatibile (pentru fișa tehnică)
   const models = ((await sb.from("models").select("*")).data ?? []) as Model[];
   const brands = ((await sb.from("brands").select("*")).data ?? []) as Brand[];
   const modeleProd = models.filter((m) => (prod.model_ids ?? []).includes(m.id));
@@ -27,7 +29,6 @@ export default async function Produs({ params }: { params: { slug: string } }) {
   const subcat = prod.subcategorie_id
     ? ((await sb.from("categories").select("*").eq("id", prod.subcategorie_id).single()).data as Category | null) : null;
 
-  // PIESE SIMILARE — același tip de piesă, pentru aceeași marcă / modele compatibile
   let similare: Product[] = [];
   {
     let q = sb.from("products").select("*").eq("publicat", true).gt("stoc", 0).neq("id", prod.id);
@@ -42,82 +43,104 @@ export default async function Produs({ params }: { params: { slug: string } }) {
     }
   }
 
-  // ALTE PIESE PENTRU ACEASTĂ MAȘINĂ — din același vehicul-sursă
   let aceeasiMasina: Product[] = [];
   if (prod.vehicul_id) {
     aceeasiMasina = ((await sb.from("products").select("*").eq("vehicul_id", prod.vehicul_id)
       .neq("id", prod.id).eq("publicat", true).gt("stoc", 0).limit(8)).data ?? []) as Product[];
   }
 
+  const catPrinc = prod.categories;
   const FISA: [string, React.ReactNode][] = [
     ["Marca", marcaProd?.nume ?? "—"],
     ["Model", modeleProd.length ? modeleProd.map((m) => m.nume).join(", ") : (prod.ani ?? "—")],
-    ["Subgrupă", subcat?.nume ?? prod.categories?.nume ?? "—"],
+    ["Subgrupă", subcat?.nume ?? catPrinc?.nume ?? "—"],
     ["Cod OEM", prod.oem || "—"],
     ["Cod intern", prod.cod_intern ?? "—"],
     ["Vă oferim", <span key="o" className="inline-flex flex-wrap gap-x-3 gap-y-1">
-      <span className="text-ok font-semibold">Factură ✓</span>
-      <span className="text-ok font-semibold">Garanție ✓</span>
-      <span className="text-ok font-semibold">Drept de retur ✓</span></span>],
+      <span className="text-ok">Factură ✓</span><span className="text-ok">Garanție ✓</span><span className="text-ok">Drept de retur ✓</span></span>],
+    ["Livrare", "prin curier rapid în 24/48h (contra cost)"],
   ];
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
-      <div className="dim">Acasă / {prod.categories?.nume ?? "Piese"} / {prod.nume.slice(0, 40)}</div>
-      <div className="grid lg:grid-cols-2 gap-8 mt-4">
+    <div className="mx-auto max-w-6xl px-4 py-6">
+      <div className="flex items-center gap-3 flex-wrap mb-3">
+        <BackLink />
+        <Breadcrumbs items={[
+          { t: "Acasă", href: "/" },
+          { t: "Piese auto", href: "/piese" },
+          ...(catPrinc ? [{ t: catPrinc.nume, href: `/piese?categorie=${catPrinc.slug}` }] : []),
+          ...(subcat ? [{ t: subcat.nume, href: `/piese?subcategorie=${subcat.slug}` }] : []),
+          { t: prod.nume },
+        ]} />
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-8">
         <ProductGallery poze={prod.poze ?? []} art={prod.art} nume={prod.nume} />
 
         <div>
-          <h1 className="font-disp font-bold text-[25px] leading-tight">{prod.nume}</h1>
+          <h1 className="font-disp font-bold text-[22px] leading-snug">{prod.nume}</h1>
 
-          <div className="mt-5 flex items-end gap-3">
-            <span className="font-disp font-bold text-4xl text-acc">{lei(Number(prod.pret_lei), prod.pret_sufix)}</span>
-            <span className="text-mut text-sm mb-1.5">TVA inclus</span>
-          </div>
-          <div className="mt-2 flex flex-wrap gap-2 text-[12px] font-bold">
+          <div className="mt-3 flex items-center gap-2.5 flex-wrap text-[12px]">
             {prod.stoc > 0
-              ? <span className="px-2.5 py-1 rounded-full bg-acc/10 text-acc">Stoc: {prod.stoc} buc</span>
-              : <span className="px-2.5 py-1 rounded-full bg-line text-steel">Vândută</span>}
-            {prod.originala !== false && <span className="px-2.5 py-1 rounded-full bg-ok/10 text-ok">Piesă auto originală din dezmembrări</span>}
+              ? <span className="px-2.5 py-1 rounded-full bg-ok/10 text-ok">În stoc</span>
+              : <span className="px-2.5 py-1 rounded-full bg-line text-steel">Stoc epuizat</span>}
+            <span className="text-mut">Cod intern: {prod.cod_intern ?? "—"}</span>
           </div>
 
-          <div className="mt-5 grid sm:grid-cols-2 gap-3">
-            {prod.stoc > 0 ? <AddToCart p={prod} mare /> :
-              <div className="rounded-xl bg-line text-steel px-6 py-3.5 font-semibold text-center">Vândută — vezi piese similare</div>}
+          <div className="mt-4 flex items-end gap-2.5">
+            <span className="font-disp font-bold text-[30px] text-acc leading-none">{lei(Number(prod.pret_lei), prod.pret_sufix)}</span>
+            <span className="text-mut text-[13px]">TVA inclus</span>
+          </div>
+
+          {prod.originala !== false && (
+            <div className="mt-3 flex items-center gap-2.5 rounded-xl border border-ok/30 bg-ok/5 px-3.5 py-2.5 text-[13px] text-steel">
+              <span className="text-ok shrink-0"><TrustIcon kind="scut" className="w-5 h-5" /></span>
+              Piesă auto originală din dezmembrări — verificată înainte de livrare
+            </div>
+          )}
+
+          <div className="mt-4 flex flex-wrap gap-2.5">
+            {prod.stoc > 0
+              ? <div className="flex-1 min-w-[190px]"><AddToCart p={prod} mare /></div>
+              : <div className="flex-1 min-w-[190px] rounded-xl bg-line text-steel px-5 py-3 text-sm font-medium text-center">Stoc epuizat — vezi piese similare</div>}
             <a href={waLink(`Bună! Mă interesează: ${prod.nume}${prod.oem ? ` (OEM ${prod.oem})` : ""} — cod ${prod.cod_intern ?? ""}.`)}
               target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center justify-center rounded-xl bg-[#1FA463] text-white px-6 py-3.5 font-semibold hover:brightness-110">
+              className="inline-flex items-center justify-center rounded-xl bg-[#1FA463] text-white px-5 py-3 text-sm font-semibold hover:brightness-110">
               Întreabă pe WhatsApp</a>
+            <FavButton id={prod.id} variant="line" />
           </div>
 
-          {/* FIȘA TEHNICĂ */}
           <div className="card mt-5 overflow-hidden">
             <div className="bg-paper px-4 py-2.5 border-b border-line"><b className="font-disp font-semibold text-[13px]">Detaliile piesei</b></div>
-            <dl className="divide-y divide-line text-sm">
+            <dl className="divide-y divide-line text-[13.5px]">
               {FISA.map(([k, v]) => (
                 <div key={k} className="flex gap-4 px-4 py-2.5">
                   <dt className="text-mut w-32 shrink-0">{k}</dt>
-                  <dd className="font-medium min-w-0">{v}</dd>
+                  <dd className="min-w-0">{v}</dd>
                 </div>
               ))}
-              <div className="flex gap-4 px-4 py-2.5">
-                <dt className="text-mut w-32 shrink-0">Livrare</dt>
-                <dd className="font-medium">prin curier rapid în 24/48h (contra cost)</dd>
-              </div>
             </dl>
           </div>
 
-          <div className="mt-4 grid sm:grid-cols-2 gap-2 text-sm">
-            <div className="card px-3.5 py-2.5 flex items-center gap-2"><span className="text-acc"><TrustIcon kind="camion" /></span> Livrare 1–3 zile lucrătoare</div>
+          <div className="mt-3 grid sm:grid-cols-2 gap-2 text-[13px]">
+            <Link href="/legal/livrare" className="card px-3.5 py-2.5 flex items-center gap-2 hover:border-acc">
+              <span className="text-acc"><TrustIcon kind="camion" /></span> Livrare 1–3 zile lucrătoare</Link>
             <Link href="/legal/politica-de-retur" className="card px-3.5 py-2.5 flex items-center gap-2 hover:border-acc">
               <span className="text-acc"><TrustIcon kind="retur" /></span> Retur în 14 zile</Link>
           </div>
 
+          {prod.stare_nota && (
+            <div className="card p-4 mt-3 text-[13.5px]">
+              <b className="font-disp font-semibold text-[13px] block mb-1.5">Descriere</b>
+              <p className="text-steel">{prod.stare_nota}</p>
+            </div>
+          )}
+
           {prod.compat.length > 0 && (
-            <div className="card p-4 mt-5">
+            <div className="card p-4 mt-3">
               <b className="font-disp font-semibold text-[13px]">Compatibilitate — se potrivește pe:</b>
-              <ul className="mt-2 space-y-1.5 text-sm">
-                {prod.compat.map((c) => <li key={c} className="flex gap-2"><span className="text-ok font-bold">✓</span>{c}</li>)}
+              <ul className="mt-2 space-y-1.5 text-[13.5px]">
+                {prod.compat.map((c) => <li key={c} className="flex gap-2"><span className="text-ok">✓</span>{c}</li>)}
               </ul>
             </div>
           )}
