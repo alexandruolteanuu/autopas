@@ -1,6 +1,8 @@
 import Link from "next/link";
+import type { Firma } from "@/lib/settings";
+import { FIRMA_IMPLICITA } from "@/lib/settings";
 // Footer complet — modelul cerut de client: toate paginile legale + bannere ANPC/SOL vizibile.
-export default function Footer() {
+export default function Footer({ firma = FIRMA_IMPLICITA }: { firma?: Firma }) {
   return (
     <footer className="bg-ink text-white mt-16">
       <div className="mx-auto max-w-6xl px-4 py-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4 text-sm">
@@ -54,7 +56,7 @@ export default function Footer() {
       </div>
       <div className="border-t border-white/10 text-[12px] text-white/50">
         <div className="mx-auto max-w-6xl px-4 py-4 flex flex-wrap gap-2 justify-between">
-          <span>© {new Date().getFullYear()} Autopas Dezmembrări SRL · CUI RO12345678 · Reg. Com. J27/456/2015 · Autorizat pentru tratarea vehiculelor scoase din uz</span>
+          <span>© {new Date().getFullYear()} {firma.denumire}{firma.cui ? ` · CUI ${firma.cui}` : ""}{firma.reg_com ? ` · Reg. Com. ${firma.reg_com}` : ""} · Autorizat pentru tratarea vehiculelor scoase din uz</span>
           <span>VISA · Mastercard · Ramburs</span>
         </div>
       </div>
