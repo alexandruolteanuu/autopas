@@ -105,13 +105,14 @@ export default function Checkout() {
           <div className="card p-5">
             <b className="font-disp font-semibold text-[13px]">3 · Metoda de plată</b>
             <div className="mt-3 space-y-2">
-              {[["ramburs","Ramburs la curier","plătești când primești piesa"],["transfer","Transfer bancar","primești proforma pe e-mail"]].map(([id,t,d]) => (
+              {[["card","Card online","Visa / Mastercard — plată securizată"],["ramburs","Ramburs la curier","plătești când primești piesa"],["transfer","Transfer bancar","primești proforma pe e-mail"]].map(([id,t,d]) => (
                 <label key={id} className={`flex items-center gap-3 rounded-lg border-2 px-4 py-3 cursor-pointer ${plata === id ? "border-acc bg-acc/5" : "border-line"}`}>
                   <input type="radio" name="plata" checked={plata === id} onChange={() => setPlata(id)} />
                   <span><b>{t}</b> <span className="text-mut text-sm">· {d}</span></span>
                 </label>
               ))}
-              <p className="text-xs text-mut">Plata cu cardul online va fi activată după conectarea procesatorului de plăți.</p>
+              {plata === "card" && <p className="text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+                Plata cu cardul se activează la conectarea procesatorului. Până atunci, comanda se înregistrează și te contactăm cu linkul de plată sau poți alege ramburs.</p>}
             </div>
           </div>
           {/* 4. GDPR */}
