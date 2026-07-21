@@ -1,3 +1,4 @@
+import Breadcrumbs from "@/components/Breadcrumbs";
 import { sbServer } from "@/lib/supabase";
 import type { Product, Category, Brand, Model } from "@/lib/types";
 import ProductCard from "@/components/ProductCard";
@@ -76,7 +77,10 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <div className="dim">Acasă / Piese auto{catActiva ? ` / ${catActiva.nume}` : ""}</div>
+      <Breadcrumbs items={[{ t: "Acasă", href: "/" },
+        { t: "Piese auto", ...(catActiva ? { href: "/piese" } : {}) },
+        ...(catActiva?.parent_id ? [{ t: cats.find((c) => c.id === catActiva!.parent_id)?.nume ?? "", href: `/piese?categorie=${cats.find((c) => c.id === catActiva!.parent_id)?.slug}` }] : []),
+        ...(catActiva ? [{ t: catActiva.nume }] : [])]} />
       <h1 className="font-disp font-bold text-3xl mt-2 mb-4">{titlu}</h1>
       <div className="mb-6"><VehicleFilter brands={brands} models={models} cats={principale} counts={fitmentCounts(fitRows, models)} compact /></div>
 
