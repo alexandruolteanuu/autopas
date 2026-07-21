@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import SiteChrome from "@/components/SiteChrome";
 import { CartProvider } from "@/components/CartContext";
+import { FavoritesProvider } from "@/components/FavoritesContext";
 import { CONFIG } from "@/lib/config";
 import { getSetariServer } from "@/lib/settings";
 
@@ -28,7 +29,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="ro" className={poppins.variable}>
       <body>
         <CartProvider>
+          <FavoritesProvider>
           <SiteChrome waPhone={CONFIG.whatsapp} firma={firma}>{children}</SiteChrome>
+        </FavoritesProvider>
         </CartProvider>
       </body>
     </html>
