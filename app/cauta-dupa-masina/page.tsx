@@ -1,3 +1,4 @@
+import Breadcrumbs from "@/components/Breadcrumbs";
 import { sbServer } from "@/lib/supabase";
 import type { Vehicle } from "@/lib/types";
 import Link from "next/link";
@@ -16,7 +17,7 @@ export default async function CautaDupaMasina() {
   const cats = sb ? (((await sb.from("categories").select("*").order("ordine")).data ?? []) as Category[]) : [];
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <div className="dim">Acasă / Caută după mașină</div>
+      <Breadcrumbs items={[{ t: "Acasă", href: "/" }, { t: "Caută după mașină" }]} />
       <h1 className="font-disp font-bold text-3xl mt-2">Caută piese după mașina ta</h1>
       <div className="mt-5 mb-2"><VehicleFilter brands={brands} models={models} cats={cats} compact /></div>
       <p className="text-mut mt-6 max-w-2xl">Sau alege una dintre mașinile aflate la noi în dezmembrare — vezi doar piesele care ți se potrivesc. Fiecare piesă e legată de mașina din care provine, cu seria de șasiu la vedere.</p>
