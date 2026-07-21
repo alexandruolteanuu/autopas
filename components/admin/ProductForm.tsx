@@ -17,6 +17,7 @@ export default function ProductForm({ produs }: { produs?: Product }) {
   const [catId, setCatId] = useState<string>(String(produs?.categorie_id ?? ""));
   const [modeleSel, setModeleSel] = useState<number[]>(produs?.model_ids ?? []);
   const [marcaFiltru, setMarcaFiltru] = useState<string>("");
+  const [subcatId, setSubcatId] = useState<string>(String(produs?.subcategorie_id ?? ""));
   const [msg, setMsg] = useState("");
   const [salvez, setSalvez] = useState(false);
 
@@ -139,12 +140,12 @@ export default function ProductForm({ produs }: { produs?: Product }) {
           <div className="card p-5 grid gap-3 text-sm">
             <b className="font-disp font-semibold text-[13px]">Clasificare</b>
             <div className="fld"><label>Categorie *</label>
-              <select name="categorie" required value={catId} onChange={(e) => setCatId(e.target.value)}>
+              <select name="categorie" required value={catId} onChange={(e) => { setCatId(e.target.value); setSubcatId(""); }}>
                 <option value="">— alege —</option>
                 {principale.map((c) => <option key={c.id} value={c.id}>{c.nume}</option>)}
               </select></div>
             <div className="fld"><label>Subcategorie</label>
-              <select name="subcategorie" defaultValue={produs?.subcategorie_id ?? ""} disabled={subcats.length === 0}>
+              <select name="subcategorie" value={subcatId} onChange={(e) => setSubcatId(e.target.value)} disabled={subcats.length === 0}>
                 <option value="">{subcats.length ? "— fără —" : "alege întâi categoria"}</option>
                 {subcats.map((s) => <option key={s.id} value={s.id}>{s.nume}</option>)}
               </select></div>
