@@ -17,6 +17,8 @@ export default async function Produs({ params }: { params: { slug: string } }) {
     .select("*, categories(*), vehicles(*)").eq("slug", params.slug).single();
   if (!p) notFound();
   const prod = p as Product;
+  // contorizăm vizualizarea (statistica din admin → ce piese sunt cerute)
+  await sb.rpc("vazut_produs", { p_id: prod.id });
 
   // Piese din aceeași mașină-sursă (dacă piesa are vehicul asociat)
   let dinAceeasi: Product[] = [];
@@ -65,11 +67,14 @@ export default async function Produs({ params }: { params: { slug: string } }) {
             <span className="text-mut text-sm mb-1.5">TVA inclus</span>
           </div>
           <div className="mt-2 flex gap-2 text-[12px] font-bold">
-            <span className="px-2.5 py-1 rounded-full bg-acc/10 text-acc">Stoc: {prod.stoc} buc — piesă unică</span>
+            {prod.stoc > 0
+              ? <span className="px-2.5 py-1 rounded-full bg-acc/10 text-acc">Stoc: {prod.stoc} buc — piesă unică</span>
+              : <span className="px-2.5 py-1 rounded-full bg-line text-steel">Vândută</span>}
             <span className="px-2.5 py-1 rounded-full bg-ok/10 text-ok">Garanție 30 de zile</span>
           </div>
           <div className="mt-5 grid sm:grid-cols-2 gap-3">
-            <AddToCart p={prod} mare />
+            {prod.stoc > 0 ? <AddToCart p={prod} mare /> :
+              <div className="rounded-xl bg-line text-steel px-6 py-3.5 font-semibold text-center">Vândută — cere una similară mai jos</div>}
             <a href={waLink(`Bună! Mă interesează: ${prod.nume} (OEM ${prod.oem}).`)} target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center justify-center rounded-lg bg-[#1FA463] text-white px-6 py-3.5 font-semibold hover:brightness-110">
               Întreabă pe WhatsApp</a>
