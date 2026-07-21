@@ -8,6 +8,8 @@ export function nrComanda() {
   const r = Math.floor(10000 + Math.random() * 89999);
   return `AP-${an}-${r}`;
 }
+// DEPRECIAT — curierii se citesc acum din Setări (lib/settings.ts → getSetari*).
+// Rămâne doar ca rezervă pentru codul vechi.
 export const CURIERI = [
   { id: "fan",     nume: "FAN Courier",     detalii: "livrare 24–48h, ramburs inclus", pret: 19.9 },
   { id: "cargus",  nume: "Cargus",          detalii: "livrare 24–48h",                 pret: 21.5 },
