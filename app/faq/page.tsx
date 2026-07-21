@@ -1,3 +1,4 @@
+import Breadcrumbs from "@/components/Breadcrumbs";
 export const metadata = { title: "Întrebări frecvente" };
 const FAQ = [
   ["Piesele sunt testate?","Da. Piesele cu valoare (alternatoare, electromotoare, turbine, compresoare) sunt testate în atelier și verificate înainte de livrare. Fiecare piesă are descriere, fotografii reale și codul OEM."],
@@ -13,7 +14,7 @@ const FAQ = [
 export default function Faq() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
-      <div className="dim">Acasă / Întrebări frecvente</div>
+      <Breadcrumbs items={[{ t: "Acasă", href: "/" }, { t: "Întrebări frecvente" }]} />
       <h1 className="font-disp font-bold text-3xl mt-2 mb-6">Întrebări frecvente</h1>
       <div className="space-y-3">
         {FAQ.map(([q, a]) => (
