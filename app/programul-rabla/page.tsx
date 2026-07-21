@@ -1,4 +1,5 @@
 // PAGINA CERUTĂ EXPLICIT DE CLIENT: Programul Rabla — detalii + „primesc la Rabla".
+import Breadcrumbs from "@/components/Breadcrumbs";
 import IntakeForm from "@/components/IntakeForm";
 export const metadata = { title: "Programul Rabla — predă mașina, primești certificatul pe loc" };
 
@@ -12,7 +13,7 @@ const PASI = [
 export default function Rabla() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <div className="dim">Acasă / Programul Rabla</div>
+      <Breadcrumbs items={[{ t: "Acasă", href: "/" }, { t: "Programul Rabla" }]} />
       <h1 className="font-disp font-bold text-3xl mt-2">Programul Rabla — simplu, cu certificat pe loc</h1>
       <p className="text-mut mt-2 max-w-2xl">Suntem centru autorizat pentru tratarea vehiculelor scoase din uz: preluăm mașina ta veche și îți emitem <b className="text-ink">certificatul de distrugere</b> — actul de care ai nevoie ca să primești ecotichetul Rabla.</p>
       <div className="grid lg:grid-cols-2 gap-8 mt-8 items-start">
