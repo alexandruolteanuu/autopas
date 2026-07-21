@@ -17,3 +17,12 @@ export function sbBrowser(): SupabaseClient | null {
   if (!browserClient) browserClient = createClient(url, key);
   return browserClient;
 }
+
+// Client cu drepturi depline — DOAR pentru rutele de server (nu ajunge niciodată în browser).
+// Se folosește ca să citim credențialele curierilor, care sunt protejate de RLS.
+// Necesită variabila SUPABASE_SERVICE_ROLE_KEY în Vercel (Settings → Environment Variables).
+export function sbAdmin(): SupabaseClient | null {
+  const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !service) return null;
+  return createClient(url, service, { auth: { persistSession: false } });
+}
