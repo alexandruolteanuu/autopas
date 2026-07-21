@@ -1,4 +1,5 @@
 "use client";
+import Breadcrumbs from "@/components/Breadcrumbs";
 import { useCart } from "@/components/CartContext";
 import PartArt from "@/components/PartArt";
 import { lei } from "@/lib/format";
@@ -30,7 +31,7 @@ export default function Cos() {
     );
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <div className="dim">Acasă / Coșul meu</div>
+      <Breadcrumbs items={[{ t: "Acasă", href: "/" }, { t: "Coșul meu" }]} />
       <h1 className="font-disp font-bold text-3xl mt-2 mb-6">Coșul meu <span className="text-mut text-lg">· {items.length} {items.length === 1 ? "produs" : "produse"}</span></h1>
       <div className="grid lg:grid-cols-[1fr,340px] gap-6 items-start">
         <div className="card divide-y divide-line">
