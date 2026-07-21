@@ -1,3 +1,4 @@
+import Breadcrumbs from "@/components/Breadcrumbs";
 import IntakeForm from "@/components/IntakeForm";
 import Link from "next/link";
 export const metadata = { title: "Predă mașina la dezmembrat" };
@@ -5,7 +6,7 @@ export const metadata = { title: "Predă mașina la dezmembrat" };
 export default function PredaMasina() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <div className="dim">Acasă / Predă mașina</div>
+      <Breadcrumbs items={[{ t: "Acasă", href: "/" }, { t: "Predă mașina" }]} />
       <h1 className="font-disp font-bold text-3xl mt-2">Predă mașina la dezmembrat</h1>
       <p className="text-mut mt-2 max-w-2xl">Cumpărăm mașini avariate, defecte sau pur și simplu bătrâne. Plata pe loc, acte făcute corect și <b className="text-ink">certificat de distrugere emis imediat</b> — ești șters de la fisc pentru mașină, fără drumuri.</p>
       <div className="grid lg:grid-cols-2 gap-8 mt-8 items-start">
