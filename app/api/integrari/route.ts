@@ -1,7 +1,11 @@
-// Raportează dacă cheile curierilor sunt configurate (fără să le expună).
+// Raportează starea integrărilor (fără să expună vreo parolă).
 import { NextResponse } from "next/server";
-import { fanCourierConfigurat, samedayConfigurat } from "@/lib/couriers";
+import { credentialeFan, credentialeSameday } from "@/lib/couriers";
 
 export async function GET() {
-  return NextResponse.json({ fan: fanCourierConfigurat(), sameday: samedayConfigurat() });
+  const [f, s] = await Promise.all([credentialeFan(), credentialeSameday()]);
+  return NextResponse.json({
+    fan: Boolean(f.clientId && f.user && f.parola),
+    sameday: Boolean(s.user && s.parola),
+  });
 }
