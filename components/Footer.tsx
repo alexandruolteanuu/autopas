@@ -9,7 +9,7 @@ export default function Footer({ firma = FIRMA_IMPLICITA }: { firma?: Firma }) {
         <div>
           <span className="block font-disp font-bold text-[24px]">AUTOPAS</span>
           <span className="block font-disp text-[9px] tracking-[0.5em] text-white/60 mb-3">DEZMEMBRĂRI</span>
-          <p className="text-white/70 leading-relaxed">Piese auto second-hand testate, din dezmembrări autorizate. Garanție 30 de zile la toate piesele, livrare rapidă în toată România.</p>
+          <p className="text-white/70 leading-relaxed">Piese auto second-hand testate, din dezmembrări autorizate. Garanție 30 de zile conform regulament, livrare 1–3 zile lucrătoare în toată România.</p>
           <p className="mt-3 text-white/70">📍 Piatra-Neamț, jud. Neamț</p>
         </div>
         <div>
