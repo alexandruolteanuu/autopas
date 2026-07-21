@@ -30,7 +30,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body>
         <CartProvider>
           <FavoritesProvider>
-          <SiteChrome waPhone={CONFIG.whatsapp} firma={firma}>{children}</SiteChrome>
+          <SiteChrome waPhone={firma.whatsapp || CONFIG.whatsapp} firma={firma}>{children}</SiteChrome>
         </FavoritesProvider>
         </CartProvider>
       </body>
