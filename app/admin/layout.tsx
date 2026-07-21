@@ -10,6 +10,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { sbBrowser } from "@/lib/supabase";
+import NewOrderAlert from "@/components/admin/NewOrderAlert";
 
 type Rol = "verific" | "anonim" | "client" | "admin" | "operator" | "contabil";
 type Cauta = { tip: string; titlu: string; sub: string; href: string };
@@ -184,6 +185,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
         </header>
         <main className="p-4 lg:p-6">{children}</main>
+        <NewOrderAlert />
       </div>
     </div>
   );
