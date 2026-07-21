@@ -1,12 +1,10 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
-import CookieBanner from "@/components/CookieBanner";
+import SiteChrome from "@/components/SiteChrome";
 import { CartProvider } from "@/components/CartContext";
-import WhatsAppFloat from "@/components/WhatsAppFloat";
 import { CONFIG } from "@/lib/config";
+import { getSetariServer } from "@/lib/settings";
 
 // Fontul Poppins (local) — un singur font, patru grosimi, diacritice românești garantate.
 const poppins = localFont({
@@ -24,16 +22,13 @@ export const metadata: Metadata = {
   description: "Piese auto second-hand din dezmembrări autorizate, Piatra-Neamț. Testate, fotografiate real, garanție 30 de zile, livrare 24–48h în toată România.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const { firma } = await getSetariServer();
   return (
     <html lang="ro" className={poppins.variable}>
       <body>
         <CartProvider>
-          <Header />
-          <main className="min-h-[60vh]">{children}</main>
-          <Footer />
-          <CookieBanner />
-          <WhatsAppFloat phone={CONFIG.whatsapp} />
+          <SiteChrome waPhone={CONFIG.whatsapp} firma={firma}>{children}</SiteChrome>
         </CartProvider>
       </body>
     </html>
