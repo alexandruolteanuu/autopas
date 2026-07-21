@@ -6,7 +6,8 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { sbBrowser } from "@/lib/supabase";
-import { lei, CURIERI } from "@/lib/format";
+import { lei } from "@/lib/format";
+import { getSetariBrowser, waLinkCu, CURIERI_IMPLICITI, type Curier, type Firma, FIRMA_IMPLICITA } from "@/lib/settings";
 import type { OrderFull, OrderEvent } from "@/lib/types";
 
 type Item = { id: number; nume: string; pret: number; cantitate: number; product_id: number | null;
@@ -23,6 +24,9 @@ export default function DetaliuComanda() {
   const [events, setEvents] = useState<OrderEvent[]>([]);
   const [msg, setMsg] = useState("");
   const [gata, setGata] = useState(false);
+  const [curieri, setCurieri] = useState<Curier[]>(CURIERI_IMPLICITI);
+  const [firma, setFirma] = useState<Firma>(FIRMA_IMPLICITA);
+  useEffect(() => { getSetariBrowser().then((s) => { setCurieri(s.curieri); setFirma(s.firma); }); }, []);
 
   const incarca = useCallback(async () => {
     const sb = sbBrowser(); if (!sb) return;
@@ -51,6 +55,16 @@ export default function DetaliuComanda() {
     if (error) setMsg("Eroare: " + error.message); else incarca();
   }
 
+  async function stergeComanda() {
+    if (!confirm("ȘTERGI definitiv comanda? Piesele revin pe stoc. Acțiunea nu poate fi anulată.")) return;
+    const sb = sbBrowser()!;
+    const { data, error } = await sb.rpc("sterge_comanda", { oid: Number(id) });
+    if (error) { setMsg("Eroare: " + error.message); return; }
+    const r = data as { ok: boolean; mesaj: string };
+    if (!r.ok) { setMsg(r.mesaj); return; }
+    router.push("/admin/comenzi");
+  }
+
   async function genereazaAwb() {
     if (!o) return; setMsg("");
     const r = await fetch("/api/awb", { method: "POST", headers: { "Content-Type": "application/json" },
@@ -64,7 +78,7 @@ export default function DetaliuComanda() {
   if (!o) return <div className="card p-8 text-center"><b>Comanda nu există.</b> <Link href="/admin/comenzi" className="text-acc font-semibold block mt-2">← Înapoi la comenzi</Link></div>;
 
   const greutate = Math.max(1, items.reduce((s, i) => s + (Number(i.products?.greutate_kg) || 5) * i.cantitate, 0));
-  const curier = CURIERI.find((c) => c.id === o.curier);
+  const curier = curieri.find((c) => c.id === o.curier);
   const pasCurent = PASI.indexOf(o.status);
 
   return (
@@ -73,8 +87,12 @@ export default function DetaliuComanda() {
         <div><Link href="/admin/comenzi" className="text-sm text-mut hover:text-acc">← Comenzi</Link>
           <h1 className="font-disp font-bold text-2xl">{o.numar}</h1>
           <span className="text-sm text-mut">{new Date(o.created_at).toLocaleString("ro-RO")}</span></div>
-        {o.status !== "anulata" && o.status !== "livrata" && (
-          <button onClick={anuleaza} className="rounded-xl border-2 border-red-200 text-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-50">Anulează comanda</button>)}
+        <div className="flex gap-2">
+          {o.status !== "anulata" && o.status !== "livrata" && (
+            <button onClick={anuleaza} className="rounded-xl border-2 border-red-200 text-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-50">Anulează</button>)}
+          <button onClick={stergeComanda} title="Doar administratorul; piesele revin pe stoc"
+            className="rounded-xl border-2 border-line text-mut px-4 py-2 text-sm font-semibold hover:border-red-300 hover:text-red-600">Șterge</button>
+        </div>
       </div>
 
       {/* Statusul — pași apăsabili */}
@@ -141,7 +159,14 @@ export default function DetaliuComanda() {
             <p className="mt-2"><b>{o.firma ?? o.nume}</b> · {o.tip_client === "firma" ? `firmă (CUI ${o.cui})` : "persoană fizică"}</p>
             <p className="text-mut">{o.adresa}, {o.oras}, jud. {o.judet}</p>
             <p className="mt-1">{o.telefon} · {o.email}</p>
-            <div className="flex gap-2 mt-3">
+            <div className="flex flex-wrap gap-2 mt-3">
+              <a href={waLinkCu(o.telefon.replace(/^0/, "4"),
+                `Bună ziua, ${o.nume}! Confirmăm comanda ${o.numar} de pe autopas.ro:\n` +
+                items.map((i) => `• ${i.nume} — ${Number(i.pret)} lei`).join("\n") +
+                `\nTotal: ${Number(o.total)} lei (${o.plata === "ramburs" ? "ramburs la livrare" : "transfer bancar"}).\n` +
+                `Livrare prin ${curier?.nume ?? o.curier} în 1–3 zile lucrătoare. Vă mulțumim!`)}
+                target="_blank" rel="noopener noreferrer" className="rounded-xl bg-[#25D366] text-white px-3.5 py-2 text-xs font-bold">
+                Trimite confirmarea pe WhatsApp</a>
               <a href={`https://wa.me/4${o.telefon.replace(/\D/g, "")}?text=${encodeURIComponent(`Bună ziua! Vă contactăm de la Autopas Dezmembrări în legătură cu comanda ${o.numar}.`)}`}
                 target="_blank" rel="noopener noreferrer" className="rounded-xl bg-[#25D366] text-white px-3.5 py-2 text-xs font-bold">WhatsApp</a>
               <a href={`mailto:${o.email}?subject=Comanda ${o.numar} — Autopas Dezmembrări`} className="rounded-xl bg-ink text-white px-3.5 py-2 text-xs font-bold">E-mail</a>
