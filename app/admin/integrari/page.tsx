@@ -1,6 +1,7 @@
 "use client";
 // INTEGRĂRI — starea reală a fiecărei conexiuni + ce trebuie făcut ca s-o activezi.
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { sbBrowser } from "@/lib/supabase";
 
 type Stare = { nume: string; grup: string; stare: "activ" | "pregatit" | "viitor"; desc: string; pasi: string[] };
 
@@ -31,9 +32,40 @@ const INTEGRARI: Stare[] = [
 
 const CULORI = { activ: ["bg-ok/10 text-ok border-ok/30", "Activ ✓"], pregatit: ["bg-yellow-50 text-yellow-700 border-yellow-200", "Pregătit — așteaptă cont"], viitor: ["bg-paper text-mut border-line", "Fază următoare"] } as const;
 
+// câmpurile de configurare salvate în baza de date (settings → integrari)
+const CAMPURI: Record<string, { k: string; l: string; tip?: string }[]> = {
+  "WhatsApp Business": [{ k: "numar", l: "Număr WhatsApp (format 40722…)" }],
+  "Saga — facturare": [{ k: "serie", l: "Seria facturilor (ex. AUTP)" }],
+  "FAN Courier (SelfAWB)": [{ k: "client_id", l: "Client ID" }, { k: "user", l: "Utilizator" }, { k: "parola", l: "Parolă", tip: "password" }],
+  "Sameday": [{ k: "user", l: "Utilizator" }, { k: "parola", l: "Parolă", tip: "password" }],
+  "Plată cu cardul (Netopia / Stripe)": [{ k: "pos_id", l: "POS Signature / ID" }, { k: "signature", l: "Cheie privată", tip: "password" }],
+  "Google Analytics 4": [{ k: "id", l: "ID de măsurare (G-XXXXXXX)" }],
+};
+const CHEI: Record<string, string> = {
+  "WhatsApp Business": "whatsapp", "Saga — facturare": "saga", "FAN Courier (SelfAWB)": "fancourier",
+  "Sameday": "sameday", "Plată cu cardul (Netopia / Stripe)": "netopia", "Google Analytics 4": "ga4",
+};
+
 export default function Integrari() {
   const [env, setEnv] = useState<Record<string, boolean>>({});
-  useEffect(() => { fetch("/api/integrari").then((r) => r.json()).then(setEnv).catch(() => {}); }, []);
+  const [conf, setConf] = useState<Record<string, any>>({});
+  const [msg, setMsg] = useState("");
+
+  const incarca = useCallback(async () => {
+    const sb = sbBrowser(); if (!sb) return;
+    const { data } = await sb.from("settings").select("valoare").eq("cheie", "integrari").single();
+    setConf((data?.valoare as any) ?? {});
+  }, []);
+  useEffect(() => { fetch("/api/integrari").then((r) => r.json()).then(setEnv).catch(() => {}); incarca(); }, [incarca]);
+
+  async function salveaza(cheie: string, valori: any) {
+    const sb = sbBrowser()!; setMsg("");
+    const nou = { ...conf, [cheie]: valori };
+    const { error } = await sb.from("settings").update({ valoare: nou }).eq("cheie", "integrari");
+    setConf(nou);
+    setMsg(error ? "Eroare: " + error.message + " (doar administratorul poate salva)" : "✓ Salvat.");
+  }
+
   const grupuri = Array.from(new Set(INTEGRARI.map((i) => i.grup)));
 
   return (
@@ -41,6 +73,7 @@ export default function Integrari() {
       <div><div className="dim">Administrare</div><h1 className="font-disp font-bold text-2xl mt-1">Integrări</h1>
         <p className="text-sm text-mut mt-1">Starea reală a fiecărei conexiuni. Nimic nu e „pe jumătate": ce e activ funcționează, ce e pregătit așteaptă doar credențialele clientului.</p></div>
 
+      {msg && <p className="text-sm">{msg}</p>}
       {grupuri.map((g) => (
         <div key={g}>
           <div className="dim mb-2">{g}</div>
@@ -60,6 +93,25 @@ export default function Integrari() {
                   <ol className="mt-3 space-y-1 text-xs text-steel">
                     {i.pasi.map((p, n) => <li key={n} className="flex gap-2"><span className="text-acc font-bold">{n + 1}.</span>{p}</li>)}
                   </ol>
+                  {CAMPURI[i.nume] && (
+                    <form onSubmit={(e) => { e.preventDefault();
+                      const f = new FormData(e.currentTarget);
+                      const cheie = CHEI[i.nume];
+                      const v: any = { ...(conf[cheie] ?? {}) };
+                      CAMPURI[i.nume].forEach((c) => { v[c.k] = String(f.get(c.k) ?? ""); });
+                      v.activ = f.get("activ") === "on";
+                      salveaza(cheie, v); }}
+                      className="mt-4 pt-3 border-t border-line grid gap-2 text-sm">
+                      {CAMPURI[i.nume].map((c) => (
+                        <div className="fld" key={c.k}><label>{c.l}</label>
+                          <input name={c.k} type={c.tip ?? "text"} defaultValue={conf[CHEI[i.nume]]?.[c.k] ?? ""} /></div>
+                      ))}
+                      <label className="flex items-center gap-2 text-xs cursor-pointer">
+                        <input type="checkbox" name="activ" defaultChecked={conf[CHEI[i.nume]]?.activ ?? false} />
+                        Activă (folosește această integrare)</label>
+                      <button className="btn-dark !py-2 text-xs">Salvează configurarea</button>
+                    </form>
+                  )}
                 </div>
               );
             })}
