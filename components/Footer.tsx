@@ -6,53 +6,53 @@ import HartiLinks from "./HartiLinks";
 // Footer complet — modelul cerut de client: toate paginile legale + bannere ANPC/SOL vizibile.
 export default function Footer({ firma = FIRMA_IMPLICITA }: { firma?: Firma }) {
   return (
-    <footer className="bg-ink text-white mt-16">
+    <footer className="bg-footerBg text-footerText mt-16">
       <div className="mx-auto max-w-6xl px-4 py-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4 text-sm">
         <div>
           <span className="block font-disp font-bold text-[24px]">AUTOPAS</span>
-          <span className="block font-disp text-[9px] tracking-[0.5em] text-white/60 mb-3">DEZMEMBRĂRI</span>
-          <p className="text-white/70 leading-relaxed">Piese auto second-hand testate, din dezmembrări autorizate. Garanție 90 de zile conform OUG 140/2021, livrare în 1–3 zile lucrătoare în toată România.</p>
-          <p className="mt-3 text-white/70">📍 {ADRESA.scurt}<br />
-            <span className="text-white/50 text-[12px]">{ADRESA.reper}</span></p>
+          <span className="block font-disp text-[9px] tracking-[0.5em] text-footerText/60 mb-3">DEZMEMBRĂRI</span>
+          <p className="text-footerText/70 leading-relaxed">Piese auto second-hand testate, din dezmembrări autorizate. Garanție 90 de zile conform OUG 140/2021, livrare în 1–3 zile lucrătoare în toată România.</p>
+          <p className="mt-3 text-footerText/70">📍 {ADRESA.scurt}<br />
+            <span className="text-footerText/50 text-[12px]">{ADRESA.reper}</span></p>
           {/* Contact — telefon și program, aceleași valori ca în header (lib/config.ts) */}
           <p className="mt-1">
-            ☎ <a href={telLink()} className="font-semibold hover:text-acc">{CONFIG.telefonAfisat}</a>
+            ☎ <a href={telLink()} className="font-semibold hover:text-accent">{CONFIG.telefonAfisat}</a>
           </p>
-          <p className="text-white/70">Program: {PROGRAM}</p>
+          <p className="text-footerText/70">Program: {PROGRAM}</p>
           {/* Waze și Google Maps — linkuri către locație */}
           <div className="mt-3"><HartiLinks variant="footer" /></div>
         </div>
         <div>
-          <h4 className="font-disp font-semibold tracking-wide text-[12px] text-white/50 mb-3">Pagini principale</h4>
-          <ul className="space-y-1.5 text-white/80">
-            <li><Link href="/piese" className="hover:text-acc">Piese auto</Link></li>
-            <li><Link href="/cauta-dupa-masina" className="hover:text-acc">Caută după mașină</Link></li>
-            <li><Link href="/preda-masina" className="hover:text-acc">Predă mașina la dezmembrat</Link></li>
-            <li><Link href="/programul-rabla" className="hover:text-acc">Programul Rabla</Link></li>
-            <li><Link href="/cos" className="hover:text-acc">Coș cumpărături</Link></li>
-            <li><Link href="/faq" className="hover:text-acc">Întrebări frecvente</Link></li>
+          <h4 className="font-disp font-semibold tracking-wide text-[12px] text-footerText/50 mb-3">Pagini principale</h4>
+          <ul className="space-y-1.5 text-footerText/80">
+            <li><Link href="/piese" className="hover:text-accent">Piese auto</Link></li>
+            <li><Link href="/cauta-dupa-masina" className="hover:text-accent">Caută după mașină</Link></li>
+            <li><Link href="/preda-masina" className="hover:text-accent">Predă mașina la dezmembrat</Link></li>
+            <li><Link href="/programul-rabla" className="hover:text-accent">Programul Rabla</Link></li>
+            <li><Link href="/cos" className="hover:text-accent">Coș cumpărături</Link></li>
+            <li><Link href="/faq" className="hover:text-accent">Întrebări frecvente</Link></li>
           </ul>
         </div>
         <div>
-          <h4 className="font-disp font-semibold tracking-wide text-[12px] text-white/50 mb-3">Informații</h4>
-          <ul className="space-y-1.5 text-white/80">
-            <li><Link href="/contact" className="hover:text-acc">Contact</Link></li>
-            <li><Link href="/despre-noi" className="hover:text-acc">Despre noi</Link></li>
-            <li><Link href="/legal/politica-de-confidentialitate" className="hover:text-acc">Politica de confidențialitate</Link></li>
-            <li><Link href="/legal/termeni-si-conditii" className="hover:text-acc">Termeni și condiții</Link></li>
-            <li><Link href="/legal/livrare" className="hover:text-acc">Livrare</Link></li>
-            <li><Link href="/legal/politica-de-cookies" className="hover:text-acc">Politica de cookies</Link></li>
-            <li><Link href="/legal/setari-cookie-uri" className="hover:text-acc">Setări cookie-uri</Link></li>
+          <h4 className="font-disp font-semibold tracking-wide text-[12px] text-footerText/50 mb-3">Informații</h4>
+          <ul className="space-y-1.5 text-footerText/80">
+            <li><Link href="/contact" className="hover:text-accent">Contact</Link></li>
+            <li><Link href="/despre-noi" className="hover:text-accent">Despre noi</Link></li>
+            <li><Link href="/legal/politica-de-confidentialitate" className="hover:text-accent">Politica de confidențialitate</Link></li>
+            <li><Link href="/legal/termeni-si-conditii" className="hover:text-accent">Termeni și condiții</Link></li>
+            <li><Link href="/legal/livrare" className="hover:text-accent">Livrare</Link></li>
+            <li><Link href="/legal/politica-de-cookies" className="hover:text-accent">Politica de cookies</Link></li>
+            <li><Link href="/legal/setari-cookie-uri" className="hover:text-accent">Setări cookie-uri</Link></li>
           </ul>
         </div>
         <div>
-          <h4 className="font-disp font-semibold tracking-wide text-[12px] text-white/50 mb-3">Retur și garanție</h4>
-          <ul className="space-y-1.5 text-white/80">
-            <li><Link href="/legal/certificat-garantie" className="hover:text-acc">Certificat de garanție</Link></li>
-            <li><Link href="/legal/politica-de-retur" className="hover:text-acc">Politica de retur — 14 zile</Link></li>
-            <li><Link href="/formular-retur" className="hover:text-acc">Formular de retur</Link></li>
-            <li><Link href="/legal/anpc-si-sol" className="hover:text-acc">A.N.P.C.</Link></li>
-            <li><Link href="/legal/anpc-si-sol" className="hover:text-acc">A.N.P.C. — SAL</Link></li>
+          <h4 className="font-disp font-semibold tracking-wide text-[12px] text-footerText/50 mb-3">Retur și garanție</h4>
+          <ul className="space-y-1.5 text-footerText/80">
+            <li><Link href="/legal/certificat-garantie" className="hover:text-accent">Certificat de garanție</Link></li>
+            <li><Link href="/legal/politica-de-retur" className="hover:text-accent">Politica de retur — 14 zile</Link></li>
+            <li><Link href="/formular-retur" className="hover:text-accent">Formular de retur</Link></li>
+            <li><Link href="/legal/anpc-si-sol" className="hover:text-accent">A.N.P.C.</Link></li>
+            <li><Link href="/legal/anpc-si-sol" className="hover:text-accent">A.N.P.C. — SAL</Link></li>
           </ul>
           {/* Bannerele oficiale ANPC — dimensiunea legală 250×50 px (Ordinul 449/2022).
               Fișierele din public/anpc-sal.png și public/anpc-sol.png trebuie să fie cele OFICIALE,
@@ -69,7 +69,7 @@ export default function Footer({ firma = FIRMA_IMPLICITA }: { firma?: Firma }) {
           </div>
         </div>
       </div>
-      <div className="border-t border-white/10 text-[12px] text-white/50">
+      <div className="border-t border-white/10 text-[12px] text-footerText/50">
         <div className="mx-auto max-w-6xl px-4 py-4 flex flex-wrap gap-2 justify-between">
           {/* Datele firmei vin din Admin → Setări → Date firmă (tabela settings), nu din cod. */}
           <span>© {new Date().getFullYear()} {firma.denumire}{firma.cui ? ` · CUI ${firma.cui}` : ""}{firma.reg_com ? ` · Reg. Com. ${firma.reg_com}` : ""}{firma.adresa ? ` · Sediu social: ${firma.adresa}` : ""} · Autorizat pentru tratarea vehiculelor scoase din uz</span>

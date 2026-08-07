@@ -44,6 +44,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const { firma } = await getSetariServer();
   return (
     <html lang="ro" className={poppins.variable}>
+      <head>
+        {/* TEMPORAR — selector teme pentru client. Vezi instrucțiunile de ștergere din CLAUDE.md.
+            Scriptul aplică tema salvată ÎNAINTE ca pagina să se deseneze; fără el, la fiecare
+            reîncărcare site-ul apare o clipă în tema veche și apoi sare. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('autopas-tema');if(t&&t!=='actuala'){document.documentElement.setAttribute('data-tema',t);}}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body>
         <CartProvider>
           <FavoritesProvider>

@@ -79,7 +79,7 @@ export default function Checkout() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <div className="dim">Coș → <b className="text-ink">Livrare și plată</b> → Confirmare</div>
+      <div className="dim">Coș → <b className="text-text">Livrare și plată</b> → Confirmare</div>
       <h1 className="font-disp font-bold text-3xl mt-2 mb-6">Finalizează comanda</h1>
       <form onSubmit={trimite} className="grid lg:grid-cols-[1fr,340px] gap-6 items-start">
         <div className="space-y-5">
@@ -89,17 +89,17 @@ export default function Checkout() {
             <div className="flex gap-2 mt-3">
               {(["pf","firma"] as const).map((t) => (
                 <button type="button" key={t} onClick={() => setTip(t)}
-                  className={`px-4 py-2 rounded-lg text-sm font-bold border-2 ${tip === t ? "border-acc bg-acc/5 text-acc" : "border-line"}`}>
+                  className={`px-4 py-2 rounded-lg text-sm font-bold border-2 ${tip === t ? "border-accent bg-accent/5 text-accent" : "border-chenar"}`}>
                   {t === "pf" ? "Persoană fizică" : "Firmă (B2B)"}</button>
               ))}
             </div>
             <div className="grid sm:grid-cols-2 gap-3 mt-4">
               <div className="fld"><label>Nume complet *</label><input name="nume" required /></div>
               <div className="fld"><label>Telefon *</label><input name="telefon" required /></div>
-              <div className="fld sm:col-span-2"><label>E-mail * <span className="font-normal text-mut">(aici primești confirmarea)</span></label><input name="email" type="email" required /></div>
+              <div className="fld sm:col-span-2"><label>E-mail * <span className="font-normal text-textSecundar">(aici primești confirmarea)</span></label><input name="email" type="email" required /></div>
               {tip === "firma" && (<>
                 <div className="fld"><label>Denumirea firmei *</label><input name="firma" required /></div>
-                <div className="fld"><label>CUI * <span className="font-normal text-mut">(nu cerem CNP)</span></label><input name="cui" required placeholder="RO…" /></div>
+                <div className="fld"><label>CUI * <span className="font-normal text-textSecundar">(nu cerem CNP)</span></label><input name="cui" required placeholder="RO…" /></div>
               </>)}
               <div className="fld sm:col-span-2"><label>Adresa de livrare *</label><input name="adresa" required /></div>
               <div className="fld"><label>Oraș *</label><input name="oras" required /></div>
@@ -110,17 +110,17 @@ export default function Checkout() {
           <div className="card p-5">
             <b className="font-disp font-semibold text-[13px]">2 · Livrarea</b>
             <div className="mt-3 space-y-3">
-              <div className="rounded-lg border-2 border-acc bg-acc/5 px-4 py-3">
+              <div className="rounded-lg border-2 border-accent bg-accent/5 px-4 py-3">
                 <b>{curieri.find((c) => c.id === curier)?.nume ?? "FAN Courier"}</b>
-                <span className="text-mut text-sm"> · livrare 1–3 zile lucrătoare în toată România</span>
+                <span className="text-textSecundar text-sm"> · livrare 1–3 zile lucrătoare în toată România</span>
               </div>
-              <div className="rounded-lg bg-paper px-4 py-3 text-sm leading-relaxed">
+              <div className="rounded-lg bg-suprafata2 px-4 py-3 text-sm leading-relaxed">
                 <b>Costul livrării se calculează separat.</b> Piesele auto diferă mult ca greutate
                 și dimensiuni, iar curierul taxează în funcție de ele. După ce primim comanda,
                 calculăm transportul exact și <b>te sunăm cu totalul final înainte de expediere</b>.
                 Nu expediem nimic până nu ești de acord cu suma.
               </div>
-              <p className="text-xs text-mut">Piesele voluminoase (motoare, cutii de viteze) se livrează paletizat. Detalii în <Link href="/legal/livrare" className="text-acc font-semibold">pagina Livrare</Link>.</p>
+              <p className="text-xs text-textSecundar">Piesele voluminoase (motoare, cutii de viteze) se livrează paletizat. Detalii în <Link href="/legal/livrare" className="text-accent font-semibold">pagina Livrare</Link>.</p>
             </div>
           </div>
           {/* 3. Plata */}
@@ -128,9 +128,9 @@ export default function Checkout() {
             <b className="font-disp font-semibold text-[13px]">3 · Metoda de plată</b>
             <div className="mt-3 space-y-2">
               {[["card","Card online","Visa / Mastercard — plată securizată"],["ramburs","Ramburs la curier","plătești când primești piesa"],["transfer","Transfer bancar","primești proforma pe e-mail"]].map(([id,t,d]) => (
-                <label key={id} className={`flex items-center gap-3 rounded-lg border-2 px-4 py-3 cursor-pointer ${plata === id ? "border-acc bg-acc/5" : "border-line"}`}>
+                <label key={id} className={`flex items-center gap-3 rounded-lg border-2 px-4 py-3 cursor-pointer ${plata === id ? "border-accent bg-accent/5" : "border-chenar"}`}>
                   <input type="radio" name="plata" checked={plata === id} onChange={() => setPlata(id)} />
-                  <span><b>{t}</b> <span className="text-mut text-sm">· {d}</span></span>
+                  <span><b>{t}</b> <span className="text-textSecundar text-sm">· {d}</span></span>
                 </label>
               ))}
               {plata === "card" && <p className="text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
@@ -140,33 +140,33 @@ export default function Checkout() {
           {/* 4. GDPR */}
           <div className="card p-5 space-y-2 text-sm">
             <label className="flex gap-3 items-start"><input type="checkbox" required className="mt-1" />
-              <span>Am citit și sunt de acord cu <Link href="/legal/termeni-si-conditii" className="text-acc font-semibold">Termenii și condițiile</Link> și cu <Link href="/legal/politica-de-retur" className="text-acc font-semibold">Politica de retur</Link>. *</span></label>
+              <span>Am citit și sunt de acord cu <Link href="/legal/termeni-si-conditii" className="text-accent font-semibold">Termenii și condițiile</Link> și cu <Link href="/legal/politica-de-retur" className="text-accent font-semibold">Politica de retur</Link>. *</span></label>
             <label className="flex gap-3 items-start"><input type="checkbox" name="gdpr" className="mt-1" />
-              <span className="text-mut">Sunt de acord să primesc, ocazional, oferte pe e-mail (opțional).</span></label>
+              <span className="text-textSecundar">Sunt de acord să primesc, ocazional, oferte pe e-mail (opțional).</span></label>
           </div>
         </div>
         {/* Sumar */}
         <div className="card p-5 space-y-3 text-sm lg:sticky lg:top-24">
           <b className="font-disp font-semibold text-[13px]">Comanda ta</b>
           {items.map((i) => (
-            <div key={i.id} className="flex justify-between gap-3"><span className="text-mut">{i.nume.slice(0, 42)}…</span><b className="whitespace-nowrap">{lei(i.pret)}</b></div>
+            <div key={i.id} className="flex justify-between gap-3"><span className="text-textSecundar">{i.nume.slice(0, 42)}…</span><b className="whitespace-nowrap">{lei(i.pret)}</b></div>
           ))}
           <DiscountBox subtotal={total} reducere={reducere} setReducere={setReducere} />
           {reducereVal > 0 && <div className="flex justify-between text-ok"><span>Reducere {reducere?.cod}</span><b>−{lei(reducereVal)}</b></div>}
-          <div className="flex justify-between border-t border-line pt-3 text-mut"><span>Livrare</span><span className="text-xs text-right">se calculează<br />și ți-o comunicăm</span></div>
+          <div className="flex justify-between border-t border-chenar pt-3 text-textSecundar"><span>Livrare</span><span className="text-xs text-right">se calculează<br />și ți-o comunicăm</span></div>
           <div className="flex justify-between text-base"><span>Total produse</span>
-            <b className="font-disp text-2xl text-acc">{lei(total - reducereVal)}</b></div>
+            <b className="font-disp text-2xl text-accent">{lei(total - reducereVal)}</b></div>
           <button disabled={stare === "trimit"} className="btn-acc w-full">{stare === "trimit" ? "Se plasează…" : "Plasează comanda"}</button>
           {stare === "eroare" && <p className="text-red-600 text-xs">{msg}</p>}
-          <p className="text-xs text-mut text-center">Comanda se salvează securizat. Nu cerem date de card.</p>
-          <p className="text-[11px] text-mut text-center leading-relaxed">
+          <p className="text-xs text-textSecundar text-center">Comanda se salvează securizat. Nu cerem date de card.</p>
+          <p className="text-[11px] text-textSecundar text-center leading-relaxed">
             La suma de mai sus se adaugă transportul, pe care ți-l comunicăm telefonic
             înainte de expediere.
           </p>
           {/* Mențiunile legale obligatorii înainte de plasarea comenzii */}
-          <p className="text-[11px] text-mut text-center leading-relaxed">
-            Garanție 90 de zile conform <Link href="/legal/certificat-garantie" className="text-acc font-semibold">OUG 140/2021</Link> ·
-            drept de retragere în 14 zile conform <Link href="/legal/politica-de-retur" className="text-acc font-semibold">OUG 34/2014</Link>
+          <p className="text-[11px] text-textSecundar text-center leading-relaxed">
+            Garanție 90 de zile conform <Link href="/legal/certificat-garantie" className="text-accent font-semibold">OUG 140/2021</Link> ·
+            drept de retragere în 14 zile conform <Link href="/legal/politica-de-retur" className="text-accent font-semibold">OUG 34/2014</Link>
           </p>
         </div>
       </form>

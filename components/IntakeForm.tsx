@@ -19,7 +19,7 @@ export default function IntakeForm({ tip }: { tip: "predare" | "rabla" }) {
   }
   if (stare === "ok")
     return <div className="card p-8 text-center"><b className="text-ok text-lg">✓ Cererea a fost trimisă!</b>
-      <p className="text-mut text-sm mt-1">Te sunăm în aceeași zi lucrătoare.</p></div>;
+      <p className="text-textSecundar text-sm mt-1">Te sunăm în aceeași zi lucrătoare.</p></div>;
   return (
     <form onSubmit={trimite} className="card p-5 grid sm:grid-cols-2 gap-3">
       <div className="fld"><label>Nume *</label><input name="nume" required /></div>

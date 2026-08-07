@@ -16,11 +16,11 @@ export default async function Contact() {
       <div className="grid lg:grid-cols-3 gap-6 items-start">
         <div className="card p-5 space-y-3 text-sm">
           <b className="font-disp font-semibold text-[13px]">Date de contact</b>
-          <p>☎ <a href={telLink(firma.telefon)}><b>{firma.telefon}</b></a><br /><span className="text-mut">Program: {PROGRAM}</span></p>
-          <p>💬 WhatsApp: <b>{firma.telefon}</b><br /><span className="text-mut">trimite cod OEM sau poze cu piesa</span></p>
+          <p>☎ <a href={telLink(firma.telefon)}><b>{firma.telefon}</b></a><br /><span className="text-textSecundar">Program: {PROGRAM}</span></p>
+          <p>💬 WhatsApp: <b>{firma.telefon}</b><br /><span className="text-textSecundar">trimite cod OEM sau poze cu piesa</span></p>
           <p>✉ {firma.email}</p>
           <p>🚚 {LIVRARE}</p>
-          <p>📍 {ADRESA.lung}<br /><span className="text-mut">{ADRESA.reper} · ridicare personală cu programare</span></p>
+          <p>📍 {ADRESA.lung}<br /><span className="text-textSecundar">{ADRESA.reper} · ridicare personală cu programare</span></p>
         </div>
         <div><b className="font-disp font-semibold text-[13px] block mb-3">Scrie-ne un mesaj</b><ContactForm /></div>
         <div><b className="font-disp font-semibold text-[13px] block mb-3">Caut o piesă</b><PartRequestForm sursa="contact" /></div>

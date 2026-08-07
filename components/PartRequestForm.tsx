@@ -21,9 +21,9 @@ export default function PartRequestForm({ sursa, dark = false }: { sursa: string
   if (stare === "ok")
     return <div className={`rounded-xl p-6 text-center ${dark ? "bg-white/10" : "card"}`}>
       <b className="text-ok text-lg">✓ Cererea a fost trimisă!</b>
-      <p className={`text-sm mt-1 ${dark ? "text-white/70" : "text-mut"}`}>Îți verificăm stocul și revenim în cel mai scurt timp.</p></div>;
+      <p className={`text-sm mt-1 ${dark ? "text-headerText/70" : "text-textSecundar"}`}>Îți verificăm stocul și revenim în cel mai scurt timp.</p></div>;
   return (
-    <form onSubmit={trimite} className={`rounded-xl p-5 grid sm:grid-cols-2 gap-3 ${dark ? "bg-white text-ink shadow-card" : "card"}`}>
+    <form onSubmit={trimite} className={`rounded-xl p-5 grid sm:grid-cols-2 gap-3 ${dark ? "bg-suprafata text-text shadow-card" : "card"}`}>
       <div className="fld"><label>Nume *</label><input name="nume" required /></div>
       <div className="fld"><label>Telefon *</label><input name="telefon" required /></div>
       <div className="fld"><label>E-mail</label><input name="email" type="email" /></div>

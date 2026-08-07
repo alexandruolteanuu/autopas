@@ -28,7 +28,7 @@ export default function VehicleFilter({ brands, models, cats, counts = {}, compa
 
   return (
     <form onSubmit={cauta}
-      className={`bg-white rounded-xl p-4 grid gap-3 text-ink shadow-card grid-cols-1 ${compact
+      className={`bg-suprafata rounded-xl p-4 grid gap-3 text-text shadow-card grid-cols-1 ${compact
         ? "sm:grid-cols-2 lg:grid-cols-[1fr,1.4fr,1.4fr,auto]"
         : "sm:grid-cols-2"}`}>
       <div className="fld min-w-0">

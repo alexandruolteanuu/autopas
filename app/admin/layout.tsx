@@ -94,10 +94,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return () => clearTimeout(t);
   }, [q]);
 
-  if (rol === "verific") return <div className="min-h-screen grid place-items-center text-mut">Se verifică accesul…</div>;
+  if (rol === "verific") return <div className="tema-clasica min-h-screen grid place-items-center text-mut">Se verifică accesul…</div>;
   if (rol === "anonim" || rol === "client")
     return (
-      <div className="min-h-screen grid place-items-center bg-paper px-4">
+      <div className="tema-clasica min-h-screen grid place-items-center bg-paper px-4">
         <div className="card p-8 max-w-md text-center">
           <h1 className="font-disp font-bold text-2xl">Panou de administrare</h1>
           <p className="text-mut mt-2 text-sm">
@@ -114,7 +114,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const iesi = async () => { await sbBrowser()?.auth.signOut(); location.href = "/"; };
 
   return (
-    <div className="min-h-screen bg-paper lg:grid lg:grid-cols-[240px,1fr]">
+    <div className="tema-clasica min-h-screen bg-paper lg:grid lg:grid-cols-[240px,1fr]">
       {/* ===== SIDEBAR ===== */}
       <aside className="bg-ink text-white lg:min-h-screen lg:sticky lg:top-0 lg:h-screen flex lg:flex-col overflow-x-auto">
         <Link href="/admin" className="hidden lg:block px-5 py-5 border-b border-white/10">

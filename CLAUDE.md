@@ -132,6 +132,35 @@ Meniul și drepturile pe rol sunt definite în `app/admin/layout.tsx` (constanta
 La orice funcție nouă expusă public: `revoke execute ... from public` — nu doar de la `anon`,
 fiindcă `anon` moștenește dreptul prin rolul `PUBLIC`.
 
+## TEMPORAR — selector teme
+
+În header există un dropdown din care clientul alege între 9 teme de culoare, ca să se hotărască
+asupra paletei. **Se șterge după ce se decide.** Culorile site-ului public sunt legate de 13
+variabile CSS (`--fundal`, `--suprafata`, `--suprafata-2`, `--text`, `--text-secundar`, `--chenar`,
+`--accent`, `--accent-hover`, `--accent-contrast`, `--header-bg`, `--header-text`, `--footer-bg`,
+`--footer-text`), definite în `app/globals.css` și expuse ca clase Tailwind (`bg-fundal`,
+`text-textSecundar`, `bg-accent`, `text-accentText`…). Panoul `/admin` NU e tematizat: containerele
+lui poartă clasa `tema-clasica`, care redeclară paleta veche, deci rămâne identic orice temă s-ar alege.
+
+**Ascundere rapidă** (fără să ștergi nimic): `SELECTOR_TEME_ACTIV = false` în `lib/config.ts`.
+
+**Ștergere definitivă, în 3 pași:**
+
+1. **Promovează tema aleasă.** În `app/globals.css`, copiază cele 13 valori ale temei alese peste
+   valorile din `:root`, apoi șterge toate blocurile `[data-tema="…"]`. Actualizează și blocul
+   `.tema-clasica` dacă vrei ca adminul să urmeze noua paletă (altfel rămâne pe portocaliul vechi).
+2. **Scoate selectorul.** Șterge `components/SelectorTeme.tsx` și `lib/teme.ts`; din
+   `components/Header.tsx` scoate importul `SelectorTeme` și linia `<SelectorTeme />` (ambele sunt
+   marcate cu comentariul „TEMPORAR — selector teme"); din `app/layout.tsx` scoate blocul `<head>`
+   cu scriptul anti-„flash"; din `lib/config.ts` scoate `SELECTOR_TEME_ACTIV`.
+3. **Curăță.** Șterge din `app/globals.css` blocul de teme rămas (comentariile de început și de
+   sfârșit îl delimitează) și, dacă adminul a fost convertit între timp, clasa `tema-clasica` și
+   aparițiile ei din `app/admin/layout.tsx`. Variabilele CSS și clasele semantice din
+   `tailwind.config.ts` pot rămâne — sunt utile oricum.
+
+Culorile semantice (verdele `ok`, roșu de eroare, galben de avertizare, badge-urile de status,
+verdele WhatsApp `#25D366`) NU fac parte din teme și nu se ating.
+
 ## Când termini o modificare
 Rulează `npm run build`. Dacă trece, fă commit cu mesaj clar în română și push pe `main`.
 Dacă modificarea are nevoie de SQL, amintește-i utilizatorului ce fișier să ruleze în Supabase.

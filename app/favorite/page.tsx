@@ -27,15 +27,15 @@ export default function Favorite() {
     <div className="mx-auto max-w-6xl px-4 py-8">
       <Breadcrumbs items={[{ t: "Acasă", href: "/" }, { t: "Favoritele mele" }]} />
       <h1 className="font-disp font-bold text-3xl mt-2 mb-2">Favoritele mele</h1>
-      <p className="text-sm text-mut mb-6">
+      <p className="text-sm text-textSecundar mb-6">
         {logat ? "Lista e salvată în contul tău — o regăsești pe orice dispozitiv."
-               : <>Lista e salvată în acest browser. <Link href="/autentificare" className="text-acc font-semibold">Autentifică-te</Link> ca s-o păstrezi pe orice dispozitiv.</>}
+               : <>Lista e salvată în acest browser. <Link href="/autentificare" className="text-accent font-semibold">Autentifică-te</Link> ca s-o păstrezi pe orice dispozitiv.</>}
       </p>
-      {!gata && <p className="text-mut">Se încarcă…</p>}
+      {!gata && <p className="text-textSecundar">Se încarcă…</p>}
       {gata && produse.length === 0 && (
         <div className="card p-10 text-center">
           <b className="font-disp font-bold text-xl block">Încă n-ai piese favorite</b>
-          <p className="text-mut mt-2 text-sm">Apasă pe inima de pe orice piesă ca s-o păstrezi aici pentru mai târziu.</p>
+          <p className="text-textSecundar mt-2 text-sm">Apasă pe inima de pe orice piesă ca s-o păstrezi aici pentru mai târziu.</p>
           <Link href="/piese" className="btn-acc mt-5">Vezi piesele</Link>
         </div>
       )}

@@ -15,30 +15,30 @@ export default function Rabla() {
     <div className="mx-auto max-w-6xl px-4 py-8">
       <Breadcrumbs items={[{ t: "Acasă", href: "/" }, { t: "Programul Rabla" }]} />
       <h1 className="font-disp font-bold text-3xl mt-2">Programul Rabla — simplu, cu certificat pe loc</h1>
-      <p className="text-mut mt-2 max-w-2xl">Suntem centru autorizat pentru tratarea vehiculelor scoase din uz: preluăm mașina ta veche și îți emitem <b className="text-ink">certificatul de distrugere</b> — actul de care ai nevoie ca să primești ecotichetul Rabla.</p>
+      <p className="text-textSecundar mt-2 max-w-2xl">Suntem centru autorizat pentru tratarea vehiculelor scoase din uz: preluăm mașina ta veche și îți emitem <b className="text-text">certificatul de distrugere</b> — actul de care ai nevoie ca să primești ecotichetul Rabla.</p>
       <div className="grid lg:grid-cols-2 gap-8 mt-8 items-start">
         <div className="space-y-4">
           {PASI.map(([t, d], i) => (
             <div key={t} className="card p-4 flex gap-4">
-              <span className="w-9 h-9 rounded-full bg-acc text-white font-disp font-bold grid place-items-center shrink-0">{i + 1}</span>
-              <div><b>{t}</b><p className="text-sm text-mut mt-0.5">{d}</p></div>
+              <span className="w-9 h-9 rounded-full bg-accent text-accentText font-disp font-bold grid place-items-center shrink-0">{i + 1}</span>
+              <div><b>{t}</b><p className="text-sm text-textSecundar mt-0.5">{d}</p></div>
             </div>
           ))}
           <div className="card p-4 text-sm">
             <b className="font-disp font-semibold text-[13px]">Acte necesare</b>
-            <ul className="mt-2 space-y-1 text-mut">
+            <ul className="mt-2 space-y-1 text-textSecundar">
               <li>• Cartea de identitate a vehiculului (CIV) și certificatul de înmatriculare</li>
               <li>• Actul de identitate al proprietarului</li>
               <li>• Dacă nu ești proprietarul din acte: procură sau contract de vânzare</li>
               <li>• Certificat fiscal</li>
             </ul>
-            <p className="mt-3 text-xs text-mut">Condițiile exacte ale ecotichetului (valoare, sesiuni) sunt stabilite anual de AFM — te ajutăm cu îndrumare la zi când ne contactezi.</p>
+            <p className="mt-3 text-xs text-textSecundar">Condițiile exacte ale ecotichetului (valoare, sesiuni) sunt stabilite anual de AFM — te ajutăm cu îndrumare la zi când ne contactezi.</p>
           </div>
         </div>
         <div>
-          <div className="card p-5 mb-4 bg-ink text-white border-ink">
+          <div className="card p-5 mb-4 bg-headerBg text-headerText border-headerBg">
             <b className="font-disp font-semibold text-lg">Vrei să predai mașina prin Rabla?</b>
-            <p className="text-white/70 text-sm mt-1">Completează formularul — te sunăm în aceeași zi lucrătoare cu toți pașii.</p>
+            <p className="text-headerText/70 text-sm mt-1">Completează formularul — te sunăm în aceeași zi lucrătoare cu toți pașii.</p>
           </div>
           <IntakeForm tip="rabla" />
         </div>

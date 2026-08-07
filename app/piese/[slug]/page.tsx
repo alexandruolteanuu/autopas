@@ -95,17 +95,17 @@ export default async function Produs({ params }: { params: { slug: string } }) {
           <div className="mt-3 flex items-center gap-2.5 flex-wrap text-[12px]">
             {prod.stoc > 0
               ? <span className="px-2.5 py-1 rounded-full bg-ok/10 text-ok">În stoc</span>
-              : <span className="px-2.5 py-1 rounded-full bg-line text-steel">Stoc epuizat</span>}
-            <span className="text-mut">Cod intern: {prod.cod_intern ?? "—"}</span>
+              : <span className="px-2.5 py-1 rounded-full bg-chenar text-text">Stoc epuizat</span>}
+            <span className="text-textSecundar">Cod intern: {prod.cod_intern ?? "—"}</span>
           </div>
 
           <div className="mt-4 flex items-end gap-2.5">
-            <span className="font-disp font-bold text-[30px] text-acc leading-none">{lei(Number(prod.pret_lei), prod.pret_sufix)}</span>
-            <span className="text-mut text-[13px]">TVA inclus</span>
+            <span className="font-disp font-bold text-[30px] text-accent leading-none">{lei(Number(prod.pret_lei), prod.pret_sufix)}</span>
+            <span className="text-textSecundar text-[13px]">TVA inclus</span>
           </div>
 
           {prod.originala !== false && (
-            <div className="mt-3 flex items-center gap-2.5 rounded-xl border border-ok/30 bg-ok/5 px-3.5 py-2.5 text-[13px] text-steel">
+            <div className="mt-3 flex items-center gap-2.5 rounded-xl border border-ok/30 bg-ok/5 px-3.5 py-2.5 text-[13px] text-text">
               <span className="text-ok shrink-0"><TrustIcon kind="scut" className="w-5 h-5" /></span>
               Piesă auto originală din dezmembrări — verificată înainte de livrare
             </div>
@@ -114,7 +114,7 @@ export default async function Produs({ params }: { params: { slug: string } }) {
           <div className="mt-4 flex flex-wrap gap-2.5">
             {prod.stoc > 0
               ? <div className="flex-1 min-w-[190px]"><AddToCart p={prod} mare /></div>
-              : <div className="flex-1 min-w-[190px] rounded-xl bg-line text-steel px-5 py-3 text-sm font-medium text-center">Stoc epuizat — vezi piese similare</div>}
+              : <div className="flex-1 min-w-[190px] rounded-xl bg-chenar text-text px-5 py-3 text-sm font-medium text-center">Stoc epuizat — vezi piese similare</div>}
             <a href={waLinkCu(firma.whatsapp, `Bună! Mă interesează: ${prod.nume}${prod.oem ? ` (OEM ${prod.oem})` : ""} — cod ${prod.cod_intern ?? ""}.`)}
               target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center justify-center rounded-xl bg-[#1FA463] text-white px-5 py-3 text-sm font-semibold hover:brightness-110">
@@ -123,11 +123,11 @@ export default async function Produs({ params }: { params: { slug: string } }) {
           </div>
 
           <div className="card mt-5 overflow-hidden">
-            <div className="bg-paper px-4 py-2.5 border-b border-line"><b className="font-disp font-semibold text-[13px]">Detaliile piesei</b></div>
-            <dl className="divide-y divide-line text-[13.5px]">
+            <div className="bg-suprafata2 px-4 py-2.5 border-b border-chenar"><b className="font-disp font-semibold text-[13px]">Detaliile piesei</b></div>
+            <dl className="divide-y divide-chenar text-[13.5px]">
               {FISA.map(([k, v]) => (
                 <div key={k} className="flex gap-4 px-4 py-2.5">
-                  <dt className="text-mut w-32 shrink-0">{k}</dt>
+                  <dt className="text-textSecundar w-32 shrink-0">{k}</dt>
                   <dd className="min-w-0">{v}</dd>
                 </div>
               ))}
@@ -135,16 +135,16 @@ export default async function Produs({ params }: { params: { slug: string } }) {
           </div>
 
           <div className="mt-3 grid sm:grid-cols-2 gap-2 text-[13px]">
-            <Link href="/legal/livrare" className="card px-3.5 py-2.5 flex items-center gap-2 hover:border-acc">
-              <span className="text-acc"><TrustIcon kind="camion" /></span> Livrare 1–3 zile lucrătoare</Link>
-            <Link href="/legal/politica-de-retur" className="card px-3.5 py-2.5 flex items-center gap-2 hover:border-acc">
-              <span className="text-acc"><TrustIcon kind="retur" /></span> Retur în 14 zile</Link>
+            <Link href="/legal/livrare" className="card px-3.5 py-2.5 flex items-center gap-2 hover:border-accent">
+              <span className="text-accent"><TrustIcon kind="camion" /></span> Livrare 1–3 zile lucrătoare</Link>
+            <Link href="/legal/politica-de-retur" className="card px-3.5 py-2.5 flex items-center gap-2 hover:border-accent">
+              <span className="text-accent"><TrustIcon kind="retur" /></span> Retur în 14 zile</Link>
           </div>
 
           {prod.stare_nota && (
             <div className="card p-4 mt-3 text-[13.5px]">
               <b className="font-disp font-semibold text-[13px] block mb-1.5">Descriere</b>
-              <p className="text-steel">{prod.stare_nota}</p>
+              <p className="text-text">{prod.stare_nota}</p>
             </div>
           )}
 

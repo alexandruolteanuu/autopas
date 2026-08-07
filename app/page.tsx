@@ -41,37 +41,37 @@ export default async function Home() {
   const { cats, products, cars, brands, models, counts } = await getData();
   return (
     <>
-      <section className="bg-ink text-white">
+      <section className="bg-headerBg text-headerText">
         <div className="mx-auto max-w-6xl px-4 py-12 lg:py-16 grid lg:grid-cols-[1.2fr,0.8fr] gap-10">
           <div>
             {/* Supratitlul rămâne unde era, doar puțin mai mare și cu simbolul
                 reciclării alături. Titlul mare al paginii e cel de sub el. */}
-            <div className="dim !text-acc !text-[13px]">
+            <div className="dim !text-accent !text-[13px]">
               <RecycleIcon className="w-[18px] h-[18px] shrink-0" />
               Dezmembrăm responsabil. Reciclăm pentru viitor.
             </div>
             <h1 className="font-disp font-bold leading-[1.08] text-[38px] sm:text-[50px] mt-4">
               Piese originale. Testate. Cu garanție.<br />
-              <span className="text-acc">Pregătite pentru noul tău drum.</span>
+              <span className="text-accent">Pregătite pentru noul tău drum.</span>
             </h1>
-            <p className="text-white/70 mt-4 max-w-lg">Piese auto livrate din stoc.</p>
+            <p className="text-headerText/70 mt-4 max-w-lg">Piese auto livrate din stoc.</p>
             <div className="mt-7"><VehicleFilter brands={brands} models={models} cats={cats} counts={counts} /></div>
-            <p className="text-white/50 text-sm mt-3">Selectează marca, modelul și categoria pentru a găsi piesa de care ai nevoie.</p>
+            <p className="text-headerText/50 text-sm mt-3">Selectează marca, modelul și categoria pentru a găsi piesa de care ai nevoie.</p>
           </div>
           <div>
-            <div className="dim !text-white/60">Mașini dezmembrate recent</div>
+            <div className="dim !text-headerText/60">Mașini dezmembrate recent</div>
             <div className="mt-4 space-y-3">
               {cars.map((c) => (
                 <Link key={c.id} href={`/piese?vehicul=${c.slug}`}
-                  className="flex items-center justify-between gap-3 rounded-xl bg-white/5 border border-white/10 px-4 py-3 hover:border-acc transition">
+                  className="flex items-center justify-between gap-3 rounded-xl bg-white/5 border border-white/10 px-4 py-3 hover:border-accent transition">
                   <div>
                     <b className="font-disp text-[15px] tracking-wide">{c.nume}{c.an ? ` · ${c.an}` : ""}</b>
-                    <div className="text-white/50 text-xs">{nrPiese(c.piese_listate ?? 0)} {c.piese_listate === 1 ? "disponibilă" : "disponibile"}</div>
+                    <div className="text-headerText/50 text-xs">{nrPiese(c.piese_listate ?? 0)} {c.piese_listate === 1 ? "disponibilă" : "disponibile"}</div>
                   </div>
-                  <span className="text-acc font-bold">→</span>
+                  <span className="text-accent font-bold">→</span>
                 </Link>
               ))}
-              {cars.length === 0 && <p className="text-white/50 text-sm">Adaugă vehicule din panoul de administrare.</p>}
+              {cars.length === 0 && <p className="text-headerText/50 text-sm">Adaugă vehicule din panoul de administrare.</p>}
             </div>
           </div>
         </div>
@@ -85,10 +85,10 @@ export default async function Home() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {cats.map((c) => (
             <Link key={c.id} href={`/piese?categorie=${c.slug}`}
-              className="card p-4 hover:border-acc transition flex items-center gap-3">
+              className="card p-4 hover:border-accent transition flex items-center gap-3">
               <PartArt kind={c.art} className="w-14 h-11 rounded-md shrink-0" />
               <div><b className="block text-[13px] leading-tight">{c.nume}</b>
-                <span className="text-mut text-xs">{c.nr_piese ?? 0} {c.nr_piese === 1 ? "piesă" : "piese"}</span></div>
+                <span className="text-textSecundar text-xs">{c.nr_piese ?? 0} {c.nr_piese === 1 ? "piesă" : "piese"}</span></div>
             </Link>
           ))}
         </div>
@@ -98,25 +98,25 @@ export default async function Home() {
         <div className="flex items-end justify-between mb-6">
           <div><div className="dim">Noutăți</div>
             <h2 className="font-disp font-bold text-3xl mt-2">Piese adăugate recent</h2></div>
-          <Link href="/piese" className="text-acc font-bold text-sm">Vezi toate piesele →</Link>
+          <Link href="/piese" className="text-accent font-bold text-sm">Vezi toate piesele →</Link>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {products.map((p) => <ProductCard key={p.id} p={p} />)}
         </div>
         {products.length === 0 && (
-          <div className="card p-8 text-center text-mut">Nicio piesă publicată încă. Adaugă prima din panoul de administrare.</div>
+          <div className="card p-8 text-center text-textSecundar">Nicio piesă publicată încă. Adaugă prima din panoul de administrare.</div>
         )}
       </section>
 
       {brands.length > 0 && (
-        <section className="bg-white border-y border-line">
+        <section className="bg-suprafata border-y border-chenar">
           <div className="mx-auto max-w-6xl px-4 py-10">
             <div className="dim">Mărci auto</div>
             <h2 className="font-disp font-bold text-2xl mt-2 mb-5">Caută piese după marcă</h2>
             <div className="flex flex-wrap gap-2.5">
               {brands.map((b) => (
                 <Link key={b.id} href={`/piese?marca=${b.slug}`}
-                  className="rounded-xl border-2 border-line px-4 py-2.5 font-disp font-semibold text-[15px] hover:border-acc hover:text-acc transition">
+                  className="rounded-xl border-2 border-chenar px-4 py-2.5 font-disp font-semibold text-[15px] hover:border-accent hover:text-accent transition">
                   {b.nume}</Link>
               ))}
             </div>
@@ -124,13 +124,13 @@ export default async function Home() {
         </section>
       )}
 
-      <section className="bg-ink text-white">
+      <section className="bg-headerBg text-headerText">
         <div className="mx-auto max-w-6xl px-4 py-12 grid lg:grid-cols-2 gap-8 items-center">
           <div>
-            <div className="dim !text-white/60">Adaugă o cerere de piese</div>
+            <div className="dim !text-headerText/60">Adaugă o cerere de piese</div>
             <h2 className="font-disp font-bold text-3xl mt-2">Nu ai găsit piesele de care ai nevoie?</h2>
-            <p className="text-white/70 mt-3">Verificăm stocul fizic și următoarele mașini care urmează să fie dezmembrate pentru a găsi piesele potrivite pentru tine.</p>
-            <p className="mt-4 text-sm text-white/60">Te sunăm sau îți scriem când piesa e disponibilă. Preferi WhatsApp? Scrie-ne codul OEM sau o poză.</p>
+            <p className="text-headerText/70 mt-3">Verificăm stocul fizic și următoarele mașini care urmează să fie dezmembrate pentru a găsi piesele potrivite pentru tine.</p>
+            <p className="mt-4 text-sm text-headerText/60">Te sunăm sau îți scriem când piesa e disponibilă. Preferi WhatsApp? Scrie-ne codul OEM sau o poză.</p>
           </div>
           <PartRequestForm sursa="home" dark />
         </div>

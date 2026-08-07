@@ -1,6 +1,7 @@
 // Ilustrațiile desenate ale pieselor (fără casete gri goale — cerință din brief).
 // Se folosesc pe carduri, pe pagina de produs și pe categorii, până apar fotografiile reale.
-const INK = "#2A2F36", ST = "#3A4048", AC = "#FF6B1A", LT = "#535B65";
+// AC urmează accentul temei alese; restul rămân culori de desen, fixe.
+const INK = "#2A2F36", ST = "#3A4048", AC = "rgb(var(--accent))", LT = "#535B65";
 
 function art(kind: string): JSX.Element {
   switch (kind) {

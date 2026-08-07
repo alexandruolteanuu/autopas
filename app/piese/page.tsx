@@ -110,11 +110,11 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
       <div className="grid lg:grid-cols-[250px,1fr] gap-6">
         {/* ===== FILTRUL DE CATEGORII — cu chenar și ierarhie clară ===== */}
         <aside className="card overflow-hidden h-fit lg:sticky lg:top-24">
-          <div className="bg-paper px-4 py-3 border-b border-line">
+          <div className="bg-suprafata2 px-4 py-3 border-b border-chenar">
             <b className="font-disp font-semibold text-[13px]">Categorii</b>
           </div>
           <nav className="p-2 text-sm max-h-[70vh] overflow-y-auto">
-            <Link href="/piese" className={`block rounded-lg px-3 py-2 ${!catActiva ? "bg-acc/10 text-acc font-semibold" : "hover:bg-paper"}`}>
+            <Link href="/piese" className={`block rounded-lg px-3 py-2 ${!catActiva ? "bg-accent/10 text-accent font-semibold" : "hover:bg-suprafata2"}`}>
               Toate piesele</Link>
             {principale.map((c) => {
               const subs = subAle(c.id);
@@ -122,16 +122,16 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
               return (
                 <div key={c.id} className="mt-0.5">
                   <Link href={`/piese?categorie=${c.slug}`}
-                    className={`flex items-center justify-between gap-2 rounded-lg px-3 py-2 ${catActiva?.id === c.id ? "bg-acc/10 text-acc font-semibold" : "hover:bg-paper"}`}>
+                    className={`flex items-center justify-between gap-2 rounded-lg px-3 py-2 ${catActiva?.id === c.id ? "bg-accent/10 text-accent font-semibold" : "hover:bg-suprafata2"}`}>
                     <span>{c.nume}</span>
-                    <span className="text-[11px] text-mut">{c.nr_piese ?? 0}</span>
+                    <span className="text-[11px] text-textSecundar">{c.nr_piese ?? 0}</span>
                   </Link>
                   {deschis && subs.length > 0 && (
-                    <div className="ml-3 pl-2 border-l-2 border-line mt-0.5">
+                    <div className="ml-3 pl-2 border-l-2 border-chenar mt-0.5">
                       {subs.map((s) => (
                         <Link key={s.id} href={`/piese?subcategorie=${s.slug}`}
-                          className={`flex items-center justify-between gap-2 rounded-lg px-3 py-1.5 text-[13px] ${catActiva?.id === s.id ? "text-acc font-semibold" : "text-steel hover:bg-paper"}`}>
-                          <span>{s.nume}</span><span className="text-[11px] text-mut">{s.nr_piese ?? 0}</span>
+                          className={`flex items-center justify-between gap-2 rounded-lg px-3 py-1.5 text-[13px] ${catActiva?.id === s.id ? "text-accent font-semibold" : "text-text hover:bg-suprafata2"}`}>
+                          <span>{s.nume}</span><span className="text-[11px] text-textSecundar">{s.nr_piese ?? 0}</span>
                         </Link>
                       ))}
                     </div>
@@ -144,7 +144,7 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
 
         <div>
           <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-            <span className="text-sm text-mut">{products.length} {products.length === 1 ? "piesă găsită" : "piese găsite"}</span>
+            <span className="text-sm text-textSecundar">{products.length} {products.length === 1 ? "piesă găsită" : "piese găsite"}</span>
             <SortSelect />
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
@@ -153,7 +153,7 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
           {products.length === 0 && (
             <div className="card p-8">
               <b className="font-disp font-bold text-xl block text-center">Nicio piesă pe stoc pentru această selecție — încă</b>
-              <p className="text-mut mt-2 text-sm text-center max-w-xl mx-auto">Stocul se schimbă săptămânal, pe măsură ce dezmembrăm mașini noi. Lasă o cerere — te anunțăm imediat ce piesa intră în stoc.</p>
+              <p className="text-textSecundar mt-2 text-sm text-center max-w-xl mx-auto">Stocul se schimbă săptămânal, pe măsură ce dezmembrăm mașini noi. Lasă o cerere — te anunțăm imediat ce piesa intră în stoc.</p>
               <div className="max-w-2xl mx-auto mt-5"><PartRequestForm sursa="filtru-fara-rezultate" /></div>
             </div>
           )}

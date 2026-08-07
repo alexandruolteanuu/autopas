@@ -34,17 +34,17 @@ export default function Autentificare() {
       <div className="flex gap-2 justify-center mt-4">
         {(["login","register"] as const).map((m) => (
           <button key={m} onClick={() => { setMod(m); setMsg(""); }}
-            className={`px-4 py-2 rounded-lg text-sm font-bold border-2 ${mod === m ? "border-acc text-acc bg-acc/5" : "border-line"}`}>
+            className={`px-4 py-2 rounded-lg text-sm font-bold border-2 ${mod === m ? "border-accent text-accent bg-accent/5" : "border-chenar"}`}>
             {m === "login" ? "Am cont" : "Sunt client nou"}</button>
         ))}
       </div>
       <form onSubmit={trimite} className="card p-5 mt-5 grid gap-3">
         {mod === "register" && <div className="fld"><label>Nume complet *</label><input name="nume" required /></div>}
         <div className="fld"><label>E-mail *</label><input name="email" type="email" required /></div>
-        <div className="fld"><label>Parolă * <span className="font-normal text-mut">(min. 6 caractere)</span></label><input name="parola" type="password" minLength={6} required /></div>
+        <div className="fld"><label>Parolă * <span className="font-normal text-textSecundar">(min. 6 caractere)</span></label><input name="parola" type="password" minLength={6} required /></div>
         <button disabled={stare === "trimit"} className="btn-acc">{stare === "trimit" ? "Un moment…" : mod === "login" ? "Intră în cont" : "Creează contul"}</button>
-        {msg && <p className="text-sm text-center text-steel">{msg}</p>}
-        <p className="text-xs text-mut text-center">Comenzile plasate cu acest e-mail apar automat în contul tău.</p>
+        {msg && <p className="text-sm text-center text-text">{msg}</p>}
+        <p className="text-xs text-textSecundar text-center">Comenzile plasate cu acest e-mail apar automat în contul tău.</p>
       </form>
     </div>
   );

@@ -9,6 +9,8 @@ import { useFavorites } from "./FavoritesContext";
 import { sbBrowser } from "@/lib/supabase";
 import { CONFIG, PROGRAM, LIVRARE, telLink } from "@/lib/config";
 import HartiLinks from "./HartiLinks";
+// TEMPORAR — selector teme pentru client. Vezi instrucțiunile de ștergere din CLAUDE.md
+import SelectorTeme from "./SelectorTeme";
 
 const NAV = [
   { href: "/", t: "Acasă" },
@@ -59,46 +61,50 @@ export default function Header() {
     <Link href={href} title={eticheta} aria-label={eticheta}
       className="relative flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg hover:bg-white/10 transition">
       <Ic kind={kind} />
-      <span className="hidden lg:block text-[10px] leading-none text-white/70">{eticheta}</span>
+      <span className="hidden lg:block text-[10px] leading-none text-headerText/70">{eticheta}</span>
       {badge ? (
-        <span className="absolute -top-0.5 right-0.5 bg-acc text-white text-[10px] font-bold rounded-full min-w-[17px] h-[17px] px-1 grid place-items-center">
+        <span className="absolute -top-0.5 right-0.5 bg-accent text-accentText text-[10px] font-bold rounded-full min-w-[17px] h-[17px] px-1 grid place-items-center">
           {badge}</span>
       ) : null}
     </Link>
   );
 
   return (
-    <header className="bg-ink text-white sticky top-0 z-40">
+    <header className="bg-headerBg text-headerText sticky top-0 z-40">
       {/* Bara de sus: telefon + program și livrare în stânga, hărțile în dreapta */}
       <div className="bg-black/25 text-[12px]">
         <div className="mx-auto max-w-6xl px-4 py-1.5 flex items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 min-w-0">
             <span className="whitespace-nowrap">
-              ☎ <a href={telLink()} className="font-semibold hover:text-acc">{CONFIG.telefonAfisat}</a>
+              ☎ <a href={telLink()} className="font-semibold hover:text-accent">{CONFIG.telefonAfisat}</a>
               {" · "}Program: {PROGRAM}
             </span>
-            <span className="hidden lg:block text-white/70">{LIVRARE}</span>
+            <span className="hidden lg:block text-headerText/70">{LIVRARE}</span>
           </div>
-          <div className="shrink-0"><HartiLinks /></div>
+          <div className="flex items-center gap-3 shrink-0 min-w-0">
+            <HartiLinks />
+            {/* TEMPORAR — selector teme pentru client. Vezi instrucțiunile de ștergere din CLAUDE.md */}
+            <SelectorTeme />
+          </div>
         </div>
       </div>
 
       <div className="mx-auto max-w-6xl px-4 py-3 flex items-center gap-3 sm:gap-4">
         <Link href="/" className="leading-none shrink-0">
           <span className="block font-disp font-bold text-[24px] sm:text-[26px] tracking-wide">AUTOPAS</span>
-          <span className="block font-disp font-medium text-[9px] sm:text-[10px] tracking-[0.45em] text-white/60">DEZMEMBRĂRI</span>
+          <span className="block font-disp font-medium text-[9px] sm:text-[10px] tracking-[0.45em] text-headerText/60">DEZMEMBRĂRI</span>
         </Link>
 
         <form action="/piese" className="hidden md:flex flex-1 min-w-0">
           <input name="q" placeholder="Caută piesă sau cod OEM…"
-            className="flex-1 min-w-0 rounded-l-xl px-4 py-2.5 text-ink text-sm outline-none" />
-          <button className="bg-acc rounded-r-xl px-5 font-semibold text-sm">Caută</button>
+            className="flex-1 min-w-0 rounded-l-xl bg-suprafata px-4 py-2.5 text-text text-sm outline-none" />
+          <button className="bg-accent text-accentText rounded-r-xl px-5 font-semibold text-sm">Caută</button>
         </form>
 
         <nav className="ml-auto flex items-center gap-0.5 sm:gap-1">
           {staff && (
             <Link href="/admin" title="Panou de administrare"
-              className="flex items-center gap-1.5 rounded-lg bg-acc px-2.5 py-2 text-[12px] font-semibold hover:brightness-110 transition">
+              className="flex items-center gap-1.5 rounded-lg bg-accent text-accentText px-2.5 py-2 text-[12px] font-semibold hover:brightness-110 transition">
               <Ic kind="admin" className="w-[18px] h-[18px]" />
               <span className="hidden sm:block">Admin</span>
             </Link>
@@ -114,15 +120,15 @@ export default function Header() {
       {/* căutare pe mobil */}
       <form action="/piese" className="md:hidden px-4 pb-3 flex">
         <input name="q" placeholder="Caută piesă sau cod OEM…"
-          className="flex-1 min-w-0 rounded-l-xl px-4 py-2.5 text-ink text-sm outline-none" />
-        <button className="bg-acc rounded-r-xl px-4 font-semibold text-sm">Caută</button>
+          className="flex-1 min-w-0 rounded-l-xl bg-suprafata px-4 py-2.5 text-text text-sm outline-none" />
+        <button className="bg-accent text-accentText rounded-r-xl px-4 font-semibold text-sm">Caută</button>
       </form>
 
       <nav className={`bg-steel/60 ${open ? "block" : "hidden"} md:block`}>
         <div className="mx-auto max-w-6xl px-4 flex flex-col md:flex-row gap-x-1 text-[13.5px] font-medium">
           {NAV.map((n) => (
             <Link key={n.href} href={n.href} onClick={() => setOpen(false)}
-              className={`px-3 py-2.5 ${path === n.href ? "bg-acc text-white" : "hover:bg-white/10"}`}>{n.t}</Link>
+              className={`px-3 py-2.5 ${path === n.href ? "bg-accent text-accentText" : "hover:bg-white/10"}`}>{n.t}</Link>
           ))}
         </div>
       </nav>

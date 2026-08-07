@@ -16,10 +16,10 @@ export default function ReturnForm() {
     setStare(error ? "eroare" : "ok");
   }
   if (stare === "ok") return <div className="card p-8 text-center"><b className="text-ok text-lg">✓ Cererea de retur a fost înregistrată!</b>
-    <p className="text-mut text-sm mt-1">Primești pe e-mail confirmarea și instrucțiunile de expediere.</p></div>;
+    <p className="text-textSecundar text-sm mt-1">Primești pe e-mail confirmarea și instrucțiunile de expediere.</p></div>;
   return (
     <form onSubmit={trimite} className="card p-5 grid sm:grid-cols-2 gap-3">
-      <div className="fld"><label>Numărul comenzii * <span className="font-normal text-mut">(ex. AP-2026-01847)</span></label><input name="numar_comanda" required /></div>
+      <div className="fld"><label>Numărul comenzii * <span className="font-normal text-textSecundar">(ex. AP-2026-01847)</span></label><input name="numar_comanda" required /></div>
       <div className="fld"><label>Nume *</label><input name="nume" required /></div>
       <div className="fld"><label>E-mail *</label><input name="email" type="email" required /></div>
       <div className="fld"><label>Telefon</label><input name="telefon" /></div>
@@ -32,7 +32,7 @@ export default function ReturnForm() {
           <option>Piesa este neconformă / nefuncțională</option>
           <option>Alt motiv</option>
         </select></div>
-      <div className="fld sm:col-span-2"><label>IBAN pentru rambursare <span className="font-normal text-mut">(dacă ai plătit ramburs)</span></label><input name="iban" placeholder="RO…" /></div>
+      <div className="fld sm:col-span-2"><label>IBAN pentru rambursare <span className="font-normal text-textSecundar">(dacă ai plătit ramburs)</span></label><input name="iban" placeholder="RO…" /></div>
       <button disabled={stare === "trimit"} className="btn-acc sm:col-span-2">{stare === "trimit" ? "Se trimite…" : "Trimite cererea de retur"}</button>
       {stare === "eroare" && <p className="text-red-600 text-sm sm:col-span-2">Eroare la trimitere — scrie-ne la comenzi@autopas.ro.</p>}
     </form>

@@ -19,7 +19,7 @@ export default function Cos() {
       <div className="mx-auto max-w-2xl px-4 py-20 text-center">
         <div className="text-6xl mb-4">🛒</div>
         <h1 className="font-disp font-bold text-3xl">Coșul tău e gol</h1>
-        <p className="text-mut mt-2">Dar depozitul nostru nu e. Piesele așteaptă.</p>
+        <p className="text-textSecundar mt-2">Dar depozitul nostru nu e. Piesele așteaptă.</p>
         <div className="mt-6 flex gap-3 justify-center">
           <Link href="/piese" className="btn-acc">Vezi piesele pe stoc</Link>
           <Link href="/cauta-dupa-masina" className="btn-dark">Caută după mașină</Link>
@@ -29,18 +29,18 @@ export default function Cos() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <Breadcrumbs items={[{ t: "Acasă", href: "/" }, { t: "Coșul meu" }]} />
-      <h1 className="font-disp font-bold text-3xl mt-2 mb-6">Coșul meu <span className="text-mut text-lg">· {items.length} {items.length === 1 ? "produs" : "produse"}</span></h1>
+      <h1 className="font-disp font-bold text-3xl mt-2 mb-6">Coșul meu <span className="text-textSecundar text-lg">· {items.length} {items.length === 1 ? "produs" : "produse"}</span></h1>
       <div className="grid lg:grid-cols-[1fr,340px] gap-6 items-start">
-        <div className="card divide-y divide-line">
+        <div className="card divide-y divide-chenar">
           {items.map((i) => (
             <div key={i.id} className="p-4 flex gap-4 items-center">
               <PartArt kind={i.art} className="w-24 rounded-lg shrink-0" />
               <div className="flex-1">
-                <Link href={`/piese/${i.slug}`} className="font-semibold text-sm hover:text-acc">{i.nume}</Link>
-                <div className="text-xs text-mut mt-0.5">OEM {i.oem} · piesă unică — rezervată 30 min</div>
+                <Link href={`/piese/${i.slug}`} className="font-semibold text-sm hover:text-accent">{i.nume}</Link>
+                <div className="text-xs text-textSecundar mt-0.5">OEM {i.oem} · piesă unică — rezervată 30 min</div>
               </div>
-              <b className="font-disp text-lg text-acc whitespace-nowrap">{lei(i.pret)}</b>
-              <button onClick={() => remove(i.id)} className="text-mut hover:text-red-600 text-xl" aria-label="elimină">×</button>
+              <b className="font-disp text-lg text-accent whitespace-nowrap">{lei(i.pret)}</b>
+              <button onClick={() => remove(i.id)} className="text-textSecundar hover:text-red-600 text-xl" aria-label="elimină">×</button>
             </div>
           ))}
         </div>
@@ -52,15 +52,15 @@ export default function Cos() {
           {/* Transportul nu se poate calcula automat: piesele diferă mult ca greutate
               și gabarit, iar FAN Courier taxează în funcție de ele. Îl stabilim după
               comandă și îl comunicăm clientului înainte de expediere. */}
-          <div className="flex justify-between text-mut"><span>Livrare</span><span>se calculează separat</span></div>
-          <div className="flex justify-between border-t border-line pt-3 text-base"><span>Total produse</span>
-            <b className="font-disp text-2xl text-acc">{lei(Math.max(0, total - (reducere?.valoare ?? 0)))}</b></div>
-          <p className="text-xs text-mut bg-paper rounded-lg px-3 py-2 leading-relaxed">
+          <div className="flex justify-between text-textSecundar"><span>Livrare</span><span>se calculează separat</span></div>
+          <div className="flex justify-between border-t border-chenar pt-3 text-base"><span>Total produse</span>
+            <b className="font-disp text-2xl text-accent">{lei(Math.max(0, total - (reducere?.valoare ?? 0)))}</b></div>
+          <p className="text-xs text-textSecundar bg-suprafata2 rounded-lg px-3 py-2 leading-relaxed">
             Costul livrării depinde de greutatea și dimensiunile pieselor. Îl calculăm după
             plasarea comenzii și te sunăm cu totalul exact înainte de expediere.
           </p>
           <Link href="/checkout" className="btn-acc w-full">Finalizează comanda</Link>
-          <p className="text-xs text-mut text-center">Plată ramburs sau transfer bancar · Garanție 90 de zile · Retur în 14 zile</p>
+          <p className="text-xs text-textSecundar text-center">Plată ramburs sau transfer bancar · Garanție 90 de zile · Retur în 14 zile</p>
         </div>
       </div>
     </div>

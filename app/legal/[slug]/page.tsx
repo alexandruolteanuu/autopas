@@ -19,13 +19,13 @@ export default async function LegalPage({ params }: { params: { slug: string } }
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 grid lg:grid-cols-[240px,1fr] gap-8">
       <aside className="card p-4 h-fit text-sm lg:sticky lg:top-24">
-        <b className="font-disp font-semibold text-[12px] text-mut">Documente</b>
+        <b className="font-disp font-semibold text-[12px] text-textSecundar">Documente</b>
         <ul className="mt-2 space-y-1.5">
           {LEGAL_SLUGS.map((d) => (
             <li key={d.slug}><Link href={`/legal/${d.slug}`}
-              className={d.slug === doc.slug ? "text-acc font-bold" : "hover:text-acc"}>{d.titlu}</Link></li>
+              className={d.slug === doc.slug ? "text-accent font-bold" : "hover:text-accent"}>{d.titlu}</Link></li>
           ))}
-          <li><Link href="/formular-retur" className="hover:text-acc">Formular de retur</Link></li>
+          <li><Link href="/formular-retur" className="hover:text-accent">Formular de retur</Link></li>
         </ul>
       </aside>
       <article>
@@ -35,13 +35,13 @@ export default async function LegalPage({ params }: { params: { slug: string } }
           {doc.sectiuni.map((s) => (
             <section key={s.h}>
               <h2 className="font-disp font-semibold text-lg">{s.h}</h2>
-              {s.p?.map((p, i) => <p key={i} className="text-[15px] leading-relaxed mt-2 text-steel">{p}</p>)}
+              {s.p?.map((p, i) => <p key={i} className="text-[15px] leading-relaxed mt-2 text-text">{p}</p>)}
               {/* Enumerările (piese acoperite, drepturi GDPR, documente necesare) se afișează ca listă,
                   ca să fie citibile — nu ca bloc compact de text. */}
               {s.lista && (
-                <ul className="mt-2 space-y-1.5 text-[15px] leading-relaxed text-steel">
+                <ul className="mt-2 space-y-1.5 text-[15px] leading-relaxed text-text">
                   {s.lista.map((el, i) => (
-                    <li key={i} className="flex gap-2"><span className="text-acc mt-[2px]">•</span><span>{el}</span></li>
+                    <li key={i} className="flex gap-2"><span className="text-accent mt-[2px]">•</span><span>{el}</span></li>
                   ))}
                 </ul>
               )}
@@ -53,10 +53,10 @@ export default async function LegalPage({ params }: { params: { slug: string } }
           <p className="text-sm mt-6">
             Textul oficial al OUG 34/2014:{" "}
             <a href="https://legislatie.just.ro/Public/DetaliiDocument/159792" target="_blank" rel="noopener noreferrer"
-              className="text-acc font-semibold">legislatie.just.ro</a>
+              className="text-accent font-semibold">legislatie.just.ro</a>
           </p>
         )}
-        <p className="text-xs text-mut mt-8 border-t border-line pt-4">Ultima actualizare: august 2026 · Pentru orice întrebare, folosește pagina de <Link href="/contact" className="text-acc font-semibold">contact</Link>.</p>
+        <p className="text-xs text-textSecundar mt-8 border-t border-chenar pt-4">Ultima actualizare: august 2026 · Pentru orice întrebare, folosește pagina de <Link href="/contact" className="text-accent font-semibold">contact</Link>.</p>
       </article>
     </div>
   );

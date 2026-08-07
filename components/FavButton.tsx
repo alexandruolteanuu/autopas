@@ -11,7 +11,7 @@ export default function FavButton({ id, variant = "card" }: { id: number; varian
     return (
       <button onClick={() => comuta(id)} aria-pressed={activ} title={eticheta}
         className={`inline-flex items-center gap-2 rounded-xl border-2 px-4 py-2.5 text-sm font-medium transition
-          ${activ ? "border-acc text-acc bg-acc/5" : "border-line text-steel hover:border-acc"}`}>
+          ${activ ? "border-accent text-accent bg-accent/5" : "border-chenar text-text hover:border-accent"}`}>
         <Inima plina={activ} /> {activ ? "La favorite" : "Adaugă la favorite"}
       </button>
     );
@@ -20,7 +20,7 @@ export default function FavButton({ id, variant = "card" }: { id: number; varian
     <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); comuta(id); }}
       aria-pressed={activ} title={eticheta}
       className={`absolute top-2 left-2 z-10 w-8 h-8 rounded-full grid place-items-center backdrop-blur transition
-        ${activ ? "bg-acc text-white" : "bg-white/85 text-steel hover:text-acc"}`}>
+        ${activ ? "bg-accent text-accentText" : "bg-white/85 text-steel hover:text-accent"}`}>
       <Inima plina={activ} />
     </button>
   );

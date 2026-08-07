@@ -14,7 +14,7 @@ export default function ContactForm() {
     });
     setStare(error ? "eroare" : "ok");
   }
-  if (stare === "ok") return <div className="card p-6 text-center"><b className="text-ok">✓ Mesajul a fost trimis!</b><p className="text-mut text-sm mt-1">Răspundem în aceeași zi lucrătoare.</p></div>;
+  if (stare === "ok") return <div className="card p-6 text-center"><b className="text-ok">✓ Mesajul a fost trimis!</b><p className="text-textSecundar text-sm mt-1">Răspundem în aceeași zi lucrătoare.</p></div>;
   return (
     <form onSubmit={trimite} className="card p-5 grid gap-3">
       <div className="fld"><label>Nume *</label><input name="nume" required /></div>
