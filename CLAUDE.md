@@ -4,8 +4,13 @@ Acest fișier îți dă contextul complet ca să poți continua proiectul fără
 Citește-l întâi, apoi lucrează.
 
 ## Ce este
-Magazin online de piese auto second-hand din dezmembrări, în Piatra-Neamț.
-Site public + cont client + panou de administrare complet, toate reale (fără machete, fără date demo).
+Magazin online de piese auto second-hand din dezmembrări. Depozitul e pe Str. Petru Rareș nr. 181,
+pe DN 15 între Piatra-Neamț și Bicaz (sat Bistrița, com. Alexandru cel Bun, jud. Neamț) — aceeași
+adresă cu sediul social. Site public + cont client + panou de administrare complet.
+
+**Stare la 7 august 2026: încă nelansat.** Nu are clienți, nu are comenzi reale. Cele 8 produse și
+5 mașini din bază sunt exemple de lucru, nu marfă — trebuie înlocuite înainte de lansare.
+Codul nu trebuie să conțină date inventate; datele din bază sunt provizorii și e în regulă.
 
 ## Stack
 - **Next.js 14** (App Router) + **TypeScript** + **Tailwind CSS**
@@ -58,9 +63,15 @@ Toate cele de mai sus sunt deja aplicate pe proiectul de producție (august 2026
 
 ## Decizii deja luate (nu le schimba fără să întrebi)
 - Logo = doar text (AUTOPAS / DEZMEMBRĂRI), portocaliu #FF6B1A. Font: Poppins (local, în `app/fonts/`).
-- VIN abandonat; nu se folosește.
-- Starea piesei A/B/C — eliminată complet (filtru, produs, admin, import).
+- VIN = **se folosește, dar niciodată complet**. Pe mașinile la dezmembrat există `vin_masca`
+  (serie parțială, ex. `WVWZZZ1KZ…8452`), afișată public în `/cauta-dupa-masina` și editabilă în
+  `/admin/masini`. Formularul de predare a mașinii cere VIN-ul complet, opțional
+  (`car_intake_requests.vin`), vizibil doar echipei. Ce s-a abandonat e căutarea pieselor după VIN.
+- Starea piesei A/B/C — scoasă din interfață (filtru, pagina de produs, admin, import).
+  Coloana `products.stare` încă există în bază, dar e `nullable` și nu se mai completează;
+  a rămas doar ca să nu strice datele vechi. `stare_nota` (text liber) se folosește în continuare.
 - Cod intern piesă = generat automat, format `AP-000123`.
+- Număr comandă = generat pe server, din contorul `nr_comanda_seq`, format `AP-2026-01000`.
 - Facturare prin **Saga** = export CSV (Saga nu are API public); statusul e-Factura îl gestionează Saga.
 - Curier = **doar FAN Courier** (decizie 7 aug 2026). Cargus și Sameday au fost scoase complet
   din cod, din texte și din `settings.curieri`. Scheletul SelfAWB se activează la primirea
@@ -68,22 +79,44 @@ Toate cele de mai sus sunt deja aplicate pe proiectul de producție (august 2026
 - Plată card = fază viitoare; butonul e vizibil, activarea vine cu procesatorul.
 - Notificare comandă nouă = alertă sonoră+vizuală în `/admin` (fără e-mail; utilizatorul a refuzat Resend)
   + buton „Trimite confirmarea pe WhatsApp" precompletat.
+- **Costul livrării NU se afișează la checkout** (decizie 7 aug 2026). Piesele diferă prea mult ca
+  greutate și gabarit ca să existe un tarif fix. Clientul comandă doar produsele; echipa completează
+  în `/admin/comenzi/[id]` greutatea, dimensiunile, transportul de bază, km suplimentari și alte taxe,
+  iar funcția `seteaza_cost_livrare` recalculează totalul. Generarea AWB e blocată până atunci.
+  Costul se comunică telefonic + pe WhatsApp. E-mail automat: refuzat deocamdată.
+- **Prețurile și totalurile se calculează exclusiv pe server** (`plaseaza_comanda`). Browserul trimite
+  doar id-urile pieselor. Nu adăuga niciodată `insert` direct în `orders`/`order_items` — politicile
+  RLS de insert au fost șterse intenționat.
+- Indexarea în Google e **oprită** până la lansare; se activează cu `PERMITE_INDEXARE=da` în Vercel.
+  Domeniul ales: `autopas-dezmembrari.ro` (neînregistrat încă la 7 aug 2026).
 - Favorite = model hibrid (localStorage pentru nelogați + tabela `favorites` pentru logați, cu sincronizare).
 - Roluri: `client`, `operator`, `contabil`, `admin` (coloana `role` în `profiles`, controlată prin RLS).
 
-## Cele 12 module de admin (toate funcționale)
-Dashboard · Comenzi (+detaliu cu jurnal, anulare cu restoc, ștergere) · Cereri (inbox 4 taburi) ·
-Produse (pagină de editare cu poze reale) · Categorii (+subcategorii) · Mărci și modele ·
-Mașini la dezmembrat (profit/amortizare) · Facturi (export Saga) · Rapoarte · Marketing (coduri reducere) ·
-Setări (firmă, curieri, roluri) · Integrări.
+## Cele 14 module de admin (toate funcționale)
+Dashboard · Comenzi (+detaliu cu jurnal, cost livrare, anulare cu restoc, ștergere) ·
+Cereri (inbox 4 taburi) · Produse (pagină de editare cu poze reale) · Categorii (+subcategorii) ·
+Mărci și modele · Mașini la dezmembrat (profit/amortizare) · Expedieri (AWB) · Clienți ·
+Facturi (export Saga) · Rapoarte · Marketing (coduri reducere) · Setări (firmă, curier, roluri) ·
+Integrări.
+Meniul și drepturile pe rol sunt definite în `app/admin/layout.tsx` (constanta `MENIU`).
 
 ## Baza de date — tabele cheie
 `categories` (+`parent_id` subcategorii, view `categorii_cu_numar`), `products` (+`poze[]`,
 `cod_intern`, `originala`, `subcategorie_id`, `greutate_kg`, `cost_lei`, `vizualizari`),
 `vehicles` (+`cost_achizitie`, `status`, `piese_listate` actualizat prin trigger),
-`orders` + `order_items` (trigger scade stocul automat) + `order_events` (jurnal),
+`orders` (+`livrare_baza`, `livrare_km_extra`, `livrare_alte`, `livrare_greutate_kg`,
+`livrare_dimensiuni`, `livrare_nota`, `livrare_stabilit_la` — `null` = transport necalculat)
++ `order_items` (trigger scade stocul automat) + `order_events` (jurnal),
 `brands` + `models`, `part_requests`/`car_intake_requests`/`return_requests`/`contact_messages`
 (cu status), `profiles` (roluri), `discount_codes`, `settings`, `favorites`.
+
+## Funcții de bază de date (toate `security definer`, verifică rolul în interior)
+`plaseaza_comanda` (singura cale de a crea o comandă) · `seteaza_cost_livrare` (doar echipa) ·
+`valideaza_cod` (publică) · `anuleaza_comanda`, `sterge_comanda`, `sterge_produs` (doar echipa/admin) ·
+`is_admin`, `is_staff` · triggere: `scade_stocul`, `jurnal_comanda`, `recalc_piese_vehicul`,
+`set_cod_intern`, `handle_new_user`.
+La orice funcție nouă expusă public: `revoke execute ... from public` — nu doar de la `anon`,
+fiindcă `anon` moștenește dreptul prin rolul `PUBLIC`.
 
 ## Când termini o modificare
 Rulează `npm run build`. Dacă trece, fă commit cu mesaj clar în română și push pe `main`.
