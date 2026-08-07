@@ -2,6 +2,7 @@
 // Formular comun: predare mașină / Programul Rabla — scrie REAL în car_intake_requests.
 import { useState } from "react";
 import { sbBrowser } from "@/lib/supabase";
+import { CONFIG } from "@/lib/config";
 
 export default function IntakeForm({ tip }: { tip: "predare" | "rabla" }) {
   const [stare, setStare] = useState<"idle" | "trimit" | "ok" | "eroare">("idle");
@@ -29,7 +30,7 @@ export default function IntakeForm({ tip }: { tip: "predare" | "rabla" }) {
       <div className="fld sm:col-span-2"><label>Seria de șasiu (VIN) — opțional</label><input name="vin" /></div>
       <div className="fld sm:col-span-2"><label>Detalii (stare, dacă pornește, unde se află)</label><textarea name="mesaj" rows={2} /></div>
       <button disabled={stare === "trimit"} className="btn-acc sm:col-span-2">{stare === "trimit" ? "Se trimite…" : tip === "rabla" ? "Vreau certificatul Rabla" : "Cere evaluarea"}</button>
-      {stare === "eroare" && <p className="text-red-600 text-sm sm:col-span-2">Eroare la trimitere — sună-ne direct: 0740 123 456.</p>}
+      {stare === "eroare" && <p className="text-red-600 text-sm sm:col-span-2">Eroare la trimitere — sună-ne direct: {CONFIG.telefonAfisat}.</p>}
     </form>
   );
 }

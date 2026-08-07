@@ -7,6 +7,8 @@ import { useEffect, useState } from "react";
 import { useCart } from "./CartContext";
 import { useFavorites } from "./FavoritesContext";
 import { sbBrowser } from "@/lib/supabase";
+import { CONFIG, PROGRAM, LIVRARE, telLink } from "@/lib/config";
+import HartiLinks from "./HartiLinks";
 
 const NAV = [
   { href: "/", t: "Acasă" },
@@ -67,10 +69,17 @@ export default function Header() {
 
   return (
     <header className="bg-ink text-white sticky top-0 z-40">
+      {/* Bara de sus: telefon + program și livrare în stânga, hărțile în dreapta */}
       <div className="bg-black/25 text-[12px]">
-        <div className="mx-auto max-w-6xl px-4 py-1.5 flex justify-between gap-3">
-          <span>☎ {process.env.NEXT_PUBLIC_PHONE_DISPLAY ?? "0740 123 456"} · L–V 08–17, S 09–13</span>
-          <span className="hidden sm:block">Livrare 1–3 zile lucrătoare în toată România</span>
+        <div className="mx-auto max-w-6xl px-4 py-1.5 flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 min-w-0">
+            <span className="whitespace-nowrap">
+              ☎ <a href={telLink()} className="font-semibold hover:text-acc">{CONFIG.telefonAfisat}</a>
+              {" · "}Program: {PROGRAM}
+            </span>
+            <span className="hidden lg:block text-white/70">{LIVRARE}</span>
+          </div>
+          <div className="shrink-0"><HartiLinks /></div>
         </div>
       </div>
 

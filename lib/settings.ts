@@ -18,8 +18,8 @@ export type Integrari = {
 
 export const FIRMA_IMPLICITA: Firma = {
   denumire: "Autopas Dezmembrări SRL", cui: "", reg_com: "", iban: "",
-  serie_factura: "AUTP", telefon: "0740 123 456", email: "comenzi@autopas.ro",
-  whatsapp: process.env.NEXT_PUBLIC_WHATSAPP_PHONE ?? "40740123456",
+  serie_factura: "AUTP", telefon: "0743 627 151", email: "comenzi@autopas.ro",
+  whatsapp: process.env.NEXT_PUBLIC_WHATSAPP_PHONE ?? "40743627151",
 };
 export const CURIERI_IMPLICITI: Curier[] = [
   { id: "fan", nume: "FAN Courier", detalii: "livrare 1–3 zile lucrătoare, ramburs inclus", pret: 19.9 },

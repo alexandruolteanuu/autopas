@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { Firma } from "@/lib/settings";
 import { FIRMA_IMPLICITA } from "@/lib/settings";
+import { CONFIG, PROGRAM, telLink } from "@/lib/config";
+import HartiLinks from "./HartiLinks";
 // Footer complet — modelul cerut de client: toate paginile legale + bannere ANPC/SOL vizibile.
 export default function Footer({ firma = FIRMA_IMPLICITA }: { firma?: Firma }) {
   return (
@@ -9,8 +11,15 @@ export default function Footer({ firma = FIRMA_IMPLICITA }: { firma?: Firma }) {
         <div>
           <span className="block font-disp font-bold text-[24px]">AUTOPAS</span>
           <span className="block font-disp text-[9px] tracking-[0.5em] text-white/60 mb-3">DEZMEMBRĂRI</span>
-          <p className="text-white/70 leading-relaxed">Piese auto second-hand testate, din dezmembrări autorizate. Garanție 30 de zile conform regulament, livrare 1–3 zile lucrătoare în toată România.</p>
+          <p className="text-white/70 leading-relaxed">Piese auto second-hand testate, din dezmembrări autorizate. Garanție 30 de zile conform regulament, livrare în 1–3 zile lucrătoare în toată România.</p>
           <p className="mt-3 text-white/70">📍 Piatra-Neamț, jud. Neamț</p>
+          {/* Contact — telefon și program, aceleași valori ca în header (lib/config.ts) */}
+          <p className="mt-1">
+            ☎ <a href={telLink()} className="font-semibold hover:text-acc">{CONFIG.telefonAfisat}</a>
+          </p>
+          <p className="text-white/70">Program: {PROGRAM}</p>
+          {/* Waze și Google Maps — linkuri către locație */}
+          <div className="mt-3"><HartiLinks variant="footer" /></div>
         </div>
         <div>
           <h4 className="font-disp font-semibold tracking-wide text-[12px] text-white/50 mb-3">Pagini principale</h4>

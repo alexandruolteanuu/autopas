@@ -1,4 +1,5 @@
 import Breadcrumbs from "@/components/Breadcrumbs";
+import { PROGRAM } from "@/lib/config";
 export const metadata = { title: "Despre noi" };
 // Varianta STANDARD cerută în feedback — fără date inventate, adresa doar Piatra-Neamț.
 export default function DespreNoi() {
@@ -28,7 +29,7 @@ export default function DespreNoi() {
         ))}
       </div>
       <div className="card p-5 mt-6 flex items-center justify-between flex-wrap gap-3">
-        <span>📍 <b>Piatra-Neamț</b> · deschis L–V 08–17, S 09–13</span>
+        <span>📍 <b>Piatra-Neamț</b> · deschis {PROGRAM}</span>
         <span className="text-mut text-sm">Ridicare personală posibilă, cu programare telefonică.</span>
       </div>
     </div>
