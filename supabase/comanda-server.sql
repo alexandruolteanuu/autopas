@@ -175,12 +175,17 @@ drop policy if exists "items insert" on order_items;
 -- ---------- 4. CURĂȚENIE ----------
 -- `foloseste_cod` era apelabilă de oricine și umfla contorul de folosiri.
 -- Numărătoarea se face acum în interiorul comenzii, deci n-o mai expunem.
--- (verificăm întâi că există, ca scriptul să nu cadă dacă sprint-bc.sql n-a rulat)
+--
+-- ATENȚIE la `revoke`: în Postgres, funcțiile primesc implicit EXECUTE pentru
+-- rolul PUBLIC, iar `anon` și `authenticated` moștenesc de acolo. Dacă revoci
+-- doar de la ele, dreptul rămâne prin PUBLIC și funcția e în continuare
+-- apelabilă. De aceea revocăm întâi de la PUBLIC.
+-- (verificăm întâi că funcția există, ca scriptul să nu cadă dacă sprint-bc.sql n-a rulat)
 do $$
 begin
   if exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
               where n.nspname = 'public' and p.proname = 'foloseste_cod') then
-    revoke execute on function public.foloseste_cod(text) from anon, authenticated;
+    revoke execute on function public.foloseste_cod(text) from public, anon, authenticated;
   end if;
 end $$;
 

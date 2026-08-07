@@ -2,30 +2,37 @@
 -- AUTOPAS — UPGRADE (rulează AL ȘAPTELEA, după sprint-bc.sql)
 -- Subcategorii · poze reale · cod intern · renunțare la starea A/B/C
 -- Supabase → SQL Editor → New query → lipește tot → Run
+--
+-- IDEMPOTENT: se poate rula de oricâte ori fără efecte secundare.
+-- Conține și politicile pentru bucketul de poze (secțiunea 6) — nu există un
+-- fișier separat „upgrade-poze.sql", totul e aici.
 -- ============================================================
 
 -- ---------- 1. CATEGORII IERARHICE (categorie → subcategorie) ----------
-alter table categories add column parent_id bigint references categories(id) on delete cascade;
-alter table categories add column descriere text;
-create index categories_parent_idx on categories (parent_id);
+alter table categories add column if not exists parent_id bigint references categories(id) on delete cascade;
+alter table categories add column if not exists descriere text;
+create index if not exists categories_parent_idx on categories (parent_id);
 
 -- ---------- 2. PRODUSE: câmpuri noi ----------
-alter table products add column subcategorie_id bigint references categories(id);
-alter table products add column cod_intern text unique;
-alter table products add column originala boolean not null default true;   -- „Piesă Auto Originală din dezmembrări"
-alter table products add column poze text[] not null default '{}';          -- URL-urile pozelor reale
+alter table products add column if not exists subcategorie_id bigint references categories(id);
+alter table products add column if not exists cod_intern text unique;
+alter table products add column if not exists originala boolean not null default true;   -- „Piesă Auto Originală din dezmembrări"
+alter table products add column if not exists poze text[] not null default '{}';          -- URL-urile pozelor reale
 alter table products alter column stare drop not null;                      -- nu mai folosim A/B/C
 alter table products alter column oem drop not null;
 
 -- cod intern automat: AP-000123 (se poate dicta la telefon)
+-- `search_path` fixat: fără el, funcția ar putea fi păcălită să folosească
+-- obiecte din alt schema (avertisment de securitate semnalat de Supabase).
 create or replace function public.set_cod_intern()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql set search_path = public as $$
 begin
   if new.cod_intern is null then
     new.cod_intern := 'AP-' || lpad(new.id::text, 6, '0');
   end if;
   return new;
 end; $$;
+drop trigger if exists tr_cod_intern on products;
 create trigger tr_cod_intern before insert on products
   for each row execute procedure public.set_cod_intern();
 
@@ -90,9 +97,12 @@ on conflict (cheie) do nothing;
 insert into storage.buckets (id, name, public) values ('poze-piese', 'poze-piese', true)
 on conflict (id) do nothing;
 
+drop policy if exists "poze publice" on storage.objects;
 create policy "poze publice" on storage.objects for select
   using (bucket_id = 'poze-piese');
+drop policy if exists "poze incarcare staff" on storage.objects;
 create policy "poze incarcare staff" on storage.objects for insert to authenticated
   with check (bucket_id = 'poze-piese' and is_staff());
+drop policy if exists "poze stergere staff" on storage.objects;
 create policy "poze stergere staff" on storage.objects for delete to authenticated
   using (bucket_id = 'poze-piese' and is_staff());

@@ -50,9 +50,11 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 
 ## Ordinea migrărilor SQL (rulare manuală în Supabase, o singură dată fiecare)
 1. `schema.sql` -> 2. `seed.sql` -> 3. `filtru.sql` -> 4. `integrari.sql` ->
-5. `admin.sql` -> 6. `sprint-bc.sql` -> 7. `upgrade.sql` -> 7b. `upgrade-poze.sql` (separat) ->
-8. `favorite.sql` -> 9. `admin-fix.sql` -> 10. `date-firma.sql` -> 11. `comanda-server.sql`
-`verificare.sql` se poate rula oricând — arată ce s-a aplicat și ce lipsește.
+5. `admin.sql` -> 6. `sprint-bc.sql` -> 7. `upgrade.sql` (include și politicile pentru poze) ->
+8. `favorite.sql` -> 9. `admin-fix.sql` -> 10. `date-firma.sql` -> 11. `comanda-server.sql` ->
+12. `livrare-dupa-comanda.sql` -> 13. `coduri-reducere-private.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9, 10, 11, 12, 13. NU sunt încă idempotente: 1–5, 8.
+Toate cele de mai sus sunt deja aplicate pe proiectul de producție (august 2026).
 
 ## Decizii deja luate (nu le schimba fără să întrebi)
 - Logo = doar text (AUTOPAS / DEZMEMBRĂRI), portocaliu #FF6B1A. Font: Poppins (local, în `app/fonts/`).
