@@ -74,7 +74,9 @@ end $$;
 
 -- ---------- 4. NUMĂRĂTOAREA REALĂ DE PIESE PE CATEGORIE ----------
 -- Înlocuiește numerele fixe (display_count) cu stocul real, publicat.
-create or replace view categorii_cu_numar as
+-- `security_invoker = true`: view-ul aplică politicile RLS ale celui care îl
+-- citește, nu ale celui care l-a creat (implicit în PostgreSQL, altfel, e invers).
+create or replace view categorii_cu_numar with (security_invoker = true) as
 select c.id, c.slug, c.nume, c.parent_id, c.ordine, c.art,
        (select count(*) from products p
          where p.publicat = true and p.stoc > 0
