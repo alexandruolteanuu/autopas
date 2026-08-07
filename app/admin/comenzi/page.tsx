@@ -92,7 +92,13 @@ function ComenziInner() {
             ))}
           </tbody>
         </table>
-        {gata && orders.length === 0 && <p className="p-8 text-center text-mut text-sm">Nicio comandă pentru acest filtru.</p>}
+        {gata && orders.length === 0 && (
+          <div className="p-10 text-center">
+            <b className="font-disp font-bold text-lg block">Nicio comandă pentru acest filtru</b>
+            <p className="text-mut mt-2 text-sm">Schimbă filtrul de status sau așteaptă prima comandă — apare aici imediat ce clientul o plasează.</p>
+            <Link href="/admin/comenzi" className="btn-sec mt-5">Vezi toate comenzile</Link>
+          </div>
+        )}
       </div>
     </div>
   );

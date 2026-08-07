@@ -6,6 +6,8 @@ import VehicleFilter from "@/components/VehicleFilter";
 import PartRequestForm from "@/components/PartRequestForm";
 import SortSelect from "@/components/SortSelect";
 import FiltreSertar from "@/components/FiltreSertar";
+import StareGoala from "@/components/StareGoala";
+import { IconLupa } from "@/components/Icoane";
 import { fitmentCounts, textCautare } from "@/lib/format";
 import Link from "next/link";
 
@@ -120,7 +122,7 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
         { t: "Piese auto", ...(catActiva ? { href: "/piese" } : {}) },
         ...(catActiva?.parent_id ? [{ t: cats.find((c) => c.id === catActiva!.parent_id)?.nume ?? "", href: `/piese?categorie=${cats.find((c) => c.id === catActiva!.parent_id)?.slug}` }] : []),
         ...(catActiva ? [{ t: catActiva.nume }] : [])]} />
-      <h1 className="font-disp font-bold text-3xl mt-2 mb-4">{titlu}</h1>
+      <h1 className="t-sectiune mt-2 mb-4">{titlu}</h1>
       <div className="mb-6"><VehicleFilter brands={brands} models={models} cats={principale} counts={fitmentCounts(fitRows, models)} compact /></div>
 
       {/* Filtrele active, pe un rând care se defilează orizontal pe telefon */}
@@ -183,11 +185,16 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
             {products.map((p) => <ProductCard key={p.id} p={p} />)}
           </div>
           {products.length === 0 && (
-            <div className="card p-8">
-              <b className="font-disp font-bold text-xl block text-center">Nicio piesă pe stoc pentru această selecție — încă</b>
-              <p className="text-textSecundar mt-2 text-sm text-center max-w-xl mx-auto">Stocul se schimbă săptămânal, pe măsură ce dezmembrăm mașini noi. Lasă o cerere — te anunțăm imediat ce piesa intră în stoc.</p>
-              <div className="max-w-2xl mx-auto mt-5"><PartRequestForm sursa="filtru-fara-rezultate" /></div>
-            </div>
+            <StareGoala
+              icon={<IconLupa className="w-7 h-7" />}
+              titlu="Nicio piesă nu corespunde filtrelor"
+              text="Încearcă să elimini marca sau categoria. Stocul se schimbă săptămânal, pe măsură ce dezmembrăm mașini noi."
+              actiune={filtreActive.length > 0 ? { eticheta: "Șterge filtrele", href: "/piese" } : undefined}
+              copii={<div className="max-w-2xl mx-auto text-left">
+                <p className="text-[13px] text-textSecundar mb-3 text-center">Sau lasă-ne o cerere — te anunțăm imediat ce piesa intră în stoc.</p>
+                <PartRequestForm sursa="filtru-fara-rezultate" />
+              </div>}
+            />
           )}
         </div>
       </div>

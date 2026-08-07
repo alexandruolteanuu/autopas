@@ -14,7 +14,7 @@ export default function Rabla() {
   return (
     <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <Breadcrumbs items={[{ t: "Acasă", href: "/" }, { t: "Programul Rabla" }]} />
-      <h1 className="font-disp font-bold text-3xl mt-2">Programul Rabla — simplu, cu certificat pe loc</h1>
+      <h1 className="t-sectiune mt-2">Programul Rabla — simplu, cu certificat pe loc</h1>
       <p className="text-textSecundar mt-2 max-w-2xl">Suntem centru autorizat pentru tratarea vehiculelor scoase din uz: preluăm mașina ta veche și îți emitem <b className="text-text">certificatul de distrugere</b> — actul de care ai nevoie ca să primești ecotichetul Rabla.</p>
       <div className="grid lg:grid-cols-2 gap-8 mt-8 items-start">
         <div className="space-y-4">

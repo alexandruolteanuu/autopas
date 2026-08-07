@@ -9,6 +9,7 @@ import { useFavorites } from "./FavoritesContext";
 import { sbBrowser } from "@/lib/supabase";
 import { CONFIG, PROGRAM, LIVRARE, telLink } from "@/lib/config";
 import HartiLinks from "./HartiLinks";
+import { IconTelefon } from "./Icoane";
 // TEMPORAR — selector teme pentru client. Vezi instrucțiunile de ștergere din CLAUDE.md
 import SelectorTeme from "./SelectorTeme";
 
@@ -42,6 +43,14 @@ export default function Header() {
   const [open, setOpen] = useState(false);
   const [staff, setStaff] = useState(false);
   const [logat, setLogat] = useState(false);
+  // Headerul devine sticlă doar după ce s-a defilat: în stare inițială e opac,
+  // ca textul de sub el să nu treacă prin bară.
+  const [defilat, setDefilat] = useState(false);
+  useEffect(() => {
+    const la = () => setDefilat(window.scrollY > 8);
+    la(); window.addEventListener("scroll", la, { passive: true });
+    return () => window.removeEventListener("scroll", la);
+  }, []);
 
   useEffect(() => {
     const sb = sbBrowser(); if (!sb) return;
@@ -72,15 +81,15 @@ export default function Header() {
 
   return (
     <>
-    <header className="bg-headerBg text-headerText sticky top-0 z-40">
+    <header className={`text-headerText sticky top-0 z-40 transition-colors duration-200 ${defilat ? "sticla-header" : "bg-headerBg"}`}>
       {/* Bara de sus: telefonul (țintă de atingere proprie) și hărțile.
           Programul și textul despre livrare apar doar de la sm/lg în sus — pe
           telefon nu încap lângă hărți și oricum sunt repetate în subsol. */}
       <div className="bg-black/25 text-[12px]">
         <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-2 min-w-0">
           <div className="flex flex-wrap items-center gap-x-3 min-w-0 flex-1">
-            <a href={telLink()} className="inline-flex items-center min-h-[44px] font-semibold hover:text-accent">
-              ☎&nbsp;{CONFIG.telefonAfisat}
+            <a href={telLink()} className="inline-flex items-center gap-1.5 min-h-[44px] font-semibold hover:text-accent">
+              <IconTelefon className="w-[15px] h-[15px]" />{CONFIG.telefonAfisat}
             </a>
             <span className="hidden sm:inline text-headerText/70">Program: {PROGRAM}</span>
             <span className="hidden lg:inline text-headerText/70">{LIVRARE}</span>

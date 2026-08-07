@@ -7,6 +7,8 @@ import PartRequestForm from "@/components/PartRequestForm";
 import VehicleFilter from "@/components/VehicleFilter";
 import TrustBar from "@/components/TrustBar";
 import RecycleIcon from "@/components/RecycleIcon";
+import StareGoala from "@/components/StareGoala";
+import { IconLupa } from "@/components/Icoane";
 import { fitmentCounts, nrPiese } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -50,7 +52,7 @@ export default async function Home() {
               <RecycleIcon className="w-[18px] h-[18px] shrink-0" />
               Dezmembrăm responsabil. Reciclăm pentru viitor.
             </div>
-            <h1 className="font-disp font-bold leading-[1.08] text-[38px] sm:text-[50px] mt-4">
+            <h1 className="t-hero mt-4">
               Piese originale. Testate. Cu garanție.<br />
               <span className="text-accent">Pregătite pentru noul tău drum.</span>
             </h1>
@@ -81,7 +83,7 @@ export default async function Home() {
 
       <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
         <div className="dim">Categorii piese auto</div>
-        <h2 className="font-disp font-bold text-3xl mt-2 mb-6">Categorii principale</h2>
+        <h2 className="t-sectiune mt-2 mb-6">Categorii principale</h2>
         <div className="grid grid-cols-1 min-[420px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
           {cats.map((c) => (
             <Link key={c.id} href={`/piese?categorie=${c.slug}`}
@@ -97,14 +99,14 @@ export default async function Home() {
       <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 pb-12">
         <div className="flex items-end justify-between mb-6">
           <div><div className="dim">Noutăți</div>
-            <h2 className="font-disp font-bold text-3xl mt-2">Piese adăugate recent</h2></div>
+            <h2 className="t-sectiune mt-2">Piese adăugate recent</h2></div>
           <Link href="/piese" className="inline-flex items-center min-h-[44px] text-accent font-bold text-sm">Vezi toate piesele →</Link>
         </div>
         <div className="grid grid-cols-1 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           {products.map((p) => <ProductCard key={p.id} p={p} />)}
         </div>
         {products.length === 0 && (
-          <div className="card p-8 text-center text-textSecundar">Nicio piesă publicată încă. Adaugă prima din panoul de administrare.</div>
+          <StareGoala icon={<IconLupa className="w-7 h-7" />} titlu="Nicio piesă publicată încă" text="Adaugă prima piesă din panoul de administrare și va apărea imediat aici." actiune={{ eticheta: "Deschide panoul", href: "/admin/produse" }} />
         )}
       </section>
 
@@ -112,7 +114,7 @@ export default async function Home() {
         <section className="bg-suprafata border-y border-chenar">
           <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
             <div className="dim">Mărci auto</div>
-            <h2 className="font-disp font-bold text-2xl mt-2 mb-5">Caută piese după marcă</h2>
+            <h2 className="t-sectiune mt-2 mb-5">Caută piese după marcă</h2>
             <div className="flex flex-wrap gap-2.5">
               {brands.map((b) => (
                 <Link key={b.id} href={`/piese?marca=${b.slug}`}
@@ -128,7 +130,7 @@ export default async function Home() {
         <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-12 grid lg:grid-cols-2 gap-8 items-center">
           <div>
             <div className="dim !text-headerText/60">Adaugă o cerere de piese</div>
-            <h2 className="font-disp font-bold text-3xl mt-2">Nu ai găsit piesele de care ai nevoie?</h2>
+            <h2 className="t-sectiune mt-2">Nu ai găsit piesele de care ai nevoie?</h2>
             <p className="text-headerText/70 mt-3">Verificăm stocul fizic și următoarele mașini care urmează să fie dezmembrate pentru a găsi piesele potrivite pentru tine.</p>
             <p className="mt-4 text-sm text-headerText/60">Te sunăm sau îți scriem când piesa e disponibilă. Preferi WhatsApp? Scrie-ne codul OEM sau o poză.</p>
           </div>

@@ -11,9 +11,12 @@ import type { Product } from "@/lib/types";
 // „Adaugă în coș" se rupea pe două rânduri pe telefon.
 export default function ProductCard({ p }: { p: Product }) {
   return (
-    <div className="h-full flex flex-col bg-suprafata border border-chenar rounded-xl overflow-hidden shadow-card">
-      <Link href={`/piese/${p.slug}`} className="block">
-        <ProductPhoto poze={p.poze} art={p.art} alt={p.nume} className="w-full aspect-[4/3]" />
+        // Un singur efect la trecerea cu mouse-ul: chenar în accent, umbra de
+    // nivel 2 și imaginea mărită cu 3%. Fără umbră în stare normală.
+    <div className="group h-full flex flex-col card overflow-hidden transition-[box-shadow,border-color] duration-200 hover:border-accent/40 hover:shadow-[var(--umbra-2)]">
+      <Link href={`/piese/${p.slug}`} className="block overflow-hidden">
+        <ProductPhoto poze={p.poze} art={p.art} alt={p.nume}
+          className="w-full aspect-[4/3] transition-transform duration-200 group-hover:scale-[1.03]" />
       </Link>
 
       <div className="flex-1 flex flex-col p-3.5 gap-1.5">
@@ -22,11 +25,11 @@ export default function ProductCard({ p }: { p: Product }) {
         </div>
 
         <Link href={`/piese/${p.slug}`}
-          className="font-semibold text-[15px] leading-snug hover:text-accent line-clamp-2 min-h-[44px]">
+          className="t-card hover:text-accent line-clamp-2 min-h-[44px]">
           {p.nume}
         </Link>
 
-        <div className="font-disp font-bold text-xl text-accent tabular-nums">
+        <div className="t-pret text-accent">
           {lei(Number(p.pret_lei), p.pret_sufix)}
         </div>
 

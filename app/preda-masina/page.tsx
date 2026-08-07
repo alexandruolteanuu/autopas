@@ -25,7 +25,7 @@ export default async function PredaMasina() {
   return (
     <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <Breadcrumbs items={[{ t: "Acasă", href: "/" }, { t: "Predă mașina" }]} />
-      <h1 className="font-disp font-bold text-3xl mt-2">Predă mașina la dezmembrat</h1>
+      <h1 className="t-sectiune mt-2">Predă mașina la dezmembrat</h1>
       <p className="text-textSecundar mt-2 max-w-2xl">
         Cumpărăm mașini avariate, defecte sau pur și simplu bătrâne. Plata pe loc, acte făcute corect
         și <b className="text-text">certificat de distrugere emis pe loc</b>. Asigurăm și radierea de la

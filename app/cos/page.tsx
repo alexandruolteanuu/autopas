@@ -6,6 +6,8 @@ import { lei } from "@/lib/format";
 import { useEffect, useState } from "react";
 import DiscountBox, { type Reducere } from "@/components/DiscountBox";
 import Link from "next/link";
+import StareGoala from "@/components/StareGoala";
+import { IconCos } from "@/components/Icoane";
 
 export default function Cos() {
   const { items, remove, total } = useCart();
@@ -16,20 +18,20 @@ export default function Cos() {
   }, [reducere]);
   if (items.length === 0)
     return (
-      <div className="mx-auto max-w-2xl px-4 py-20 text-center">
-        <div className="text-6xl mb-4">🛒</div>
-        <h1 className="font-disp font-bold text-3xl">Coșul tău e gol</h1>
-        <p className="text-textSecundar mt-2">Dar depozitul nostru nu e. Piesele așteaptă.</p>
-        <div className="mt-6 flex gap-3 justify-center">
-          <Link href="/piese" className="btn-acc">Vezi piesele pe stoc</Link>
-          <Link href="/cauta-dupa-masina" className="btn-dark">Caută după mașină</Link>
-        </div>
+      <div className="mx-auto w-full max-w-2xl px-4 sm:px-6 py-16">
+        <StareGoala
+          icon={<IconCos className="w-7 h-7" />}
+          titlu="Coșul tău e gol"
+          text="Caută piesa de care ai nevoie după marcă și model — depozitul se schimbă săptămânal."
+          actiune={{ eticheta: "Vezi piesele pe stoc", href: "/piese" }}
+          secundar={{ eticheta: "Caută după mașină", href: "/cauta-dupa-masina" }}
+        />
       </div>
     );
   return (
     <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <Breadcrumbs items={[{ t: "Acasă", href: "/" }, { t: "Coșul meu" }]} />
-      <h1 className="font-disp font-bold text-3xl mt-2 mb-6">Coșul meu <span className="text-textSecundar text-lg">· {items.length} {items.length === 1 ? "produs" : "produse"}</span></h1>
+      <h1 className="t-sectiune mt-2 mb-6">Coșul meu <span className="text-textSecundar text-lg">· {items.length} {items.length === 1 ? "produs" : "produse"}</span></h1>
       <div className="grid lg:grid-cols-[minmax(0,1fr),340px] gap-6 items-start">
         {/* Pe telefon fiecare piesă e un card: imagine 80px în stânga, denumirea
             și prețul în dreapta, iar „Șterge" pe rândul lui, ca țintă de 44px.

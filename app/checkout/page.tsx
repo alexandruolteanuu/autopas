@@ -80,7 +80,7 @@ export default function Checkout() {
   return (
     <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <div className="dim">Coș → <b className="text-text">Livrare și plată</b> → Confirmare</div>
-      <h1 className="font-disp font-bold text-3xl mt-2 mb-6">Finalizează comanda</h1>
+      <h1 className="t-sectiune mt-2 mb-6">Finalizează comanda</h1>
       <form onSubmit={trimite} className="grid lg:grid-cols-[minmax(0,1fr),340px] gap-6 items-start">
         <div className="space-y-5">
           {/* 1. Datele tale */}

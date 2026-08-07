@@ -92,12 +92,12 @@ export default async function Produs({ params }: { params: { slug: string } }) {
         <div>
           {/* Ordinea pe telefon: denumire, cod intern, preț, stoc, apoi butonul
               principal pe toată lățimea — ca să fie vizibil fără defilare. */}
-          <h1 className="font-disp font-bold text-[22px] leading-snug">{prod.nume}</h1>
+          <h1 className="t-sectiune">{prod.nume}</h1>
 
           <div className="mt-2 text-[13px] text-textSecundar">Cod intern: {prod.cod_intern ?? "—"}</div>
 
           <div className="mt-3 flex items-end gap-2.5 flex-wrap">
-            <span className="font-disp font-bold text-[30px] text-accent leading-none tabular-nums">{lei(Number(prod.pret_lei), prod.pret_sufix)}</span>
+            <span className="t-pret text-accent !text-[30px] sm:!text-[36px]">{lei(Number(prod.pret_lei), prod.pret_sufix)}</span>
             <span className="text-textSecundar text-[13px]">TVA inclus</span>
           </div>
 

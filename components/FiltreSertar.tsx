@@ -38,7 +38,7 @@ export default function FiltreSertar({ children, nrFiltre = 0 }: { children: Rea
           {/* fundalul de sub sertar — închide la apăsare */}
           <div data-strat-fix className="lg:hidden fixed inset-0 z-50 bg-black/50" onClick={() => setDeschis(false)} aria-hidden="true" />
           <div role="dialog" aria-modal="true" aria-label="Filtre"
-            data-strat-fix className="lg:hidden fixed inset-x-0 bottom-0 z-[60] flex flex-col max-h-[85vh] rounded-t-2xl bg-suprafata border-t border-chenar">
+            data-strat-fix className="sticla lg:hidden fixed inset-x-0 bottom-0 z-[60] flex flex-col max-h-[85vh] rounded-t-2xl border-t">
             <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-chenar shrink-0">
               <b className="font-disp font-semibold">Filtre</b>
               <button type="button" onClick={() => setDeschis(false)} aria-label="Închide filtrele"

@@ -28,6 +28,13 @@
   --header-text: 255 255 255;   /* #FFFFFF */
   --footer-bg: 21 24 28;        /* #15181C */
   --footer-text: 255 255 255;   /* #FFFFFF */
+  --camp-bg: 245 244 241;   /* fundalul câmpurilor de formular — diferit de cardul din spate */
+  --chenar-puternic: 134 140 148;   /* chenar de input/buton — minimum 3:1 față de suprafață (WCAG 1.4.11) */
+  --sticla-bg: 255 255 255;
+  --sticla-chenar: 122 126 131;
+  --umbra: 21 24 28;
+  /* opacitatea sticlei: mai mare pe temele deschise, ca textul de deasupra să rămână lizibil */
+  --sticla-opacitate: 0.72;
 }
 
 /* Tema 1 — Negru + auriu */
@@ -45,6 +52,13 @@
   --header-text: 255 255 255;   /* #FFFFFF */
   --footer-bg: 13 13 13;        /* #0D0D0D */
   --footer-text: 179 179 179;   /* #B3B3B3 */
+  --camp-bg: 43 43 43;   /* fundalul câmpurilor de formular — diferit de cardul din spate */
+  --chenar-puternic: 118 118 118;   /* chenar de input/buton — minimum 3:1 față de suprafață (WCAG 1.4.11) */
+  --sticla-bg: 27 27 27;
+  --sticla-chenar: 127 127 127;
+  --umbra: 0 0 0;
+  /* opacitatea sticlei: mai mare pe temele deschise, ca textul de deasupra să rămână lizibil */
+  --sticla-opacitate: 0.62;
 }
 
 /* Tema 2 — Antracit + portocaliu ars */
@@ -62,6 +76,13 @@
   --header-text: 255 255 255;   /* #FFFFFF */
   --footer-bg: 22 30 40;        /* #161E28 */
   --footer-text: 182 192 204;   /* #B6C0CC */
+  --camp-bg: 47 59 76;   /* fundalul câmpurilor de formular — diferit de cardul din spate */
+  --chenar-puternic: 122 134 150;   /* chenar de input/buton — minimum 3:1 față de suprafață (WCAG 1.4.11) */
+  --sticla-bg: 38 50 65;
+  --sticla-chenar: 133 144 158;
+  --umbra: 0 0 0;
+  /* opacitatea sticlei: mai mare pe temele deschise, ca textul de deasupra să rămână lizibil */
+  --sticla-opacitate: 0.62;
 }
 
 /* Tema 3 — Bleumarin + argintiu */
@@ -79,6 +100,13 @@
   --header-text: 255 255 255;   /* #FFFFFF */
   --footer-bg: 11 18 32;        /* #0B1220 */
   --footer-text: 175 184 198;   /* #AFB8C6 */
+  --camp-bg: 30 43 71;   /* fundalul câmpurilor de formular — diferit de cardul din spate */
+  --chenar-puternic: 108 118 139;   /* chenar de input/buton — minimum 3:1 față de suprafață (WCAG 1.4.11) */
+  --sticla-bg: 22 32 58;
+  --sticla-chenar: 122 131 149;
+  --umbra: 0 0 0;
+  /* opacitatea sticlei: mai mare pe temele deschise, ca textul de deasupra să rămână lizibil */
+  --sticla-opacitate: 0.62;
 }
 
 /* Tema 4 — Negru + verde smarald */
@@ -96,6 +124,13 @@
   --header-text: 255 255 255;   /* #FFFFFF */
   --footer-bg: 10 10 10;        /* #0A0A0A */
   --footer-text: 173 173 173;   /* #ADADAD */
+  --camp-bg: 35 35 35;   /* fundalul câmpurilor de formular — diferit de cardul din spate */
+  --chenar-puternic: 110 110 110;   /* chenar de input/buton — minimum 3:1 față de suprafață (WCAG 1.4.11) */
+  --sticla-bg: 23 23 23;
+  --sticla-chenar: 124 124 124;
+  --umbra: 0 0 0;
+  /* opacitatea sticlei: mai mare pe temele deschise, ca textul de deasupra să rămână lizibil */
+  --sticla-opacitate: 0.62;
 }
 
 /* Tema 5 — Catalog luminos */
@@ -113,6 +148,13 @@
   --header-text: 255 255 255;   /* #FFFFFF */
   --footer-bg: 17 24 39;        /* #111827 */
   --footer-text: 195 201 210;   /* #C3C9D2 */
+  --camp-bg: 237 239 243;   /* fundalul câmpurilor de formular — diferit de cardul din spate */
+  --chenar-puternic: 130 137 149;   /* chenar de input/buton — minimum 3:1 față de suprafață (WCAG 1.4.11) */
+  --sticla-bg: 255 255 255;
+  --sticla-chenar: 120 125 134;
+  --umbra: 17 24 39;
+  /* opacitatea sticlei: mai mare pe temele deschise, ca textul de deasupra să rămână lizibil */
+  --sticla-opacitate: 0.72;
 }
 
 /* Tema 6 — Verde reciclare */
@@ -130,6 +172,13 @@
   --header-text: 255 255 255;   /* #FFFFFF */
   --footer-bg: 15 33 24;        /* #0F2118 */
   --footer-text: 184 199 190;   /* #B8C7BE */
+  --camp-bg: 236 241 238;   /* fundalul câmpurilor de formular — diferit de cardul din spate */
+  --chenar-puternic: 126 139 132;   /* chenar de input/buton — minimum 3:1 față de suprafață (WCAG 1.4.11) */
+  --sticla-bg: 255 255 255;
+  --sticla-chenar: 116 128 121;
+  --umbra: 20 32 26;
+  /* opacitatea sticlei: mai mare pe temele deschise, ca textul de deasupra să rămână lizibil */
+  --sticla-opacitate: 0.72;
 }
 
 /* Tema 7 — Atelier, galben industrial */
@@ -147,6 +196,13 @@
   --header-text: 255 255 255;   /* #FFFFFF */
   --footer-bg: 0 0 0;           /* #000000 */
   --footer-text: 171 171 171;   /* #ABABAB */
+  --camp-bg: 36 36 36;   /* fundalul câmpurilor de formular — diferit de cardul din spate */
+  --chenar-puternic: 112 112 112;   /* chenar de input/buton — minimum 3:1 față de suprafață (WCAG 1.4.11) */
+  --sticla-bg: 25 25 25;
+  --sticla-chenar: 126 126 126;
+  --umbra: 0 0 0;
+  /* opacitatea sticlei: mai mare pe temele deschise, ca textul de deasupra să rămână lizibil */
+  --sticla-opacitate: 0.62;
 }
 
 /* Tema 8 — Bleumarin + roșu service */
@@ -164,6 +220,13 @@
   --header-text: 255 255 255;   /* #FFFFFF */
   --footer-bg: 8 28 51;         /* #081C33 */
   --footer-text: 185 196 211;   /* #B9C4D3 */
+  --camp-bg: 238 241 246;   /* fundalul câmpurilor de formular — diferit de cardul din spate */
+  --chenar-puternic: 129 138 153;   /* chenar de input/buton — minimum 3:1 față de suprafață (WCAG 1.4.11) */
+  --sticla-bg: 255 255 255;
+  --sticla-chenar: 118 126 138;
+  --umbra: 15 27 45;
+  /* opacitatea sticlei: mai mare pe temele deschise, ca textul de deasupra să rămână lizibil */
+  --sticla-opacitate: 0.72;
 }
 
 /* ------------------------------------------------------------
@@ -191,6 +254,13 @@
   --header-text: 255 255 255;   /* #FFFFFF */
   --footer-bg: 13 13 13;        /* #0D0D0D */
   --footer-text: 179 179 179;   /* #B3B3B3 */
+  --camp-bg: 247 244 236;   /* fundalul câmpurilor de formular — diferit de cardul din spate */
+  --chenar-puternic: 145 139 126;   /* chenar de input/buton — minimum 3:1 față de suprafață (WCAG 1.4.11) */
+  --sticla-bg: 255 255 255;
+  --sticla-chenar: 130 125 113;
+  --umbra: 26 24 20;
+  /* opacitatea sticlei: mai mare pe temele deschise, ca textul de deasupra să rămână lizibil */
+  --sticla-opacitate: 0.72;
 }
 
 /* Tema 10 — Alb + smarald (accentul din „Negru + verde smarald") */
@@ -208,6 +278,13 @@
   --header-text: 255 255 255;   /* #FFFFFF */
   --footer-bg: 10 10 10;        /* #0A0A0A */
   --footer-text: 173 173 173;   /* #ADADAD */
+  --camp-bg: 239 246 242;   /* fundalul câmpurilor de formular — diferit de cardul din spate */
+  --chenar-puternic: 126 144 135;   /* chenar de input/buton — minimum 3:1 față de suprafață (WCAG 1.4.11) */
+  --sticla-bg: 255 255 255;
+  --sticla-chenar: 113 128 120;
+  --umbra: 18 33 27;
+  /* opacitatea sticlei: mai mare pe temele deschise, ca textul de deasupra să rămână lizibil */
+  --sticla-opacitate: 0.72;
 }
 
 /* Tema 11 — Alb + roșu service (accentul și bleumarinul din „Bleumarin + roșu") */
@@ -225,6 +302,13 @@
   --header-text: 255 255 255;   /* #FFFFFF */
   --footer-bg: 8 28 51;         /* #081C33 */
   --footer-text: 185 196 211;   /* #B9C4D3 */
+  --camp-bg: 241 244 248;   /* fundalul câmpurilor de formular — diferit de cardul din spate */
+  --chenar-puternic: 131 140 155;   /* chenar de input/buton — minimum 3:1 față de suprafață (WCAG 1.4.11) */
+  --sticla-bg: 255 255 255;
+  --sticla-chenar: 118 126 138;
+  --umbra: 15 27 45;
+  /* opacitatea sticlei: mai mare pe temele deschise, ca textul de deasupra să rămână lizibil */
+  --sticla-opacitate: 0.72;
 }
 
 /* Panoul /admin nu e tematizat: își redeclară paleta clasică, așa că rămâne
@@ -243,25 +327,185 @@
   --header-text: 255 255 255;
   --footer-bg: 21 24 28;
   --footer-text: 255 255 255;
+  --camp-bg: 245 244 241;
+  --chenar-puternic: 134 140 148;
+  --sticla-bg: 255 255 255;
+  --sticla-chenar: 122 126 131;
+  --umbra: 21 24 28;
+  --sticla-opacitate: 0.72;
 }
 /* ===================== sfârșit bloc teme ===================== */
 
 body { @apply bg-fundal text-text font-body; }
 
+/* ============================================================
+   SCARA DE ROTUNJIRE — nu una singură pentru tot
+   ============================================================ */
+:root {
+  --r-mic: 8px;    /* butoane, inputuri, badge-uri */
+  --r-mediu: 12px; /* carduri, casete */
+  --r-mare: 16px;  /* secțiuni, sertare, modale */
+
+  /* Umbre pe două straturi, folosite rar. Pe temele închise nu se văd:
+     acolo adâncimea se face prin chenar mai deschis (vezi mai jos). */
+  --umbra-1: 0 1px 2px rgb(var(--umbra) / .05), 0 1px 3px rgb(var(--umbra) / .07);
+  --umbra-2: 0 2px 4px rgb(var(--umbra) / .04), 0 8px 20px rgb(var(--umbra) / .10);
+}
+
+.r-mic { border-radius: var(--r-mic); }
+.r-mediu { border-radius: var(--r-mediu); }
+.r-mare { border-radius: var(--r-mare); }
+
 /* „Cota tehnică" — elementul de semnătură al secțiunilor (din design-ul aprobat în PDF) */
 .dim { @apply flex items-center gap-2.5 font-disp font-medium text-[12px] tracking-[0.14em] uppercase text-textSecundar; }
 .dim::before, .dim::after { content: ""; @apply block w-6 h-px bg-textSecundar; border-left: 1px solid rgb(var(--text-secundar)); }
 
+/* ============================================================
+   SUPRAFEȚE — trei niveluri, atât
+   0 fundalul paginii · 1 cardul · 2 elementul ridicat sau activ
+   ============================================================ */
+.card {
+  background: rgb(var(--suprafata));
+  border: 1px solid rgb(var(--chenar));
+  border-radius: var(--r-mediu);
+}
+/* Nivelul 2: elementul ridicat. Umbra doar aici, nu pe fiecare card. */
+.card-ridicat {
+  background: rgb(var(--suprafata-2));
+  border: 1px solid rgb(var(--chenar-puternic));
+  border-radius: var(--r-mediu);
+  box-shadow: var(--umbra-1);
+}
+
+/* ============================================================
+   BUTOANE — patru variante, ierarhie vizibilă
+   ============================================================ */
+.btn-acc, .btn-dark, .btn-sec, .btn-tert, .btn-distructiv {
+  @apply inline-flex items-center justify-center gap-2 px-6 font-semibold;
+  border-radius: var(--r-mic);
+  min-height: 44px;
+  transition: background-color 150ms, border-color 150ms, color 150ms, transform 150ms;
+}
+.btn-acc { background: rgb(var(--accent)); color: rgb(var(--accent-contrast)); }
+.btn-acc:hover { background: rgb(var(--accent-hover)); }
+
+/* varianta închisă rămâne pentru acțiunile de pe fundal deschis */
+.btn-dark { background: rgb(var(--header-bg)); color: rgb(var(--header-text)); }
+.btn-dark:hover { background: rgb(var(--header-bg) / .85); }
+
+.btn-sec { background: transparent; color: rgb(var(--text)); border: 1px solid rgb(var(--chenar-puternic)); }
+.btn-sec:hover { background: rgb(var(--suprafata-2)); }
+
+.btn-tert { background: transparent; color: rgb(var(--accent)); padding-left: 0; padding-right: 0; }
+.btn-tert:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+.btn-distructiv { background: transparent; color: #DC2626; border: 1px solid #FCA5A5; }
+.btn-distructiv:hover { background: #FEF2F2; }
+
+.btn-acc:active, .btn-dark:active, .btn-sec:active, .btn-tert:active, .btn-distructiv:active { transform: scale(0.98); }
+.btn-acc:disabled, .btn-dark:disabled, .btn-sec:disabled, .btn-distructiv:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ============================================================
+   INEL DE FOCUS — pe tot ce se poate atinge cu Tab.
+   Fără el, site-ul e inutilizabil de la tastatură.
+   ============================================================ */
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible,
+textarea:focus-visible, summary:focus-visible, [tabindex]:focus-visible, [role="button"]:focus-visible {
+  outline: 2px solid rgb(var(--accent)) !important;
+  outline-offset: 2px;
+}
+
+/* ============================================================
+   CÂMPURI DE FORMULAR
+   ============================================================ */
 .fld label { @apply block text-[13px] font-medium text-text mb-1; }
 .fld input, .fld select, .fld textarea {
-  @apply w-full min-w-0 rounded-lg border-2 border-chenar bg-suprafata text-text px-3.5 py-2.5 text-base outline-none focus:border-accent;
+  @apply w-full min-w-0 px-3.5 py-2.5 text-base;
+  background: rgb(var(--camp-bg));
+  color: rgb(var(--text));
+  border: 1px solid rgb(var(--chenar-puternic));
+  border-radius: var(--r-mic);
+  outline: none;
+  transition: border-color 150ms;
 }
-.fld input, .fld select { @apply min-h-[44px]; }
-.btn-acc { @apply inline-flex items-center justify-center gap-2 rounded-xl bg-accent text-accentText px-6 py-3 font-semibold hover:bg-accentHover transition; }
-.btn-dark { @apply inline-flex items-center justify-center gap-2 rounded-xl bg-headerBg text-headerText px-6 py-3 font-semibold hover:bg-steel transition; }
-.card { @apply bg-suprafata border border-chenar rounded-xl shadow-card; }
+.fld input, .fld select { min-height: 44px; }
+.fld input:hover, .fld select:hover, .fld textarea:hover { border-color: rgb(var(--text-secundar)); }
+.fld input:focus, .fld select:focus, .fld textarea:focus { border-color: rgb(var(--accent)); }
+.fld input::placeholder, .fld textarea::placeholder { color: rgb(var(--text-secundar)); opacity: 1; }
+.fld input[aria-invalid="true"], .fld textarea[aria-invalid="true"] { border-color: #DC2626; }
+/* săgeata selectului, desenată de noi — pe telefon rămâne controlul nativ */
+@media (min-width: 640px) {
+  .fld select {
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236C7480' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 18px;
+    padding-right: 36px;
+  }
+}
 
-h1,h2,h3 { letter-spacing: -0.02em; }
+/* mesajul de eroare de sub câmp */
+.eroare-camp { @apply flex items-start gap-1.5 mt-1 text-[13px] text-red-600; }
+
+/* ============================================================
+   STICLĂ — doar pe headerul lipit după defilare, pe sertarul de filtre
+   și pe fundalul modalelor. Nicăieri altundeva.
+   ============================================================ */
+.sticla {
+  background: rgb(var(--sticla-bg) / var(--sticla-opacitate));
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  border-color: rgb(var(--sticla-chenar) / .6);
+}
+/* Varianta pentru header: fundalul e cel al barei de sus, nu al cardului —
+   altfel, pe temele deschise, textul alb al headerului ar ajunge pe alb.
+   Opacitatea .78 e peste minimul cerut pe ambele feluri de teme. */
+.sticla-header {
+  background: rgb(var(--header-bg) / .78);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+}
+@supports not (backdrop-filter: blur(1px)) {
+  .sticla { background: rgb(var(--suprafata)); }
+  .sticla-header { background: rgb(var(--header-bg)); }
+}
+
+/* ============================================================
+   FINISAJE
+   ============================================================ */
+::selection { background: rgb(var(--accent)); color: rgb(var(--accent-contrast)); }
+html { scroll-behavior: smooth; }
+:target { scroll-margin-top: 96px; }
+h1, h2, h3 { letter-spacing: -0.02em; }
+.numar { font-variant-numeric: tabular-nums; }
+
+/* linia de accent de 3px, sub titlul secțiunii curente */
+.linie-accent { border-bottom: 3px solid rgb(var(--accent)); }
+
+/* bara de defilare, discretă, doar pe desktop */
+@media (min-width: 1024px) {
+  * { scrollbar-width: thin; scrollbar-color: rgb(var(--chenar-puternic)) transparent; }
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-thumb { background: rgb(var(--chenar-puternic)); border-radius: 999px; border: 3px solid transparent; background-clip: content-box; }
+  *::-webkit-scrollbar-track { background: transparent; }
+}
+
+/* schelete de încărcare — aceeași formă cu elementul care urmează */
+.schelet { background: rgb(var(--suprafata-2)); border-radius: var(--r-mic); animation: pulsatie 1.4s ease-in-out infinite; }
+@keyframes pulsatie { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+
+/* ============================================================
+   MIȘCARE REDUSĂ — dacă utilizatorul a cerut-o, nu mișcăm nimic
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 /* ============================================================
    TABELELE DIN /admin PE TELEFON
@@ -306,3 +550,27 @@ h1,h2,h3 { letter-spacing: -0.02em; }
   table.tabel-carduri tbody td:not([data-eticheta]) > a,
   table.tabel-carduri tbody td:not([data-eticheta]) > button { width: 100%; justify-content: center; }
 }
+
+/* ============================================================
+   TIPOGRAFIE — Poppins, ierarhie clară.
+   Tracking negativ DOAR pe titlurile mari; pe text mic strică lizibilitatea.
+   ============================================================ */
+.t-hero      { @apply font-disp font-bold; font-size: 30px; line-height: 1.15; letter-spacing: -0.02em; }
+.t-sectiune  { @apply font-disp font-semibold; font-size: 24px; line-height: 1.2; letter-spacing: -0.01em; }
+.t-card      { @apply font-disp font-semibold; font-size: 17px; line-height: 1.35; letter-spacing: normal; }
+.t-corp      { font-size: 15px; line-height: 1.65; font-weight: 400; }
+.t-secundar  { font-size: 13px; line-height: 1.5; font-weight: 400; }
+.t-eticheta  { @apply font-disp uppercase; font-size: 12px; font-weight: 500; letter-spacing: 0.06em; }
+.t-pret      { @apply font-disp font-bold; font-size: 20px; font-variant-numeric: tabular-nums; }
+
+@media (min-width: 640px) {
+  .t-hero     { font-size: 46px; line-height: 1.1; }
+  .t-sectiune { font-size: 32px; }
+  .t-card     { font-size: 19px; }
+  .t-corp     { font-size: 16px; }
+  .t-secundar { font-size: 14px; }
+  .t-pret     { font-size: 24px; }
+}
+
+/* Rândul de text nu trece de 65 de caractere în paginile cu text lung */
+.text-lung p, .text-lung li { max-width: 65ch; }

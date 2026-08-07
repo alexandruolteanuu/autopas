@@ -3,6 +3,7 @@ import type { Firma } from "@/lib/settings";
 import { FIRMA_IMPLICITA } from "@/lib/settings";
 import { CONFIG, PROGRAM, ADRESA, telLink } from "@/lib/config";
 import HartiLinks from "./HartiLinks";
+import { IconTelefon, IconPin } from "./Icoane";
 // Footer complet — modelul cerut de client: toate paginile legale + bannere ANPC/SOL vizibile.
 export default function Footer({ firma = FIRMA_IMPLICITA }: { firma?: Firma }) {
   return (
@@ -12,11 +13,11 @@ export default function Footer({ firma = FIRMA_IMPLICITA }: { firma?: Firma }) {
           <span className="block font-disp font-bold text-[24px]">AUTOPAS</span>
           <span className="block font-disp text-[12px] tracking-[0.2em] text-footerText/60 mb-3">DEZMEMBRĂRI</span>
           <p className="text-footerText/70 leading-relaxed">Piese auto second-hand testate, din dezmembrări autorizate. Garanție 90 de zile conform OUG 140/2021, livrare în 1–3 zile lucrătoare în toată România.</p>
-          <p className="mt-3 text-footerText/70">📍 {ADRESA.scurt}<br />
-            <span className="text-footerText/50 text-[12px]">{ADRESA.reper}</span></p>
+          <p className="mt-3 text-footerText/70 flex gap-2"><IconPin className="w-[16px] h-[16px] shrink-0 mt-0.5" /><span>{ADRESA.scurt}<br />
+            <span className="text-footerText/50 text-[12px]">{ADRESA.reper}</span></span></p>
           {/* Contact — telefon și program, aceleași valori ca în header (lib/config.ts) */}
           <p className="mt-1">
-            ☎ <a href={telLink()} className="inline-flex items-center min-h-[44px] font-semibold hover:text-accent">{CONFIG.telefonAfisat}</a>
+            <a href={telLink()} className="inline-flex items-center gap-2 min-h-[44px] font-semibold hover:text-accent"><IconTelefon className="w-[16px] h-[16px]" />{CONFIG.telefonAfisat}</a>
           </p>
           <p className="text-footerText/70">Program: {PROGRAM}</p>
           {/* Waze și Google Maps — linkuri către locație */}

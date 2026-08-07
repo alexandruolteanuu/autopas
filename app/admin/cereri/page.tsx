@@ -101,7 +101,12 @@ function CereriInner() {
             </div>
           );
         })}
-        {rows.length === 0 && <div className="card p-10 text-center text-mut text-sm">Nicio cerere aici{doarNoi ? " (filtrul «doar noi» e activ)" : ""}. ✓</div>}
+        {rows.length === 0 && (
+          <div className="card p-10 text-center">
+            <b className="font-disp font-bold text-lg block">Nicio cerere aici</b>
+            <p className="text-mut mt-2 text-sm">{doarNoi ? "Filtrul «doar noi» e activ — scoate-l ca să vezi și cererile rezolvate." : "Cererile trimise de clienți din formularele site-ului apar aici."}</p>
+          </div>
+        )}
       </div>
     </div>
   );

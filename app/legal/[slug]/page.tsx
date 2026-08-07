@@ -30,7 +30,7 @@ export default async function LegalPage({ params }: { params: { slug: string } }
       </aside>
       <article>
         <Breadcrumbs items={[{ t: "Acasă", href: "/" }, { t: "Informații legale" }, { t: doc.titluScurt ?? doc.titlu }]} />
-        <h1 className="font-disp font-bold text-3xl mt-2 mb-6">{doc.titlu}</h1>
+        <h1 className="t-sectiune mt-2 mb-6">{doc.titlu}</h1>
         <div className="space-y-6">
           {doc.sectiuni.map((s) => (
             <section key={s.h}>
