@@ -136,7 +136,7 @@ export function getLegalDocs(firma: Firma = FIRMA_IMPLICITA): LegalDoc[] {
         "Recomandăm verificarea coletului la primire, în prezența curierului. Piesele sunt ambalate protejat și etichetate cu codul OEM.",
       ]},
       { h: "5. Ridicare personală", p: [
-        "Poți ridica piesa direct de la depozitul nostru din Piatra-Neamț, în programul afișat în subsol — fără cost de livrare.",
+        "Poți ridica piesa direct de la depozitul nostru din Str. Petru Rareș nr. 181, pe DN 15 între Piatra-Neamț și Bicaz (sat Bistrița, com. Alexandru cel Bun, jud. Neamț), în programul afișat în subsol — fără cost de livrare.",
       ]},
     ],
   },

@@ -2,7 +2,7 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import ContactForm from "@/components/ContactForm";
 import PartRequestForm from "@/components/PartRequestForm";
 import { getSetariServer } from "@/lib/settings";
-import { PROGRAM, LIVRARE, telLink } from "@/lib/config";
+import { PROGRAM, LIVRARE, ADRESA, telLink } from "@/lib/config";
 export const metadata = { title: "Contact" };
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,7 @@ export default async function Contact() {
           <p>💬 WhatsApp: <b>{firma.telefon}</b><br /><span className="text-mut">trimite cod OEM sau poze cu piesa</span></p>
           <p>✉ {firma.email}</p>
           <p>🚚 {LIVRARE}</p>
-          <p>📍 Piatra-Neamț, jud. Neamț<br /><span className="text-mut">ridicare personală cu programare</span></p>
+          <p>📍 {ADRESA.lung}<br /><span className="text-mut">{ADRESA.reper} · ridicare personală cu programare</span></p>
         </div>
         <div><b className="font-disp font-semibold text-[13px] block mb-3">Scrie-ne un mesaj</b><ContactForm /></div>
         <div><b className="font-disp font-semibold text-[13px] block mb-3">Caut o piesă</b><PartRequestForm sursa="contact" /></div>

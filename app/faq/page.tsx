@@ -9,7 +9,7 @@ const FAQ = [
   ["Cum plătesc?","Ramburs la curier sau transfer bancar (proformă). Plata cu cardul online va fi disponibilă în curând."],
   ["Cumpărați mașini pentru dezmembrare?","Da — avariate, defecte sau vechi. Plata pe loc, transport gratuit cu platforma în zona Neamț și certificat de distrugere emis imediat. Vezi paginile «Predă mașina» și «Programul Rabla»."],
   ["Emiteti certificat pentru programul Rabla?","Da, pe loc — suntem centru autorizat RAR pentru tratarea vehiculelor scoase din uz. Detalii în pagina «Programul Rabla»."],
-  ["Pot ridica piesa personal?","Da, de la depozitul din Piatra-Neamț, cu programare telefonică, în programul Luni – Vineri 8:30 – 17:30."],
+  ["Pot ridica piesa personal?","Da, de la depozitul nostru din Str. Petru Rareș nr. 181, pe DN 15 între Piatra-Neamț și Bicaz (sat Bistrița, com. Alexandru cel Bun, jud. Neamț). Sună înainte pentru programare — suntem deschiși Luni – Vineri, 8:30 – 17:30. Linkurile către Waze și Google Maps sunt în subsolul site-ului."],
 ];
 export default function Faq() {
   return (
