@@ -56,7 +56,7 @@ export default function Cos() {
           <div className="flex justify-between border-t border-line pt-3 text-base"><span>Total estimat</span>
             <b className="font-disp text-2xl text-acc">{lei(Math.max(0, total - (reducere?.valoare ?? 0)) + Math.min(...curieri.map((c) => c.pret)))}</b></div>
           <Link href="/checkout" className="btn-acc w-full">Finalizează comanda</Link>
-          <p className="text-xs text-mut text-center">Plată ramburs sau transfer bancar · Retur 14 zile</p>
+          <p className="text-xs text-mut text-center">Plată ramburs sau transfer bancar · Garanție 90 de zile · Retur în 14 zile</p>
         </div>
       </div>
     </div>

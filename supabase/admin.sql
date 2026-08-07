@@ -60,7 +60,7 @@ create table settings (
   valoare jsonb not null
 );
 insert into settings (cheie, valoare) values
- ('firma', '{"denumire":"Autopas Dezmembrări SRL","cui":"RO12345678","reg_com":"J27/456/2015","iban":"","serie_factura":"AUTP","telefon":"0740 123 456","email":"comenzi@autopas.ro"}'),
+ ('firma', '{"denumire":"S.C. PIESE AUTO PAS S.R.L.","cui":"RO 36608590","reg_com":"J27/893/2016","adresa":"Str. Petru Rareș nr. 181, com. Alexandru cel Bun, jud. Neamț","iban":"","serie_factura":"AUTP","telefon":"0743 627 151","email":"comenzi@autopas.ro","whatsapp":"40743627151"}'),
  ('curieri', '[{"id":"fan","nume":"FAN Courier","detalii":"livrare 24–48h, ramburs inclus","pret":19.9},{"id":"cargus","nume":"Cargus","detalii":"livrare 24–48h","pret":21.5},{"id":"sameday","nume":"Sameday easybox","detalii":"ridici din locker","pret":14.9}]');
 
 -- ---------- 5. ROLURI EXTINSE ----------

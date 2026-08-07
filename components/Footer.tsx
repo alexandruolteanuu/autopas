@@ -11,7 +11,7 @@ export default function Footer({ firma = FIRMA_IMPLICITA }: { firma?: Firma }) {
         <div>
           <span className="block font-disp font-bold text-[24px]">AUTOPAS</span>
           <span className="block font-disp text-[9px] tracking-[0.5em] text-white/60 mb-3">DEZMEMBRĂRI</span>
-          <p className="text-white/70 leading-relaxed">Piese auto second-hand testate, din dezmembrări autorizate. Garanție 30 de zile conform regulament, livrare în 1–3 zile lucrătoare în toată România.</p>
+          <p className="text-white/70 leading-relaxed">Piese auto second-hand testate, din dezmembrări autorizate. Garanție 90 de zile conform OUG 140/2021, livrare în 1–3 zile lucrătoare în toată România.</p>
           <p className="mt-3 text-white/70">📍 Piatra-Neamț, jud. Neamț</p>
           {/* Contact — telefon și program, aceleași valori ca în header (lib/config.ts) */}
           <p className="mt-1">
@@ -70,7 +70,8 @@ export default function Footer({ firma = FIRMA_IMPLICITA }: { firma?: Firma }) {
       </div>
       <div className="border-t border-white/10 text-[12px] text-white/50">
         <div className="mx-auto max-w-6xl px-4 py-4 flex flex-wrap gap-2 justify-between">
-          <span>© {new Date().getFullYear()} {firma.denumire}{firma.cui ? ` · CUI ${firma.cui}` : ""}{firma.reg_com ? ` · Reg. Com. ${firma.reg_com}` : ""} · Autorizat pentru tratarea vehiculelor scoase din uz</span>
+          {/* Datele firmei vin din Admin → Setări → Date firmă (tabela settings), nu din cod. */}
+          <span>© {new Date().getFullYear()} {firma.denumire}{firma.cui ? ` · CUI ${firma.cui}` : ""}{firma.reg_com ? ` · Reg. Com. ${firma.reg_com}` : ""}{firma.adresa ? ` · Sediu social: ${firma.adresa}` : ""} · Autorizat pentru tratarea vehiculelor scoase din uz</span>
           <span>VISA · Mastercard · Ramburs</span>
         </div>
       </div>

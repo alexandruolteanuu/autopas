@@ -22,7 +22,7 @@ export default function DespreNoi() {
         </ul>
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
-        {[["Piese verificate","înainte de listare"],["Garanție 30 de zile","la toate piesele"],["Livrare în toată țara","prin curier rapid"],["Retur în 14 zile","conform legislației"]].map(([t,d]) => (
+        {[["Piese verificate","înainte de listare"],["Garanție 90 de zile","conform OUG 140/2021"],["Livrare în toată țara","prin curier rapid"],["Retur în 14 zile","conform legislației"]].map(([t,d]) => (
           <div key={t} className="bg-ink text-white rounded-xl p-4 text-center">
             <b className="font-disp block">{t}</b><span className="text-white/60 text-xs">{d}</span>
           </div>

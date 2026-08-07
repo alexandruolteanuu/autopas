@@ -137,6 +137,11 @@ export default function Checkout() {
           <button disabled={stare === "trimit"} className="btn-acc w-full">{stare === "trimit" ? "Se plasează…" : "Plasează comanda"}</button>
           {stare === "eroare" && <p className="text-red-600 text-xs">{msg}</p>}
           <p className="text-xs text-mut text-center">Comanda se salvează securizat. Nu cerem date de card.</p>
+          {/* Mențiunile legale obligatorii înainte de plasarea comenzii */}
+          <p className="text-[11px] text-mut text-center leading-relaxed">
+            Garanție 90 de zile conform <Link href="/legal/certificat-garantie" className="text-acc font-semibold">OUG 140/2021</Link> ·
+            drept de retragere în 14 zile conform <Link href="/legal/politica-de-retur" className="text-acc font-semibold">OUG 34/2014</Link>
+          </p>
         </div>
       </form>
     </div>

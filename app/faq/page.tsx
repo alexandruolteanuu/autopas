@@ -2,10 +2,10 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 export const metadata = { title: "Întrebări frecvente" };
 const FAQ = [
   ["Piesele sunt testate?","Da. Piesele cu valoare (alternatoare, electromotoare, turbine, compresoare) sunt testate în atelier și verificate înainte de livrare. Fiecare piesă are descriere, fotografii reale și codul OEM."],
-  ["Ce garanție primesc?","30 de zile de la livrare, conform regulamentului, pentru toate piesele, cu factura și eticheta intactă. Detalii complete în pagina Certificat de garanție."],
+  ["Ce garanție primesc?","90 de zile de la data facturării, conform OUG 140/2021. Consumabilele (filtre, becuri, ștergătoare, bujii, curele, simeringuri) nu sunt acoperite, iar montajul trebuie făcut într-un service autorizat RAR. Condițiile complete sunt în pagina Certificat de garanție."],
   ["Cum verific dacă piesa se potrivește pe mașina mea?","Fiecare produs are lista de compatibilitate. Dacă nu ești sigur, trimite-ne seria de șasiu (VIN) pe WhatsApp — verificăm noi, gratuit."],
   ["Cât durează livrarea și cât costă?","1–3 zile lucrătoare prin FAN Courier (19,90 lei), Cargus (21,50 lei) sau Sameday easybox (14,90 lei). Piesele voluminoase se livrează paletizat, cu tarif comunicat înainte de expediere."],
-  ["Pot returna piesa?","Da, în 14 zile calendaristice, conform OUG 34/2014, folosind Formularul de retur din subsol. Dacă piesa e neconformă, transportul de retur îl plătim noi."],
+  ["Pot returna piesa?","Da, te poți retrage din contract în 14 zile calendaristice de la primire, fără să motivezi decizia (OUG 34/2014), folosind Formularul de retur din subsol. Îți rambursăm tot ce ai plătit, inclusiv livrarea standard, în cel mult 14 zile; costul direct al returnării îl suporți tu. Atenție: retragerea în 14 zile („m-am răzgândit”) e diferită de garanția de 90 de zile („piesa are un defect”)."],
   ["Cum plătesc?","Ramburs la curier sau transfer bancar (proformă). Plata cu cardul online va fi disponibilă în curând."],
   ["Cumpărați mașini pentru dezmembrare?","Da — avariate, defecte sau vechi. Plata pe loc, transport gratuit cu platforma în zona Neamț și certificat de distrugere emis imediat. Vezi paginile «Predă mașina» și «Programul Rabla»."],
   ["Emiteti certificat pentru programul Rabla?","Da, pe loc — suntem centru autorizat RAR pentru tratarea vehiculelor scoase din uz. Detalii în pagina «Programul Rabla»."],

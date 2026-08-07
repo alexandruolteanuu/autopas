@@ -1,7 +1,7 @@
 // BANDA DE ÎNCREDERE — un singur loc pentru texte și pictograme; apare pe tot site-ul.
 // Fiecare element are pictograma lui, desenată în același stil (fără bife identice).
 export const TRUST = [
-  { t: "Garanție 30 de zile", d: "conform regulament", ic: "scut" },
+  { t: "Garanție 90 de zile", d: "conform OUG 140/2021", ic: "scut" },
   { t: "Livrare 1–3 zile lucrătoare", d: "prin curier", ic: "camion" },
   { t: "Retur în 14 zile", d: "conform OUG 34/2014", ic: "retur" },
   { t: "Piese testate", d: "și verificate înainte de livrare", ic: "lupa" },

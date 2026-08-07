@@ -5,7 +5,7 @@
 // ============================================================
 import { sbServer, sbBrowser } from "./supabase";
 
-export type Firma = { denumire: string; cui: string; reg_com: string; iban: string;
+export type Firma = { denumire: string; cui: string; reg_com: string; adresa: string; iban: string;
   serie_factura: string; telefon: string; email: string; whatsapp: string };
 export type Curier = { id: string; nume: string; detalii: string; pret: number };
 export type Integrari = {
@@ -16,9 +16,17 @@ export type Integrari = {
   ga4?: { id?: string; activ?: boolean };
 };
 
+// Datele REALE ale firmei — folosite ca rezervă dacă în tabela `settings` nu s-a salvat nimic.
+// Sursa oficială rămâne Admin → Setări → Date firmă (se suprascriu automat peste acestea).
 export const FIRMA_IMPLICITA: Firma = {
-  denumire: "Autopas Dezmembrări SRL", cui: "", reg_com: "", iban: "",
-  serie_factura: "AUTP", telefon: "0743 627 151", email: "comenzi@autopas.ro",
+  denumire: "S.C. PIESE AUTO PAS S.R.L.",
+  cui: "RO 36608590",
+  reg_com: "J27/893/2016",
+  adresa: "Str. Petru Rareș nr. 181, com. Alexandru cel Bun, jud. Neamț",
+  iban: "",
+  serie_factura: "AUTP",
+  telefon: "0743 627 151",
+  email: "comenzi@autopas.ro",
   whatsapp: process.env.NEXT_PUBLIC_WHATSAPP_PHONE ?? "40743627151",
 };
 export const CURIERI_IMPLICITI: Curier[] = [

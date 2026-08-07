@@ -20,7 +20,7 @@ const poppins = localFont({
 
 export const metadata: Metadata = {
   title: { default: "Autopas Dezmembrări — piese auto testate, cu garanție", template: "%s · Autopas Dezmembrări" },
-  description: "Piese auto second-hand din dezmembrări autorizate, Piatra-Neamț. Testate, fotografiate real, garanție 30 de zile, livrare 24–48h în toată România.",
+  description: "Piese auto second-hand din dezmembrări autorizate, Piatra-Neamț. Testate, fotografiate real, garanție 90 de zile, livrare în 1–3 zile lucrătoare în toată România.",
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

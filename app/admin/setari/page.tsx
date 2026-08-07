@@ -56,13 +56,17 @@ export default function Setari() {
         <form onSubmit={(e) => { e.preventDefault();
           const f = new FormData(e.currentTarget);
           const nou: Firma = { denumire: String(f.get("denumire")), cui: String(f.get("cui")), reg_com: String(f.get("reg_com")),
-            iban: String(f.get("iban")), serie_factura: String(f.get("serie")), telefon: String(f.get("telefon")),
-            email: String(f.get("email")), whatsapp: String(f.get("whatsapp")).replace(/\D/g, "") };
+            adresa: String(f.get("adresa")), iban: String(f.get("iban")), serie_factura: String(f.get("serie")),
+            telefon: String(f.get("telefon")), email: String(f.get("email")),
+            whatsapp: String(f.get("whatsapp")).replace(/\D/g, "") };
           setFirma(nou); salveaza("firma", nou); }}
           className="card p-5 grid gap-3 text-sm">
           <b className="font-disp font-semibold text-[13px]">Date firmă și fiscale</b>
           <p className="text-xs text-mut -mt-1">Apar în subsolul site-ului, pe documentele legale și în exportul pentru Saga.</p>
           <div className="fld"><label>Denumire</label><input name="denumire" defaultValue={firma.denumire} /></div>
+          {/* Sediul social — apare în subsol, în certificatul de garanție și în politica GDPR */}
+          <div className="fld"><label>Sediu social</label>
+            <input name="adresa" defaultValue={firma.adresa} placeholder="Str. …, com. …, jud. …" /></div>
           <div className="grid grid-cols-2 gap-3">
             <div className="fld"><label>CUI</label><input name="cui" defaultValue={firma.cui} placeholder="RO…" /></div>
             <div className="fld"><label>Reg. Com.</label><input name="reg_com" defaultValue={firma.reg_com} placeholder="J27/…" /></div>

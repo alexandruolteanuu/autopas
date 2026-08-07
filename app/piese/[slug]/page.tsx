@@ -58,7 +58,7 @@ export default async function Produs({ params }: { params: { slug: string } }) {
     ["Cod OEM", prod.oem || "—"],
     ["Cod intern", prod.cod_intern ?? "—"],
     ["Vă oferim", <span key="o" className="inline-flex flex-wrap gap-x-3 gap-y-1">
-      <span className="text-ok">Factură ✓</span><span className="text-ok">Garanție ✓</span><span className="text-ok">Drept de retur ✓</span></span>],
+      <span className="text-ok">Factură ✓</span><span className="text-ok">Garanție 90 de zile ✓</span><span className="text-ok">Retur în 14 zile ✓</span></span>],
     ["Livrare", "prin curier rapid în 24/48h (contra cost)"],
   ];
 
