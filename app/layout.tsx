@@ -18,6 +18,12 @@ const poppins = localFont({
   variable: "--font-poppins",
 });
 
+// Datele firmei (subsol, documente legale) vin din Admin → Setări. Fără linia asta,
+// paginile generate static le-ar îngheța la momentul build-ului, iar o modificare
+// făcută în admin s-ar vedea abia la următorul deploy. Cu revalidare la 5 minute,
+// paginile se regenerează singure. Paginile marcate `force-dynamic` nu sunt afectate.
+export const revalidate = 300;
+
 export const metadata: Metadata = {
   // `metadataBase` transformă căile relative din metadate în adrese absolute
   // (necesar pentru partajarea pe Facebook/WhatsApp) și e folosit de sitemap.
