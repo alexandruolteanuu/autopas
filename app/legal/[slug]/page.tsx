@@ -17,7 +17,7 @@ export default async function LegalPage({ params }: { params: { slug: string } }
   const doc = getLegal(params.slug, firma);
   if (!doc) notFound();
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 grid lg:grid-cols-[240px,1fr] gap-8">
+    <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8 grid lg:grid-cols-[240px,minmax(0,1fr)] gap-8">
       <aside className="card p-4 h-fit text-sm lg:sticky lg:top-24">
         <b className="font-disp font-semibold text-[12px] text-textSecundar">Documente</b>
         <ul className="mt-2 space-y-1.5">

@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function Contact() {
   const { firma } = await getSetariServer();
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <Breadcrumbs items={[{ t: "Acasă", href: "/" }, { t: "Contact" }]} />
       <h1 className="font-disp font-bold text-3xl mt-2 mb-7">Contact</h1>
       <div className="grid lg:grid-cols-3 gap-6 items-start">

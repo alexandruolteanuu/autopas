@@ -12,8 +12,9 @@ export default function AddToCart({ p, mare = false }: { p: Product; mare?: bool
       onClick={() => { if (inCos) { router.push("/cos"); return; }
         add({ id: p.id, slug: p.slug, nume: p.nume, pret: Number(p.pret_lei), art: p.art, oem: p.oem ?? p.cod_intern ?? "" });
         router.push("/cos"); }}
-      className={`inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition
-        ${mare ? "bg-accent text-accentText px-6 py-3.5 text-base hover:brightness-110 w-full" : "bg-headerBg text-headerText px-3.5 py-2 text-xs hover:bg-steel"}`}>
+      className={`w-full inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition
+        min-h-[44px] whitespace-nowrap text-center px-4
+        ${mare ? "bg-accent text-accentText text-base hover:brightness-110" : "bg-headerBg text-headerText text-[13px] hover:bg-steel"}`}>
       {inCos ? "În coș — vezi coșul" : "Adaugă în coș"}
     </button>
   );

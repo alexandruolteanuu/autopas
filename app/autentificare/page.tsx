@@ -34,13 +34,13 @@ export default function Autentificare() {
       <div className="flex gap-2 justify-center mt-4">
         {(["login","register"] as const).map((m) => (
           <button key={m} onClick={() => { setMod(m); setMsg(""); }}
-            className={`px-4 py-2 rounded-lg text-sm font-bold border-2 ${mod === m ? "border-accent text-accent bg-accent/5" : "border-chenar"}`}>
+            className={`px-4 min-h-[44px] rounded-lg text-sm font-bold border-2 ${mod === m ? "border-accent text-accent bg-accent/5" : "border-chenar"}`}>
             {m === "login" ? "Am cont" : "Sunt client nou"}</button>
         ))}
       </div>
       <form onSubmit={trimite} className="card p-5 mt-5 grid gap-3">
-        {mod === "register" && <div className="fld"><label>Nume complet *</label><input name="nume" required /></div>}
-        <div className="fld"><label>E-mail *</label><input name="email" type="email" required /></div>
+        {mod === "register" && <div className="fld"><label>Nume complet *</label><input name="nume" required autoComplete="name" /></div>}
+        <div className="fld"><label>E-mail *</label><input name="email" type="email" required inputMode="email" autoComplete="email" /></div>
         <div className="fld"><label>Parolă * <span className="font-normal text-textSecundar">(min. 6 caractere)</span></label><input name="parola" type="password" minLength={6} required /></div>
         <button disabled={stare === "trimit"} className="btn-acc">{stare === "trimit" ? "Un moment…" : mod === "login" ? "Intră în cont" : "Creează contul"}</button>
         {msg && <p className="text-sm text-center text-text">{msg}</p>}

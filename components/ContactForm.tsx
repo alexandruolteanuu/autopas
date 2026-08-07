@@ -17,9 +17,9 @@ export default function ContactForm() {
   if (stare === "ok") return <div className="card p-6 text-center"><b className="text-ok">✓ Mesajul a fost trimis!</b><p className="text-textSecundar text-sm mt-1">Răspundem în aceeași zi lucrătoare.</p></div>;
   return (
     <form onSubmit={trimite} className="card p-5 grid gap-3">
-      <div className="fld"><label>Nume *</label><input name="nume" required /></div>
-      <div className="fld"><label>E-mail *</label><input name="email" type="email" required /></div>
-      <div className="fld"><label>Telefon</label><input name="telefon" /></div>
+      <div className="fld"><label>Nume *</label><input name="nume" required autoComplete="name" /></div>
+      <div className="fld"><label>E-mail *</label><input name="email" type="email" required inputMode="email" autoComplete="email" /></div>
+      <div className="fld"><label>Telefon</label><input name="telefon" type="tel" inputMode="numeric" autoComplete="tel" /></div>
       <div className="fld"><label>Mesaj *</label><textarea name="mesaj" rows={4} required /></div>
       <button disabled={stare === "trimit"} className="btn-acc">{stare === "trimit" ? "Se trimite…" : "Trimite mesajul"}</button>
       {stare === "eroare" && <p className="text-red-600 text-sm">Eroare — încearcă din nou sau sună-ne.</p>}

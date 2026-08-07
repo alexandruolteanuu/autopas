@@ -20,9 +20,9 @@ export default function ReturnForm() {
   return (
     <form onSubmit={trimite} className="card p-5 grid sm:grid-cols-2 gap-3">
       <div className="fld"><label>Numărul comenzii * <span className="font-normal text-textSecundar">(ex. AP-2026-01847)</span></label><input name="numar_comanda" required /></div>
-      <div className="fld"><label>Nume *</label><input name="nume" required /></div>
-      <div className="fld"><label>E-mail *</label><input name="email" type="email" required /></div>
-      <div className="fld"><label>Telefon</label><input name="telefon" /></div>
+      <div className="fld"><label>Nume *</label><input name="nume" required autoComplete="name" /></div>
+      <div className="fld"><label>E-mail *</label><input name="email" type="email" required inputMode="email" autoComplete="email" /></div>
+      <div className="fld"><label>Telefon</label><input name="telefon" type="tel" inputMode="numeric" autoComplete="tel" /></div>
       <div className="fld sm:col-span-2"><label>Produsul returnat *</label><input name="produs" required /></div>
       <div className="fld sm:col-span-2"><label>Motivul returului *</label>
         <select name="motiv" required>

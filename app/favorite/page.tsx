@@ -24,7 +24,7 @@ export default function Favorite() {
   }, [ids]);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <Breadcrumbs items={[{ t: "Acasă", href: "/" }, { t: "Favoritele mele" }]} />
       <h1 className="font-disp font-bold text-3xl mt-2 mb-2">Favoritele mele</h1>
       <p className="text-sm text-textSecundar mb-6">
@@ -40,7 +40,7 @@ export default function Favorite() {
         </div>
       )}
       {produse.length > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           {produse.map((p) => <ProductCard key={p.id} p={p} />)}
         </div>
       )}

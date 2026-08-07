@@ -21,7 +21,7 @@ export default function SortSelect() {
           e.target.value ? p.set("sort", e.target.value) : p.delete("sort");
           router.push(`${path}?${p.toString()}`);
         }}
-        className="rounded-xl border-2 border-chenar bg-suprafata px-3 py-1.5 text-sm outline-none focus:border-accent">
+        className="rounded-xl border-2 border-chenar bg-suprafata px-3 min-h-[44px] text-sm outline-none focus:border-accent">
         {OPTIUNI.map((o) => <option key={o.id} value={o.id}>{o.t}</option>)}
       </select>
     </label>

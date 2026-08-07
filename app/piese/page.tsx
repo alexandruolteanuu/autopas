@@ -5,6 +5,7 @@ import ProductCard from "@/components/ProductCard";
 import VehicleFilter from "@/components/VehicleFilter";
 import PartRequestForm from "@/components/PartRequestForm";
 import SortSelect from "@/components/SortSelect";
+import FiltreSertar from "@/components/FiltreSertar";
 import { fitmentCounts, textCautare } from "@/lib/format";
 import Link from "next/link";
 
@@ -94,12 +95,27 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
     products = ((await q).data ?? []) as Product[];
   }
 
+  // Filtrele active, ca etichete cu „×": fiecare link duce la aceeași căutare,
+  // fără parametrul respectiv. Se construiesc pe server, din searchParams.
+  const faraParam = (cheie: keyof SP) => {
+    const p = new URLSearchParams();
+    for (const [k, v] of Object.entries(searchParams)) if (k !== cheie && v) p.set(k, String(v));
+    const qs = p.toString();
+    return qs ? `/piese?${qs}` : "/piese";
+  };
+  const filtreActive: { eticheta: string; href: string }[] = [];
+  if (searchParams.q) filtreActive.push({ eticheta: `„${searchParams.q}”`, href: faraParam("q") });
+  if (catActiva) filtreActive.push({ eticheta: catActiva.nume, href: faraParam(catActiva.parent_id ? "subcategorie" : "categorie") });
+  if (searchParams.marca) filtreActive.push({ eticheta: brands.find((b) => b.slug === searchParams.marca)?.nume ?? searchParams.marca, href: faraParam("marca") });
+  if (searchParams.model) filtreActive.push({ eticheta: models.find((m) => m.slug === searchParams.model)?.nume ?? searchParams.model, href: faraParam("model") });
+  if (searchParams.vehicul) filtreActive.push({ eticheta: "Mașina aleasă", href: faraParam("vehicul") });
+
   const principale = cats.filter((c) => !c.parent_id);
   const subAle = (id: number) => cats.filter((c) => c.parent_id === id);
   const parintele = catActiva?.parent_id ? cats.find((c) => c.id === catActiva!.parent_id) : catActiva;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <Breadcrumbs items={[{ t: "Acasă", href: "/" },
         { t: "Piese auto", ...(catActiva ? { href: "/piese" } : {}) },
         ...(catActiva?.parent_id ? [{ t: cats.find((c) => c.id === catActiva!.parent_id)?.nume ?? "", href: `/piese?categorie=${cats.find((c) => c.id === catActiva!.parent_id)?.slug}` }] : []),
@@ -107,14 +123,30 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
       <h1 className="font-disp font-bold text-3xl mt-2 mb-4">{titlu}</h1>
       <div className="mb-6"><VehicleFilter brands={brands} models={models} cats={principale} counts={fitmentCounts(fitRows, models)} compact /></div>
 
-      <div className="grid lg:grid-cols-[250px,1fr] gap-6">
-        {/* ===== FILTRUL DE CATEGORII — cu chenar și ierarhie clară ===== */}
-        <aside className="card overflow-hidden h-fit lg:sticky lg:top-24">
-          <div className="bg-suprafata2 px-4 py-3 border-b border-chenar">
-            <b className="font-disp font-semibold text-[13px]">Categorii</b>
-          </div>
-          <nav className="p-2 text-sm max-h-[70vh] overflow-y-auto">
-            <Link href="/piese" className={`block rounded-lg px-3 py-2 ${!catActiva ? "bg-accent/10 text-accent font-semibold" : "hover:bg-suprafata2"}`}>
+      {/* Filtrele active, pe un rând care se defilează orizontal pe telefon */}
+      {filtreActive.length > 0 && (
+        <div className="-mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 mb-4 flex gap-2 overflow-x-auto">
+          {filtreActive.map((f) => (
+            <Link key={f.eticheta} href={f.href}
+              className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-chenar bg-suprafata pl-3 pr-2 min-h-[36px] text-[13px] hover:border-accent">
+              {f.eticheta}
+              <span aria-hidden="true" className="grid place-items-center w-6 h-6 rounded-full text-textSecundar">×</span>
+              <span className="sr-only">Elimină filtrul</span>
+            </Link>
+          ))}
+          <Link href="/piese" className="shrink-0 inline-flex items-center rounded-full px-3 min-h-[36px] text-[13px] text-accent font-semibold">
+            Șterge filtrele
+          </Link>
+        </div>
+      )}
+
+      <div className="grid lg:grid-cols-[250px,minmax(0,1fr)] gap-6">
+        {/* ===== FILTRUL DE CATEGORII =====
+            Sub 1024px conținutul de mai jos ajunge în sertarul care urcă de jos;
+            de la 1024px rămâne coloana laterală. */}
+        <FiltreSertar nrFiltre={filtreActive.length}>
+          <nav className="text-sm">
+            <Link href="/piese" className={`flex items-center rounded-lg px-3 min-h-[44px] ${!catActiva ? "bg-accent/10 text-accent font-semibold" : "hover:bg-suprafata2"}`}>
               Toate piesele</Link>
             {principale.map((c) => {
               const subs = subAle(c.id);
@@ -122,16 +154,16 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
               return (
                 <div key={c.id} className="mt-0.5">
                   <Link href={`/piese?categorie=${c.slug}`}
-                    className={`flex items-center justify-between gap-2 rounded-lg px-3 py-2 ${catActiva?.id === c.id ? "bg-accent/10 text-accent font-semibold" : "hover:bg-suprafata2"}`}>
+                    className={`flex items-center justify-between gap-2 rounded-lg px-3 min-h-[44px] ${catActiva?.id === c.id ? "bg-accent/10 text-accent font-semibold" : "hover:bg-suprafata2"}`}>
                     <span>{c.nume}</span>
-                    <span className="text-[11px] text-textSecundar">{c.nr_piese ?? 0}</span>
+                    <span className="text-[12px] text-textSecundar">{c.nr_piese ?? 0}</span>
                   </Link>
                   {deschis && subs.length > 0 && (
                     <div className="ml-3 pl-2 border-l-2 border-chenar mt-0.5">
                       {subs.map((s) => (
                         <Link key={s.id} href={`/piese?subcategorie=${s.slug}`}
-                          className={`flex items-center justify-between gap-2 rounded-lg px-3 py-1.5 text-[13px] ${catActiva?.id === s.id ? "text-accent font-semibold" : "text-text hover:bg-suprafata2"}`}>
-                          <span>{s.nume}</span><span className="text-[11px] text-textSecundar">{s.nr_piese ?? 0}</span>
+                          className={`flex items-center justify-between gap-2 rounded-lg px-3 min-h-[44px] text-[13px] ${catActiva?.id === s.id ? "text-accent font-semibold" : "text-text hover:bg-suprafata2"}`}>
+                          <span>{s.nume}</span><span className="text-[12px] text-textSecundar">{s.nr_piese ?? 0}</span>
                         </Link>
                       ))}
                     </div>
@@ -140,14 +172,14 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
               );
             })}
           </nav>
-        </aside>
+        </FiltreSertar>
 
-        <div>
+        <div className="min-w-0">
           <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
             <span className="text-sm text-textSecundar">{products.length} {products.length === 1 ? "piesă găsită" : "piese găsite"}</span>
             <SortSelect />
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 min-[420px]:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
             {products.map((p) => <ProductCard key={p.id} p={p} />)}
           </div>
           {products.length === 0 && (

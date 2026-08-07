@@ -68,7 +68,7 @@ function ComenziInner() {
       </div>
 
       <div className="card overflow-x-auto">
-        <table className="w-full text-sm min-w-[760px]">
+        <table className="tabel-carduri w-full text-sm md:min-w-[760px]">
           <thead><tr className="text-left text-mut text-xs border-b border-line">
             <th className="px-4 py-3">Comandă</th><th className="px-4 py-3">Client</th><th className="px-4 py-3">Plată</th>
             <th className="px-4 py-3">Total</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Factură</th>
@@ -76,17 +76,17 @@ function ComenziInner() {
           <tbody className="divide-y divide-line">
             {orders.map((o) => (
               <tr key={o.id} className="hover:bg-paper">
-                <td className="px-4 py-3"><b className="font-disp">{o.numar}</b>
+                <td data-eticheta="Comandă" className="px-4 py-3"><b className="font-disp">{o.numar}</b>
                   <div className="text-[11px] text-mut">{new Date(o.created_at).toLocaleString("ro-RO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</div></td>
-                <td className="px-4 py-3">{o.firma ?? o.nume}<div className="text-[11px] text-mut">{o.oras} · {o.telefon}</div></td>
-                <td className="px-4 py-3">{o.plata}</td>
-                <td className="px-4 py-3 font-disp font-semibold">{lei(Number(o.total))}
+                <td data-eticheta="Client" className="px-4 py-3">{o.firma ?? o.nume}<div className="text-[11px] text-mut">{o.oras} · {o.telefon}</div></td>
+                <td data-eticheta="Plată" className="px-4 py-3">{o.plata}</td>
+                <td data-eticheta="Total" className="px-4 py-3 font-disp font-semibold">{lei(Number(o.total))}
                   {/* fără cost de livrare, totalul afișat e incomplet — semnalăm explicit */}
                   {!o.livrare_stabilit_la && o.status !== "anulata" &&
                     <div className="text-[10px] text-yellow-700 font-sans font-bold">+ transport necalculat</div>}</td>
-                <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${STATUS[o.status] ?? "bg-paper"}`}>{o.status}</span></td>
-                <td className="px-4 py-3 text-xs">{o.factura_serie ? <span className="text-ok font-semibold">{o.factura_serie}</span> : <span className="text-mut">de emis</span>}</td>
-                <td className="px-4 py-3 text-xs">{o.awb ? <span className="text-ok font-semibold">{o.awb}</span> : <span className="text-mut">—</span>}</td>
+                <td data-eticheta="Status" className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${STATUS[o.status] ?? "bg-paper"}`}>{o.status}</span></td>
+                <td data-eticheta="Factură" className="px-4 py-3 text-xs">{o.factura_serie ? <span className="text-ok font-semibold">{o.factura_serie}</span> : <span className="text-mut">de emis</span>}</td>
+                <td data-eticheta="AWB" className="px-4 py-3 text-xs">{o.awb ? <span className="text-ok font-semibold">{o.awb}</span> : <span className="text-mut">—</span>}</td>
                 <td className="px-4 py-3"><Link href={`/admin/comenzi/${o.id}`} className="text-acc font-semibold whitespace-nowrap">Deschide →</Link></td>
               </tr>
             ))}

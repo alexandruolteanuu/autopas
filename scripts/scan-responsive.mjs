@@ -90,6 +90,9 @@ function masoara() {
       const a = rects[i], b = rects[j];
       // sărim peste cele imbricate unul în altul — nu e suprapunere reală
       if (a.el.contains(b.el) || b.el.contains(a.el)) continue;
+      // straturile fixe (banner de cookie-uri, buton plutitor, sertar) acoperă
+      // conținutul intenționat — nu e o suprapunere din așezare
+      if (a.el.closest("[data-strat-fix]") || b.el.closest("[data-strat-fix]")) continue;
       const lat = Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left);
       const inalt = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top);
       if (lat > 2 && inalt > 2) {

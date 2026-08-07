@@ -81,13 +81,13 @@ export default function ProductForm({ produs }: { produs?: Product }) {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-[1.4fr,1fr] gap-4 items-start">
+      <div className="grid lg:grid-cols-[minmax(0,1.4fr),minmax(0,1fr)] gap-4 items-start">
         <div className="space-y-4">
           <div className="card p-5 grid gap-3 text-sm">
             <b className="font-disp font-semibold text-[13px]">Informații de bază</b>
             <div className="fld"><label>Denumirea piesei *</label>
               <input name="nume" required defaultValue={produs?.nume} placeholder="ex. Far stânga xenon — BMW Seria 3 F30" /></div>
-            <div className="grid sm:grid-cols-3 gap-3">
+            <div className="grid md:grid-cols-3 gap-3">
               <div className="fld"><label>Cod OEM</label><input name="oem" defaultValue={produs?.oem ?? ""} placeholder="ex. 63117338709" /></div>
               <div className="fld"><label>Preț (lei) *</label><input name="pret" type="number" step="0.01" required defaultValue={produs?.pret_lei} /></div>
               <div className="fld"><label>Sufix preț</label><input name="sufix" defaultValue={produs?.pret_sufix ?? ""} placeholder="ex. / set" /></div>
@@ -107,7 +107,7 @@ export default function ProductForm({ produs }: { produs?: Product }) {
 
           <div className="card p-5 grid gap-3 text-sm">
             <b className="font-disp font-semibold text-[13px]">Compatibilitate</b>
-            <div className="grid sm:grid-cols-2 gap-3">
+            <div className="grid md:grid-cols-2 gap-3">
               <div className="fld"><label>Filtrează modelele după marcă</label>
                 <select value={marcaFiltru} onChange={(e) => setMarcaFiltru(e.target.value)}>
                   <option value="">Toate mărcile</option>
@@ -159,7 +159,7 @@ export default function ProductForm({ produs }: { produs?: Product }) {
 
           <div className="card p-5 grid gap-3 text-sm">
             <b className="font-disp font-semibold text-[13px]">Stoc și logistică</b>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="fld"><label>Stoc (buc)</label><input name="stoc" type="number" defaultValue={produs?.stoc ?? 1} /></div>
               <div className="fld"><label>Greutate (kg)</label><input name="greutate" type="number" step="0.1" defaultValue={produs?.greutate_kg ?? ""} placeholder="pt. AWB" /></div>
             </div>

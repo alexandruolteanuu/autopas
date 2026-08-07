@@ -75,18 +75,18 @@ export default function Facturi() {
       </div>
 
       <div className="card overflow-x-auto">
-        <table className="w-full text-sm min-w-[720px]">
+        <table className="tabel-carduri w-full text-sm md:min-w-[720px]">
           <thead><tr className="text-left text-mut text-xs border-b border-line">
             <th className="px-4 py-3">Comandă</th><th className="px-4 py-3">Data</th><th className="px-4 py-3">Client</th>
             <th className="px-4 py-3">CUI</th><th className="px-4 py-3">Total</th><th className="px-4 py-3">Serie factură (din Saga)</th></tr></thead>
           <tbody className="divide-y divide-line">
             {orders.map((o) => (
               <tr key={o.id} className="hover:bg-paper">
-                <td className="px-4 py-3"><Link href={`/admin/comenzi/${o.id}`} className="font-disp font-semibold hover:text-acc">{o.numar}</Link></td>
-                <td className="px-4 py-3 text-mut">{new Date(o.created_at).toLocaleDateString("ro-RO")}</td>
-                <td className="px-4 py-3">{o.firma ?? o.nume}</td>
-                <td className="px-4 py-3 text-mut">{o.cui ?? "—"}</td>
-                <td className="px-4 py-3 font-disp font-semibold">{lei(Number(o.total))}</td>
+                <td data-eticheta="Comandă" className="px-4 py-3"><Link href={`/admin/comenzi/${o.id}`} className="font-disp font-semibold hover:text-acc">{o.numar}</Link></td>
+                <td data-eticheta="Data" className="px-4 py-3 text-mut">{new Date(o.created_at).toLocaleDateString("ro-RO")}</td>
+                <td data-eticheta="Client" className="px-4 py-3">{o.firma ?? o.nume}</td>
+                <td data-eticheta="CUI" className="px-4 py-3 text-mut">{o.cui ?? "—"}</td>
+                <td data-eticheta="Total" className="px-4 py-3 font-disp font-semibold">{lei(Number(o.total))}</td>
                 <td className="px-4 py-3">
                   <input defaultValue={o.factura_serie ?? ""} placeholder="ex. AUTP-0912"
                     onBlur={(e) => { if (e.target.value !== (o.factura_serie ?? "")) salveazaSerie(o, e.target.value.trim()); }}

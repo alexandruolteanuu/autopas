@@ -105,7 +105,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               : "Contul tău nu face parte din echipă. Cere administratorului să îți atribuie un rol (vezi README)."}
           </p>
           <Link href="/autentificare" className="btn-acc mt-5">Autentificare</Link>
-          <Link href="/" className="block mt-3 text-sm text-mut hover:text-acc">← Înapoi la site</Link>
+          <Link href="/" className="inline-flex items-center min-h-[44px] mt-3 text-sm text-mut hover:text-acc">← Înapoi la site</Link>
         </div>
       </div>
     );

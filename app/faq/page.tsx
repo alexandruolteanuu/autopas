@@ -19,7 +19,7 @@ export default function Faq() {
       <div className="space-y-3">
         {FAQ.map(([q, a]) => (
           <details key={q} className="card p-4 group">
-            <summary className="font-semibold cursor-pointer list-none flex justify-between items-center">
+            <summary className="flex justify-between items-center gap-3 min-h-[44px] font-semibold cursor-pointer list-none">
               {q}<span className="text-accent text-xl group-open:rotate-45 transition">+</span></summary>
             <p className="text-sm text-textSecundar mt-2 leading-relaxed">{a}</p>
           </details>

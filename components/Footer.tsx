@@ -7,16 +7,16 @@ import HartiLinks from "./HartiLinks";
 export default function Footer({ firma = FIRMA_IMPLICITA }: { firma?: Firma }) {
   return (
     <footer className="bg-footerBg text-footerText mt-16">
-      <div className="mx-auto max-w-6xl px-4 py-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4 text-sm">
+      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4 text-sm">
         <div>
           <span className="block font-disp font-bold text-[24px]">AUTOPAS</span>
-          <span className="block font-disp text-[9px] tracking-[0.5em] text-footerText/60 mb-3">DEZMEMBRĂRI</span>
+          <span className="block font-disp text-[12px] tracking-[0.2em] text-footerText/60 mb-3">DEZMEMBRĂRI</span>
           <p className="text-footerText/70 leading-relaxed">Piese auto second-hand testate, din dezmembrări autorizate. Garanție 90 de zile conform OUG 140/2021, livrare în 1–3 zile lucrătoare în toată România.</p>
           <p className="mt-3 text-footerText/70">📍 {ADRESA.scurt}<br />
             <span className="text-footerText/50 text-[12px]">{ADRESA.reper}</span></p>
           {/* Contact — telefon și program, aceleași valori ca în header (lib/config.ts) */}
           <p className="mt-1">
-            ☎ <a href={telLink()} className="font-semibold hover:text-accent">{CONFIG.telefonAfisat}</a>
+            ☎ <a href={telLink()} className="inline-flex items-center min-h-[44px] font-semibold hover:text-accent">{CONFIG.telefonAfisat}</a>
           </p>
           <p className="text-footerText/70">Program: {PROGRAM}</p>
           {/* Waze și Google Maps — linkuri către locație */}
@@ -57,7 +57,7 @@ export default function Footer({ firma = FIRMA_IMPLICITA }: { firma?: Firma }) {
           {/* Bannerele oficiale ANPC — dimensiunea legală 250×50 px (Ordinul 449/2022).
               Fișierele din public/anpc-sal.png și public/anpc-sol.png trebuie să fie cele OFICIALE,
               descărcate de pe anpc.ro/ce-este-sal. */}
-          <div className="mt-4 space-y-2">
+          <div className="mt-4 flex flex-wrap gap-2 justify-center sm:justify-start">
             <a href="https://anpc.ro/ce-este-sal/" target="_blank" rel="noopener noreferrer"
               className="block w-[250px] max-w-full">
               <img src="/anpc-sal.png" alt="ANPC — Soluționarea Alternativă a Litigiilor"
@@ -70,7 +70,7 @@ export default function Footer({ firma = FIRMA_IMPLICITA }: { firma?: Firma }) {
         </div>
       </div>
       <div className="border-t border-white/10 text-[12px] text-footerText/50">
-        <div className="mx-auto max-w-6xl px-4 py-4 flex flex-wrap gap-2 justify-between">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap gap-2 justify-between">
           {/* Datele firmei vin din Admin → Setări → Date firmă (tabela settings), nu din cod. */}
           <span>© {new Date().getFullYear()} {firma.denumire}{firma.cui ? ` · CUI ${firma.cui}` : ""}{firma.reg_com ? ` · Reg. Com. ${firma.reg_com}` : ""}{firma.adresa ? ` · Sediu social: ${firma.adresa}` : ""} · Autorizat pentru tratarea vehiculelor scoase din uz</span>
           <span>VISA · Mastercard · Ramburs</span>

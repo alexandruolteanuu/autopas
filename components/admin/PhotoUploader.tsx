@@ -38,26 +38,37 @@ export default function PhotoUploader({ poze, setPoze }: { poze: string[]; setPo
 
   return (
     <div>
-      <div className="flex flex-wrap gap-2">
+      {/* Butoanele erau vizibile doar la trecerea cu mouse-ul, deci pe telefon nu
+          se putea șterge sau reordona nicio poză. Acum sunt mereu vizibile:
+          ștergerea în colț (32x32, fără să acopere altceva), iar mutarea pe un
+          rând propriu sub imagine. */}
+      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
         {poze.map((u, i) => (
-          <div key={u} className="relative w-24 group">
-            <img src={u} alt="" className="w-24 h-20 object-cover rounded-lg border-2 border-line" />
-            {i === 0 && <span className="absolute top-1 left-1 bg-acc text-white text-[9px] font-bold px-1.5 py-0.5 rounded">principală</span>}
-            <div className="absolute inset-x-0 bottom-0 flex justify-center gap-1 opacity-0 group-hover:opacity-100 transition bg-ink/70 rounded-b-lg py-0.5">
-              <button type="button" onClick={() => muta(i, -1)} className="text-white text-xs px-1">←</button>
-              <button type="button" onClick={() => sterge(u)} className="text-white text-xs px-1">✕</button>
-              <button type="button" onClick={() => muta(i, 1)} className="text-white text-xs px-1">→</button>
+          <div key={u} className="relative">
+            <img src={u} alt="" className="w-full aspect-[4/3] object-cover rounded-lg border-2 border-line" />
+            {i === 0 && <span className="absolute top-1 left-1 bg-acc text-white text-[12px] font-bold px-1.5 py-0.5 rounded">principală</span>}
+            <button type="button" onClick={() => sterge(u)} aria-label="Șterge poza"
+              className="absolute top-1 right-1 w-8 h-8 rounded-full bg-ink/80 text-white grid place-items-center hover:bg-red-600">
+              <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
+            </button>
+            <div className="mt-1 flex gap-1">
+              <button type="button" onClick={() => muta(i, -1)} aria-label="Mută poza mai în față"
+                className="flex-1 min-h-[32px] rounded-md border border-line text-mut hover:text-acc hover:border-acc">←</button>
+              <button type="button" onClick={() => muta(i, 1)} aria-label="Mută poza mai în spate"
+                className="flex-1 min-h-[32px] rounded-md border border-line text-mut hover:text-acc hover:border-acc">→</button>
             </div>
           </div>
         ))}
-        <label className={`w-24 h-20 rounded-lg border-2 border-dashed border-line grid place-items-center cursor-pointer hover:border-acc text-center ${lucru ? "opacity-50" : ""}`}>
-          <span className="text-xs text-mut leading-tight">{lucru ? "se încarcă…" : "+ adaugă poze"}</span>
+        <label className={`aspect-[4/3] rounded-lg border-2 border-dashed border-line grid place-items-center cursor-pointer hover:border-acc text-center px-1 ${lucru ? "opacity-50" : ""}`}>
+          <span className="text-[12px] text-mut leading-tight">{lucru ? "se încarcă…" : "+ adaugă poze"}</span>
           <input type="file" accept="image/*" multiple className="hidden" disabled={lucru}
             onChange={(e) => { if (e.target.files?.length) incarca(e.target.files); e.target.value = ""; }} />
         </label>
       </div>
-      <p className="text-[11px] text-mut mt-1.5">Poți face pozele direct cu telefonul. Prima poză apare pe card și în listări. Max. 8 MB/poză.</p>
-      {msg && <p className="text-xs text-red-600 mt-1">{msg}</p>}
+      <p className="text-[12px] text-mut mt-1.5">Poți face pozele direct cu telefonul. Prima poză apare pe card și în listări. Max. 8 MB/poză.</p>
+      {msg && <p className="text-[13px] text-red-600 mt-1">{msg}</p>}
     </div>
   );
 }

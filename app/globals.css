@@ -249,15 +249,60 @@
 body { @apply bg-fundal text-text font-body; }
 
 /* „Cota tehnică" — elementul de semnătură al secțiunilor (din design-ul aprobat în PDF) */
-.dim { @apply flex items-center gap-2.5 font-disp font-medium text-[11px] tracking-[0.14em] uppercase text-textSecundar; }
+.dim { @apply flex items-center gap-2.5 font-disp font-medium text-[12px] tracking-[0.14em] uppercase text-textSecundar; }
 .dim::before, .dim::after { content: ""; @apply block w-6 h-px bg-textSecundar; border-left: 1px solid rgb(var(--text-secundar)); }
 
-.fld label { @apply block text-[12px] font-semibold text-text mb-1; }
+.fld label { @apply block text-[13px] font-medium text-text mb-1; }
 .fld input, .fld select, .fld textarea {
-  @apply w-full rounded-lg border-2 border-chenar bg-suprafata text-text px-3.5 py-2.5 text-sm outline-none focus:border-accent;
+  @apply w-full min-w-0 rounded-lg border-2 border-chenar bg-suprafata text-text px-3.5 py-2.5 text-base outline-none focus:border-accent;
 }
+.fld input, .fld select { @apply min-h-[44px]; }
 .btn-acc { @apply inline-flex items-center justify-center gap-2 rounded-xl bg-accent text-accentText px-6 py-3 font-semibold hover:bg-accentHover transition; }
 .btn-dark { @apply inline-flex items-center justify-center gap-2 rounded-xl bg-headerBg text-headerText px-6 py-3 font-semibold hover:bg-steel transition; }
 .card { @apply bg-suprafata border border-chenar rounded-xl shadow-card; }
 
 h1,h2,h3 { letter-spacing: -0.02em; }
+
+/* ============================================================
+   TABELELE DIN /admin PE TELEFON
+   Sub 768px un tabel de 8 coloane nu are cum să încapă. În loc să-l
+   micșorăm până devine ilizibil, fiecare rând devine un card cu perechi
+   „etichetă: valoare". Eticheta vine din atributul data-eticheta pus pe
+   fiecare celulă, deci marcajul rămâne un singur tabel — nu îl scriem
+   de două ori. De la 768px în sus se comportă ca un tabel obișnuit.
+   Excepție: tabelele late din Rapoarte, care păstrează defilarea proprie.
+   ============================================================ */
+@media (max-width: 767px) {
+  table.tabel-carduri { min-width: 0; display: block; }
+  table.tabel-carduri thead { display: none; }
+  table.tabel-carduri tbody { display: block; }
+  table.tabel-carduri tbody tr {
+    display: block;
+    border: 1px solid rgb(var(--chenar));
+    border-radius: 12px;
+    padding: 0.25rem 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+  table.tabel-carduri tbody td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.5rem 0 !important;
+    text-align: right;
+    min-width: 0;
+  }
+  table.tabel-carduri tbody td + td { border-top: 1px solid rgb(var(--chenar) / .6); }
+  table.tabel-carduri tbody td[data-eticheta]::before {
+    content: attr(data-eticheta);
+    flex: 0 0 auto;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 500;
+    color: rgb(var(--text-secundar));
+  }
+  /* celulele fără etichetă (acțiuni, bifă) ocupă tot rândul */
+  table.tabel-carduri tbody td:not([data-eticheta]) { justify-content: stretch; text-align: left; }
+  table.tabel-carduri tbody td:not([data-eticheta]) > a,
+  table.tabel-carduri tbody td:not([data-eticheta]) > button { width: 100%; justify-content: center; }
+}

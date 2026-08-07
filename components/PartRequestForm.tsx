@@ -24,9 +24,9 @@ export default function PartRequestForm({ sursa, dark = false }: { sursa: string
       <p className={`text-sm mt-1 ${dark ? "text-headerText/70" : "text-textSecundar"}`}>Îți verificăm stocul și revenim în cel mai scurt timp.</p></div>;
   return (
     <form onSubmit={trimite} className={`rounded-xl p-5 grid sm:grid-cols-2 gap-3 ${dark ? "bg-suprafata text-text shadow-card" : "card"}`}>
-      <div className="fld"><label>Nume *</label><input name="nume" required /></div>
-      <div className="fld"><label>Telefon *</label><input name="telefon" required /></div>
-      <div className="fld"><label>E-mail</label><input name="email" type="email" /></div>
+      <div className="fld"><label>Nume *</label><input name="nume" required autoComplete="name" /></div>
+      <div className="fld"><label>Telefon *</label><input name="telefon" required type="tel" inputMode="numeric" autoComplete="tel" /></div>
+      <div className="fld"><label>E-mail</label><input name="email" type="email" inputMode="email" autoComplete="email" /></div>
       <div className="fld"><label>Mașina (marcă, model, an, motor) *</label><input name="masina" required placeholder="ex. Dacia Duster 1.5 dCi 2016" /></div>
       <div className="fld sm:col-span-2"><label>Piesa căutată *</label><input name="piesa" required placeholder="ex. electromotor / cod OEM" /></div>
       <div className="fld sm:col-span-2"><label>Detalii</label><textarea name="mesaj" rows={2} /></div>

@@ -23,7 +23,7 @@ export function TrustIcon({ kind, className = "w-5 h-5" }: { kind: string; class
 export default function TrustBar({ variant = "light" }: { variant?: "light" | "dark" }) {
   return (
     <section className={variant === "dark" ? "bg-headerBg text-headerText" : "bg-suprafata border-b border-chenar"}>
-      <div className="mx-auto max-w-6xl px-4 py-5 grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-5 grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
         {TRUST.map((x) => (
           <div key={x.t} className="flex items-center gap-3">
             <span className={`w-10 h-10 rounded-xl grid place-items-center shrink-0 ${variant === "dark" ? "bg-white/10 text-accent" : "bg-accent/10 text-accent"}`}>

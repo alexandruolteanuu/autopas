@@ -74,7 +74,7 @@ export default async function Produs({ params }: { params: { slug: string } }) {
   ];
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6">
+    <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
       <div className="flex items-center gap-3 flex-wrap mb-3">
         <BackLink />
         <Breadcrumbs items={[
@@ -90,18 +90,37 @@ export default async function Produs({ params }: { params: { slug: string } }) {
         <ProductGallery poze={prod.poze ?? []} art={prod.art} nume={prod.nume} />
 
         <div>
+          {/* Ordinea pe telefon: denumire, cod intern, preț, stoc, apoi butonul
+              principal pe toată lățimea — ca să fie vizibil fără defilare. */}
           <h1 className="font-disp font-bold text-[22px] leading-snug">{prod.nume}</h1>
+
+          <div className="mt-2 text-[13px] text-textSecundar">Cod intern: {prod.cod_intern ?? "—"}</div>
+
+          <div className="mt-3 flex items-end gap-2.5 flex-wrap">
+            <span className="font-disp font-bold text-[30px] text-accent leading-none tabular-nums">{lei(Number(prod.pret_lei), prod.pret_sufix)}</span>
+            <span className="text-textSecundar text-[13px]">TVA inclus</span>
+          </div>
 
           <div className="mt-3 flex items-center gap-2.5 flex-wrap text-[12px]">
             {prod.stoc > 0
               ? <span className="px-2.5 py-1 rounded-full bg-ok/10 text-ok">În stoc</span>
               : <span className="px-2.5 py-1 rounded-full bg-chenar text-text">Stoc epuizat</span>}
-            <span className="text-textSecundar">Cod intern: {prod.cod_intern ?? "—"}</span>
+            {prod.originala !== false && (
+              <span className="px-2.5 py-1 rounded-full bg-accent/10 text-accent">Piesă originală</span>
+            )}
           </div>
 
-          <div className="mt-4 flex items-end gap-2.5">
-            <span className="font-disp font-bold text-[30px] text-accent leading-none">{lei(Number(prod.pret_lei), prod.pret_sufix)}</span>
-            <span className="text-textSecundar text-[13px]">TVA inclus</span>
+          <div className="mt-4 grid gap-2.5 sm:grid-cols-[minmax(0,1fr),auto]">
+            {prod.stoc > 0
+              ? <AddToCart p={prod} mare />
+              : <div className="rounded-xl bg-chenar text-text px-5 min-h-[44px] grid place-items-center text-sm font-medium text-center">Stoc epuizat — vezi piese similare</div>}
+            <div className="grid grid-cols-2 sm:flex gap-2.5">
+              <a href={waLinkCu(firma.whatsapp, `Bună! Mă interesează: ${prod.nume}${prod.oem ? ` (OEM ${prod.oem})` : ""} — cod ${prod.cod_intern ?? ""}.`)}
+                target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center justify-center rounded-xl bg-[#1FA463] text-white px-5 min-h-[44px] text-sm font-semibold hover:brightness-110">
+                WhatsApp</a>
+              <FavButton id={prod.id} variant="line" />
+            </div>
           </div>
 
           {prod.originala !== false && (
@@ -110,17 +129,6 @@ export default async function Produs({ params }: { params: { slug: string } }) {
               Piesă auto originală din dezmembrări — verificată înainte de livrare
             </div>
           )}
-
-          <div className="mt-4 flex flex-wrap gap-2.5">
-            {prod.stoc > 0
-              ? <div className="flex-1 min-w-[190px]"><AddToCart p={prod} mare /></div>
-              : <div className="flex-1 min-w-[190px] rounded-xl bg-chenar text-text px-5 py-3 text-sm font-medium text-center">Stoc epuizat — vezi piese similare</div>}
-            <a href={waLinkCu(firma.whatsapp, `Bună! Mă interesează: ${prod.nume}${prod.oem ? ` (OEM ${prod.oem})` : ""} — cod ${prod.cod_intern ?? ""}.`)}
-              target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center justify-center rounded-xl bg-[#1FA463] text-white px-5 py-3 text-sm font-semibold hover:brightness-110">
-              Întreabă pe WhatsApp</a>
-            <FavButton id={prod.id} variant="line" />
-          </div>
 
           <div className="card mt-5 overflow-hidden">
             <div className="bg-suprafata2 px-4 py-2.5 border-b border-chenar"><b className="font-disp font-semibold text-[13px]">Detaliile piesei</b></div>
@@ -135,9 +143,9 @@ export default async function Produs({ params }: { params: { slug: string } }) {
           </div>
 
           <div className="mt-3 grid sm:grid-cols-2 gap-2 text-[13px]">
-            <Link href="/legal/livrare" className="card px-3.5 py-2.5 flex items-center gap-2 hover:border-accent">
+            <Link href="/legal/livrare" className="card px-3.5 min-h-[44px] flex items-center gap-2 hover:border-accent">
               <span className="text-accent"><TrustIcon kind="camion" /></span> Livrare 1–3 zile lucrătoare</Link>
-            <Link href="/legal/politica-de-retur" className="card px-3.5 py-2.5 flex items-center gap-2 hover:border-accent">
+            <Link href="/legal/politica-de-retur" className="card px-3.5 min-h-[44px] flex items-center gap-2 hover:border-accent">
               <span className="text-accent"><TrustIcon kind="retur" /></span> Retur în 14 zile</Link>
           </div>
 
@@ -163,7 +171,7 @@ export default async function Produs({ params }: { params: { slug: string } }) {
         <section className="mt-12">
           <div className="dim">Alege în siguranță</div>
           <h2 className="font-disp font-bold text-2xl mt-2 mb-5">Piese similare</h2>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{similare.map((x) => <ProductCard key={x.id} p={x} />)}</div>
+          <div className="grid grid-cols-1 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">{similare.map((x) => <ProductCard key={x.id} p={x} />)}</div>
         </section>
       )}
 

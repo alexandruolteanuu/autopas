@@ -57,54 +57,59 @@ export default function Header() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  // Ținta de atingere e de minimum 44x44: sub atât, degetul ratează.
   const IconLink = ({ href, kind, eticheta, badge }: { href: string; kind: string; eticheta: string; badge?: number }) => (
     <Link href={href} title={eticheta} aria-label={eticheta}
-      className="relative flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg hover:bg-white/10 transition">
+      className="relative flex flex-col items-center justify-center gap-0.5 min-w-[44px] min-h-[44px] px-2 rounded-lg hover:bg-white/10 transition">
       <Ic kind={kind} />
-      <span className="hidden lg:block text-[10px] leading-none text-headerText/70">{eticheta}</span>
+      <span className="hidden lg:block text-[12px] leading-none text-headerText/70">{eticheta}</span>
       {badge ? (
-        <span className="absolute -top-0.5 right-0.5 bg-accent text-accentText text-[10px] font-bold rounded-full min-w-[17px] h-[17px] px-1 grid place-items-center">
+        <span className="absolute top-0 right-0 bg-accent text-accentText text-[12px] font-bold rounded-full min-w-[20px] h-[20px] px-1 grid place-items-center">
           {badge}</span>
       ) : null}
     </Link>
   );
 
   return (
+    <>
     <header className="bg-headerBg text-headerText sticky top-0 z-40">
-      {/* Bara de sus: telefon + program și livrare în stânga, hărțile în dreapta */}
+      {/* Bara de sus: telefonul (țintă de atingere proprie) și hărțile.
+          Programul și textul despre livrare apar doar de la sm/lg în sus — pe
+          telefon nu încap lângă hărți și oricum sunt repetate în subsol. */}
       <div className="bg-black/25 text-[12px]">
-        <div className="mx-auto max-w-6xl px-4 py-1.5 flex items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 min-w-0">
-            <span className="whitespace-nowrap">
-              ☎ <a href={telLink()} className="font-semibold hover:text-accent">{CONFIG.telefonAfisat}</a>
-              {" · "}Program: {PROGRAM}
-            </span>
-            <span className="hidden lg:block text-headerText/70">{LIVRARE}</span>
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-2 min-w-0">
+          <div className="flex flex-wrap items-center gap-x-3 min-w-0 flex-1">
+            <a href={telLink()} className="inline-flex items-center min-h-[44px] font-semibold hover:text-accent">
+              ☎&nbsp;{CONFIG.telefonAfisat}
+            </a>
+            <span className="hidden sm:inline text-headerText/70">Program: {PROGRAM}</span>
+            <span className="hidden lg:inline text-headerText/70">{LIVRARE}</span>
           </div>
-          <div className="flex items-center gap-3 shrink-0 min-w-0">
+          <div className="flex items-center shrink-0">
             <HartiLinks />
-            {/* TEMPORAR — selector teme pentru client. Vezi instrucțiunile de ștergere din CLAUDE.md */}
-            <SelectorTeme />
+            {/* TEMPORAR — selector teme pentru client. Vezi instrucțiunile de ștergere din CLAUDE.md.
+                Pe telefon stă în fâșia proprie de sub header, nu aici. */}
+            <span className="hidden md:inline-flex ml-3"><SelectorTeme /></span>
           </div>
         </div>
       </div>
 
-      <div className="mx-auto max-w-6xl px-4 py-3 flex items-center gap-3 sm:gap-4">
-        <Link href="/" className="leading-none shrink-0">
-          <span className="block font-disp font-bold text-[24px] sm:text-[26px] tracking-wide">AUTOPAS</span>
-          <span className="block font-disp font-medium text-[9px] sm:text-[10px] tracking-[0.45em] text-headerText/60">DEZMEMBRĂRI</span>
+      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-3 flex items-center gap-2 sm:gap-4 min-w-0">
+        <Link href="/" className="flex flex-col justify-center leading-none shrink-0 min-h-[44px]">
+          <span className="block font-disp font-bold text-[17px] min-[360px]:text-[22px] sm:text-[26px] tracking-wide">AUTOPAS</span>
+          <span className="hidden min-[360px]:block font-disp font-medium text-[12px] tracking-[0.19em] text-headerText/60">DEZMEMBRĂRI</span>
         </Link>
 
         <form action="/piese" className="hidden md:flex flex-1 min-w-0">
           <input name="q" placeholder="Caută piesă sau cod OEM…"
-            className="flex-1 min-w-0 rounded-l-xl bg-suprafata px-4 py-2.5 text-text text-sm outline-none" />
-          <button className="bg-accent text-accentText rounded-r-xl px-5 font-semibold text-sm">Caută</button>
+            className="flex-1 min-w-0 rounded-l-xl bg-suprafata px-4 min-h-[44px] text-text text-base md:text-sm outline-none" />
+          <button className="bg-accent text-accentText rounded-r-xl px-5 min-h-[44px] font-semibold text-sm shrink-0">Caută</button>
         </form>
 
-        <nav className="ml-auto flex items-center gap-0.5 sm:gap-1">
+        <nav className="ml-auto flex items-center gap-2 shrink-0">
           {staff && (
             <Link href="/admin" title="Panou de administrare"
-              className="flex items-center gap-1.5 rounded-lg bg-accent text-accentText px-2.5 py-2 text-[12px] font-semibold hover:brightness-110 transition">
+              className="flex items-center gap-1.5 rounded-lg bg-accent text-accentText px-2.5 min-h-[44px] text-[12px] font-semibold hover:brightness-110 transition">
               <Ic kind="admin" className="w-[18px] h-[18px]" />
               <span className="hidden sm:block">Admin</span>
             </Link>
@@ -113,25 +118,35 @@ export default function Header() {
           <IconLink href={logat ? "/cont" : "/autentificare"} kind="cont" eticheta="Contul meu" />
           <IconLink href="/cos" kind="cos" eticheta="Coșul meu" badge={items.length} />
           <button onClick={() => setOpen(!open)} aria-label="meniu"
-            className="md:hidden px-2 py-1 rounded-lg hover:bg-white/10"><Ic kind="meniu" /></button>
+            className="md:hidden grid place-items-center min-w-[44px] min-h-[44px] rounded-lg hover:bg-white/10"><Ic kind="meniu" /></button>
         </nav>
       </div>
 
       {/* căutare pe mobil */}
-      <form action="/piese" className="md:hidden px-4 pb-3 flex">
+      <form action="/piese" className="md:hidden px-4 sm:px-6 pb-3 flex min-w-0">
         <input name="q" placeholder="Caută piesă sau cod OEM…"
-          className="flex-1 min-w-0 rounded-l-xl bg-suprafata px-4 py-2.5 text-text text-sm outline-none" />
-        <button className="bg-accent text-accentText rounded-r-xl px-4 font-semibold text-sm">Caută</button>
+          className="flex-1 min-w-0 rounded-l-xl bg-suprafata px-4 min-h-[44px] text-text text-base md:text-sm outline-none" />
+        <button className="bg-accent text-accentText rounded-r-xl px-4 min-h-[44px] font-semibold text-sm shrink-0">Caută</button>
       </form>
 
       <nav className={`bg-steel/60 ${open ? "block" : "hidden"} md:block`}>
-        <div className="mx-auto max-w-6xl px-4 flex flex-col md:flex-row gap-x-1 text-[13.5px] font-medium">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row gap-x-1 text-[13.5px] font-medium">
           {NAV.map((n) => (
             <Link key={n.href} href={n.href} onClick={() => setOpen(false)}
-              className={`px-3 py-2.5 ${path === n.href ? "bg-accent text-accentText" : "hover:bg-white/10"}`}>{n.t}</Link>
+              className={`px-3 flex items-center min-h-[44px] ${path === n.href ? "bg-accent text-accentText" : "hover:bg-white/10"}`}>{n.t}</Link>
           ))}
         </div>
       </nav>
     </header>
+
+    {/* TEMPORAR — selector teme pentru client. Vezi instrucțiunile de ștergere din CLAUDE.md.
+        Sub 768px are fâșia lui pe toată lățimea, imediat sub header, ca să nu se
+        mai suprapună cu nimic din bara de sus. */}
+    <div className="md:hidden relative z-20 bg-headerBg text-headerText border-t border-white/10">
+      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 py-2 flex items-center justify-end min-w-0">
+        <SelectorTeme />
+      </div>
+    </div>
+    </>
   );
 }

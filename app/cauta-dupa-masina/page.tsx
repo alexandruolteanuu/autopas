@@ -23,7 +23,7 @@ export default async function CautaDupaMasina() {
   const models = sb ? (((await sb.from("models").select("*").order("nume")).data ?? []) as Model[]) : [];
   const cats = sb ? (((await sb.from("categories").select("*").order("ordine")).data ?? []) as Category[]) : [];
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <Breadcrumbs items={[{ t: "Acasă", href: "/" }, { t: "Caută după mașină" }]} />
       <h1 className="font-disp font-bold text-3xl mt-2">Caută piese după mașina ta</h1>
       <div className="mt-5 mb-2"><VehicleFilter brands={brands} models={models} cats={cats} compact /></div>
@@ -31,7 +31,7 @@ export default async function CautaDupaMasina() {
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-7">
         {cars.map((c) => (
           <Link key={c.id} href={`/piese?vehicul=${c.slug}`} className="card p-5 hover:border-accent transition">
-            <div className="dim !text-[10px]">VIN {c.vin_masca}</div>
+            <div className="dim !text-[12px]">VIN {c.vin_masca}</div>
             <b className="font-disp text-xl uppercase block mt-1">{c.nume} · {c.an}</b>
             <div className="mt-2 flex items-center justify-between text-sm">
               <span className="text-textSecundar">{nrPiese(c.piese_listate ?? 0)} {c.piese_listate === 1 ? "listată" : "listate"}</span>

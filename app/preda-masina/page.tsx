@@ -23,7 +23,7 @@ export default async function PredaMasina() {
   );
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <Breadcrumbs items={[{ t: "Acasă", href: "/" }, { t: "Predă mașina" }]} />
       <h1 className="font-disp font-bold text-3xl mt-2">Predă mașina la dezmembrat</h1>
       <p className="text-textSecundar mt-2 max-w-2xl">
@@ -41,7 +41,7 @@ export default async function PredaMasina() {
               <b>Evaluare pe loc sau pe poze</b>
               <p className="text-sm text-textSecundar mt-0.5">Trimite-ne poze pe WhatsApp și îți spunem prețul în aceeași zi.</p>
               <a href={waLink} target="_blank" rel="noopener noreferrer"
-                className="mt-2.5 inline-flex items-center gap-2 rounded-xl bg-[#25D366] text-white px-4 py-2.5 text-sm font-semibold hover:brightness-110">
+                className="mt-2.5 inline-flex items-center gap-2 rounded-xl bg-[#25D366] text-white px-4 min-h-[44px] text-sm font-semibold hover:brightness-110">
                 <WhatsAppIcon className="w-5 h-5" />
                 {firma.telefon}
               </a>

@@ -89,7 +89,7 @@ export default function Expedieri() {
       </div>
 
       <div className="card overflow-x-auto">
-        <table className="w-full text-sm min-w-[820px]">
+        <table className="tabel-carduri w-full text-sm md:min-w-[820px]">
           <thead><tr className="text-left text-mut text-xs border-b border-line">
             {tab === "de_predat" && <th className="px-4 py-3 w-10">
               <input type="checkbox" checked={sel.length === orders.length && orders.length > 0}
@@ -102,12 +102,12 @@ export default function Expedieri() {
                 {tab === "de_predat" && <td className="px-4 py-3">
                   <input type="checkbox" checked={sel.includes(o.id)}
                     onChange={(e) => setSel(e.target.checked ? [...sel, o.id] : sel.filter((x) => x !== o.id))} /></td>}
-                <td className="px-4 py-3">{o.awb ? <b className="text-ok">{o.awb}</b> : <span className="text-mut text-xs">negenerat</span>}</td>
-                <td className="px-4 py-3"><Link href={`/admin/comenzi/${o.id}`} className="font-disp font-semibold hover:text-acc">{o.numar}</Link></td>
-                <td className="px-4 py-3">{o.firma ?? o.nume}<div className="text-[11px] text-mut">{o.oras}, {o.judet} · {o.telefon}</div></td>
-                <td className="px-4 py-3">{numeCurier(o.curier)}</td>
-                <td className="px-4 py-3">{(greutati[o.id] ?? 5).toFixed(1)} kg</td>
-                <td className="px-4 py-3">{o.plata === "ramburs" ? <b>{lei(Number(o.total))}</b> : <span className="text-mut">—</span>}</td>
+                <td data-eticheta="AWB" className="px-4 py-3">{o.awb ? <b className="text-ok">{o.awb}</b> : <span className="text-mut text-xs">negenerat</span>}</td>
+                <td data-eticheta="Comandă" className="px-4 py-3"><Link href={`/admin/comenzi/${o.id}`} className="font-disp font-semibold hover:text-acc">{o.numar}</Link></td>
+                <td data-eticheta="Client" className="px-4 py-3">{o.firma ?? o.nume}<div className="text-[11px] text-mut">{o.oras}, {o.judet} · {o.telefon}</div></td>
+                <td data-eticheta="Curier" className="px-4 py-3">{numeCurier(o.curier)}</td>
+                <td data-eticheta="Greutate" className="px-4 py-3">{(greutati[o.id] ?? 5).toFixed(1)} kg</td>
+                <td data-eticheta="Ramburs" className="px-4 py-3">{o.plata === "ramburs" ? <b>{lei(Number(o.total))}</b> : <span className="text-mut">—</span>}</td>
               </tr>
             ))}
           </tbody>

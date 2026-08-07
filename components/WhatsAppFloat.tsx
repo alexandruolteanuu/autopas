@@ -12,7 +12,7 @@ export default function WhatsAppFloat({ phone }: { phone: string }) {
   return (
     <a href={`https://wa.me/${(phone || "").replace(/\D/g, "")}?text=${encodeURIComponent("Bună! Am o întrebare despre o piesă.")}`}
       target="_blank" rel="noopener noreferrer" aria-label="Scrie-ne pe WhatsApp"
-      className="fixed bottom-5 left-5 z-40 w-14 h-14 rounded-full bg-[#25D366] text-white shadow-lg grid place-items-center hover:scale-105 transition">
+      data-strat-fix className="fixed bottom-5 left-5 z-40 w-14 h-14 rounded-full bg-[#25D366] text-white shadow-lg grid place-items-center hover:scale-105 transition">
       <WhatsAppIcon className="w-8 h-8" />
     </a>
   );

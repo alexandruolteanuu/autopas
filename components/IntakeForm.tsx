@@ -22,11 +22,11 @@ export default function IntakeForm({ tip }: { tip: "predare" | "rabla" }) {
       <p className="text-textSecundar text-sm mt-1">Te sunăm în aceeași zi lucrătoare.</p></div>;
   return (
     <form onSubmit={trimite} className="card p-5 grid sm:grid-cols-2 gap-3">
-      <div className="fld"><label>Nume *</label><input name="nume" required /></div>
-      <div className="fld"><label>Telefon *</label><input name="telefon" required /></div>
-      <div className="fld sm:col-span-2"><label>E-mail</label><input name="email" type="email" /></div>
+      <div className="fld"><label>Nume *</label><input name="nume" required autoComplete="name" /></div>
+      <div className="fld"><label>Telefon *</label><input name="telefon" required type="tel" inputMode="numeric" autoComplete="tel" /></div>
+      <div className="fld sm:col-span-2"><label>E-mail</label><input name="email" type="email" inputMode="email" autoComplete="email" /></div>
       <div className="fld"><label>Mașina (marcă, model) *</label><input name="masina" required /></div>
-      <div className="fld"><label>Anul fabricației</label><input name="an" /></div>
+      <div className="fld"><label>Anul fabricației</label><input name="an" inputMode="numeric" /></div>
       <div className="fld sm:col-span-2"><label>Seria de șasiu (VIN) — opțional</label><input name="vin" /></div>
       <div className="fld sm:col-span-2"><label>Detalii (stare, dacă pornește, unde se află)</label><textarea name="mesaj" rows={2} /></div>
       <button disabled={stare === "trimit"} className="btn-acc sm:col-span-2">{stare === "trimit" ? "Se trimite…" : tip === "rabla" ? "Vreau certificatul Rabla" : "Cere evaluarea"}</button>

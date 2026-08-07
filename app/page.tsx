@@ -42,7 +42,7 @@ export default async function Home() {
   return (
     <>
       <section className="bg-headerBg text-headerText">
-        <div className="mx-auto max-w-6xl px-4 py-12 lg:py-16 grid lg:grid-cols-[1.2fr,0.8fr] gap-10">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-12 lg:py-16 grid lg:grid-cols-[minmax(0,1.2fr),minmax(0,0.8fr)] gap-10">
           <div>
             {/* Supratitlul rămâne unde era, doar puțin mai mare și cu simbolul
                 reciclării alături. Titlul mare al paginii e cel de sub el. */}
@@ -79,10 +79,10 @@ export default async function Home() {
 
       <TrustBar />
 
-      <section className="mx-auto max-w-6xl px-4 py-12">
+      <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
         <div className="dim">Categorii piese auto</div>
         <h2 className="font-disp font-bold text-3xl mt-2 mb-6">Categorii principale</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 min-[420px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
           {cats.map((c) => (
             <Link key={c.id} href={`/piese?categorie=${c.slug}`}
               className="card p-4 hover:border-accent transition flex items-center gap-3">
@@ -94,13 +94,13 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 pb-12">
+      <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 pb-12">
         <div className="flex items-end justify-between mb-6">
           <div><div className="dim">Noutăți</div>
             <h2 className="font-disp font-bold text-3xl mt-2">Piese adăugate recent</h2></div>
-          <Link href="/piese" className="text-accent font-bold text-sm">Vezi toate piesele →</Link>
+          <Link href="/piese" className="inline-flex items-center min-h-[44px] text-accent font-bold text-sm">Vezi toate piesele →</Link>
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           {products.map((p) => <ProductCard key={p.id} p={p} />)}
         </div>
         {products.length === 0 && (
@@ -110,7 +110,7 @@ export default async function Home() {
 
       {brands.length > 0 && (
         <section className="bg-suprafata border-y border-chenar">
-          <div className="mx-auto max-w-6xl px-4 py-10">
+          <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
             <div className="dim">Mărci auto</div>
             <h2 className="font-disp font-bold text-2xl mt-2 mb-5">Caută piese după marcă</h2>
             <div className="flex flex-wrap gap-2.5">
@@ -125,7 +125,7 @@ export default async function Home() {
       )}
 
       <section className="bg-headerBg text-headerText">
-        <div className="mx-auto max-w-6xl px-4 py-12 grid lg:grid-cols-2 gap-8 items-center">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-12 grid lg:grid-cols-2 gap-8 items-center">
           <div>
             <div className="dim !text-headerText/60">Adaugă o cerere de piese</div>
             <h2 className="font-disp font-bold text-3xl mt-2">Nu ai găsit piesele de care ai nevoie?</h2>

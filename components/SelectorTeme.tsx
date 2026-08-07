@@ -38,13 +38,16 @@ export default function SelectorTeme() {
   }
 
   return (
-    <div className="flex items-center gap-1.5 min-w-0 max-w-[160px] shrink-0">
-      <span className="hidden sm:inline text-[10px] leading-tight text-white/50 whitespace-nowrap">Temă<br />(temporar)</span>
+    <div className="flex items-center gap-2 min-w-0">
+      {/* Eticheta stă în afara containerului îngust: altfel, fiind scrisă pe un
+          singur rând, ar împinge selectul peste marginea de 160px. */}
+      <span className="hidden sm:inline text-[12px] leading-tight text-white/60 whitespace-nowrap">Temă (temporar)</span>
+      <div className="min-w-0 max-w-[160px] shrink-0">
       <select
         aria-label="Alege tema de culoare a site-ului"
         value={tema}
         onChange={(e) => schimba(e.target.value)}
-        className="min-w-0 max-w-[160px] shrink-0 rounded-lg bg-white/10 text-white text-[11px] px-1.5 py-1 outline-none border border-white/20"
+        className="w-full min-w-0 max-w-[160px] shrink-0 rounded-lg bg-white/10 text-white text-[12px] px-2 min-h-[44px] outline-none border border-white/20"
       >
         {GRUPURI.map((g) => (
           <optgroup key={g} label={g}>
@@ -54,6 +57,7 @@ export default function SelectorTeme() {
           </optgroup>
         ))}
       </select>
+      </div>
     </div>
   );
 }

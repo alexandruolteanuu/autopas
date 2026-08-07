@@ -115,7 +115,7 @@ export default function Masini() {
       {msg && <p className="text-sm">{msg}</p>}
 
       <div className="card overflow-x-auto">
-        <table className="w-full text-sm min-w-[820px]">
+        <table className="tabel-carduri w-full text-sm md:min-w-[820px]">
           <thead><tr className="text-left text-mut text-xs border-b border-line">
             <th className="px-4 py-3">Vehicul</th><th className="px-4 py-3">Intrare</th><th className="px-4 py-3">Piese</th>
             <th className="px-4 py-3">Cost</th><th className="px-4 py-3">Încasat</th><th className="px-4 py-3">Profit</th>
@@ -128,16 +128,16 @@ export default function Masini() {
               const zile = Math.round((Date.now() - new Date(v.intrare).getTime()) / 86400000);
               return (
                 <tr key={v.id} className="hover:bg-paper">
-                  <td className="px-4 py-3"><b>{v.nume}</b>{v.an ? ` · ${v.an}` : ""}
+                  <td data-eticheta="Mașina" className="px-4 py-3"><b>{v.nume}</b>{v.an ? ` · ${v.an}` : ""}
                     <div className="text-[11px] text-mut">{v.vin_masca ?? ""}</div></td>
-                  <td className="px-4 py-3 text-mut">{new Date(v.intrare).toLocaleDateString("ro-RO")}</td>
-                  <td className="px-4 py-3"><Link href={`/piese?vehicul=${v.slug}`} className="text-acc font-semibold">{r.listate} listate</Link>
+                  <td data-eticheta="Intrare" className="px-4 py-3 text-mut">{new Date(v.intrare).toLocaleDateString("ro-RO")}</td>
+                  <td data-eticheta="Piese listate" className="px-4 py-3"><Link href={`/piese?vehicul=${v.slug}`} className="text-acc font-semibold">{r.listate} listate</Link>
                     <div className="text-[11px] text-mut">{r.vandute} vândute</div></td>
-                  <td className="px-4 py-3">{cost ? lei(cost) : <span className="text-mut">—</span>}</td>
-                  <td className="px-4 py-3">{lei(r.incasat)}</td>
-                  <td className={`px-4 py-3 font-semibold ${profit >= 0 ? "text-ok" : "text-red-600"}`}>{cost ? (profit >= 0 ? "+" : "") + lei(profit) : "—"}</td>
-                  <td className="px-4 py-3 text-xs">{cost ? (r.incasat >= cost ? <span className="text-ok font-semibold">amortizată în {zile} zile</span> : <span className="text-mut">în curs · {zile} zile</span>) : "—"}</td>
-                  <td className="px-4 py-3 text-xs">{v.status.replace("_", " ")}</td>
+                  <td data-eticheta="Cost achiziție" className="px-4 py-3">{cost ? lei(cost) : <span className="text-mut">—</span>}</td>
+                  <td data-eticheta="Încasat" className="px-4 py-3">{lei(r.incasat)}</td>
+                  <td data-eticheta="Profit" className={`px-4 py-3 font-semibold ${profit >= 0 ? "text-ok" : "text-red-600"}`}>{cost ? (profit >= 0 ? "+" : "") + lei(profit) : "—"}</td>
+                  <td data-eticheta="Amortizare" className="px-4 py-3 text-xs">{cost ? (r.incasat >= cost ? <span className="text-ok font-semibold">amortizată în {zile} zile</span> : <span className="text-mut">în curs · {zile} zile</span>) : "—"}</td>
+                  <td data-eticheta="Status" className="px-4 py-3 text-xs">{v.status.replace("_", " ")}</td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <button onClick={() => { setEdit(v); setForm(false); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="text-acc font-semibold mr-3">Editează</button>
                     <button onClick={() => sterge(v)} className="text-mut hover:text-red-600">Șterge</button></td>
