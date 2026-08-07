@@ -128,7 +128,9 @@ alter table settings enable row level security;
 
 create policy "jurnal staff" on order_events for select using (is_staff());
 create policy "jurnal insert staff" on order_events for insert with check (is_staff());
-create policy "coduri publice la validare" on discount_codes for select using (activ = true or is_staff());
+-- Codurile de reducere NU se citesc din browser: validarea se face prin funcția
+-- `valideaza_cod` (security definer). O politică de select publică ar lăsa pe
+-- oricine să afle toate campaniile — vezi supabase/coduri-reducere-private.sql.
 create policy "coduri admin" on discount_codes for all using (is_admin()) with check (is_admin());
 create policy "setari citire" on settings for select using (true);
 create policy "setari admin" on settings for update using (is_admin());
