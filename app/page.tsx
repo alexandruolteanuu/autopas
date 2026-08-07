@@ -6,9 +6,15 @@ import PartArt from "@/components/PartArt";
 import PartRequestForm from "@/components/PartRequestForm";
 import VehicleFilter from "@/components/VehicleFilter";
 import TrustBar from "@/components/TrustBar";
-import { fitmentCounts } from "@/lib/format";
+import { fitmentCounts, nrPiese } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
+// Datele catalogului se citesc mereu proaspăt. `revalidate = 300` din layout
+// (pus ca modificările din Admin → Setări să ajungă pe paginile statice) se
+// aplică întregului arbore de rute și punea în cache 5 minute și interogările
+// de aici — o piesă vândută rămânea „În stoc". La dezmembrări fiecare piesă e
+// unicat, deci stocul trebuie citit la secundă.
+export const fetchCache = "force-no-store";
 
 async function getData() {
   const sb = sbServer();
@@ -53,7 +59,7 @@ export default async function Home() {
                   className="flex items-center justify-between gap-3 rounded-xl bg-white/5 border border-white/10 px-4 py-3 hover:border-acc transition">
                   <div>
                     <b className="font-disp text-[15px] tracking-wide">{c.nume}{c.an ? ` · ${c.an}` : ""}</b>
-                    <div className="text-white/50 text-xs">{c.piese_listate} piese disponibile</div>
+                    <div className="text-white/50 text-xs">{nrPiese(c.piese_listate ?? 0)} {c.piese_listate === 1 ? "disponibilă" : "disponibile"}</div>
                   </div>
                   <span className="text-acc font-bold">→</span>
                 </Link>

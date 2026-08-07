@@ -5,10 +5,16 @@ import ProductCard from "@/components/ProductCard";
 import VehicleFilter from "@/components/VehicleFilter";
 import PartRequestForm from "@/components/PartRequestForm";
 import SortSelect from "@/components/SortSelect";
-import { fitmentCounts } from "@/lib/format";
+import { fitmentCounts, textCautare } from "@/lib/format";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
+// Datele catalogului se citesc mereu proaspăt. `revalidate = 300` din layout
+// (pus ca modificările din Admin → Setări să ajungă pe paginile statice) se
+// aplică întregului arbore de rute și punea în cache 5 minute și interogările
+// de aici — o piesă vândută rămânea „În stoc". La dezmembrări fiecare piesă e
+// unicat, deci stocul trebuie citit la secundă.
+export const fetchCache = "force-no-store";
 export const metadata = { title: "Piese auto" };
 
 type SP = { q?: string; oem?: string; categorie?: string; subcategorie?: string; vehicul?: string;
@@ -26,7 +32,12 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
     models = ((await sb.from("models").select("*").order("nume")).data ?? []) as Model[];
     fitRows = ((await sb.from("products").select("model_ids").eq("publicat", true)).data ?? []) as { model_ids: number[] }[];
 
-    let q = sb.from("products").select("*, categories(*), vehicles(*)").eq("publicat", true);
+    // Atenție: `products` are DOUĂ legături către `categories` (categorie_id și
+    // subcategorie_id). Fără să spunem pe care o vrem, Supabase respinge cererea
+    // ca ambiguă (eroarea PGRST201) și lista rămâne goală. Numim cheia străină.
+    let q = sb.from("products")
+      .select("*, categories!products_categorie_id_fkey(*), vehicles(*)")
+      .eq("publicat", true);
 
     if (searchParams.subcategorie) {
       const s = cats.find((x) => x.slug === searchParams.subcategorie);
@@ -61,7 +72,19 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
     if (catActiva && (searchParams.marca || searchParams.model)) titlu += ` — ${catActiva.nume}`;
 
     const text = searchParams.q || searchParams.oem;
-    if (text) { q = q.or(`nume.ilike.%${text}%,oem.ilike.%${text}%,cod_intern.ilike.%${text}%`); titlu = `Rezultate pentru „${text}”`; }
+    if (text) {
+      // Căutăm în coloana `cautare` (nume + OEM + cod intern, fără diacritice),
+      // normalizând la fel și ce a tastat clientul: „turbina" găsește „Turbină".
+      // Cuvintele se caută separat, fiecare cu propriul filtru, deci trebuie să
+      // apară toate, dar nu neapărat lipite: „turbina ford" găsește
+      // „Turbină Garrett — Ford Focus 3".
+      // Bonus: textul merge ca valoare, nu lipit într-un filtru `or`, unde o
+      // virgulă din căutare strica întreaga expresie.
+      for (const cuvant of textCautare(text).split(/\s+/).filter(Boolean).slice(0, 6)) {
+        q = q.ilike("cautare", `%${cuvant}%`);
+      }
+      titlu = `Rezultate pentru „${text}”`;
+    }
 
     if (searchParams.sort === "pret-asc") q = q.order("pret_lei", { ascending: true });
     else if (searchParams.sort === "pret-desc") q = q.order("pret_lei", { ascending: false });

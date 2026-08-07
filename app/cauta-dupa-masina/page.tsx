@@ -5,8 +5,15 @@ import Link from "next/link";
 import PartRequestForm from "@/components/PartRequestForm";
 import VehicleFilter from "@/components/VehicleFilter";
 import type { Brand, Model, Category } from "@/lib/types";
+import { nrPiese } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
+// Datele catalogului se citesc mereu proaspăt. `revalidate = 300` din layout
+// (pus ca modificările din Admin → Setări să ajungă pe paginile statice) se
+// aplică întregului arbore de rute și punea în cache 5 minute și interogările
+// de aici — o piesă vândută rămânea „În stoc". La dezmembrări fiecare piesă e
+// unicat, deci stocul trebuie citit la secundă.
+export const fetchCache = "force-no-store";
 export const metadata = { title: "Caută după mașină" };
 
 export default async function CautaDupaMasina() {
@@ -27,7 +34,7 @@ export default async function CautaDupaMasina() {
             <div className="dim !text-[10px]">VIN {c.vin_masca}</div>
             <b className="font-disp text-xl uppercase block mt-1">{c.nume} · {c.an}</b>
             <div className="mt-2 flex items-center justify-between text-sm">
-              <span className="text-mut">{c.piese_listate} piese listate</span>
+              <span className="text-mut">{nrPiese(c.piese_listate ?? 0)} {c.piese_listate === 1 ? "listată" : "listate"}</span>
               <span className="text-acc font-bold">Vezi piesele →</span>
             </div>
           </Link>

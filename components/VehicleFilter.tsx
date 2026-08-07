@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Brand, Model, Category } from "@/lib/types";
+import { nrPiese } from "@/lib/format";
 
 export default function VehicleFilter({ brands, models, cats, counts = {}, compact = false }:
   { brands: Brand[]; models: Model[]; cats: Category[]; counts?: Record<string, number>; compact?: boolean }) {
@@ -35,7 +36,7 @@ export default function VehicleFilter({ brands, models, cats, counts = {}, compa
         <select value={marca} onChange={(e) => { setMarca(e.target.value); setModel(""); }}>
           <option value="">Toate mărcile</option>
           {brands.map((b) => { const n = counts[`b${b.id}`] ?? 0;
-            return <option key={b.id} value={b.slug}>{b.nume}{Object.keys(counts).length ? ` · ${n} piese` : ""}</option>; })}
+            return <option key={b.id} value={b.slug}>{b.nume}{Object.keys(counts).length ? ` · ${nrPiese(n)}` : ""}</option>; })}
         </select>
       </div>
       <div className="fld min-w-0">
@@ -43,7 +44,7 @@ export default function VehicleFilter({ brands, models, cats, counts = {}, compa
         <select value={model} onChange={(e) => setModel(e.target.value)} disabled={!marca}>
           <option value="">{marca ? "Toate modelele" : "Alege întâi marca"}</option>
           {modeleMarca.map((m) => { const n = counts[`m${m.id}`] ?? 0;
-            return <option key={m.id} value={m.slug}>{m.nume}{Object.keys(counts).length ? ` · ${n} piese` : ""}</option>; })}
+            return <option key={m.id} value={m.slug}>{m.nume}{Object.keys(counts).length ? ` · ${nrPiese(n)}` : ""}</option>; })}
         </select>
       </div>
       <div className="fld min-w-0">

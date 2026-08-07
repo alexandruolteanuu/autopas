@@ -57,8 +57,9 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 1. `schema.sql` -> 2. `seed.sql` -> 3. `filtru.sql` -> 4. `integrari.sql` ->
 5. `admin.sql` -> 6. `sprint-bc.sql` -> 7. `upgrade.sql` (include și politicile pentru poze) ->
 8. `favorite.sql` -> 9. `admin-fix.sql` -> 10. `date-firma.sql` -> 11. `comanda-server.sql` ->
-12. `livrare-dupa-comanda.sql` -> 13. `coduri-reducere-private.sql` -> 14. `view-security-invoker.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9, 10, 11, 12, 13, 14. NU sunt încă idempotente: 1–5, 8.
+12. `livrare-dupa-comanda.sql` -> 13. `coduri-reducere-private.sql` -> 14. `view-security-invoker.sql` ->
+15. `cautare-fara-diacritice.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9, 10, 11, 12, 13, 14, 15. NU sunt încă idempotente: 1–5, 8.
 Toate cele de mai sus sunt deja aplicate pe proiectul de producție (august 2026).
 
 ## Decizii deja luate (nu le schimba fără să întrebi)
@@ -87,6 +88,19 @@ Toate cele de mai sus sunt deja aplicate pe proiectul de producție (august 2026
 - **Prețurile și totalurile se calculează exclusiv pe server** (`plaseaza_comanda`). Browserul trimite
   doar id-urile pieselor. Nu adăuga niciodată `insert` direct în `orders`/`order_items` — politicile
   RLS de insert au fost șterse intenționat.
+- **Paginile de catalog nu se pun în cache** (`fetch-cache = "force-no-store"` în `app/page.tsx`,
+  `app/piese/page.tsx`, `app/piese/[slug]/page.tsx`, `app/cauta-dupa-masina/page.tsx`). `revalidate = 300`
+  din `app/layout.tsx` se aplică întregului arbore de rute și ținea stocul vechi 5 minute — inacceptabil
+  când fiecare piesă e unicat. Paginile informative păstrează cei 300 de secunde.
+- **Căutarea merge fără diacritice**, prin coloana calculată `products.cautare`. Funcția de normalizare
+  există în două locuri care trebuie ținute la fel: `text_cautare` în bază și `textCautare` din
+  `lib/format.ts`. Cuvintele din căutare se caută separat (toate trebuie să apară).
+- **`products` are două legături către `categories`** (`categorie_id` și `subcategorie_id`), deci orice
+  `select` cu `categories(*)` trebuie să numească cheia: `categories!products_categorie_id_fkey(*)`.
+  Altfel Supabase respinge cererea ca ambiguă (PGRST201) și pagina rămâne goală.
+- **Rutele din `app/api/` nu sunt protejate de RLS** — rulează pe server, cu drepturi de server.
+  Cele care fac ceva în numele firmei cer token-ul sesiunii și îl verifică cu `esteEchipa()` din
+  `lib/supabase.ts` (vezi `app/api/awb/route.ts`).
 - Indexarea în Google e **oprită** până la lansare; se activează cu `PERMITE_INDEXARE=da` în Vercel.
   Domeniul ales: `autopas-dezmembrari.ro` (neînregistrat încă la 7 aug 2026).
 - Favorite = model hibrid (localStorage pentru nelogați + tabela `favorites` pentru logați, cu sincronizare).

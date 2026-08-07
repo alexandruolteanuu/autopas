@@ -88,7 +88,12 @@ export default function DetaliuComanda() {
 
   async function genereazaAwb() {
     if (!o) return; setMsg("");
-    const r = await fetch("/api/awb", { method: "POST", headers: { "Content-Type": "application/json" },
+    // Ruta /api/awb acceptă doar echipa, așa că îi trimitem token-ul sesiunii.
+    const sb = sbBrowser();
+    const token = sb ? (await sb.auth.getSession()).data.session?.access_token : null;
+    if (!token) { setMsg("Sesiunea a expirat. Autentifică-te din nou."); return; }
+    const r = await fetch("/api/awb", { method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ curier: o.curier, cerere: { numar_comanda: o.numar, nume: o.firma ?? o.nume, telefon: o.telefon, email: o.email, adresa: o.adresa, oras: o.oras, judet: o.judet, ramburs: o.plata === "ramburs" ? Number(o.total) : 0, greutate_kg: Number(o.livrare_greutate_kg) || greutate } }) });
     const j = await r.json();
     if (j.ok && j.awb) { await salveaza({ awb: j.awb, awb_generat_la: new Date().toISOString() }, `AWB ${j.awb} generat la ${o.curier}`); }

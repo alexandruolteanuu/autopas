@@ -26,3 +26,21 @@ export function sbAdmin(): SupabaseClient | null {
   if (!url || !service) return null;
   return createClient(url, service, { auth: { persistSession: false } });
 }
+
+// Verifică dacă cel care a trimis cererea către o rută /api este din echipă.
+// Paginile din /admin sunt protejate de RLS, dar rutele /api rulează cu drepturi
+// de server, deci trebuie să întrebe explicit cine sună. Browserul trimite
+// token-ul sesiunii în antetul Authorization, iar noi îl dăm mai departe lui
+// Supabase și folosim aceeași funcție is_staff() ca politicile din bază.
+export async function esteEchipa(req: Request): Promise<boolean> {
+  if (!url || !key) return false;
+  const antet = req.headers.get("authorization") ?? "";
+  const token = antet.toLowerCase().startsWith("bearer ") ? antet.slice(7).trim() : "";
+  if (!token) return false;
+  const sb = createClient(url, key, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await sb.rpc("is_staff");
+  return !error && data === true;
+}

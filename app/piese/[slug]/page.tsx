@@ -13,11 +13,22 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
+// Datele catalogului se citesc mereu proaspăt. `revalidate = 300` din layout
+// (pus ca modificările din Admin → Setări să ajungă pe paginile statice) se
+// aplică întregului arbore de rute și punea în cache 5 minute și interogările
+// de aici — o piesă vândută rămânea „În stoc". La dezmembrări fiecare piesă e
+// unicat, deci stocul trebuie citit la secundă.
+export const fetchCache = "force-no-store";
 
 export default async function Produs({ params }: { params: { slug: string } }) {
   const sb = sbServer();
   if (!sb) notFound();
-  const { data: p } = await sb.from("products").select("*, categories(*), vehicles(*)").eq("slug", params.slug).single();
+  // Numim explicit cheia străină: `products` leagă `categories` de două ori
+  // (categorie_id și subcategorie_id), iar fără precizare cererea e respinsă ca
+  // ambiguă, produsul iese `null` și pagina răspundea 404 pentru orice piesă.
+  const { data: p } = await sb.from("products")
+    .select("*, categories!products_categorie_id_fkey(*), vehicles(*)")
+    .eq("slug", params.slug).single();
   if (!p) notFound();
   const prod = p as Product;
   const { firma } = await getSetariServer();
