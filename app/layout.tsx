@@ -4,7 +4,7 @@ import "./globals.css";
 import SiteChrome from "@/components/SiteChrome";
 import { CartProvider } from "@/components/CartContext";
 import { FavoritesProvider } from "@/components/FavoritesContext";
-import { CONFIG } from "@/lib/config";
+import { CONFIG, SITE_URL } from "@/lib/config";
 import { getSetariServer } from "@/lib/settings";
 
 // Fontul Poppins (local) — un singur font, patru grosimi, diacritice românești garantate.
@@ -19,8 +19,19 @@ const poppins = localFont({
 });
 
 export const metadata: Metadata = {
+  // `metadataBase` transformă căile relative din metadate în adrese absolute
+  // (necesar pentru partajarea pe Facebook/WhatsApp) și e folosit de sitemap.
+  metadataBase: new URL(SITE_URL),
   title: { default: "Autopas Dezmembrări — piese auto testate, cu garanție", template: "%s · Autopas Dezmembrări" },
-  description: "Piese auto second-hand din dezmembrări autorizate, Piatra-Neamț. Testate, fotografiate real, garanție 90 de zile, livrare în 1–3 zile lucrătoare în toată România.",
+  description: "Piese auto second-hand din dezmembrări autorizate, județul Neamț. Testate, fotografiate real, garanție 90 de zile, livrare în 1–3 zile lucrătoare în toată România.",
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    locale: "ro_RO",
+    siteName: "Autopas Dezmembrări",
+    title: "Autopas Dezmembrări — piese auto testate, cu garanție",
+    description: "Piese auto second-hand din dezmembrări autorizate, județul Neamț. Garanție 90 de zile, livrare în 1–3 zile lucrătoare.",
+  },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

@@ -27,6 +27,30 @@ export const LIVRARE = "Livrare în 1–3 zile lucrătoare în toată România";
 export const telLink = (nr: string = CONFIG.telefonAfisat) => `tel:${nr.replace(/\s+/g, "")}`;
 
 // ============================================================
+// ADRESA SITE-ULUI — necesară în sitemap, robots.txt și pentru linkurile
+// absolute din metadate (Open Graph). Ordinea:
+//   1. NEXT_PUBLIC_SITE_URL, dacă o setezi tu în Vercel
+//   2. domeniul de producție pe care îl dă Vercel automat (…vercel.app)
+//   3. localhost, în dezvoltare
+//
+// LA CUMPĂRAREA DOMENIULUI: domeniul ales este autopas-dezmembrari.ro (încă
+// neînregistrat la 7 august 2026). După ce îl legi în Vercel, adaugi acolo
+// NEXT_PUBLIC_SITE_URL = https://autopas-dezmembrari.ro și redeployezi.
+// Până atunci merge automat pe adresa .vercel.app, fără să configurezi nimic.
+// ============================================================
+export const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "") ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "") ||
+  "http://localhost:3000";
+
+/** Indexarea în Google se activează manual, la lansare: PERMITE_INDEXARE=da în Vercel.
+ *  Cât timp nu e setată, robots.txt cere motoarelor să nu indexeze nimic — ca să nu
+ *  ajungă în căutări piesele de probă de dinainte de lansare. */
+export const INDEXARE_PERMISA = process.env.PERMITE_INDEXARE === "da";
+
+// ============================================================
 // ADRESA DEPOZITULUI — locul unde vine efectiv clientul.
 // Coincide cu sediul social din Admin → Setări, dar aici e scrisă în forma
 // utilă la drum: reperul de pe DN15 și codul poștal.
