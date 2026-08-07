@@ -18,7 +18,12 @@ export type OrderFull = { id: number; numar: string; tip_client: string; nume: s
   firma: string | null; cui: string | null; adresa: string; oras: string; judet: string; curier: string; plata: string;
   subtotal: number; livrare: number; total: number; status: string; gdpr: boolean; created_at: string;
   awb: string | null; nota_interna: string | null; factura_serie: string | null; factura_status: string;
-  discount_cod: string | null; discount_valoare: number };
+  discount_cod: string | null; discount_valoare: number;
+  // Costul livrării se stabilește după plasarea comenzii (vezi supabase/livrare-dupa-comanda.sql).
+  // `livrare_stabilit_la` null = încă necalculat, deci comanda nu poate fi expediată.
+  livrare_baza: number | null; livrare_km_extra: number | null; livrare_alte: number | null;
+  livrare_greutate_kg: number | null; livrare_dimensiuni: string | null;
+  livrare_nota: string | null; livrare_stabilit_la: string | null };
 export type Discount = { id: number; cod: string; tip: "procent" | "fix"; valoare: number;
   minim_comanda: number; expira_la: string | null; activ: boolean; folosiri: number };
 export type VehiculAdmin = { id: number; slug: string; nume: string; an: number | null; vin_masca: string | null;

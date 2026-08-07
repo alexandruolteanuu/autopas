@@ -65,10 +65,31 @@ export default function DetaliuComanda() {
     router.push("/admin/comenzi");
   }
 
+  // Costul livrării se calculează pe server (funcția seteaza_cost_livrare), ca să
+  // recalculeze el totalul comenzii — nu acceptăm un total trimis din browser.
+  async function salveazaCostLivrare(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault(); setMsg("");
+    const f = new FormData(e.currentTarget);
+    const nr = (k: string) => { const v = String(f.get(k) ?? "").replace(",", ".").trim(); return v === "" ? null : Number(v); };
+    const baza = nr("baza");
+    if (baza === null || Number.isNaN(baza)) { setMsg("Completează costul de transport de bază."); return; }
+    const sb = sbBrowser()!;
+    const { data, error } = await sb.rpc("seteaza_cost_livrare", {
+      p_order_id: Number(id), p_baza: baza,
+      p_km_extra: nr("km_extra") ?? 0, p_alte: nr("alte") ?? 0,
+      p_greutate: nr("greutate"), p_dimensiuni: String(f.get("dimensiuni") ?? "").trim() || null,
+      p_nota: String(f.get("nota_livrare") ?? "").trim() || null,
+    });
+    if (error) { setMsg("Eroare: " + error.message); return; }
+    const r = data as { ok: boolean; mesaj?: string };
+    if (!r?.ok) { setMsg(r?.mesaj ?? "Nu am putut salva costul livrării."); return; }
+    incarca();
+  }
+
   async function genereazaAwb() {
     if (!o) return; setMsg("");
     const r = await fetch("/api/awb", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ curier: o.curier, cerere: { numar_comanda: o.numar, nume: o.firma ?? o.nume, telefon: o.telefon, email: o.email, adresa: o.adresa, oras: o.oras, judet: o.judet, ramburs: o.plata === "ramburs" ? Number(o.total) : 0, greutate_kg: greutate } }) });
+      body: JSON.stringify({ curier: o.curier, cerere: { numar_comanda: o.numar, nume: o.firma ?? o.nume, telefon: o.telefon, email: o.email, adresa: o.adresa, oras: o.oras, judet: o.judet, ramburs: o.plata === "ramburs" ? Number(o.total) : 0, greutate_kg: Number(o.livrare_greutate_kg) || greutate } }) });
     const j = await r.json();
     if (j.ok && j.awb) { await salveaza({ awb: j.awb, awb_generat_la: new Date().toISOString() }, `AWB ${j.awb} generat la ${o.curier}`); }
     else setMsg(j.eroare ?? "Eroare la AWB.");
@@ -80,6 +101,8 @@ export default function DetaliuComanda() {
   const greutate = Math.max(1, items.reduce((s, i) => s + (Number(i.products?.greutate_kg) || 5) * i.cantitate, 0));
   const curier = curieri.find((c) => c.id === o.curier);
   const pasCurent = PASI.indexOf(o.status);
+  // Cât timp costul livrării nu e stabilit, comanda nu are un total real și nu se expediază.
+  const livrareStabilita = Boolean(o.livrare_stabilit_la);
 
   return (
     <div className="space-y-4">
@@ -94,6 +117,15 @@ export default function DetaliuComanda() {
             className="rounded-xl border-2 border-line text-mut px-4 py-2 text-sm font-semibold hover:border-red-300 hover:text-red-600">Șterge</button>
         </div>
       </div>
+
+      {/* Atenționare cât timp transportul nu e calculat — clientul încă nu știe cât plătește */}
+      {!livrareStabilita && o.status !== "anulata" && (
+        <div className="rounded-xl border-2 border-yellow-300 bg-yellow-50 px-4 py-3 text-sm">
+          <b className="text-yellow-800">Costul livrării nu e stabilit.</b>
+          <span className="text-yellow-800"> Clientul a comandat fără să știe cât plătește transportul.
+            Completează datele în „Cost livrare", sună-l cu totalul, apoi expediază.</span>
+        </div>
+      )}
 
       {/* Statusul — pași apăsabili */}
       <div className="card p-4">
@@ -131,9 +163,13 @@ export default function DetaliuComanda() {
             <div className="px-5 py-3.5 border-t border-line text-sm space-y-1">
               <div className="flex justify-between text-mut"><span>Subtotal</span><span>{lei(Number(o.subtotal))}</span></div>
               {Number(o.discount_valoare) > 0 && <div className="flex justify-between text-ok"><span>Reducere {o.discount_cod}</span><span>−{lei(Number(o.discount_valoare))}</span></div>}
-              <div className="flex justify-between text-mut"><span>Livrare — {curier?.nume ?? o.curier}</span><span>{lei(Number(o.livrare))}</span></div>
+              {livrareStabilita ? (
+                <div className="flex justify-between text-mut"><span>Livrare — {curier?.nume ?? o.curier}</span><span>{lei(Number(o.livrare))}</span></div>
+              ) : (
+                <div className="flex justify-between text-yellow-700"><span>Livrare — {curier?.nume ?? o.curier}</span><span className="font-semibold">necalculată</span></div>
+              )}
               <div className="flex justify-between text-base"><b>Total {o.plata === "ramburs" ? "(ramburs la livrare)" : "(transfer bancar)"}</b>
-                <b className="font-disp text-xl text-acc">{lei(Number(o.total))}</b></div>
+                <b className="font-disp text-xl text-acc">{lei(Number(o.total))}{!livrareStabilita && <span className="text-xs text-yellow-700 font-normal"> + transport</span>}</b></div>
             </div>
           </div>
 
@@ -160,13 +196,21 @@ export default function DetaliuComanda() {
             <p className="text-mut">{o.adresa}, {o.oras}, jud. {o.judet}</p>
             <p className="mt-1">{o.telefon} · {o.email}</p>
             <div className="flex flex-wrap gap-2 mt-3">
+              {/* Mesajul de confirmare include defalcarea transportului — e suma pe care
+                  clientul o acceptă înainte de expediere. */}
               <a href={waLinkCu(o.telefon.replace(/^0/, "4"),
                 `Bună ziua, ${o.nume}! Confirmăm comanda ${o.numar} de pe autopas.ro:\n` +
                 items.map((i) => `• ${i.nume} — ${Number(i.pret)} lei`).join("\n") +
-                `\nTotal: ${Number(o.total)} lei (${o.plata === "ramburs" ? "ramburs la livrare" : "transfer bancar"}).\n` +
-                `Livrare prin ${curier?.nume ?? o.curier} în 1–3 zile lucrătoare. Vă mulțumim!`)}
+                (Number(o.discount_valoare) > 0 ? `\nReducere ${o.discount_cod}: −${Number(o.discount_valoare)} lei` : "") +
+                (livrareStabilita
+                  ? `\nTransport: ${Number(o.livrare)} lei` +
+                    (o.livrare_greutate_kg ? ` (colet ${Number(o.livrare_greutate_kg)} kg)` : "") +
+                    (o.livrare_nota ? `\n${o.livrare_nota}` : "") +
+                    `\nTOTAL DE PLATĂ: ${Number(o.total)} lei (${o.plata === "ramburs" ? "ramburs la livrare" : "transfer bancar"}).`
+                  : `\nTotal produse: ${Number(o.total)} lei. Vă comunicăm costul transportului imediat ce îl calculăm.`) +
+                `\nLivrare prin ${curier?.nume ?? o.curier} în 1–3 zile lucrătoare. Vă mulțumim!`)}
                 target="_blank" rel="noopener noreferrer" className="rounded-xl bg-[#25D366] text-white px-3.5 py-2 text-xs font-bold">
-                Trimite confirmarea pe WhatsApp</a>
+                {livrareStabilita ? "Trimite totalul pe WhatsApp" : "Trimite confirmarea pe WhatsApp"}</a>
               <a href={`https://wa.me/4${o.telefon.replace(/\D/g, "")}?text=${encodeURIComponent(`Bună ziua! Vă contactăm de la Autopas Dezmembrări în legătură cu comanda ${o.numar}.`)}`}
                 target="_blank" rel="noopener noreferrer" className="rounded-xl bg-[#25D366] text-white px-3.5 py-2 text-xs font-bold">WhatsApp</a>
               <a href={`mailto:${o.email}?subject=Comanda ${o.numar} — Autopas Dezmembrări`} className="rounded-xl bg-ink text-white px-3.5 py-2 text-xs font-bold">E-mail</a>
@@ -190,15 +234,63 @@ export default function DetaliuComanda() {
               {o.factura_status === "emisa" ? `Emisă — ${o.factura_serie}` : "De emis"}</span>
           </div>
 
+          {/* Cost livrare — configuratorul: completezi datele din calculatorul FAN */}
+          <div className={`card p-5 text-sm ${!livrareStabilita ? "border-2 border-yellow-300" : ""}`}>
+            <b className="font-disp font-semibold text-[13px]">Cost livrare</b>
+            <p className="text-xs text-mut mt-1">
+              Completează datele coletului, exact ca în calculatorul FAN. La salvare, totalul
+              comenzii se recalculează automat și intră în jurnal.
+            </p>
+            <form onSubmit={salveazaCostLivrare} className="mt-3 space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <label className="text-[11px] text-mut">Greutate (kg)
+                  <input name="greutate" inputMode="decimal" defaultValue={o.livrare_greutate_kg ?? greutate.toFixed(1)}
+                    className="w-full mt-0.5 rounded-lg border-2 border-line px-2.5 py-1.5 text-sm text-ink outline-none focus:border-acc" /></label>
+                <label className="text-[11px] text-mut">Dimensiuni (L×l×h cm)
+                  <input name="dimensiuni" defaultValue={o.livrare_dimensiuni ?? ""} placeholder="ex. 40×30×25"
+                    className="w-full mt-0.5 rounded-lg border-2 border-line px-2.5 py-1.5 text-sm text-ink outline-none focus:border-acc" /></label>
+              </div>
+              <label className="block text-[11px] text-mut">Transport de bază (lei) *
+                <input name="baza" inputMode="decimal" required defaultValue={o.livrare_baza ?? ""}
+                  className="w-full mt-0.5 rounded-lg border-2 border-line px-2.5 py-1.5 text-sm text-ink outline-none focus:border-acc" /></label>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="text-[11px] text-mut">Km suplimentari (lei)
+                  <input name="km_extra" inputMode="decimal" defaultValue={o.livrare_km_extra ?? ""} placeholder="0"
+                    className="w-full mt-0.5 rounded-lg border-2 border-line px-2.5 py-1.5 text-sm text-ink outline-none focus:border-acc" /></label>
+                <label className="text-[11px] text-mut">Alte taxe (lei)
+                  <input name="alte" inputMode="decimal" defaultValue={o.livrare_alte ?? ""} placeholder="0"
+                    className="w-full mt-0.5 rounded-lg border-2 border-line px-2.5 py-1.5 text-sm text-ink outline-none focus:border-acc" /></label>
+              </div>
+              <label className="block text-[11px] text-mut">Explicații pentru client
+                <textarea name="nota_livrare" rows={2} defaultValue={o.livrare_nota ?? ""}
+                  placeholder="ex. colet 18 kg, localitate izolată — 15 lei km suplimentari"
+                  className="w-full mt-0.5 rounded-lg border-2 border-line px-2.5 py-1.5 text-sm text-ink outline-none focus:border-acc" /></label>
+              <button className="btn-acc w-full !py-2 text-xs">
+                {livrareStabilita ? "Recalculează costul livrării" : "Salvează costul livrării"}</button>
+            </form>
+            {livrareStabilita && (
+              <p className="text-[11px] text-ok mt-2">
+                ✓ Stabilit la {new Date(o.livrare_stabilit_la!).toLocaleString("ro-RO")} — {lei(Number(o.livrare))}
+              </p>
+            )}
+          </div>
+
           {/* Expediere */}
           <div className="card p-5 text-sm">
             <b className="font-disp font-semibold text-[13px]">Expediere</b>
             <div className="mt-2 space-y-1 text-mut">
               <div className="flex justify-between"><span>Curier</span><b className="text-ink">{curier?.nume ?? o.curier}{o.plata === "ramburs" ? " — ramburs" : ""}</b></div>
-              <div className="flex justify-between"><span>Greutate estimată (din piese)</span><b className="text-ink">{greutate.toFixed(1)} kg</b></div>
+              <div className="flex justify-between"><span>Greutate {o.livrare_greutate_kg ? "(din cost livrare)" : "estimată (din piese)"}</span>
+                <b className="text-ink">{(Number(o.livrare_greutate_kg) || greutate).toFixed(1)} kg</b></div>
               <div className="flex justify-between"><span>AWB</span>{o.awb ? <b className="text-ok">{o.awb}</b> : <span>negenerat</span>}</div>
             </div>
-            {!o.awb && (<>
+            {!o.awb && !livrareStabilita && (
+              <p className="mt-3 rounded-lg bg-yellow-50 border border-yellow-200 px-3 py-2 text-xs text-yellow-800">
+                Stabilește întâi costul livrării și confirmă-l cu clientul. Altfel rambursul de pe AWB
+                ar fi altul decât suma pe care a acceptat-o.
+              </p>
+            )}
+            {!o.awb && livrareStabilita && (<>
               <button onClick={genereazaAwb} className="btn-acc w-full mt-3 !py-2.5 text-sm">Generează AWB automat</button>
               <form onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); const v = String(f.get("awb") || "").trim();
                 if (v) salveaza({ awb: v, awb_generat_la: new Date().toISOString() }, `AWB ${v} introdus manual`); }}

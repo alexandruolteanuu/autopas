@@ -27,7 +27,8 @@ export default function Checkout() {
     try { const r = sessionStorage.getItem("autopas_reducere"); if (r) setReducere(JSON.parse(r)); } catch {}
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const livrare = curieri.find((c) => c.id === curier)?.pret ?? 0;
+  // Transportul nu intră în totalul de acum — se stabilește după comandă,
+  // pe baza greutății și dimensiunilor reale, și se comunică telefonic.
   const reducereVal = Math.min(reducere?.valoare ?? 0, total);
 
   async function trimite(e: React.FormEvent<HTMLFormElement>) {
@@ -54,7 +55,7 @@ export default function Checkout() {
       p_curier: curier,
       p_plata: plata,
       p_cod: reducere?.cod ?? null,
-      p_total_asteptat: total - reducereVal + livrare,
+      p_total_asteptat: total - reducereVal,
     });
     if (error) { setStare("eroare"); setMsg(error.message); return; }
     const r = data as { ok: boolean; mesaj?: string; numar?: string; reincarca?: boolean };
@@ -105,18 +106,21 @@ export default function Checkout() {
               <div className="fld"><label>Județ *</label><input name="judet" required /></div>
             </div>
           </div>
-          {/* 2. Curier */}
+          {/* 2. Livrarea — un singur curier, cost stabilit ulterior */}
           <div className="card p-5">
-            <b className="font-disp font-semibold text-[13px]">2 · Alege curierul</b>
-            <div className="mt-3 space-y-2">
-              {curieri.map((c) => (
-                <label key={c.id} className={`flex items-center gap-3 rounded-lg border-2 px-4 py-3 cursor-pointer ${curier === c.id ? "border-acc bg-acc/5" : "border-line"}`}>
-                  <input type="radio" name="curier" checked={curier === c.id} onChange={() => setCurier(c.id)} />
-                  <span className="flex-1"><b>{c.nume}</b> <span className="text-mut text-sm">· {c.detalii}</span></span>
-                  <b className="font-disp">{lei(c.pret)}</b>
-                </label>
-              ))}
-              <p className="text-xs text-mut">Piesele voluminoase (motoare, cutii) se livrează paletizat — te contactăm cu costul exact. Detalii în <Link href="/legal/livrare" className="text-acc font-semibold">pagina Livrare</Link>.</p>
+            <b className="font-disp font-semibold text-[13px]">2 · Livrarea</b>
+            <div className="mt-3 space-y-3">
+              <div className="rounded-lg border-2 border-acc bg-acc/5 px-4 py-3">
+                <b>{curieri.find((c) => c.id === curier)?.nume ?? "FAN Courier"}</b>
+                <span className="text-mut text-sm"> · livrare 1–3 zile lucrătoare în toată România</span>
+              </div>
+              <div className="rounded-lg bg-paper px-4 py-3 text-sm leading-relaxed">
+                <b>Costul livrării se calculează separat.</b> Piesele auto diferă mult ca greutate
+                și dimensiuni, iar curierul taxează în funcție de ele. După ce primim comanda,
+                calculăm transportul exact și <b>te sunăm cu totalul final înainte de expediere</b>.
+                Nu expediem nimic până nu ești de acord cu suma.
+              </div>
+              <p className="text-xs text-mut">Piesele voluminoase (motoare, cutii de viteze) se livrează paletizat. Detalii în <Link href="/legal/livrare" className="text-acc font-semibold">pagina Livrare</Link>.</p>
             </div>
           </div>
           {/* 3. Plata */}
@@ -149,12 +153,16 @@ export default function Checkout() {
           ))}
           <DiscountBox subtotal={total} reducere={reducere} setReducere={setReducere} />
           {reducereVal > 0 && <div className="flex justify-between text-ok"><span>Reducere {reducere?.cod}</span><b>−{lei(reducereVal)}</b></div>}
-          <div className="flex justify-between border-t border-line pt-3"><span>Livrare — {curieri.find((c) => c.id === curier)?.nume}</span><b>{lei(livrare)}</b></div>
-          <div className="flex justify-between text-base"><span>Total {plata === "ramburs" ? "de plată la livrare" : ""}</span>
-            <b className="font-disp text-2xl text-acc">{lei(total - reducereVal + livrare)}</b></div>
+          <div className="flex justify-between border-t border-line pt-3 text-mut"><span>Livrare</span><span className="text-xs text-right">se calculează<br />și ți-o comunicăm</span></div>
+          <div className="flex justify-between text-base"><span>Total produse</span>
+            <b className="font-disp text-2xl text-acc">{lei(total - reducereVal)}</b></div>
           <button disabled={stare === "trimit"} className="btn-acc w-full">{stare === "trimit" ? "Se plasează…" : "Plasează comanda"}</button>
           {stare === "eroare" && <p className="text-red-600 text-xs">{msg}</p>}
           <p className="text-xs text-mut text-center">Comanda se salvează securizat. Nu cerem date de card.</p>
+          <p className="text-[11px] text-mut text-center leading-relaxed">
+            La suma de mai sus se adaugă transportul, pe care ți-l comunicăm telefonic
+            înainte de expediere.
+          </p>
           {/* Mențiunile legale obligatorii înainte de plasarea comenzii */}
           <p className="text-[11px] text-mut text-center leading-relaxed">
             Garanție 90 de zile conform <Link href="/legal/certificat-garantie" className="text-acc font-semibold">OUG 140/2021</Link> ·

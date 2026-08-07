@@ -120,17 +120,22 @@ export function getLegalDocs(firma: Firma = FIRMA_IMPLICITA): LegalDoc[] {
     slug: "livrare",
     titlu: "Livrare",
     sectiuni: [
-      { h: "1. Curieri și termene", p: [
+      { h: "1. Curier și termene", p: [
         "Livrăm în toată România prin FAN Courier, cu plata ramburs inclusă. Termenul uzual: 1–3 zile lucrătoare de la confirmarea comenzii.",
         "Comenzile confirmate până la ora 15:00 în zilele lucrătoare pleacă, de regulă, în aceeași zi.",
       ]},
-      { h: "2. Piese voluminoase (motoare, cutii de viteze, caroserie mare)", p: [
-        "Piesele grele se livrează paletizat, cu tarif calculat la comandă (de la 120 lei, în funcție de greutate și destinație). Te contactăm telefonic cu costul exact înainte de expediere.",
+      { h: "2. Cum se calculează costul livrării", p: [
+        "Piesele auto diferă mult ca greutate și gabarit — de la un senzor de câteva sute de grame până la o cutie de viteze de zeci de kilograme. Curierul taxează în funcție de greutatea și dimensiunile coletului, plus eventuale taxe pentru localitățile izolate, așa că nu putem afișa un tarif fix, valabil pentru orice piesă.",
+        "De aceea, la plasarea comenzii vezi doar valoarea produselor. După ce primim comanda, cântărim și măsurăm coletul, calculăm transportul și te sunăm cu totalul exact: produse plus transport, cu explicația din ce se compune suma.",
+        "Nu expediem nimic până nu ești de acord cu totalul. Dacă suma nu îți convine, poți anula comanda fără niciun cost.",
       ]},
-      { h: "3. Verificarea coletului", p: [
+      { h: "3. Piese voluminoase (motoare, cutii de viteze, caroserie mare)", p: [
+        "Piesele grele se livrează paletizat, iar tariful se stabilește în funcție de greutate și destinație. Se aplică același principiu: te contactăm telefonic cu costul exact înainte de expediere.",
+      ]},
+      { h: "4. Verificarea coletului", p: [
         "Recomandăm verificarea coletului la primire, în prezența curierului. Piesele sunt ambalate protejat și etichetate cu codul OEM.",
       ]},
-      { h: "4. Ridicare personală", p: [
+      { h: "5. Ridicare personală", p: [
         "Poți ridica piesa direct de la depozitul nostru din Piatra-Neamț, în programul afișat în subsol — fără cost de livrare.",
       ]},
     ],

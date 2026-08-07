@@ -11,9 +11,10 @@ export default function ComandaPlasata({ searchParams }: { searchParams: { nr?: 
       <div className="card p-6 mt-7 text-left text-sm space-y-3">
         <b className="font-disp font-semibold text-[13px]">Ce urmează</b>
         {[
-          ["1","Confirmăm telefonic comanda și verificăm încă o dată piesa înainte de ambalare."],
-          ["2","Primești pe e-mail" + (searchParams.email ? ` (${searchParams.email})` : "") + " factura și numărul AWB pentru urmărirea coletului."],
-          ["3","Curierul livrează în 24–48h. Plătești ramburs la primire (dacă ai ales ramburs)."],
+          ["1","Verificăm piesa încă o dată și calculăm costul transportului, în funcție de greutatea și dimensiunile ei."],
+          ["2","Te sunăm cu totalul final — produse plus transport. Nu expediem nimic până nu ești de acord cu suma."],
+          ["3","Primești pe e-mail" + (searchParams.email ? ` (${searchParams.email})` : "") + " factura și numărul AWB pentru urmărirea coletului."],
+          ["4","Curierul livrează în 1–3 zile lucrătoare. Plătești ramburs la primire (dacă ai ales ramburs)."],
         ].map(([n,t]) => (
           <div key={n} className="flex gap-3"><span className="w-6 h-6 rounded-full bg-acc text-white grid place-items-center text-xs font-bold shrink-0">{n}</span><span>{t}</span></div>
         ))}

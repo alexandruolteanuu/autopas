@@ -80,7 +80,10 @@ function ComenziInner() {
                   <div className="text-[11px] text-mut">{new Date(o.created_at).toLocaleString("ro-RO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</div></td>
                 <td className="px-4 py-3">{o.firma ?? o.nume}<div className="text-[11px] text-mut">{o.oras} · {o.telefon}</div></td>
                 <td className="px-4 py-3">{o.plata}</td>
-                <td className="px-4 py-3 font-disp font-semibold">{lei(Number(o.total))}</td>
+                <td className="px-4 py-3 font-disp font-semibold">{lei(Number(o.total))}
+                  {/* fără cost de livrare, totalul afișat e incomplet — semnalăm explicit */}
+                  {!o.livrare_stabilit_la && o.status !== "anulata" &&
+                    <div className="text-[10px] text-yellow-700 font-sans font-bold">+ transport necalculat</div>}</td>
                 <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${STATUS[o.status] ?? "bg-paper"}`}>{o.status}</span></td>
                 <td className="px-4 py-3 text-xs">{o.factura_serie ? <span className="text-ok font-semibold">{o.factura_serie}</span> : <span className="text-mut">de emis</span>}</td>
                 <td className="px-4 py-3 text-xs">{o.awb ? <span className="text-ok font-semibold">{o.awb}</span> : <span className="text-mut">—</span>}</td>

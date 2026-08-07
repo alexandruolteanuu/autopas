@@ -5,14 +5,11 @@ import PartArt from "@/components/PartArt";
 import { lei } from "@/lib/format";
 import { useEffect, useState } from "react";
 import DiscountBox, { type Reducere } from "@/components/DiscountBox";
-import { getSetariBrowser, CURIERI_IMPLICITI, type Curier } from "@/lib/settings";
 import Link from "next/link";
 
 export default function Cos() {
   const { items, remove, total } = useCart();
   const [reducere, setReducere] = useState<Reducere>(null);
-  const [curieri, setCurieri] = useState<Curier[]>(CURIERI_IMPLICITI);
-  useEffect(() => { getSetariBrowser().then((s) => setCurieri(s.curieri)); }, []);
   useEffect(() => { // păstrăm reducerea pentru checkout
     if (reducere) sessionStorage.setItem("autopas_reducere", JSON.stringify(reducere));
     else sessionStorage.removeItem("autopas_reducere");
@@ -52,9 +49,16 @@ export default function Cos() {
           <div className="flex justify-between"><span>Subtotal</span><b>{lei(total)}</b></div>
           <DiscountBox subtotal={total} reducere={reducere} setReducere={setReducere} />
           {reducere && <div className="flex justify-between text-ok"><span>Reducere {reducere.cod}</span><b>−{lei(reducere.valoare)}</b></div>}
-          <div className="flex justify-between text-mut"><span>Livrare</span><span>de la {lei(Math.min(...curieri.map((c) => c.pret)))} — aleasă la checkout</span></div>
-          <div className="flex justify-between border-t border-line pt-3 text-base"><span>Total estimat</span>
-            <b className="font-disp text-2xl text-acc">{lei(Math.max(0, total - (reducere?.valoare ?? 0)) + Math.min(...curieri.map((c) => c.pret)))}</b></div>
+          {/* Transportul nu se poate calcula automat: piesele diferă mult ca greutate
+              și gabarit, iar FAN Courier taxează în funcție de ele. Îl stabilim după
+              comandă și îl comunicăm clientului înainte de expediere. */}
+          <div className="flex justify-between text-mut"><span>Livrare</span><span>se calculează separat</span></div>
+          <div className="flex justify-between border-t border-line pt-3 text-base"><span>Total produse</span>
+            <b className="font-disp text-2xl text-acc">{lei(Math.max(0, total - (reducere?.valoare ?? 0)))}</b></div>
+          <p className="text-xs text-mut bg-paper rounded-lg px-3 py-2 leading-relaxed">
+            Costul livrării depinde de greutatea și dimensiunile pieselor. Îl calculăm după
+            plasarea comenzii și te sunăm cu totalul exact înainte de expediere.
+          </p>
           <Link href="/checkout" className="btn-acc w-full">Finalizează comanda</Link>
           <p className="text-xs text-mut text-center">Plată ramburs sau transfer bancar · Garanție 90 de zile · Retur în 14 zile</p>
         </div>
