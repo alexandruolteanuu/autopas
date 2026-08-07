@@ -44,16 +44,16 @@ export default async function Home() {
       <section className="bg-ink text-white">
         <div className="mx-auto max-w-6xl px-4 py-12 lg:py-16 grid lg:grid-cols-[1.2fr,0.8fr] gap-10">
           <div>
-            {/* Mesajul care era supratitlu a devenit titlul propriu-zis, deci
-                supratitlul a fost scos — altfel se repeta cuvânt cu cuvânt. */}
-            <h1 className="font-disp font-bold leading-[1.05] text-[40px] sm:text-[56px] lg:text-[62px] flex items-start gap-3">
-              <RecycleIcon className="w-9 h-9 sm:w-12 sm:h-12 text-acc shrink-0 mt-1.5" />
-              <span>Dezmembrăm responsabil.<br /><span className="text-acc">Reciclăm pentru viitor.</span></span>
-            </h1>
-            <p className="font-disp font-semibold text-white text-xl sm:text-2xl mt-5 leading-snug">
+            {/* Supratitlul rămâne unde era, doar puțin mai mare și cu simbolul
+                reciclării alături. Titlul mare al paginii e cel de sub el. */}
+            <div className="dim !text-acc !text-[13px]">
+              <RecycleIcon className="w-[18px] h-[18px] shrink-0" />
+              Dezmembrăm responsabil. Reciclăm pentru viitor.
+            </div>
+            <h1 className="font-disp font-bold leading-[1.08] text-[38px] sm:text-[50px] mt-4">
               Piese originale. Testate. Cu garanție.<br />
-              <span className="text-white/70">Pregătite pentru noul tău drum.</span>
-            </p>
+              <span className="text-acc">Pregătite pentru noul tău drum.</span>
+            </h1>
             <p className="text-white/70 mt-4 max-w-lg">Piese auto livrate din stoc.</p>
             <div className="mt-7"><VehicleFilter brands={brands} models={models} cats={cats} counts={counts} /></div>
             <p className="text-white/50 text-sm mt-3">Selectează marca, modelul și categoria pentru a găsi piesa de care ai nevoie.</p>

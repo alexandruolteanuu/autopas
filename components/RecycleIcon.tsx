@@ -1,20 +1,14 @@
-// Simbolul reciclării — trei săgeți care se urmăresc în triunghi.
-// Desenat de mână, ca restul iconurilor din proiect: un singur braț, repetat
-// prin rotire la 120°, ca cele trei săgeți să iasă perfect identice.
-const BRATE = [0, 120, 240];
+// Simbolul reciclării — trei săgeți pline care se urmăresc în triunghi.
+// Desenat de mână: un singur braț (bandă + vârf de săgeată de-a lungul unei
+// laturi), repetat prin rotire la 120°, ca toate trei să iasă identice.
+// Formă plină, nu contur — la 20px conturul subțire se pierdea.
+const BRAT = "M12.69 6.2 L14.42 5.2 L17.54 10.6 L18.93 9.8 L18.7 14.61 L14.42 12.4 L15.81 11.6 Z";
+const UNGHIURI = [0, 120, 240];
 
 export default function RecycleIcon({ className = "w-6 h-6" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor"
-      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-      {BRATE.map((unghi) => (
-        <g key={unghi} transform={`rotate(${unghi} 12 12)`}>
-          {/* corpul săgeții, de-a lungul unei laturi a triunghiului */}
-          <path d="M12 4.6 L16.3 12" />
-          {/* vârful săgeții */}
-          <path d="M16.3 9.4 L16.3 12 L14.05 10.7" />
-        </g>
-      ))}
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true" focusable="false">
+      {UNGHIURI.map((u) => <path key={u} d={BRAT} transform={`rotate(${u} 12 12)`} />)}
     </svg>
   );
 }
