@@ -1,10 +1,13 @@
 "use client";
-// CHECKOUT — comanda se scrie REAL în Supabase (orders + order_items).
+// CHECKOUT — comanda se plasează prin funcția `plaseaza_comanda` din Supabase.
+// Browserul trimite DOAR ce vrea să cumpere (id-urile pieselor) și datele de
+// livrare. Prețurile, costul livrării, reducerea și totalul le calculează
+// serverul, din bază — ca să nu poată fi modificate din consola browserului.
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/CartContext";
 import { sbBrowser } from "@/lib/supabase";
-import { lei, nrComanda } from "@/lib/format";
+import { lei } from "@/lib/format";
 import DiscountBox, { type Reducere } from "@/components/DiscountBox";
 import { getSetariBrowser, CURIERI_IMPLICITI, type Curier } from "@/lib/settings";
 import Link from "next/link";
@@ -34,23 +37,38 @@ export default function Checkout() {
     if (!sb) { setStare("eroare"); setMsg("Baza de date nu e configurată (vezi README)."); return; }
     if (items.length === 0) { router.push("/cos"); return; }
     setStare("trimit");
-    const numar = nrComanda();
-    const { data: ord, error } = await sb.from("orders").insert({
-      numar, tip_client: tip,
-      nume: f.get("nume"), email: f.get("email"), telefon: f.get("telefon"),
-      firma: tip === "firma" ? f.get("firma") : null, cui: tip === "firma" ? f.get("cui") : null,
-      adresa: f.get("adresa"), oras: f.get("oras"), judet: f.get("judet"),
-      curier, plata, subtotal: total, livrare, total: total - reducereVal + livrare,
-      discount_cod: reducere?.cod ?? null, discount_valoare: reducereVal,
-      gdpr: f.get("gdpr") === "on",
-    }).select("id").single();
-    if (error || !ord) { setStare("eroare"); setMsg(error?.message ?? "Eroare la salvare."); return; }
-    const { error: e2 } = await sb.from("order_items").insert(
-      items.map((i) => ({ order_id: ord.id, product_id: i.id, nume: i.nume, pret: i.pret, cantitate: i.cantitate })));
-    if (e2) { setStare("eroare"); setMsg(e2.message); return; }
-    if (reducere) { await sb.rpc("foloseste_cod", { p_cod: reducere.cod }); sessionStorage.removeItem("autopas_reducere"); }
+    // Trimitem doar id-ul și cantitatea fiecărei piese — prețul îl știe serverul.
+    // `p_total_asteptat` e totalul afișat pe ecran: dacă serverul calculează
+    // altceva (s-a schimbat un preț, a expirat codul), comanda NU se plasează
+    // pe tăcute cu altă sumă, ci primim un mesaj de reîncărcare a coșului.
+    const { data, error } = await sb.rpc("plaseaza_comanda", {
+      p_client: {
+        tip_client: tip,
+        nume: f.get("nume"), email: f.get("email"), telefon: f.get("telefon"),
+        firma: tip === "firma" ? f.get("firma") : null,
+        cui: tip === "firma" ? f.get("cui") : null,
+        adresa: f.get("adresa"), oras: f.get("oras"), judet: f.get("judet"),
+        gdpr: f.get("gdpr") === "on",
+      },
+      p_items: items.map((i) => ({ id: i.id, cantitate: i.cantitate })),
+      p_curier: curier,
+      p_plata: plata,
+      p_cod: reducere?.cod ?? null,
+      p_total_asteptat: total - reducereVal + livrare,
+    });
+    if (error) { setStare("eroare"); setMsg(error.message); return; }
+    const r = data as { ok: boolean; mesaj?: string; numar?: string; reincarca?: boolean };
+    if (!r?.ok || !r.numar) {
+      setStare("eroare");
+      setMsg(r?.mesaj ?? "Nu am putut plasa comanda. Încearcă din nou.");
+      // dacă s-a schimbat ceva în coș (piesă vândută, preț nou), scoatem reducerea
+      // veche din sesiune ca să nu rămână aplicată o valoare depășită
+      if (r?.reincarca) { setReducere(null); sessionStorage.removeItem("autopas_reducere"); }
+      return;
+    }
+    sessionStorage.removeItem("autopas_reducere");
     clear();
-    router.push(`/comanda-plasata?nr=${numar}&email=${encodeURIComponent(String(f.get("email")))}`);
+    router.push(`/comanda-plasata?nr=${r.numar}&email=${encodeURIComponent(String(f.get("email")))}`);
   }
 
   if (items.length === 0 && stare === "idle")

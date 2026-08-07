@@ -46,7 +46,7 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 ## Ordinea migrărilor SQL (rulare manuală în Supabase, o singură dată fiecare)
 1. `schema.sql` -> 2. `seed.sql` -> 3. `filtru.sql` -> 4. `integrari.sql` ->
 5. `admin.sql` -> 6. `sprint-bc.sql` -> 7. `upgrade.sql` -> 7b. `upgrade-poze.sql` (separat) ->
-8. `favorite.sql` -> 9. `admin-fix.sql`
+8. `favorite.sql` -> 9. `admin-fix.sql` -> 10. `date-firma.sql` -> 11. `comanda-server.sql`
 `verificare.sql` se poate rula oricând — arată ce s-a aplicat și ce lipsește.
 
 ## Decizii deja luate (nu le schimba fără să întrebi)

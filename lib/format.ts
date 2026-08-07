@@ -3,11 +3,9 @@ export function lei(n: number, sufix?: string | null) {
   const s = new Intl.NumberFormat("ro-RO", { maximumFractionDigits: 0 }).format(n);
   return `${s} lei${sufix ?? ""}`;
 }
-export function nrComanda() {
-  const an = new Date().getFullYear();
-  const r = Math.floor(10000 + Math.random() * 89999);
-  return `AP-${an}-${r}`;
-}
+// Numărul comenzii NU se mai generează în browser: venea din Math.random și
+// putea produce duplicate pe coloana `numar unique` (comandă pierdută).
+// Acum îl dă serverul, dintr-un contor — vezi supabase/comanda-server.sql.
 // DEPRECIAT — curierii se citesc acum din Setări (lib/settings.ts → getSetari*).
 // Rămâne doar ca rezervă pentru codul vechi.
 export const CURIERI = [
