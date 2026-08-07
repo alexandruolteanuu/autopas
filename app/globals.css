@@ -166,6 +166,67 @@
   --footer-text: 185 196 211;   /* #B9C4D3 */
 }
 
+/* ------------------------------------------------------------
+   Temele 9–11: FUNDAL ALB în tot site-ul, dar banda hero, headerul și
+   subsolul rămân închise (folosesc --header-bg / --footer-bg).
+   Accentele sunt luate din temele închise de mai sus, ca să fie aceeași
+   familie de culori, doar așezată pe alb.
+   Cardurile sunt tot albe: se disting prin chenar și umbră, ca azi.
+   ------------------------------------------------------------ */
+
+/* Tema 9 — Alb + auriu (accentul din „Negru + auriu") */
+[data-tema="alb-auriu"] {
+  --fundal: 255 255 255;        /* #FFFFFF */
+  --suprafata: 255 255 255;     /* #FFFFFF */
+  --suprafata-2: 247 244 236;   /* #F7F4EC — nuanță caldă pentru blocurile secundare */
+  --text: 26 24 20;             /* #1A1814 */
+  --text-secundar: 107 101 88;  /* #6B6558 */
+  --chenar: 231 225 210;        /* #E7E1D2 */
+  --accent: 147 114 18;         /* #937212 — auriu adânc: prețurile scrise cu accent
+                                   rămân lizibile pe alb (contrast 4,5), la fel și
+                                   textul alb de pe butoane */
+  --accent-hover: 122 94 14;    /* #7A5E0E */
+  --accent-contrast: 255 255 255; /* #FFFFFF */
+  --header-bg: 13 13 13;        /* #0D0D0D */
+  --header-text: 255 255 255;   /* #FFFFFF */
+  --footer-bg: 13 13 13;        /* #0D0D0D */
+  --footer-text: 179 179 179;   /* #B3B3B3 */
+}
+
+/* Tema 10 — Alb + smarald (accentul din „Negru + verde smarald") */
+[data-tema="alb-smarald"] {
+  --fundal: 255 255 255;        /* #FFFFFF */
+  --suprafata: 255 255 255;     /* #FFFFFF */
+  --suprafata-2: 239 246 242;   /* #EFF6F2 */
+  --text: 18 33 27;             /* #12211B */
+  --text-secundar: 86 107 96;   /* #566B60 */
+  --chenar: 220 231 225;        /* #DCE7E1 */
+  --accent: 13 122 95;          /* #0D7A5F — smarald adâncit pentru fundal alb */
+  --accent-hover: 10 98 73;     /* #0A6249 */
+  --accent-contrast: 255 255 255; /* #FFFFFF */
+  --header-bg: 10 10 10;        /* #0A0A0A */
+  --header-text: 255 255 255;   /* #FFFFFF */
+  --footer-bg: 10 10 10;        /* #0A0A0A */
+  --footer-text: 173 173 173;   /* #ADADAD */
+}
+
+/* Tema 11 — Alb + roșu service (accentul și bleumarinul din „Bleumarin + roșu") */
+[data-tema="alb-rosu"] {
+  --fundal: 255 255 255;        /* #FFFFFF */
+  --suprafata: 255 255 255;     /* #FFFFFF */
+  --suprafata-2: 241 244 248;   /* #F1F4F8 */
+  --text: 15 27 45;             /* #0F1B2D */
+  --text-secundar: 90 101 119;  /* #5A6577 */
+  --chenar: 223 228 236;        /* #DFE4EC */
+  --accent: 217 43 43;          /* #D92B2B */
+  --accent-hover: 183 31 31;    /* #B71F1F */
+  --accent-contrast: 255 255 255; /* #FFFFFF */
+  --header-bg: 11 37 69;        /* #0B2545 */
+  --header-text: 255 255 255;   /* #FFFFFF */
+  --footer-bg: 8 28 51;         /* #081C33 */
+  --footer-text: 185 196 211;   /* #B9C4D3 */
+}
+
 /* Panoul /admin nu e tematizat: își redeclară paleta clasică, așa că rămâne
    identic indiferent ce temă alege clientul din header. */
 .tema-clasica {

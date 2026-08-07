@@ -4,7 +4,7 @@
 // Instrucțiunile de ștergere: CLAUDE.md, secțiunea „TEMPORAR — selector teme".
 // ============================================================
 
-export type GrupTema = "Actuală" | "Propuse de client" | "Propuse suplimentar";
+export type GrupTema = "Actuală" | "Propuse de client" | "Propuse suplimentar" | "Fundal alb";
 
 export type Tema = {
   /** se pune în data-tema pe <html>; „actuala" înseamnă fără atribut */
@@ -30,7 +30,12 @@ export const TEME: Tema[] = [
   { id: "verde-reciclare",     nume: "Verde reciclare",             grup: "Propuse suplimentar" },
   { id: "atelier-galben",      nume: "Atelier, galben industrial",  grup: "Propuse suplimentar" },
   { id: "bleumarin-rosu",      nume: "Bleumarin + roșu service",    grup: "Propuse suplimentar" },
+
+  // Fundal alb în tot site-ul; hero, header și subsol rămân închise.
+  { id: "alb-auriu",           nume: "Alb + auriu",                 grup: "Fundal alb" },
+  { id: "alb-smarald",         nume: "Alb + smarald",               grup: "Fundal alb" },
+  { id: "alb-rosu",            nume: "Alb + roșu service",          grup: "Fundal alb" },
 ];
 
 /** Grupurile în ordinea în care apar în dropdown. */
-export const GRUPURI: GrupTema[] = ["Actuală", "Propuse de client", "Propuse suplimentar"];
+export const GRUPURI: GrupTema[] = ["Actuală", "Propuse de client", "Propuse suplimentar", "Fundal alb"];

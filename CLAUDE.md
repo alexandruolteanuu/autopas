@@ -134,7 +134,7 @@ fiindcă `anon` moștenește dreptul prin rolul `PUBLIC`.
 
 ## TEMPORAR — selector teme
 
-În header există un dropdown din care clientul alege între 9 teme de culoare, ca să se hotărască
+În header există un dropdown din care clientul alege între 12 teme de culoare, ca să se hotărască
 asupra paletei. **Se șterge după ce se decide.** Culorile site-ului public sunt legate de 13
 variabile CSS (`--fundal`, `--suprafata`, `--suprafata-2`, `--text`, `--text-secundar`, `--chenar`,
 `--accent`, `--accent-hover`, `--accent-contrast`, `--header-bg`, `--header-text`, `--footer-bg`,
