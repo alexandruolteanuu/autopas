@@ -10,7 +10,6 @@ export type Firma = { denumire: string; cui: string; reg_com: string; adresa: st
 export type Curier = { id: string; nume: string; detalii: string; pret: number };
 export type Integrari = {
   fancourier?: { client_id?: string; user?: string; parola?: string; activ?: boolean };
-  sameday?: { user?: string; parola?: string; activ?: boolean };
   netopia?: { pos_id?: string; signature?: string; activ?: boolean };
   saga?: { serie?: string; activ?: boolean };
   ga4?: { id?: string; activ?: boolean };
@@ -29,10 +28,9 @@ export const FIRMA_IMPLICITA: Firma = {
   email: "comenzi@autopas.ro",
   whatsapp: process.env.NEXT_PUBLIC_WHATSAPP_PHONE ?? "40743627151",
 };
+// FAN Courier este singurul curier al firmei (decizie: 7 august 2026).
 export const CURIERI_IMPLICITI: Curier[] = [
   { id: "fan", nume: "FAN Courier", detalii: "livrare 1–3 zile lucrătoare, ramburs inclus", pret: 19.9 },
-  { id: "cargus", nume: "Cargus", detalii: "livrare 1–3 zile lucrătoare", pret: 21.5 },
-  { id: "sameday", nume: "Sameday easybox", detalii: "ridici din locker", pret: 14.9 },
 ];
 
 function compune(rows: { cheie: string; valoare: any }[] | null) {

@@ -26,8 +26,13 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 - **Cod complet**, nu fragmente. Comentarii scurte în cod, în română.
 - **Fără date demo hardcodate** — tot ce se afișează vine din Supabase.
 - **Nu inventa** funcții, tabele sau coloane. Dacă ai nevoie de ceva nou în baza de date,
-  scrie un fișier SQL nou în `supabase/` și spune-i utilizatorului să-l ruleze manual în
-  Supabase -> SQL Editor. NU rula tu migrări pe producție.
+  scrie întâi un fișier SQL nou în `supabase/` — fișierul rămâne sursa adevărului, ca să
+  existe urmă în git a tot ce s-a schimbat în bază.
+- **Rularea migrărilor pe producție** (via conectorul Supabase, aprobat de utilizator la
+  7 august 2026): se poate, cu trei condiții — (1) spui înainte ce script rulezi și ce
+  atinge; (2) la operații ireversibile (`drop`, `delete`, `revoke`, `update` în masă) ceri
+  confirmare separată; (3) raportezi rezultatul complet, inclusiv erorile. Fără conector
+  activ, revii la varianta veche: îi spui utilizatorului să ruleze scriptul manual.
 - **Migrările Supabase se rulează separat, în ordine** (vezi mai jos). Supabase rulează tot
   scriptul ca o tranzacție — o eroare anulează tot. Ține migrările mici și idempotente
   (`if not exists`, `on conflict do nothing`, `drop policy if exists` înainte de `create policy`).
@@ -55,7 +60,9 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 - Starea piesei A/B/C — eliminată complet (filtru, produs, admin, import).
 - Cod intern piesă = generat automat, format `AP-000123`.
 - Facturare prin **Saga** = export CSV (Saga nu are API public); statusul e-Factura îl gestionează Saga.
-- Curieri (FAN, Sameday) = schelet gata; se activează la primirea credențialelor (Admin -> Integrări).
+- Curier = **doar FAN Courier** (decizie 7 aug 2026). Cargus și Sameday au fost scoase complet
+  din cod, din texte și din `settings.curieri`. Scheletul SelfAWB se activează la primirea
+  credențialelor (Admin -> Integrări).
 - Plată card = fază viitoare; butonul e vizibil, activarea vine cu procesatorul.
 - Notificare comandă nouă = alertă sonoră+vizuală în `/admin` (fără e-mail; utilizatorul a refuzat Resend)
   + buton „Trimite confirmarea pe WhatsApp" precompletat.

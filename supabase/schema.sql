@@ -54,7 +54,7 @@ create table orders (
   telefon text not null,
   firma text, cui text,
   adresa text not null, oras text not null, judet text not null,
-  curier text not null,                     -- fan / cargus / sameday
+  curier text not null,                     -- fan (singurul curier al firmei)
   plata text not null,                      -- ramburs / transfer
   subtotal numeric(10,2) not null,
   livrare numeric(10,2) not null,

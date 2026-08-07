@@ -84,7 +84,6 @@ create policy "setari admin insert" on settings for insert with check (is_admin(
 insert into settings (cheie, valoare) values
  ('integrari', '{"whatsapp":{"numar":"","activ":true},
                  "fancourier":{"client_id":"","user":"","parola":"","activ":false},
-                 "sameday":{"user":"","parola":"","activ":false},
                  "netopia":{"signature":"","pos_id":"","activ":false},
                  "saga":{"serie":"AUTP","activ":true},
                  "ga4":{"id":"","activ":false}}')

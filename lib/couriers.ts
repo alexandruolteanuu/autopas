@@ -1,5 +1,5 @@
 // ============================================================
-// CURIERI — FAN Courier (SelfAWB) și Sameday.
+// CURIER — FAN Courier (SelfAWB). Este singurul curier al firmei.
 // Credențialele se citesc mai întâi din Setări → Integrări (baza de date),
 // iar dacă acolo nu e nimic, din variabilele Vercel.
 // ============================================================
@@ -27,14 +27,6 @@ export async function credentialeFan() {
     parola: i.fancourier?.parola || process.env.FANCOURIER_PASS || "",
   };
 }
-export async function credentialeSameday() {
-  const i = await integrariDinDb();
-  return {
-    user: i.sameday?.user || process.env.SAMEDAY_USER || "",
-    parola: i.sameday?.parola || process.env.SAMEDAY_PASS || "",
-  };
-}
-
 export async function genereazaAwbFan(c: AwbCerere): Promise<AwbRaspuns> {
   const cred = await credentialeFan();
   if (!cred.clientId || !cred.user || !cred.parola)
@@ -42,11 +34,4 @@ export async function genereazaAwbFan(c: AwbCerere): Promise<AwbRaspuns> {
   // La activare: 1) POST https://api.fancourier.ro/login → token
   //              2) POST https://api.fancourier.ro/intern-awb cu datele din `c` → { awbNumber }
   return { ok: false, eroare: "Credențiale găsite, dar apelul către FAN nu e încă activat. Anunță-ne și îl pornim (10 minute)." };
-}
-
-export async function genereazaAwbSameday(c: AwbCerere): Promise<AwbRaspuns> {
-  const cred = await credentialeSameday();
-  if (!cred.user || !cred.parola)
-    return { ok: false, eroare: "Sameday neconfigurat. Completează utilizatorul și parola în Admin → Integrări (sau în variabilele Vercel), după semnarea contractului Sameday." };
-  return { ok: false, eroare: "Credențiale găsite, dar apelul către Sameday nu e încă activat. Anunță-ne și îl pornim." };
 }

@@ -16,9 +16,6 @@ const INTEGRARI: Stare[] = [
     desc: "Butonul de generare AWB și ruta de server există; se activează la primirea contului de la FAN.",
     pasi: ["Clientul semnează contractul FAN și primește client ID, user, parolă (selfawb.ro)",
            "Adaugi în Vercel: FANCOURIER_CLIENT_ID, FANCOURIER_USER, FANCOURIER_PASS", "Ne anunți — activăm apelul API (10 minute)"] },
-  { nume: "Sameday", grup: "Curieri", stare: "pregatit",
-    desc: "Identic cu FAN: infrastructura e gata, lipsesc doar credențialele.",
-    pasi: ["Contract Sameday → user + parolă API", "Adaugi în Vercel: SAMEDAY_USER, SAMEDAY_PASS", "Ne anunți — activăm"] },
   { nume: "Plată cu cardul (Netopia / Stripe)", grup: "Plăți", stare: "viitor",
     desc: "Acum: ramburs și transfer bancar. Cardul online necesită contract cu procesatorul și verificare KYC.",
     pasi: ["Clientul deschide cont la procesator", "Primim cheile API", "Adăugăm pasul de plată în checkout"] },
@@ -37,13 +34,12 @@ const CAMPURI: Record<string, { k: string; l: string; tip?: string }[]> = {
   "WhatsApp Business": [{ k: "numar", l: "Număr WhatsApp (format 40722…)" }],
   "Saga — facturare": [{ k: "serie", l: "Seria facturilor (ex. AUTP)" }],
   "FAN Courier (SelfAWB)": [{ k: "client_id", l: "Client ID" }, { k: "user", l: "Utilizator" }, { k: "parola", l: "Parolă", tip: "password" }],
-  "Sameday": [{ k: "user", l: "Utilizator" }, { k: "parola", l: "Parolă", tip: "password" }],
   "Plată cu cardul (Netopia / Stripe)": [{ k: "pos_id", l: "POS Signature / ID" }, { k: "signature", l: "Cheie privată", tip: "password" }],
   "Google Analytics 4": [{ k: "id", l: "ID de măsurare (G-XXXXXXX)" }],
 };
 const CHEI: Record<string, string> = {
   "WhatsApp Business": "whatsapp", "Saga — facturare": "saga", "FAN Courier (SelfAWB)": "fancourier",
-  "Sameday": "sameday", "Plată cu cardul (Netopia / Stripe)": "netopia", "Google Analytics 4": "ga4",
+  "Plată cu cardul (Netopia / Stripe)": "netopia", "Google Analytics 4": "ga4",
 };
 
 export default function Integrari() {
@@ -79,7 +75,7 @@ export default function Integrari() {
           <div className="dim mb-2">{g}</div>
           <div className="grid md:grid-cols-2 gap-3">
             {INTEGRARI.filter((i) => i.grup === g).map((i) => {
-              const conectat = i.nume.includes("FAN") ? env.fan : i.nume.includes("Sameday") ? env.sameday : undefined;
+              const conectat = i.nume.includes("FAN") ? env.fan : undefined;
               const stare = conectat === true ? "activ" : i.stare;
               const [cls, txt] = CULORI[stare as keyof typeof CULORI];
               return (

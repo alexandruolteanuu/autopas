@@ -121,7 +121,7 @@ export function getLegalDocs(firma: Firma = FIRMA_IMPLICITA): LegalDoc[] {
     titlu: "Livrare",
     sectiuni: [
       { h: "1. Curieri și termene", p: [
-        "Livrăm în toată România prin FAN Courier (19,90 lei, ramburs inclus), Cargus (21,50 lei) și Sameday easybox (14,90 lei — ridici din locker). Termenul uzual: 1–3 zile lucrătoare de la confirmarea comenzii.",
+        "Livrăm în toată România prin FAN Courier, cu plata ramburs inclusă. Termenul uzual: 1–3 zile lucrătoare de la confirmarea comenzii.",
         "Comenzile confirmate până la ora 15:00 în zilele lucrătoare pleacă, de regulă, în aceeași zi.",
       ]},
       { h: "2. Piese voluminoase (motoare, cutii de viteze, caroserie mare)", p: [

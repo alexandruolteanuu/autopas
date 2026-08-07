@@ -97,7 +97,7 @@ click cu click. Timp estimat: 30–40 de minute.
 
 - **Plata cu cardul online** (procesator de plăți — ex. Netopia/Stripe): momentan ramburs + transfer.
 - **Facturare automată (Oblio/SmartBill) și e-Factura ANAF** — necesită cont + cheie API.
-- **AWB automat la curier** — necesită contract FAN/Cargus/Sameday cu API.
+- **AWB automat la curier** — necesită contractul FAN Courier cu acces API (SelfAWB).
 Site-ul e pregătit pentru toate trei; le conectăm când clientul are conturile.
 
 ## Structura proiectului
