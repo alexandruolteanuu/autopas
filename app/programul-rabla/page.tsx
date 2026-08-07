@@ -30,6 +30,7 @@ export default function Rabla() {
               <li>• Cartea de identitate a vehiculului (CIV) și certificatul de înmatriculare</li>
               <li>• Actul de identitate al proprietarului</li>
               <li>• Dacă nu ești proprietarul din acte: procură sau contract de vânzare</li>
+              <li>• Certificat fiscal</li>
             </ul>
             <p className="mt-3 text-xs text-mut">Condițiile exacte ale ecotichetului (valoare, sesiuni) sunt stabilite anual de AFM — te ajutăm cu îndrumare la zi când ne contactezi.</p>
           </div>

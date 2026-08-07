@@ -6,6 +6,7 @@ import PartArt from "@/components/PartArt";
 import PartRequestForm from "@/components/PartRequestForm";
 import VehicleFilter from "@/components/VehicleFilter";
 import TrustBar from "@/components/TrustBar";
+import RecycleIcon from "@/components/RecycleIcon";
 import { fitmentCounts, nrPiese } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -43,11 +44,17 @@ export default async function Home() {
       <section className="bg-ink text-white">
         <div className="mx-auto max-w-6xl px-4 py-12 lg:py-16 grid lg:grid-cols-[1.2fr,0.8fr] gap-10">
           <div>
-            <div className="dim !text-acc">Dezmembrăm responsabil · Reciclăm pentru viitor!</div>
-            <h1 className="font-disp font-bold leading-[1.08] text-4xl sm:text-[46px] mt-4">
-              Piesa potrivită.<br /><span className="text-acc">Testată. Garantată.</span>
+            {/* Mesajul care era supratitlu a devenit titlul propriu-zis, deci
+                supratitlul a fost scos — altfel se repeta cuvânt cu cuvânt. */}
+            <h1 className="font-disp font-bold leading-[1.05] text-[40px] sm:text-[56px] lg:text-[62px] flex items-start gap-3">
+              <RecycleIcon className="w-9 h-9 sm:w-12 sm:h-12 text-acc shrink-0 mt-1.5" />
+              <span>Dezmembrăm responsabil.<br /><span className="text-acc">Reciclăm pentru viitor.</span></span>
             </h1>
-            <p className="text-white/70 mt-4 max-w-lg">Piese auto livrate direct din stoc. Testate și livrate cu garanție.</p>
+            <p className="font-disp font-semibold text-white text-xl sm:text-2xl mt-5 leading-snug">
+              Piese originale. Testate. Cu garanție.<br />
+              <span className="text-white/70">Pregătite pentru noul tău drum.</span>
+            </p>
+            <p className="text-white/70 mt-4 max-w-lg">Piese auto livrate din stoc.</p>
             <div className="mt-7"><VehicleFilter brands={brands} models={models} cats={cats} counts={counts} /></div>
             <p className="text-white/50 text-sm mt-3">Selectează marca, modelul și categoria pentru a găsi piesa de care ai nevoie.</p>
           </div>
