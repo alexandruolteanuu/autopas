@@ -32,7 +32,7 @@ export default function Cos() {
     <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <Breadcrumbs items={[{ t: "Acasă", href: "/" }, { t: "Coșul meu" }]} />
       <h1 className="t-sectiune mt-2 mb-6">Coșul meu <span className="text-textSecundar text-lg">· {nrPiese(items.length)}</span></h1>
-      <div className="grid lg:grid-cols-[minmax(0,1fr),340px] gap-6 items-start">
+      <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr),340px] gap-6 items-start">
         {/* Pe telefon fiecare piesă e un card: imagine 80px în stânga, denumirea
             și prețul în dreapta, iar „Șterge" pe rândul lui, ca țintă de 44px.
             Nu există selector de cantitate: piesele din dezmembrări sunt unicate,
@@ -43,7 +43,7 @@ export default function Cos() {
               <div className="flex gap-3 sm:gap-4 min-w-0">
                 <PartArt kind={i.art} className="w-20 sm:w-24 shrink-0 rounded-lg" />
                 <div className="min-w-0 flex-1">
-                  <Link href={`/piese/${i.slug}`} className="font-semibold text-[15px] leading-snug hover:text-accent break-words">{i.nume}</Link>
+                  <Link href={`/piese/${i.slug}`} className="inline-flex items-center min-h-[44px] font-semibold text-[15px] leading-snug hover:text-accent break-words">{i.nume}</Link>
                   <div className="text-[13px] text-textSecundar mt-0.5 break-words">OEM {i.oem} · piesă unică — rezervată 30 min</div>
                   <b className="block mt-1.5 font-disp text-lg text-accent tabular-nums">{lei(i.pret)}</b>
                 </div>

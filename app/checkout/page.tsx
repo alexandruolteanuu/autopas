@@ -81,7 +81,7 @@ export default function Checkout() {
     <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <div className="dim">Coș → <b className="text-text">Livrare și plată</b> → Confirmare</div>
       <h1 className="t-sectiune mt-2 mb-6">Finalizează comanda</h1>
-      <form onSubmit={trimite} className="grid lg:grid-cols-[minmax(0,1fr),340px] gap-6 items-start">
+      <form onSubmit={trimite} className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr),340px] gap-6 items-start">
         <div className="space-y-5">
           {/* 1. Datele tale */}
           <div className="card p-5">
@@ -129,7 +129,7 @@ export default function Checkout() {
             <div className="mt-3 space-y-2">
               {[["card","Card online","Visa / Mastercard — plată securizată"],["ramburs","Ramburs la curier","plătești când primești piesa"],["transfer","Transfer bancar","primești proforma pe e-mail"]].map(([id,t,d]) => (
                 <label key={id} className={`flex items-center gap-3 rounded-lg border-2 px-4 min-h-[44px] py-3 cursor-pointer ${plata === id ? "border-accent bg-accent/5" : "border-chenar"}`}>
-                  <input type="radio" name="plata" checked={plata === id} onChange={() => setPlata(id)} />
+                  <input type="radio" name="plata" checked={plata === id} onChange={() => setPlata(id)} className="w-5 h-5 shrink-0 accent-[rgb(var(--accent))]" />
                   <span><b>{t}</b> <span className="text-textSecundar text-sm">· {d}</span></span>
                 </label>
               ))}
@@ -139,9 +139,9 @@ export default function Checkout() {
           </div>
           {/* 4. GDPR */}
           <div className="card p-5 space-y-2 text-sm">
-            <label className="flex gap-3 items-start"><input type="checkbox" required className="mt-1" />
+            <label className="flex gap-3 items-start min-h-[44px] py-2 cursor-pointer"><input type="checkbox" required className="w-5 h-5 shrink-0 mt-0.5 accent-[rgb(var(--accent))]" />
               <span>Am citit și sunt de acord cu <Link href="/legal/termeni-si-conditii" className="text-accent font-semibold">Termenii și condițiile</Link> și cu <Link href="/legal/politica-de-retur" className="text-accent font-semibold">Politica de retur</Link>. *</span></label>
-            <label className="flex gap-3 items-start"><input type="checkbox" name="gdpr" className="mt-1" />
+            <label className="flex gap-3 items-start min-h-[44px] py-2 cursor-pointer"><input type="checkbox" name="gdpr" className="w-5 h-5 shrink-0 mt-0.5 accent-[rgb(var(--accent))]" />
               <span className="text-textSecundar">Sunt de acord să primesc, ocazional, oferte pe e-mail (opțional).</span></label>
           </div>
         </div>

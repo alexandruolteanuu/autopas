@@ -28,18 +28,22 @@ export default function DiscountBox({ subtotal, reducere, setReducere }:
   if (reducere)
     return (
       <div className="flex items-center justify-between gap-2 rounded-xl bg-ok/10 border border-ok/30 px-3 py-2 text-sm">
-        <span className="text-ok font-semibold">✓ {reducere.cod} — {lei(reducere.valoare)} reducere</span>
-        <button onClick={() => { setReducere(null); setMsg(""); }} className="text-textSecundar hover:text-red-600 text-xs">elimină</button>
+        <span className="min-w-0 break-words text-ok font-semibold">✓ {reducere.cod} — {lei(reducere.valoare)} reducere</span>
+        <button onClick={() => { setReducere(null); setMsg(""); }} className="shrink-0 inline-flex items-center min-h-[44px] px-2 text-textSecundar hover:text-red-600 text-[13px]">elimină</button>
       </div>
     );
   return (
     <form onSubmit={aplica} className="space-y-1">
       <div className="flex gap-2">
+        {/* `min-w-0` e obligatoriu: fără el, inputul nu coboară sub lățimea lui
+            implicită (~180px), iar cardul de sumar nu se mai putea strânge —
+            de acolo venea pagina împinsă în lateral pe telefon. */}
         <input value={cod} onChange={(e) => setCod(e.target.value.toUpperCase())} placeholder="Cod de reducere"
-          className="flex-1 rounded-xl border-2 border-chenar px-3 py-2 text-sm outline-none focus:border-accent uppercase" />
-        <button disabled={lucru} className="rounded-xl border-2 border-chenar px-4 text-sm font-semibold hover:border-accent">{lucru ? "…" : "Aplică"}</button>
+          autoComplete="off" aria-label="Cod de reducere"
+          className="flex-1 min-w-0 rounded-lg border border-[rgb(var(--chenar-puternic))] bg-[rgb(var(--camp-bg))] px-3 min-h-[44px] text-base outline-none focus:border-accent uppercase" />
+        <button disabled={lucru} className="shrink-0 rounded-lg border border-[rgb(var(--chenar-puternic))] px-4 min-h-[44px] text-sm font-semibold hover:border-accent">{lucru ? "…" : "Aplică"}</button>
       </div>
-      {msg && <p className="text-xs text-textSecundar">{msg}</p>}
+      {msg && <p className="text-[13px] text-textSecundar">{msg}</p>}
     </form>
   );
 }

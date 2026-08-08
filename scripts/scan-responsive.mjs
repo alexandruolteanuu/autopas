@@ -93,8 +93,12 @@ function masoara() {
       // straturile fixe (banner de cookie-uri, buton plutitor, sertar) acoperă
       // conținutul intenționat — nu e o suprapunere din așezare
       if (a.el.closest("[data-strat-fix]") || b.el.closest("[data-strat-fix]")) continue;
-      const lat = Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left);
-      const inalt = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top);
+      let lat = 0, inalt = 0;
+      for (const ra of a.el.getClientRects()) for (const rb of b.el.getClientRects()) {
+        const l = Math.min(ra.right, rb.right) - Math.max(ra.left, rb.left);
+        const i2 = Math.min(ra.bottom, rb.bottom) - Math.max(ra.top, rb.top);
+        if (l > lat && i2 > inalt) { lat = l; inalt = i2; }
+      }
       if (lat > 2 && inalt > 2) {
         suprapuneri.push({ a: selector(a.el), textA: text(a.el), b: selector(b.el), textB: text(b.el),
           zona: Math.round(lat * inalt) });
@@ -103,7 +107,9 @@ function masoara() {
   }
 
   const tinteMici = [];
-  for (const { el, r } of rects) {
+  for (const { el, r: rBrut } of rects) {
+    const eticheta = (el.tagName === "INPUT" && /^(checkbox|radio)$/.test(el.type)) ? el.closest("label") : null;
+    const r = eticheta ? eticheta.getBoundingClientRect() : rBrut;
     // linkurile din interiorul unui paragraf sunt inline prin natura lor:
     // le numărăm separat, altfel raportul se umple de fals-pozitive
     const inlineInText = getComputedStyle(el).display.startsWith("inline") &&
@@ -128,6 +134,14 @@ function masoara() {
     depasesc, suprapuneri, tinteMici, textMic };
 }
 
+// Coșul și checkoutul se scanau GOALE, deci nu se vedea cum arată cu marfă în
+// ele — exact acolo era o piesă care nu se strângea și împingea pagina în
+// lateral. Punem o piesă în coș înainte de scanare.
+const COS_DE_PROBA = [{
+  id: 1, slug: "piesa-de-proba", nume: "Alternator Bosch — VW Golf 6 1.6 TDI (CAYC)",
+  pret: 385, art: "alternator", oem: "03L903023", cantitate: 1,
+}];
+
 const browser = await chromium.launch();
 const rezultate = [];
 
@@ -135,6 +149,9 @@ for (const latime of LATIMI) {
   const ctx = await browser.newContext({ viewport: { width: latime, height: 800 },
     deviceScaleFactor: 1, isMobile: latime < 768, hasTouch: latime < 768 });
   const page = await ctx.newPage();
+  await page.addInitScript((cos) => {
+    try { localStorage.setItem("autopas_cart", JSON.stringify(cos)); } catch {}
+  }, COS_DE_PROBA);
   for (const cale of PAGINI) {
     try {
       const rasp = await page.goto(BAZA + cale, { waitUntil: "networkidle", timeout: 30000 });
