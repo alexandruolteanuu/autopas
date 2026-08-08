@@ -61,7 +61,7 @@ export default function Checkout() {
     const r = data as { ok: boolean; mesaj?: string; numar?: string; reincarca?: boolean };
     if (!r?.ok || !r.numar) {
       setStare("eroare");
-      setMsg(r?.mesaj ?? "Nu am putut plasa comanda. Încearcă din nou.");
+      setMsg(r?.mesaj ?? "Comanda nu a putut fi înregistrată. Verifică datele de livrare și încearcă din nou.");
       // dacă s-a schimbat ceva în coș (piesă vândută, preț nou), scoatem reducerea
       // veche din sesiune ca să nu rămână aplicată o valoare depășită
       if (r?.reincarca) { setReducere(null); sessionStorage.removeItem("autopas_reducere"); }
@@ -154,7 +154,7 @@ export default function Checkout() {
           <DiscountBox subtotal={total} reducere={reducere} setReducere={setReducere} />
           {reducereVal > 0 && <div className="flex justify-between text-ok"><span>Reducere {reducere?.cod}</span><b>−{lei(reducereVal)}</b></div>}
           <div className="flex justify-between border-t border-chenar pt-3 text-textSecundar"><span>Livrare</span><span className="text-[12px] text-right">se calculează<br />și ți-o comunicăm</span></div>
-          <div className="flex justify-between text-base"><span>Total produse</span>
+          <div className="flex justify-between text-base"><span>Total piese</span>
             <b className="font-disp text-2xl text-accent tabular-nums">{lei(total - reducereVal)}</b></div>
           <button disabled={stare === "trimit"} className="btn-acc w-full">{stare === "trimit" ? "Se plasează…" : "Plasează comanda"}</button>
           {stare === "eroare" && <p className="text-red-600 text-[13px]">{msg}</p>}

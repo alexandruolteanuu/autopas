@@ -2,7 +2,7 @@
 import Breadcrumbs from "@/components/Breadcrumbs";
 import { useCart } from "@/components/CartContext";
 import PartArt from "@/components/PartArt";
-import { lei } from "@/lib/format";
+import { lei, nrPiese } from "@/lib/format";
 import { useEffect, useState } from "react";
 import DiscountBox, { type Reducere } from "@/components/DiscountBox";
 import Link from "next/link";
@@ -31,7 +31,7 @@ export default function Cos() {
   return (
     <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <Breadcrumbs items={[{ t: "Acasă", href: "/" }, { t: "Coșul meu" }]} />
-      <h1 className="t-sectiune mt-2 mb-6">Coșul meu <span className="text-textSecundar text-lg">· {items.length} {items.length === 1 ? "produs" : "produse"}</span></h1>
+      <h1 className="t-sectiune mt-2 mb-6">Coșul meu <span className="text-textSecundar text-lg">· {nrPiese(items.length)}</span></h1>
       <div className="grid lg:grid-cols-[minmax(0,1fr),340px] gap-6 items-start">
         {/* Pe telefon fiecare piesă e un card: imagine 80px în stânga, denumirea
             și prețul în dreapta, iar „Șterge" pe rândul lui, ca țintă de 44px.
@@ -69,7 +69,7 @@ export default function Cos() {
               și gabarit, iar FAN Courier taxează în funcție de ele. Îl stabilim după
               comandă și îl comunicăm clientului înainte de expediere. */}
           <div className="flex justify-between text-textSecundar"><span>Livrare</span><span>se calculează separat</span></div>
-          <div className="flex justify-between border-t border-chenar pt-3 text-base"><span>Total produse</span>
+          <div className="flex justify-between border-t border-chenar pt-3 text-base"><span>Total piese</span>
             <b className="font-disp text-2xl text-accent tabular-nums">{lei(Math.max(0, total - (reducere?.valoare ?? 0)))}</b></div>
           <p className="text-xs text-textSecundar bg-suprafata2 rounded-lg px-3 py-2 leading-relaxed">
             Costul livrării depinde de greutatea și dimensiunile pieselor. Îl calculăm după

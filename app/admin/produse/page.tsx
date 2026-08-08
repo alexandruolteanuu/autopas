@@ -104,7 +104,7 @@ function ProduseInner() {
     if (sel.length === 0) return;
     const sb = sbBrowser()!;
     if (actiune === "sterge") {
-      if (!confirm(`Ștergi ${sel.length} piese? Cele care apar în comenzi vor fi doar ascunse.`)) return;
+      if (!confirm(`Ștergi ${sel.length} piese? Cele care apar deja în comenzi nu se șterg — se ascund de pe site.`)) return;
       for (const id of sel) await sb.rpc("sterge_produs", { p_id: id });
       setMsg(`✓ ${sel.length} piese procesate.`);
     } else {

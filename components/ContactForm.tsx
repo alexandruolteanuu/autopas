@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { sbBrowser } from "@/lib/supabase";
+import { CONFIG } from "@/lib/config";
 
 export default function ContactForm() {
   const [stare, setStare] = useState<"idle" | "trimit" | "ok" | "eroare">("idle");
@@ -14,7 +15,7 @@ export default function ContactForm() {
     });
     setStare(error ? "eroare" : "ok");
   }
-  if (stare === "ok") return <div className="card p-6 text-center"><b className="text-ok">✓ Mesajul a fost trimis!</b><p className="text-textSecundar text-sm mt-1">Răspundem în aceeași zi lucrătoare.</p></div>;
+  if (stare === "ok") return <div className="card p-6 text-center"><b className="text-ok">✓ Mesajul a fost trimis</b><p className="text-textSecundar text-sm mt-1">Răspundem în aceeași zi lucrătoare.</p></div>;
   return (
     <form onSubmit={trimite} className="card p-5 grid gap-3">
       <div className="fld"><label>Nume *</label><input name="nume" required autoComplete="name" /></div>
@@ -22,7 +23,7 @@ export default function ContactForm() {
       <div className="fld"><label>Telefon</label><input name="telefon" type="tel" inputMode="numeric" autoComplete="tel" /></div>
       <div className="fld"><label>Mesaj *</label><textarea name="mesaj" rows={4} required /></div>
       <button disabled={stare === "trimit"} className="btn-acc">{stare === "trimit" ? "Se trimite…" : "Trimite mesajul"}</button>
-      {stare === "eroare" && <p className="text-red-600 text-sm">Eroare — încearcă din nou sau sună-ne.</p>}
+      {stare === "eroare" && <p className="text-red-600 text-sm">Mesajul nu a putut fi trimis. Verifică adresa de e-mail și încearcă din nou, sau sună-ne la {CONFIG.telefonAfisat}.</p>}
     </form>
   );
 }

@@ -18,7 +18,7 @@ export default function IntakeForm({ tip }: { tip: "predare" | "rabla" }) {
     setStare(error ? "eroare" : "ok");
   }
   if (stare === "ok")
-    return <div className="card p-8 text-center"><b className="text-ok text-lg">✓ Cererea a fost trimisă!</b>
+    return <div className="card p-8 text-center"><b className="text-ok text-lg">✓ Cererea a fost trimisă</b>
       <p className="text-textSecundar text-sm mt-1">Te sunăm în aceeași zi lucrătoare.</p></div>;
   return (
     <form onSubmit={trimite} className="card p-5 grid sm:grid-cols-2 gap-3">
@@ -30,7 +30,7 @@ export default function IntakeForm({ tip }: { tip: "predare" | "rabla" }) {
       <div className="fld sm:col-span-2"><label>Seria de șasiu (VIN) — opțional</label><input name="vin" /></div>
       <div className="fld sm:col-span-2"><label>Detalii (stare, dacă pornește, unde se află)</label><textarea name="mesaj" rows={2} /></div>
       <button disabled={stare === "trimit"} className="btn-acc sm:col-span-2">{stare === "trimit" ? "Se trimite…" : tip === "rabla" ? "Vreau certificatul Rabla" : "Cere evaluarea"}</button>
-      {stare === "eroare" && <p className="text-red-600 text-sm sm:col-span-2">Eroare la trimitere — sună-ne direct: {CONFIG.telefonAfisat}.</p>}
+      {stare === "eroare" && <p className="text-red-600 text-sm sm:col-span-2">Cererea nu a putut fi trimisă. Verifică numărul de telefon și încearcă din nou, sau sună-ne la {CONFIG.telefonAfisat}..</p>}
     </form>
   );
 }

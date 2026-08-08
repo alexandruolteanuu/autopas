@@ -1,17 +1,39 @@
-// LINKURI HĂRȚI — Waze și Google Maps, cu logourile oficiale din `public/`.
-// Adresele reale se pun într-un singur loc: `HARTI` din `lib/config.ts`.
-// Cât timp linkul e „#” (provizoriu), nu deschidem o filă nouă goală.
+// LINKURI HĂRȚI — Waze și Google Maps.
+//
+// Glifele sunt cele oficiale, monocrome, din colecția publică Simple Icons
+// (`public/icons/waze.svg`, `public/icons/google-maps.svg`). NU sunt desenate
+// de mână: mărcile altor companii nu se redesenează, regula proiectului cu
+// „iconuri SVG scrise de mână" se aplică doar iconurilor funcționale.
+//
+// Se colorează din `currentColor` printr-o mască CSS — un `<img>` n-ar putea
+// prelua culoarea temei. Nu le punem într-un cerc sau pătrat colorat inventat
+// de noi: sunt butoane obișnuite ale site-ului, cu text vizibil.
+//
+// Adresele vin din `HARTI` (lib/config.ts). Coordonatele NU sunt încă în
+// Admin → Setări: tabela `settings` nu are câmpuri de latitudine/longitudine.
 import { HARTI } from "@/lib/config";
 
 const HARTI_ITEMS = [
-  { nume: "Waze", href: HARTI.waze, logo: "/waze.svg" },
-  { nume: "Google Maps", href: HARTI.gmaps, logo: "/google-maps.svg" },
+  { nume: "Waze", scurt: "Waze", lung: "Navighează cu Waze", href: HARTI.waze, glif: "/icons/waze.svg" },
+  { nume: "Google Maps", scurt: "Google Maps", lung: "Deschide în Google Maps", href: HARTI.gmaps, glif: "/icons/google-maps.svg" },
 ];
+
+function Glif({ src, className = "w-5 h-5" }: { src: string; className?: string }) {
+  return (
+    <span aria-hidden="true" className={`${className} shrink-0 inline-block bg-current`}
+      style={{
+        maskImage: `url(${src})`, WebkitMaskImage: `url(${src})`,
+        maskRepeat: "no-repeat", WebkitMaskRepeat: "no-repeat",
+        maskSize: "contain", WebkitMaskSize: "contain",
+        maskPosition: "center", WebkitMaskPosition: "center",
+      }} />
+  );
+}
 
 export default function HartiLinks({ variant = "bara" }: { variant?: "bara" | "footer" }) {
   const footer = variant === "footer";
   return (
-    <div className={footer ? "flex flex-wrap gap-2" : "flex items-center gap-2 sm:gap-3"}>
+    <div className={footer ? "flex flex-wrap gap-2" : "flex items-center gap-1"}>
       {HARTI_ITEMS.map((h) => {
         const provizoriu = h.href === "#";
         return (
@@ -19,22 +41,17 @@ export default function HartiLinks({ variant = "bara" }: { variant?: "bara" | "f
             key={h.nume}
             href={h.href}
             {...(provizoriu ? {} : { target: "_blank", rel: "noopener noreferrer" })}
-            title={`Deschide locația în ${h.nume}`}
-            aria-label={`Deschide locația în ${h.nume}`}
+            aria-label={h.lung}
             className={
               footer
-                ? "inline-flex items-center gap-2 rounded-lg bg-white/10 hover:bg-white/20 px-3 min-h-[44px] transition"
-                : "inline-flex items-center justify-center gap-1.5 rounded-md hover:bg-white/10 px-2 min-w-[44px] min-h-[44px] transition"
+                ? "inline-flex items-center gap-2 rounded-lg bg-white/10 hover:bg-white/20 px-3 min-h-[44px] text-sm transition"
+                : "inline-flex items-center justify-center gap-2 rounded-md hover:bg-white/10 px-2 min-w-[44px] min-h-[44px] transition"
             }
           >
-            <img
-              src={h.logo}
-              alt={h.nume}
-              width={footer ? 20 : 16}
-              height={footer ? 20 : 16}
-              className={footer ? "w-5 h-5" : "w-4 h-4"}
-            />
-            <span className={footer ? "text-sm" : "hidden sm:inline text-[12px]"}>{h.nume}</span>
+            <Glif src={h.glif} className={footer ? "w-5 h-5" : "w-[18px] h-[18px]"} />
+            {footer
+              ? <span>{h.lung}</span>
+              : <span className="hidden sm:inline text-[12px] whitespace-nowrap">{h.scurt}</span>}
           </a>
         );
       })}

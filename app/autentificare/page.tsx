@@ -13,17 +13,17 @@ export default function Autentificare() {
   async function trimite(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    const sb = sbBrowser(); if (!sb) { setMsg("Baza de date nu e configurată."); return; }
+    const sb = sbBrowser(); if (!sb) { setMsg("Autentificarea nu e disponibilă momentan. Încearcă din nou peste câteva minute."); return; }
     setStare("trimit"); setMsg("");
     const email = String(f.get("email")), password = String(f.get("parola"));
     if (mod === "register") {
       const { error } = await sb.auth.signUp({ email, password, options: { data: { nume: f.get("nume") } } });
       if (error) { setMsg(error.message); setStare("idle"); return; }
-      setMsg("Cont creat! Dacă e cerută confirmarea, verifică e-mailul; altfel intră direct.");
+      setMsg("Contul a fost creat. Dacă primești un e-mail de confirmare, deschide-l; altfel te poți autentifica direct.");
       setMod("login"); setStare("idle");
     } else {
       const { error } = await sb.auth.signInWithPassword({ email, password });
-      if (error) { setMsg("E-mail sau parolă greșite."); setStare("idle"); return; }
+      if (error) { setMsg("E-mailul sau parola nu se potrivesc. Verifică-le și încearcă din nou."); setStare("idle"); return; }
       router.push("/cont");
     }
   }

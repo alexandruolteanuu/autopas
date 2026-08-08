@@ -23,7 +23,7 @@ export default function ReturnForm() {
       <div className="fld"><label>Nume *</label><input name="nume" required autoComplete="name" /></div>
       <div className="fld"><label>E-mail *</label><input name="email" type="email" required inputMode="email" autoComplete="email" /></div>
       <div className="fld"><label>Telefon</label><input name="telefon" type="tel" inputMode="numeric" autoComplete="tel" /></div>
-      <div className="fld sm:col-span-2"><label>Produsul returnat *</label><input name="produs" required /></div>
+      <div className="fld sm:col-span-2"><label>Piesa returnată *</label><input name="produs" required /></div>
       <div className="fld sm:col-span-2"><label>Motivul returului *</label>
         <select name="motiv" required>
           <option value="">Alege…</option>
@@ -34,7 +34,7 @@ export default function ReturnForm() {
         </select></div>
       <div className="fld sm:col-span-2"><label>IBAN pentru rambursare <span className="font-normal text-textSecundar">(dacă ai plătit ramburs)</span></label><input name="iban" placeholder="RO…" /></div>
       <button disabled={stare === "trimit"} className="btn-acc sm:col-span-2">{stare === "trimit" ? "Se trimite…" : "Trimite cererea de retur"}</button>
-      {stare === "eroare" && <p className="text-red-600 text-sm sm:col-span-2">Eroare la trimitere — scrie-ne la comenzi@autopas.ro.</p>}
+      {stare === "eroare" && <p className="text-red-600 text-sm sm:col-span-2">Cererea de retur nu a putut fi trimisă. Verifică numărul comenzii și încearcă din nou..</p>}
     </form>
   );
 }

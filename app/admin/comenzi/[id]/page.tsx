@@ -56,7 +56,7 @@ export default function DetaliuComanda() {
   }
 
   async function stergeComanda() {
-    if (!confirm("ȘTERGI definitiv comanda? Piesele revin pe stoc. Acțiunea nu poate fi anulată.")) return;
+    if (!confirm("Ștergi definitiv comanda? Piesele revin pe stoc, iar jurnalul comenzii se pierde. Acțiunea nu poate fi anulată.")) return;
     const sb = sbBrowser()!;
     const { data, error } = await sb.rpc("sterge_comanda", { oid: Number(id) });
     if (error) { setMsg("Eroare: " + error.message); return; }

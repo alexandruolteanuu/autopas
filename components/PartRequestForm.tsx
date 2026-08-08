@@ -20,7 +20,7 @@ export default function PartRequestForm({ sursa, dark = false }: { sursa: string
   }
   if (stare === "ok")
     return <div className={`rounded-xl p-6 text-center ${dark ? "bg-white/10" : "card"}`}>
-      <b className="text-ok text-lg">✓ Cererea a fost trimisă!</b>
+      <b className="text-ok text-lg">✓ Cererea a fost trimisă</b>
       <p className={`text-sm mt-1 ${dark ? "text-headerText/70" : "text-textSecundar"}`}>Îți verificăm stocul și revenim în cel mai scurt timp.</p></div>;
   return (
     <form onSubmit={trimite} className={`rounded-xl p-5 grid sm:grid-cols-2 gap-3 ${dark ? "bg-suprafata text-text shadow-card" : "card"}`}>
@@ -31,7 +31,7 @@ export default function PartRequestForm({ sursa, dark = false }: { sursa: string
       <div className="fld sm:col-span-2"><label>Piesa căutată *</label><input name="piesa" required placeholder="ex. electromotor / cod OEM" /></div>
       <div className="fld sm:col-span-2"><label>Detalii</label><textarea name="mesaj" rows={2} /></div>
       <button disabled={stare === "trimit"} className="btn-acc sm:col-span-2">{stare === "trimit" ? "Se trimite…" : "Trimite cererea"}</button>
-      {stare === "eroare" && <p className="text-red-600 text-sm sm:col-span-2">A apărut o eroare — verifică datele sau sună-ne direct.</p>}
+      {stare === "eroare" && <p className="text-red-600 text-sm sm:col-span-2">Cererea nu a putut fi trimisă. Verifică numărul de telefon și încearcă din nou.</p>}
     </form>
   );
 }
