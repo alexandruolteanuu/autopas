@@ -63,7 +63,13 @@ Idempotente (se pot re-rula oricând): 6, 7, 9, 10, 11, 12, 13, 14, 15. NU sunt 
 Toate cele de mai sus sunt deja aplicate pe proiectul de producție (august 2026).
 
 ## Decizii deja luate (nu le schimba fără să întrebi)
-- Logo = doar text (AUTOPAS / DEZMEMBRĂRI), portocaliu #FF6B1A. Font: Poppins (local, în `app/fonts/`).
+- Logo = imagine PNG (roată dințată + siluetă de mașină + „AUTOPAS DEZMEMBRĂRI", metalic cu
+  portocaliu #FF6B1A), pusă din 10 august 2026 în locul vechiului logo scris cu text. Se afișează
+  prin `components/Logo.tsx` — singura sursă; îi dai înălțimea din `className`. Originalul netăiat
+  stă în `design/logo-original.png` (nu e servit public), iar `design/genereaza-imagini.py` reface
+  din el `public/logo.png` + iconițele + imaginea de partajare. Logo-ul e gândit pentru fundal
+  închis (header, subsol, sidebar-ul de admin — toate temele le au închise). Font: Poppins
+  (local, în `app/fonts/`).
 - VIN = **se folosește, dar niciodată complet**. Pe mașinile la dezmembrat există `vin_masca`
   (serie parțială, ex. `WVWZZZ1KZ…8452`), afișată public în `/cauta-dupa-masina` și editabilă în
   `/admin/masini`. Formularul de predare a mașinii cere VIN-ul complet, opțional

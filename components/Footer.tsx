@@ -3,6 +3,7 @@ import type { Firma } from "@/lib/settings";
 import { FIRMA_IMPLICITA } from "@/lib/settings";
 import { CONFIG, PROGRAM, ADRESA, telLink } from "@/lib/config";
 import HartiLinks from "./HartiLinks";
+import Logo from "./Logo";
 import { IconTelefon, IconPin } from "./Icoane";
 // Footer complet — modelul cerut de client: toate paginile legale + bannere ANPC/SOL vizibile.
 export default function Footer({ firma = FIRMA_IMPLICITA }: { firma?: Firma }) {
@@ -10,8 +11,7 @@ export default function Footer({ firma = FIRMA_IMPLICITA }: { firma?: Firma }) {
     <footer className="bg-footerBg text-footerText mt-16">
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4 text-sm">
         <div>
-          <span className="block font-disp font-bold text-[24px]">AUTOPAS</span>
-          <span className="block font-disp text-[12px] tracking-[0.2em] text-footerText/60 mb-3">DEZMEMBRĂRI</span>
+          <Logo className="h-[68px] mb-3" />
           <p className="text-footerText/70 leading-relaxed">Piese auto second-hand testate, din dezmembrări autorizate. Garanție 90 de zile conform OUG 140/2021, livrare în 1–3 zile lucrătoare în toată România.</p>
           <p className="mt-3 text-footerText/70 flex gap-2"><IconPin className="w-[16px] h-[16px] shrink-0 mt-0.5" /><span>{ADRESA.scurt}<br />
             <span className="text-footerText/50 text-[12px]">{ADRESA.reper}</span></span></p>

@@ -9,6 +9,7 @@ import { useFavorites } from "./FavoritesContext";
 import { sbBrowser } from "@/lib/supabase";
 import { CONFIG, PROGRAM, LIVRARE, telLink } from "@/lib/config";
 import HartiLinks from "./HartiLinks";
+import Logo from "./Logo";
 import { IconTelefon } from "./Icoane";
 // TEMPORAR — selector teme pentru client. Vezi instrucțiunile de ștergere din CLAUDE.md
 import SelectorTeme from "./SelectorTeme";
@@ -104,9 +105,10 @@ export default function Header() {
       </div>
 
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-3 flex items-center gap-2 sm:gap-4 min-w-0">
-        <Link href="/" className="flex flex-col justify-center leading-none shrink-0 min-h-[44px]">
-          <span className="block font-disp font-bold text-[17px] min-[360px]:text-[22px] sm:text-[26px] tracking-wide">AUTOPAS</span>
-          <span className="hidden min-[360px]:block font-disp font-medium text-[12px] tracking-[0.19em] text-headerText/60">DEZMEMBRĂRI</span>
+        <Link href="/" aria-label="Autopas Dezmembrări — pagina principală"
+          className="flex items-center shrink-0 min-h-[44px]">
+          {/* Înălțimea logo-ului: aici o schimbi dacă vrei marca mai mare sau mai mică. */}
+          <Logo className="h-10 min-[360px]:h-12 sm:h-16" eager />
         </Link>
 
         <form action="/piese" className="hidden md:flex flex-1 min-w-0">

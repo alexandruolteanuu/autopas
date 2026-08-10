@@ -11,6 +11,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { sbBrowser } from "@/lib/supabase";
 import NewOrderAlert from "@/components/admin/NewOrderAlert";
+import Logo from "@/components/Logo";
 
 type Rol = "verific" | "anonim" | "client" | "admin" | "operator" | "contabil";
 type Cauta = { tip: string; titlu: string; sub: string; href: string };
@@ -118,8 +119,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* ===== SIDEBAR ===== */}
       <aside className="bg-ink text-white lg:min-h-screen lg:sticky lg:top-0 lg:h-screen flex lg:flex-col overflow-x-auto">
         <Link href="/admin" className="hidden lg:block px-5 py-5 border-b border-white/10">
-          <span className="font-disp font-bold text-xl tracking-wide">AUTOPAS</span>
-          <span className="block text-[9px] tracking-[0.4em] text-white/50">ADMINISTRARE</span>
+          <Logo className="h-12" />
+          <span className="block mt-2 text-[9px] tracking-[0.4em] text-white/50">ADMINISTRARE</span>
         </Link>
         <nav className="flex lg:flex-col flex-1 lg:py-3">
           {meniu.map((m) => {
