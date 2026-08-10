@@ -40,8 +40,11 @@ export default function Expedieri() {
       <style>body{font-family:system-ui;padding:24px;color:#15181C}h1{font-size:18px;margin:0 0 4px}
       table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px}
       th,td{border:1px solid #ddd;padding:7px;text-align:left}th{background:#f5f4f1}
-      .semn{margin-top:40px;display:flex;justify-content:space-between;font-size:13px}</style></head><body>
-      <h1>Borderou de predare colete — Autopas Dezmembrări</h1>
+      .semn{margin-top:40px;display:flex;justify-content:space-between;font-size:13px}
+      .cap{display:flex;align-items:center;gap:14px}.cap img{height:52px;width:auto}</style></head>
+      <body onload="window.print()">
+      <div class="cap"><img src="/logo.png" alt="Autopas Dezmembrări">
+      <h1>Borderou de predare colete</h1></div>
       <div>Data: ${new Date().toLocaleDateString("ro-RO")} · Colete: ${alese.length}</div>
       <table><tr><th>#</th><th>AWB</th><th>Comandă</th><th>Destinatar</th><th>Localitate</th><th>Curier</th><th>Greutate</th><th>Ramburs</th></tr>
       ${alese.map((o, i) => `<tr><td>${i + 1}</td><td>${o.awb ?? "—"}</td><td>${o.numar}</td>
@@ -50,7 +53,9 @@ export default function Expedieri() {
         <td>${o.plata === "ramburs" ? Number(o.total).toFixed(2) + " lei" : "—"}</td></tr>`).join("")}</table>
       <div class="semn"><span>Predat (Autopas): ______________________</span><span>Primit (curier): ______________________</span></div>
       </body></html>`);
-    w.document.close(); w.print();
+    // Tipărirea o pornește `onload` din pagina scrisă mai sus, nu o chemăm aici:
+    // altfel dialogul s-ar deschide înainte ca logo-ul să apuce să se încarce.
+    w.document.close();
   }
 
   async function marcheazaExpediat() {
