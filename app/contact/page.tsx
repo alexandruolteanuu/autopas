@@ -25,6 +25,15 @@ export default async function Contact() {
           <p className="flex gap-2.5"><IconCamion className="w-[18px] h-[18px] shrink-0 mt-0.5 text-accent" /><span>{LIVRARE}</span></p>
           <p className="flex gap-2.5"><IconPin className="w-[18px] h-[18px] shrink-0 mt-0.5 text-accent" />
             <span>{ADRESA.lung}<br /><span className="text-textSecundar">{ADRESA.reper} · ridicare personală cu programare</span></span></p>
+          {/* Datele de identificare ale societății — legea cere să fie ușor de găsit,
+              nu ascunse în subsolul unui document. */}
+          <div className="border-t border-chenar pt-3 mt-3 text-textSecundar text-[13px] leading-relaxed">
+            <b className="font-disp font-semibold text-[12px] text-text block mb-1">Date de identificare</b>
+            <span className="block break-words">{firma.denumire}</span>
+            {firma.cui && <span className="block">Cod fiscal: {firma.cui}</span>}
+            {firma.reg_com && <span className="block">Reg. Com.: {firma.reg_com}</span>}
+            {firma.adresa && <span className="block break-words">Sediu social: {firma.adresa}</span>}
+          </div>
         </div>
         <div><b className="font-disp font-semibold text-[13px] block mb-3">Scrie-ne un mesaj</b><ContactForm /></div>
         <div><b className="font-disp font-semibold text-[13px] block mb-3">Caut o piesă</b><PartRequestForm sursa="contact" /></div>

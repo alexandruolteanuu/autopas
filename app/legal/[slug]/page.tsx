@@ -45,6 +45,31 @@ export default async function LegalPage({ params }: { params: { slug: string } }
                   ))}
                 </ul>
               )}
+              {/* Tabelele (lista de cookie-uri, scopurile GDPR) derulează pe orizontală
+                  în interiorul propriei casete. Pe telefon patru coloane nu încap, iar
+                  fără `overflow-x-auto` tabelul ar lăți toată pagina. */}
+              {s.tabel && (
+                <div className="mt-3 overflow-x-auto rounded-[var(--r-mediu)] border border-chenar">
+                  <table className="w-full min-w-[560px] border-collapse text-[14px]">
+                    <thead>
+                      <tr className="bg-suprafata2 text-left">
+                        {s.tabel.capuri.map((c) => (
+                          <th key={c} className="font-disp font-semibold p-3 border-b border-chenar align-top">{c}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {s.tabel.randuri.map((r, i) => (
+                        <tr key={i} className="border-b border-chenar last:border-0 align-top">
+                          {r.map((celula, j) => (
+                            <td key={j} className={`p-3 leading-relaxed ${j === 0 ? "font-semibold whitespace-nowrap" : "text-textSecundar"}`}>{celula}</td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </section>
           ))}
         </div>
