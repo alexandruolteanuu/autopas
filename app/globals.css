@@ -563,14 +563,31 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 .t-eticheta  { @apply font-disp uppercase; font-size: 12px; font-weight: 500; letter-spacing: 0.06em; }
 .t-pret      { @apply font-disp font-bold; font-size: 20px; font-variant-numeric: tabular-nums; }
 
+/* Titlul de pe pagina de acasă. Are propria mărime pentru că textul lui e lung
+   (38 + 31 de caractere): la 46px se rupea în 4 rânduri pe orice ecran.
+   Valorile de mai jos sunt măsurate în browser, cu ~5% marjă sub limita la care
+   titlul ar trece pe al treilea rând, pentru fiecare lățime a coloanei:
+     ≥640px  → coloana 592px, limita 32.5px
+     ≥1024px → coloana 552px (grila trece pe două coloane), limita 30.5px
+     ≥1280px → coloana 706px, limita 39.5px
+   Pe telefon două rânduri sunt imposibile: ar cere 15–19px, adică sub un titlu.
+   Dacă textul titlului se schimbă, valorile trebuie remăsurate. */
+.t-hero-acasa { font-size: 26px; line-height: 1.2; }
+
 @media (min-width: 640px) {
   .t-hero     { font-size: 46px; line-height: 1.1; }
+  .t-hero-acasa { font-size: 31px; line-height: 1.15; }
   .t-sectiune { font-size: 32px; }
   .t-card     { font-size: 19px; }
   .t-corp     { font-size: 16px; }
   .t-secundar { font-size: 14px; }
   .t-pret     { font-size: 24px; }
 }
+
+/* Coloana titlului se îngustează la `lg`, când grila hero trece pe două
+   coloane, și se lărgește din nou la `xl` — de aceea mărimea scade și urcă. */
+@media (min-width: 1024px) { .t-hero-acasa { font-size: 29px; } }
+@media (min-width: 1280px) { .t-hero-acasa { font-size: 37px; } }
 
 /* Rândul de text nu trece de 65 de caractere în paginile cu text lung */
 .text-lung p, .text-lung li { max-width: 65ch; }

@@ -52,7 +52,7 @@ export default async function Home() {
               <RecycleIcon className="w-[18px] h-[18px] shrink-0" />
               Dezmembrăm responsabil. Reciclăm pentru viitor.
             </div>
-            <h1 className="t-hero mt-4">
+            <h1 className="t-hero t-hero-acasa mt-4">
               Piese originale. Testate. Cu garanție.<br />
               <span className="text-accent">Pregătite pentru noul tău drum.</span>
             </h1>
