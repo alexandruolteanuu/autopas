@@ -257,7 +257,6 @@ export function getLegalDocs(firma: Firma = FIRMA_IMPLICITA): LegalDoc[] {
           ["autopas_cookies", "localStorage", "Chiar alegerea ta din bannerul de cookie-uri, ca să nu te întrebăm la fiecare pagină", "Până o schimbi din Setări cookie-uri"],
           ["autopas_reducere", "sessionStorage", "Codul de reducere aplicat, între coș și finalizarea comenzii", "Se șterge singur când închizi fila"],
           ["sb-…-auth-token", "localStorage", "Sesiunea de autentificare, ca să rămâi conectat în contul tău între pagini", "Până te deconectezi sau expiră sesiunea"],
-          ["autopas-tema", "localStorage", "Tema de culoare aleasă. Element temporar, folosit cât timp se stabilește paleta site-ului", "Până o ștergi"],
           ["autopas_sunet", "localStorage", "Doar pentru echipa noastră, în panoul de administrare: dacă alerta sonoră la comandă nouă e pornită", "Până o schimbă utilizatorul"],
         ],
       }},

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import SiteChrome from "@/components/SiteChrome";
@@ -40,20 +40,17 @@ export const metadata: Metadata = {
   },
 };
 
+// Bara de sus a browserului pe Android se colorează la fel cu headerul, în loc să
+// rămână albă. În Next 14 `themeColor` stă în `viewport`, nu în `metadata` — acolo
+// e depreciat și dă avertisment la build.
+export const viewport: Viewport = {
+  themeColor: "#000000",
+};
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const { firma } = await getSetariServer();
   return (
     <html lang="ro" className={poppins.variable}>
-      <head>
-        {/* TEMPORAR — selector teme pentru client. Vezi instrucțiunile de ștergere din CLAUDE.md.
-            Scriptul aplică tema salvată ÎNAINTE ca pagina să se deseneze; fără el, la fiecare
-            reîncărcare site-ul apare o clipă în tema veche și apoi sare. */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('autopas-tema');if(t&&t!=='actuala'){document.documentElement.setAttribute('data-tema',t);}}catch(e){}})();`,
-          }}
-        />
-      </head>
       <body>
         <CartProvider>
           <FavoritesProvider>

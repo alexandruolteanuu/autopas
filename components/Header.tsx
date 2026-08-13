@@ -11,8 +11,6 @@ import { CONFIG, PROGRAM, LIVRARE, telLink } from "@/lib/config";
 import HartiLinks from "./HartiLinks";
 import Logo from "./Logo";
 import { IconTelefon } from "./Icoane";
-// TEMPORAR — selector teme pentru client. Vezi instrucțiunile de ștergere din CLAUDE.md
-import SelectorTeme from "./SelectorTeme";
 
 const NAV = [
   { href: "/", t: "Acasă" },
@@ -81,7 +79,6 @@ export default function Header() {
   );
 
   return (
-    <>
     <header className={`text-headerText sticky top-0 z-40 transition-colors duration-200 ${defilat ? "sticla-header" : "bg-headerBg"}`}>
       {/* Bara de sus: telefonul (țintă de atingere proprie) și hărțile.
           Programul și textul despre livrare apar doar de la sm/lg în sus — pe
@@ -97,9 +94,6 @@ export default function Header() {
           </div>
           <div className="flex items-center shrink-0">
             <HartiLinks />
-            {/* TEMPORAR — selector teme pentru client. Vezi instrucțiunile de ștergere din CLAUDE.md.
-                Pe telefon stă în fâșia proprie de sub header, nu aici. */}
-            <span className="hidden md:inline-flex ml-3"><SelectorTeme /></span>
           </div>
         </div>
       </div>
@@ -149,15 +143,5 @@ export default function Header() {
         </div>
       </nav>
     </header>
-
-    {/* TEMPORAR — selector teme pentru client. Vezi instrucțiunile de ștergere din CLAUDE.md.
-        Sub 768px are fâșia lui pe toată lățimea, imediat sub header, ca să nu se
-        mai suprapună cu nimic din bara de sus. */}
-    <div className="md:hidden relative z-20 bg-headerBg text-headerText border-t border-white/10">
-      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 py-2 flex items-center justify-end min-w-0">
-        <SelectorTeme />
-      </div>
-    </div>
-    </>
   );
 }

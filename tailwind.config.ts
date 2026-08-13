@@ -9,9 +9,10 @@ const config: Config = {
         ink: "#15181C", steel: "#3A4048", acc: "#FF6B1A", paper: "#F5F4F1",
         ok: "#1FA463", line: "#E4E1DA", mut: "#6C7480",
 
-        // TEMPORAR — culorile care se schimbă odată cu tema aleasă.
-        // Valorile stau în app/globals.css. Sintaxa cu <alpha-value> face
-        // să meargă și transparența: bg-accent/10, border-chenar/40.
+        // Culorile temei site-ului public. Valorile stau în blocul `:root`
+        // din app/globals.css — acolo se schimbă, nu aici și nici în
+        // componente. Sintaxa cu <alpha-value> face să meargă și
+        // transparența: bg-accent/10, border-chenar/40.
         fundal:       "rgb(var(--fundal) / <alpha-value>)",
         suprafata:    "rgb(var(--suprafata) / <alpha-value>)",
         suprafata2:   "rgb(var(--suprafata-2) / <alpha-value>)",
@@ -25,6 +26,7 @@ const config: Config = {
         headerText:   "rgb(var(--header-text) / <alpha-value>)",
         footerBg:     "rgb(var(--footer-bg) / <alpha-value>)",
         footerText:   "rgb(var(--footer-text) / <alpha-value>)",
+        imagineBg:    "rgb(var(--imagine-bg) / <alpha-value>)",
       },
       fontFamily: { disp: ["var(--font-poppins)"], body: ["var(--font-poppins)"] },
       boxShadow: { card: "0 8px 26px rgba(21,24,28,.08)" },

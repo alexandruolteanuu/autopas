@@ -14,14 +14,15 @@ export default function ProductGallery({ poze, art, nume }: { poze: string[]; ar
   return (
     <div>
       <div className="card overflow-hidden">
-        <img src={poze[activ]} alt={nume} className="w-full aspect-[100/72] object-cover bg-suprafata2" />
+        {/* fundalul zonei de imagine: --imagine-bg din app/globals.css */}
+        <img src={poze[activ]} alt={nume} className="w-full aspect-[100/72] object-cover bg-imagineBg" />
       </div>
       {poze.length > 1 && (
         <div className="grid grid-cols-5 gap-2 mt-2">
           {poze.map((u, i) => (
             <button key={u} onClick={() => setActiv(i)}
               className={`rounded-lg overflow-hidden border-2 ${i === activ ? "border-accent" : "border-chenar"}`}>
-              <img src={u} alt="" className="w-full aspect-[100/72] object-cover" />
+              <img src={u} alt="" className="w-full aspect-[100/72] object-cover bg-imagineBg" />
             </button>
           ))}
         </div>

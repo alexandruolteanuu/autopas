@@ -138,34 +138,50 @@ Meniul și drepturile pe rol sunt definite în `app/admin/layout.tsx` (constanta
 La orice funcție nouă expusă public: `revoke execute ... from public` — nu doar de la `anon`,
 fiindcă `anon` moștenește dreptul prin rolul `PUBLIC`.
 
-## TEMPORAR — selector teme
+## Culorile site-ului
 
-În header există un dropdown din care clientul alege între 12 teme de culoare, ca să se hotărască
-asupra paletei. **Se șterge după ce se decide.** Culorile site-ului public sunt legate de 13
-variabile CSS (`--fundal`, `--suprafata`, `--suprafata-2`, `--text`, `--text-secundar`, `--chenar`,
-`--accent`, `--accent-hover`, `--accent-contrast`, `--header-bg`, `--header-text`, `--footer-bg`,
-`--footer-text`), definite în `app/globals.css` și expuse ca clase Tailwind (`bg-fundal`,
-`text-textSecundar`, `bg-accent`, `text-accentText`…). Panoul `/admin` NU e tematizat: containerele
-lui poartă clasa `tema-clasica`, care redeclară paleta veche, deci rămâne identic orice temă s-ar alege.
+**Temă definitivă: „Atelier, galben industrial" (negru + #F2B705), aleasă în august 2026.
+Culorile se modifică exclusiv din blocul `:root` din `app/globals.css`.** Selectorul temporar
+de teme a fost eliminat complet (13 august 2026), dar sistemul de variabile a rămas: componentele
+nu scriu niciodată culori direct, ci folosesc clasele semantice din `tailwind.config.ts`
+(`bg-fundal`, `text-text`, `text-textSecundar`, `bg-accent`, `text-accentText`, `border-chenar`,
+`bg-imagineBg`…), care citesc variabilele. O schimbare de nuanță = o linie modificată.
 
-**Ascundere rapidă** (fără să ștergi nimic): `SELECTOR_TEME_ACTIV = false` în `lib/config.ts`.
+Reguli care rezultă din asta:
+- **Nu scrie hexa în componente.** `bg-accent`, nu `bg-[#F2B705]`.
+- `--accent-contrast` e **închis** (#101010): textul de pe galben e negru. Alb pe #F2B705 dă
+  1,8:1, ilizibil. Pe butoanele de accent se folosește `text-accentText`, niciodată `text-white`.
+- `--chenar` (#2A2A2A) e doar pentru linii decorative și separatoare. Pentru chenarele care trebuie
+  să se vadă — câmpuri de formular, butoane secundare, `select`, zone de încărcare — se folosește
+  `--chenar-puternic` (#707070), care trece pragul de 3:1 din WCAG 1.4.11.
+- `--imagine-bg` e fundalul zonei de imagine din cardul de produs și din galerie (pozele de piese
+  sunt fotografiate pe fundal deschis).
+- `color-scheme: dark` în `:root` face ca barele de defilare și controalele native să fie desenate
+  întunecat. `.tema-clasica` declară invers, `color-scheme: light`.
+- `@media print` răstoarnă variabilele pe alb și ascunde `header`, `nav` și `[data-strat-fix]`
+  (bannerul de cookie-uri, butonul de WhatsApp, sertarul de filtre), ca pagina tipărită să nu iasă
+  neagră și să nu care meniuri pe hârtie.
 
-**Ștergere definitivă, în 3 pași:**
+Panoul `/admin` **rămâne luminos**, pe paleta clasică portocalie: containerele lui poartă clasa
+`tema-clasica` din `app/globals.css`, care redeclară toate variabilele. E unealta de lucru a
+operatorului, iar diferența față de site-ul public arată dintr-o privire unde te afli.
 
-1. **Promovează tema aleasă.** În `app/globals.css`, copiază cele 13 valori ale temei alese peste
-   valorile din `:root`, apoi șterge toate blocurile `[data-tema="…"]`. Actualizează și blocul
-   `.tema-clasica` dacă vrei ca adminul să urmeze noua paletă (altfel rămâne pe portocaliul vechi).
-2. **Scoate selectorul.** Șterge `components/SelectorTeme.tsx` și `lib/teme.ts`; din
-   `components/Header.tsx` scoate importul `SelectorTeme` și linia `<SelectorTeme />` (ambele sunt
-   marcate cu comentariul „TEMPORAR — selector teme"); din `app/layout.tsx` scoate blocul `<head>`
-   cu scriptul anti-„flash"; din `lib/config.ts` scoate `SELECTOR_TEME_ACTIV`.
-3. **Curăță.** Șterge din `app/globals.css` blocul de teme rămas (comentariile de început și de
-   sfârșit îl delimitează) și, dacă adminul a fost convertit între timp, clasa `tema-clasica` și
-   aparițiile ei din `app/admin/layout.tsx`. Variabilele CSS și clasele semantice din
-   `tailwind.config.ts` pot rămâne — sunt utile oricum.
+⚠️ `.tema-clasica` trebuie să declare și `color: rgb(var(--text))`, nu doar variabilele. `body` are
+`text-text`, iar regula aceea se calculează **pe body**, unde `--text` e alb; culoarea se moștenește
+apoi ca valoare gata calculată, nu ca formulă. Fără linia aceea, tot ce n-are clasă proprie de
+culoare în `/admin` iese alb pe alb. Aceeași grijă la orice clasă nouă care redeclară paleta.
 
 Culorile semantice (verdele `ok`, roșu de eroare, galben de avertizare, badge-urile de status,
-verdele WhatsApp `#25D366`) NU fac parte din teme și nu se ating.
+verdele WhatsApp `#25D366`) NU fac parte din temă și nu se ating. La fel bannerele ANPC din `public/`.
+
+Verificarea contrastului: `node scripts/verifica-contrast.mjs` — calculează raporturile pe ambele
+palete (site public și `/admin`) și iese cu cod 1 dacă vreo pereche obligatorie pică.
+
+**Scriptul iese astăzi cu cod 1, și e știut.** Site-ul public trece 12 din 12. Cele 3 perechi sub
+prag sunt toate din paleta clasică a panoului `/admin`: alb pe portocaliul `#FF6B1A` dă 2,85:1
+(text pe buton, hover, accent pe card). Problema e veche, dinainte de trecerea pe tema întunecată,
+și a fost lăsată deschis în august 2026 ca discuție separată despre paleta adminului. Până se
+rezolvă, scriptul nu poate fi pus în CI ca poartă blocantă.
 
 ## Când termini o modificare
 Rulează `npm run build`. Dacă trece, fă commit cu mesaj clar în română și push pe `main`.

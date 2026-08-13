@@ -17,9 +17,6 @@ export const CONFIG = {
 export const waLink = (text = "Bună! Am o întrebare despre o piesă.") =>
   `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(text)}`;
 
-// TEMPORAR — selector de teme pentru client. Pune pe false ca să-l ascunzi peste tot.
-export const SELECTOR_TEME_ACTIV = true;
-
 // ============================================================
 // CONTACT AFIȘAT — un singur loc pentru telefon, program și livrare.
 // Se folosește în header, footer și în paginile publice.

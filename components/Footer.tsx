@@ -58,7 +58,12 @@ export default function Footer({ firma = FIRMA_IMPLICITA }: { firma?: Firma }) {
           {/* Bannerele oficiale ANPC — dimensiunea legală 250×50 px (Ordinul 449/2022).
               Fișierele din public/anpc-sal.png și public/anpc-sol.png trebuie să fie cele OFICIALE,
               descărcate de pe anpc.ro/ce-este-sal. */}
-          <div className="mt-4 flex flex-wrap gap-2 justify-center sm:justify-start">
+          {/* Pe subsolul negru, cele două fișiere (care au fundal deschis) ar apărea ca
+              două pete răsărite din senin. Containerul deschis de mai jos le adună într-o
+              zonă delimitată, ca să arate intenționat, nu accidental. Fișierele rămân
+              neatinse: fără redimensionare, fără filtre CSS — sunt materiale oficiale. */}
+          <div className="mt-4 inline-flex flex-wrap gap-2 justify-center sm:justify-start
+                          bg-imagineBg/10 border border-white/10 rounded-[var(--r-mediu)] p-3">
             <a href="https://anpc.ro/ce-este-sal/" target="_blank" rel="noopener noreferrer"
               className="block w-[250px] max-w-full">
               <img src="/anpc-sal.png" alt="ANPC — Soluționarea Alternativă a Litigiilor"

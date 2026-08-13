@@ -3,195 +3,32 @@
 @tailwind utilities;
 
 /* ============================================================
-   TEMPORAR — teme de culoare pentru ales.
-   Instrucțiunile de ștergere sunt în CLAUDE.md, secțiunea
-   „TEMPORAR — selector teme".
+   PALETA SITE-ULUI — „Atelier, galben industrial" (negru + #F2B705).
+   Temă unică și definitivă, aleasă de client în august 2026.
+
+   ACESTA E SINGURUL LOC DE UNDE SE SCHIMBĂ CULORILE. Componentele nu
+   scriu culori direct; folosesc clasele semantice din tailwind.config.ts
+   (bg-fundal, text-text, bg-accent…), care citesc variabilele de aici.
+   Dacă mâine se vrea alt galben, se schimbă --accent și atât.
 
    Culorile se scriu ca CANALE RGB, nu hex, ca Tailwind să poată
    folosi și transparența: bg-accent/10, border-chenar/40.
    ============================================================ */
-
-/* Tema 0 — „Actuală". Valorile sunt extrase din codul de dinainte de
-   selector (paleta veche: paper/ink/acc/line/mut din tailwind.config).
-   Cât timp nu se alege altă temă, site-ul arată exact ca înainte. */
 :root {
-  --fundal: 245 244 241;        /* #F5F4F1 — vechiul „paper" */
-  --suprafata: 255 255 255;     /* #FFFFFF — cardurile erau bg-white */
-  --suprafata-2: 245 244 241;   /* #F5F4F1 — blocurile secundare foloseau tot „paper" */
-  --text: 21 24 28;             /* #15181C — vechiul „ink" */
-  --text-secundar: 108 116 128; /* #6C7480 — vechiul „mut" */
-  --chenar: 228 225 218;        /* #E4E1DA — vechiul „line" */
-  --accent: 255 107 26;         /* #FF6B1A */
-  --accent-hover: 255 118 29;   /* #FF761D — exact ce dădea hover:brightness-110 */
-  --accent-contrast: 255 255 255; /* #FFFFFF */
-  --header-bg: 21 24 28;        /* #15181C */
-  --header-text: 255 255 255;   /* #FFFFFF */
-  --footer-bg: 21 24 28;        /* #15181C */
-  --footer-text: 255 255 255;   /* #FFFFFF */
-  --camp-bg: 245 244 241;   /* fundalul câmpurilor de formular — diferit de cardul din spate */
-  --chenar-puternic: 134 140 148;   /* chenar de input/buton — minimum 3:1 față de suprafață (WCAG 1.4.11) */
-  --sticla-bg: 255 255 255;
-  --sticla-chenar: 122 126 131;
-  --umbra: 21 24 28;
-  /* opacitatea sticlei: mai mare pe temele deschise, ca textul de deasupra să rămână lizibil */
-  --sticla-opacitate: 0.72;
-}
+  /* Tema e întunecată. Fără linia asta browserul ar desena barele de
+     defilare, calendarele native și listele de select în variantă
+     luminoasă — petice albe pe un site negru. */
+  color-scheme: dark;
 
-/* Tema 1 — Negru + auriu */
-[data-tema="negru-auriu"] {
-  --fundal: 18 18 18;           /* #121212 */
-  --suprafata: 27 27 27;        /* #1B1B1B */
-  --suprafata-2: 43 43 43;      /* #2B2B2B */
-  --text: 255 255 255;          /* #FFFFFF */
-  --text-secundar: 179 179 179; /* #B3B3B3 */
-  --chenar: 43 43 43;           /* #2B2B2B */
-  --accent: 201 162 39;         /* #C9A227 */
-  --accent-hover: 176 141 28;   /* #B08D1C */
-  --accent-contrast: 18 18 18;  /* #121212 */
-  --header-bg: 13 13 13;        /* #0D0D0D */
-  --header-text: 255 255 255;   /* #FFFFFF */
-  --footer-bg: 13 13 13;        /* #0D0D0D */
-  --footer-text: 179 179 179;   /* #B3B3B3 */
-  --camp-bg: 43 43 43;   /* fundalul câmpurilor de formular — diferit de cardul din spate */
-  --chenar-puternic: 118 118 118;   /* chenar de input/buton — minimum 3:1 față de suprafață (WCAG 1.4.11) */
-  --sticla-bg: 27 27 27;
-  --sticla-chenar: 127 127 127;
-  --umbra: 0 0 0;
-  /* opacitatea sticlei: mai mare pe temele deschise, ca textul de deasupra să rămână lizibil */
-  --sticla-opacitate: 0.62;
-}
-
-/* Tema 2 — Antracit + portocaliu ars */
-[data-tema="antracit-portocaliu"] {
-  --fundal: 31 41 55;           /* #1F2937 */
-  --suprafata: 38 50 65;        /* #263241 */
-  --suprafata-2: 47 59 76;      /* #2F3B4C */
-  --text: 255 255 255;          /* #FFFFFF */
-  --text-secundar: 182 192 204; /* #B6C0CC */
-  --chenar: 55 69 90;           /* #37455A */
-  --accent: 230 126 34;         /* #E67E22 */
-  --accent-hover: 207 109 20;   /* #CF6D14 */
-  --accent-contrast: 255 255 255; /* #FFFFFF */
-  --header-bg: 22 30 40;        /* #161E28 */
-  --header-text: 255 255 255;   /* #FFFFFF */
-  --footer-bg: 22 30 40;        /* #161E28 */
-  --footer-text: 182 192 204;   /* #B6C0CC */
-  --camp-bg: 47 59 76;   /* fundalul câmpurilor de formular — diferit de cardul din spate */
-  --chenar-puternic: 122 134 150;   /* chenar de input/buton — minimum 3:1 față de suprafață (WCAG 1.4.11) */
-  --sticla-bg: 38 50 65;
-  --sticla-chenar: 133 144 158;
-  --umbra: 0 0 0;
-  /* opacitatea sticlei: mai mare pe temele deschise, ca textul de deasupra să rămână lizibil */
-  --sticla-opacitate: 0.62;
-}
-
-/* Tema 3 — Bleumarin + argintiu */
-[data-tema="bleumarin-argintiu"] {
-  --fundal: 15 23 42;           /* #0F172A */
-  --suprafata: 22 32 58;        /* #16203A */
-  --suprafata-2: 30 43 71;      /* #1E2B47 */
-  --text: 255 255 255;          /* #FFFFFF */
-  --text-secundar: 175 184 198; /* #AFB8C6 */
-  --chenar: 38 50 77;           /* #26324D */
-  --accent: 192 192 192;        /* #C0C0C0 */
-  --accent-hover: 169 169 169;  /* #A9A9A9 */
-  --accent-contrast: 15 23 42;  /* #0F172A */
-  --header-bg: 11 18 32;        /* #0B1220 */
-  --header-text: 255 255 255;   /* #FFFFFF */
-  --footer-bg: 11 18 32;        /* #0B1220 */
-  --footer-text: 175 184 198;   /* #AFB8C6 */
-  --camp-bg: 30 43 71;   /* fundalul câmpurilor de formular — diferit de cardul din spate */
-  --chenar-puternic: 108 118 139;   /* chenar de input/buton — minimum 3:1 față de suprafață (WCAG 1.4.11) */
-  --sticla-bg: 22 32 58;
-  --sticla-chenar: 122 131 149;
-  --umbra: 0 0 0;
-  /* opacitatea sticlei: mai mare pe temele deschise, ca textul de deasupra să rămână lizibil */
-  --sticla-opacitate: 0.62;
-}
-
-/* Tema 4 — Negru + verde smarald */
-[data-tema="negru-smarald"] {
-  --fundal: 14 14 14;           /* #0E0E0E */
-  --suprafata: 23 23 23;        /* #171717 */
-  --suprafata-2: 35 35 35;      /* #232323 */
-  --text: 255 255 255;          /* #FFFFFF */
-  --text-secundar: 173 173 173; /* #ADADAD */
-  --chenar: 38 38 38;           /* #262626 */
-  --accent: 15 139 109;         /* #0F8B6D */
-  --accent-hover: 12 115 89;    /* #0C7359 */
-  --accent-contrast: 255 255 255; /* #FFFFFF */
-  --header-bg: 10 10 10;        /* #0A0A0A */
-  --header-text: 255 255 255;   /* #FFFFFF */
-  --footer-bg: 10 10 10;        /* #0A0A0A */
-  --footer-text: 173 173 173;   /* #ADADAD */
-  --camp-bg: 35 35 35;   /* fundalul câmpurilor de formular — diferit de cardul din spate */
-  --chenar-puternic: 110 110 110;   /* chenar de input/buton — minimum 3:1 față de suprafață (WCAG 1.4.11) */
-  --sticla-bg: 23 23 23;
-  --sticla-chenar: 124 124 124;
-  --umbra: 0 0 0;
-  /* opacitatea sticlei: mai mare pe temele deschise, ca textul de deasupra să rămână lizibil */
-  --sticla-opacitate: 0.62;
-}
-
-/* Tema 5 — Catalog luminos */
-[data-tema="catalog-luminos"] {
-  --fundal: 245 246 248;        /* #F5F6F8 */
-  --suprafata: 255 255 255;     /* #FFFFFF */
-  --suprafata-2: 237 239 243;   /* #EDEFF3 */
-  --text: 17 24 39;             /* #111827 */
-  --text-secundar: 91 100 114;  /* #5B6472 */
-  --chenar: 225 228 234;        /* #E1E4EA */
-  --accent: 228 97 15;          /* #E4610F */
-  --accent-hover: 199 82 11;    /* #C7520B */
-  --accent-contrast: 255 255 255; /* #FFFFFF */
-  --header-bg: 31 41 55;        /* #1F2937 */
-  --header-text: 255 255 255;   /* #FFFFFF */
-  --footer-bg: 17 24 39;        /* #111827 */
-  --footer-text: 195 201 210;   /* #C3C9D2 */
-  --camp-bg: 237 239 243;   /* fundalul câmpurilor de formular — diferit de cardul din spate */
-  --chenar-puternic: 130 137 149;   /* chenar de input/buton — minimum 3:1 față de suprafață (WCAG 1.4.11) */
-  --sticla-bg: 255 255 255;
-  --sticla-chenar: 120 125 134;
-  --umbra: 17 24 39;
-  /* opacitatea sticlei: mai mare pe temele deschise, ca textul de deasupra să rămână lizibil */
-  --sticla-opacitate: 0.72;
-}
-
-/* Tema 6 — Verde reciclare */
-[data-tema="verde-reciclare"] {
-  --fundal: 246 248 246;        /* #F6F8F6 */
-  --suprafata: 255 255 255;     /* #FFFFFF */
-  --suprafata-2: 236 241 238;   /* #ECF1EE */
-  --text: 20 32 26;             /* #14201A */
-  --text-secundar: 86 101 92;   /* #56655C */
-  --chenar: 221 229 224;        /* #DDE5E0 */
-  --accent: 27 122 75;          /* #1B7A4B */
-  --accent-hover: 20 96 58;     /* #14603A */
-  --accent-contrast: 255 255 255; /* #FFFFFF */
-  --header-bg: 18 41 30;        /* #12291E */
-  --header-text: 255 255 255;   /* #FFFFFF */
-  --footer-bg: 15 33 24;        /* #0F2118 */
-  --footer-text: 184 199 190;   /* #B8C7BE */
-  --camp-bg: 236 241 238;   /* fundalul câmpurilor de formular — diferit de cardul din spate */
-  --chenar-puternic: 126 139 132;   /* chenar de input/buton — minimum 3:1 față de suprafață (WCAG 1.4.11) */
-  --sticla-bg: 255 255 255;
-  --sticla-chenar: 116 128 121;
-  --umbra: 20 32 26;
-  /* opacitatea sticlei: mai mare pe temele deschise, ca textul de deasupra să rămână lizibil */
-  --sticla-opacitate: 0.72;
-}
-
-/* Tema 7 — Atelier, galben industrial */
-[data-tema="atelier-galben"] {
   --fundal: 16 16 16;           /* #101010 */
   --suprafata: 25 25 25;        /* #191919 */
   --suprafata-2: 36 36 36;      /* #242424 */
   --text: 255 255 255;          /* #FFFFFF */
   --text-secundar: 171 171 171; /* #ABABAB */
-  --chenar: 42 42 42;           /* #2A2A2A */
+  --chenar: 42 42 42;           /* #2A2A2A — doar linii decorative și separatoare */
   --accent: 242 183 5;          /* #F2B705 */
   --accent-hover: 214 160 4;    /* #D6A004 */
-  --accent-contrast: 16 16 16;  /* #101010 */
+  --accent-contrast: 16 16 16;  /* #101010 — text ÎNCHIS peste galben; alb ar da 1,8:1 */
   --header-bg: 0 0 0;           /* #000000 */
   --header-text: 255 255 255;   /* #FFFFFF */
   --footer-bg: 0 0 0;           /* #000000 */
@@ -203,117 +40,35 @@
   --umbra: 0 0 0;
   /* opacitatea sticlei: mai mare pe temele deschise, ca textul de deasupra să rămână lizibil */
   --sticla-opacitate: 0.62;
+
+  /* Fundalul zonei de imagine din cardul de produs și din galerie. Pozele de
+     piese sunt fotografiate pe fundal deschis; ținut aici, se schimbă dintr-un
+     singur loc. Varianta „imaginea se topește în card": 25 25 25.
+
+     Valoarea e aceeași cu fundalul ilustrațiilor desenate din PartArt.tsx, ca un
+     card cu poză reală și unul cu ilustrație să arate la fel când stau alături în
+     grilă. ATENȚIE: PartArt NU citește variabila, își are culoarea scrisă în SVG —
+     intenționat, fiindcă desenul e în tușuri închise și ar dispărea dacă valoarea
+     de aici ar deveni întunecată. Dacă schimbi nuanța, schimb-o în ambele locuri. */
+  --imagine-bg: 236 233 226;    /* #ECE9E2 */
 }
 
-/* Tema 8 — Bleumarin + roșu service */
-[data-tema="bleumarin-rosu"] {
-  --fundal: 247 248 250;        /* #F7F8FA */
-  --suprafata: 255 255 255;     /* #FFFFFF */
-  --suprafata-2: 238 241 246;   /* #EEF1F6 */
-  --text: 15 27 45;             /* #0F1B2D */
-  --text-secundar: 90 101 119;  /* #5A6577 */
-  --chenar: 223 228 236;        /* #DFE4EC */
-  --accent: 217 43 43;          /* #D92B2B */
-  --accent-hover: 183 31 31;    /* #B71F1F */
-  --accent-contrast: 255 255 255; /* #FFFFFF */
-  --header-bg: 11 37 69;        /* #0B2545 */
-  --header-text: 255 255 255;   /* #FFFFFF */
-  --footer-bg: 8 28 51;         /* #081C33 */
-  --footer-text: 185 196 211;   /* #B9C4D3 */
-  --camp-bg: 238 241 246;   /* fundalul câmpurilor de formular — diferit de cardul din spate */
-  --chenar-puternic: 129 138 153;   /* chenar de input/buton — minimum 3:1 față de suprafață (WCAG 1.4.11) */
-  --sticla-bg: 255 255 255;
-  --sticla-chenar: 118 126 138;
-  --umbra: 15 27 45;
-  /* opacitatea sticlei: mai mare pe temele deschise, ca textul de deasupra să rămână lizibil */
-  --sticla-opacitate: 0.72;
-}
-
-/* ------------------------------------------------------------
-   Temele 9–11: FUNDAL ALB în tot site-ul, dar banda hero, headerul și
-   subsolul rămân închise (folosesc --header-bg / --footer-bg).
-   Accentele sunt luate din temele închise de mai sus, ca să fie aceeași
-   familie de culori, doar așezată pe alb.
-   Cardurile sunt tot albe: se disting prin chenar și umbră, ca azi.
-   ------------------------------------------------------------ */
-
-/* Tema 9 — Alb + auriu (accentul din „Negru + auriu") */
-[data-tema="alb-auriu"] {
-  --fundal: 255 255 255;        /* #FFFFFF */
-  --suprafata: 255 255 255;     /* #FFFFFF */
-  --suprafata-2: 247 244 236;   /* #F7F4EC — nuanță caldă pentru blocurile secundare */
-  --text: 26 24 20;             /* #1A1814 */
-  --text-secundar: 107 101 88;  /* #6B6558 */
-  --chenar: 231 225 210;        /* #E7E1D2 */
-  --accent: 147 114 18;         /* #937212 — auriu adânc: prețurile scrise cu accent
-                                   rămân lizibile pe alb (contrast 4,5), la fel și
-                                   textul alb de pe butoane */
-  --accent-hover: 122 94 14;    /* #7A5E0E */
-  --accent-contrast: 255 255 255; /* #FFFFFF */
-  --header-bg: 13 13 13;        /* #0D0D0D */
-  --header-text: 255 255 255;   /* #FFFFFF */
-  --footer-bg: 13 13 13;        /* #0D0D0D */
-  --footer-text: 179 179 179;   /* #B3B3B3 */
-  --camp-bg: 247 244 236;   /* fundalul câmpurilor de formular — diferit de cardul din spate */
-  --chenar-puternic: 145 139 126;   /* chenar de input/buton — minimum 3:1 față de suprafață (WCAG 1.4.11) */
-  --sticla-bg: 255 255 255;
-  --sticla-chenar: 130 125 113;
-  --umbra: 26 24 20;
-  /* opacitatea sticlei: mai mare pe temele deschise, ca textul de deasupra să rămână lizibil */
-  --sticla-opacitate: 0.72;
-}
-
-/* Tema 10 — Alb + smarald (accentul din „Negru + verde smarald") */
-[data-tema="alb-smarald"] {
-  --fundal: 255 255 255;        /* #FFFFFF */
-  --suprafata: 255 255 255;     /* #FFFFFF */
-  --suprafata-2: 239 246 242;   /* #EFF6F2 */
-  --text: 18 33 27;             /* #12211B */
-  --text-secundar: 86 107 96;   /* #566B60 */
-  --chenar: 220 231 225;        /* #DCE7E1 */
-  --accent: 13 122 95;          /* #0D7A5F — smarald adâncit pentru fundal alb */
-  --accent-hover: 10 98 73;     /* #0A6249 */
-  --accent-contrast: 255 255 255; /* #FFFFFF */
-  --header-bg: 10 10 10;        /* #0A0A0A */
-  --header-text: 255 255 255;   /* #FFFFFF */
-  --footer-bg: 10 10 10;        /* #0A0A0A */
-  --footer-text: 173 173 173;   /* #ADADAD */
-  --camp-bg: 239 246 242;   /* fundalul câmpurilor de formular — diferit de cardul din spate */
-  --chenar-puternic: 126 144 135;   /* chenar de input/buton — minimum 3:1 față de suprafață (WCAG 1.4.11) */
-  --sticla-bg: 255 255 255;
-  --sticla-chenar: 113 128 120;
-  --umbra: 18 33 27;
-  /* opacitatea sticlei: mai mare pe temele deschise, ca textul de deasupra să rămână lizibil */
-  --sticla-opacitate: 0.72;
-}
-
-/* Tema 11 — Alb + roșu service (accentul și bleumarinul din „Bleumarin + roșu") */
-[data-tema="alb-rosu"] {
-  --fundal: 255 255 255;        /* #FFFFFF */
-  --suprafata: 255 255 255;     /* #FFFFFF */
-  --suprafata-2: 241 244 248;   /* #F1F4F8 */
-  --text: 15 27 45;             /* #0F1B2D */
-  --text-secundar: 90 101 119;  /* #5A6577 */
-  --chenar: 223 228 236;        /* #DFE4EC */
-  --accent: 217 43 43;          /* #D92B2B */
-  --accent-hover: 183 31 31;    /* #B71F1F */
-  --accent-contrast: 255 255 255; /* #FFFFFF */
-  --header-bg: 11 37 69;        /* #0B2545 */
-  --header-text: 255 255 255;   /* #FFFFFF */
-  --footer-bg: 8 28 51;         /* #081C33 */
-  --footer-text: 185 196 211;   /* #B9C4D3 */
-  --camp-bg: 241 244 248;   /* fundalul câmpurilor de formular — diferit de cardul din spate */
-  --chenar-puternic: 131 140 155;   /* chenar de input/buton — minimum 3:1 față de suprafață (WCAG 1.4.11) */
-  --sticla-bg: 255 255 255;
-  --sticla-chenar: 118 126 138;
-  --umbra: 15 27 45;
-  /* opacitatea sticlei: mai mare pe temele deschise, ca textul de deasupra să rămână lizibil */
-  --sticla-opacitate: 0.72;
-}
-
-/* Panoul /admin nu e tematizat: își redeclară paleta clasică, așa că rămâne
-   identic indiferent ce temă alege clientul din header. */
+/* Panoul /admin rămâne LUMINOS, pe paleta clasică portocalie: e unealta de
+   lucru a operatorului, folosită ore întregi pe tabele și formulare, iar
+   diferența față de site-ul public arată dintr-o privire unde te afli.
+   Clasa se pune pe containerele din app/admin/layout.tsx. */
 .tema-clasica {
+  /* aici invers decât în :root — panoul e deschis, deci controalele native
+     (select, calendar, bare de defilare) trebuie desenate în variantă luminoasă */
+  color-scheme: light;
+
+  /* OBLIGATORIU. `body` are `text-text`, adică `color: rgb(var(--text))`, iar
+     regula aceea se calculează PE BODY, unde --text e alb. Culoarea se moștenește
+     apoi ca valoare gata calculată, nu ca formulă — deci fără linia asta tot ce nu
+     are clasă proprie de culoare rămâne alb pe fundalul deschis al panoului
+     (titlul „Panou de administrare" ieșea alb pe alb). Recalculăm aici. */
+  color: rgb(var(--text));
+
   --fundal: 245 244 241;
   --suprafata: 255 255 255;
   --suprafata-2: 245 244 241;
@@ -333,8 +88,37 @@
   --sticla-chenar: 122 126 131;
   --umbra: 21 24 28;
   --sticla-opacitate: 0.72;
+  --imagine-bg: 245 244 241;
 }
-/* ===================== sfârșit bloc teme ===================== */
+
+/* ============================================================
+   TIPĂRIRE — pe hârtie, fondul negru ar însemna o pagină complet neagră.
+   Răsturnăm doar variabilele; restul stilurilor rămân neatinse, fiindcă
+   toate citesc de aici. Contează la bonul de comandă din /admin și la
+   paginile legale, singurele pe care le tipărește cineva.
+   ============================================================ */
+@media print {
+  :root {
+    --fundal: 255 255 255;
+    --suprafata: 255 255 255;
+    --suprafata-2: 255 255 255;
+    --text: 0 0 0;
+    --text-secundar: 60 60 60;
+    --chenar: 200 200 200;
+    --header-bg: 255 255 255;
+    --header-text: 0 0 0;
+    --footer-bg: 255 255 255;
+    --footer-text: 60 60 60;
+    --imagine-bg: 255 255 255;
+  }
+
+  /* Ce nu are ce căuta pe hârtie: bara de sus și meniurile (au fundaluri fixe,
+     `bg-black/25` și `bg-steel/60`, care ar ieși ca benzi gri), plus elementele
+     plutitoare. `[data-strat-fix]` e marcajul deja folosit în proiect pentru ele
+     — prinde bannerul de cookie-uri, butonul de WhatsApp și sertarul de filtre
+     dintr-un singur selector, fără să inventez o clasă nouă. */
+  header, nav, [data-strat-fix] { display: none !important; }
+}
 
 body { @apply bg-fundal text-text font-body; }
 

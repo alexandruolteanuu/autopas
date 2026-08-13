@@ -1,5 +1,5 @@
 // ============================================================
-// VERIFICAREA CONTRASTULUI — pe toate temele deodată.
+// VERIFICAREA CONTRASTULUI — pe paleta site-ului și pe cea a panoului /admin.
 //
 // Citește variabilele din app/globals.css și calculează raporturile de
 // contrast, ca să nu evaluăm din ochi. Praguri (WCAG 2.1):
@@ -20,14 +20,19 @@ const VARIABILE = ["--fundal", "--suprafata", "--suprafata-2", "--text", "--text
   "--chenar", "--chenar-puternic", "--camp-bg", "--accent", "--accent-hover",
   "--accent-contrast", "--header-bg", "--header-text", "--footer-bg", "--footer-text"];
 
-/** Extrage blocurile `:root { … }` și `[data-tema="…"] { … }`. */
+/** Extrage paletele: `:root { … }` (site-ul public) și `.tema-clasica { … }` (/admin).
+ *
+ *  Blocul `@media print` conține și el un `:root` cu variabile răsturnate pentru
+ *  hârtie. Îl scoatem din text înainte de căutare: altfel ar fi raportat ca o a
+ *  treia paletă, complet albă, și ar da o „temă" falsă în tabel. */
 function citesteTeme() {
+  const fara_print = css.replace(/@media\s+print\s*\{[\s\S]*?\n\}/g, "");
   const teme = [];
-  const re = /(:root|\[data-tema="([a-z-]+)"\])\s*\{([^}]*)\}/g;
+  const re = /(:root|\.tema-clasica)\s*\{([^}]*)\}/g;
   let m;
-  while ((m = re.exec(css))) {
-    const nume = m[2] ?? "actuala";
-    const corp = m[3];
+  while ((m = re.exec(fara_print))) {
+    const nume = m[1] === ":root" ? "site public (atelier-galben)" : "/admin (tema clasică)";
+    const corp = m[2];
     if (!corp.includes("--fundal")) continue; // sar peste :root-ul cu scara de rotunjire
     const val = {};
     for (const v of VARIABILE) {
@@ -77,5 +82,5 @@ for (const t of teme) {
   }
 }
 
-console.log(`\n=== ${cazuri - picate} din ${cazuri} trec · ${teme.length} teme ===`);
+console.log(`\n=== ${cazuri - picate} din ${cazuri} trec · ${teme.length} palete ===`);
 if (picate) { console.log(`${picate} perechi sub prag.`); process.exit(1); }
