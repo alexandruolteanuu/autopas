@@ -115,7 +115,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const iesi = async () => { await sbBrowser()?.auth.signOut(); location.href = "/"; };
 
   return (
-    <div className="tema-clasica min-h-screen bg-paper lg:grid lg:grid-cols-[240px,1fr]">
+    // `minmax(0,1fr)`, nu `1fr`: o coloană `1fr` are prag implicit `min-content`, așa
+    // că un tabel lat din interior o poate umfla peste ecran în loc să defileze în
+    // cutia lui. Același mecanism scotea pagina de cookies din ecran. Cu prag zero,
+    // `overflow-x-auto` al fiecărui tabel își face treaba.
+    <div className="tema-clasica min-h-screen bg-paper lg:grid lg:grid-cols-[240px,minmax(0,1fr)]">
       {/* ===== SIDEBAR ===== */}
       <aside className="bg-ink text-white lg:min-h-screen lg:sticky lg:top-0 lg:h-screen flex lg:flex-col overflow-x-auto">
         <Link href="/admin" className="hidden lg:block px-5 py-5 border-b border-white/10">

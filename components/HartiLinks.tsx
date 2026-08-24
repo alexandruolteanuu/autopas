@@ -13,9 +13,16 @@
 // Admin → Setări: tabela `settings` nu are câmpuri de latitudine/longitudine.
 import { HARTI } from "@/lib/config";
 
+// `stransSub360` = se ascunde în bara de sus pe ecranele foarte mici.
+// La 320px hello bar-ul are nevoie de 296px într-un spațiu de 288: telefonul (101),
+// programul (87) și cele două hărți (92) nu încap, iar bara s-ar rupe pe două rânduri
+// (62px, peste plafonul de 52px pe care îl are banda asta). Waze iese primul, fiindcă
+// rămâne în subsol cu etichetă completă („Navighează cu Waze"), la fel ca textul
+// despre livrare, ascuns tot acolo din același motiv. În subsol se afișează ambele,
+// la orice lățime.
 const HARTI_ITEMS = [
-  { nume: "Waze", scurt: "Waze", lung: "Navighează cu Waze", href: HARTI.waze, glif: "/icons/waze.svg" },
-  { nume: "Google Maps", scurt: "Google Maps", lung: "Deschide în Google Maps", href: HARTI.gmaps, glif: "/icons/google-maps.svg" },
+  { nume: "Waze", scurt: "Waze", lung: "Navighează cu Waze", href: HARTI.waze, glif: "/icons/waze.svg", stransSub360: true },
+  { nume: "Google Maps", scurt: "Google Maps", lung: "Deschide în Google Maps", href: HARTI.gmaps, glif: "/icons/google-maps.svg", stransSub360: false },
 ];
 
 function Glif({ src, className = "w-5 h-5" }: { src: string; className?: string }) {
@@ -45,7 +52,7 @@ export default function HartiLinks({ variant = "bara" }: { variant?: "bara" | "f
             className={
               footer
                 ? "inline-flex items-center gap-2 rounded-lg bg-white/10 hover:bg-white/20 px-3 min-h-[44px] text-sm transition"
-                : "inline-flex items-center justify-center gap-2 rounded-md hover:bg-white/10 px-2 min-w-[44px] min-h-[44px] transition"
+                : `${h.stransSub360 ? "hidden min-[360px]:inline-flex" : "inline-flex"} items-center justify-center gap-2 rounded-md hover:bg-white/10 px-2 min-w-[44px] min-h-[44px] transition`
             }
           >
             <Glif src={h.glif} className={footer ? "w-5 h-5" : "w-[18px] h-[18px]"} />

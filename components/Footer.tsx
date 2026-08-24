@@ -9,9 +9,12 @@ import { IconTelefon, IconPin } from "./Icoane";
 export default function Footer({ firma = FIRMA_IMPLICITA }: { firma?: Firma }) {
   return (
     <footer className="bg-footerBg text-footerText mt-16">
-      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4 text-sm">
+      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 pt-10 pb-8 grid gap-8 sm:grid-cols-2 lg:grid-cols-4 text-sm">
         <div>
-          <Logo className="h-[68px] mb-3" />
+          {/* Lățimea o dă `max-w`, înălțimea vine singură din raportul fișierului
+              (600×276 → 240px lat = 110px înalt). Așa logoul e lat cât textul de
+              dedesubt, cum s-a cerut, fără să-i strâmbe proporțiile. */}
+          <Logo className="h-auto max-w-[200px] sm:max-w-[240px] mb-3" />
           <p className="text-footerText/70 leading-relaxed">Piese auto second-hand testate, din dezmembrări autorizate. Garanție 90 de zile conform OUG 140/2021, livrare în 1–3 zile lucrătoare în toată România.</p>
           <p className="mt-3 text-footerText/70 flex gap-2"><IconPin className="w-[16px] h-[16px] shrink-0 mt-0.5" /><span>{ADRESA.scurt}<br />
             <span className="text-footerText/50 text-[12px]">{ADRESA.reper}</span></span></p>
@@ -55,24 +58,33 @@ export default function Footer({ firma = FIRMA_IMPLICITA }: { firma?: Firma }) {
             <li><Link href="/legal/anpc-si-sol" className="hover:text-accent">A.N.P.C.</Link></li>
             <li><Link href="/legal/anpc-si-sol" className="hover:text-accent">A.N.P.C. — SAL</Link></li>
           </ul>
-          {/* Bannerele oficiale ANPC — dimensiunea legală 250×50 px (Ordinul 449/2022).
-              Fișierele din public/anpc-sal.png și public/anpc-sol.png trebuie să fie cele OFICIALE,
-              descărcate de pe anpc.ro/ce-este-sal. */}
-          {/* Pe subsolul negru, cele două fișiere (care au fundal deschis) ar apărea ca
-              două pete răsărite din senin. Containerul deschis de mai jos le adună într-o
-              zonă delimitată, ca să arate intenționat, nu accidental. Fișierele rămân
-              neatinse: fără redimensionare, fără filtre CSS — sunt materiale oficiale. */}
-          <div className="mt-4 inline-flex flex-wrap gap-2 justify-center sm:justify-start
-                          bg-imagineBg/10 border border-white/10 rounded-[var(--r-mediu)] p-3">
-            <a href="https://anpc.ro/ce-este-sal/" target="_blank" rel="noopener noreferrer"
-              className="block w-[250px] max-w-full">
-              <img src="/anpc-sal.png" alt="ANPC — Soluționarea Alternativă a Litigiilor"
-                width={250} height={50} className="w-[250px] max-w-full h-auto" /></a>
-            <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener noreferrer"
-              className="block w-[250px] max-w-full">
-              <img src="/anpc-sol.png" alt="SOL — Soluționarea Online a Litigiilor"
-                width={250} height={50} className="w-[250px] max-w-full h-auto" /></a>
-          </div>
+        </div>
+      </div>
+
+      {/* Bannerele oficiale ANPC — fișierele din public/anpc-sal.png și public/anpc-sol.png
+          trebuie să fie cele OFICIALE, descărcate de pe anpc.ro/ce-este-sal.
+          Se afișează la 250×62, adică fix jumătate din cei 500×124 nativi.
+
+          Pe subsolul negru, cele două fișiere (care au fundal deschis) ar apărea ca
+          două pete răsărite din senin. Containerul deschis de mai jos le adună într-o
+          zonă delimitată, ca să arate intenționat, nu accidental. Fișierele rămân
+          neatinse: fără redimensionare, fără filtre CSS — sunt materiale oficiale.
+
+          RÂND PROPRIU, nu coloană (24 august 2026): la 1024px cele patru coloane ale
+          grilei au 216px fiecare, iar blocul are nevoie de 274px (250 + p-3). Înghesuit
+          acolo, ieșea din ecran și dădea scroll orizontal — 1052px pe un ecran de 1024.
+          Sub coloane are toată lățimea și încape la orice dimensiune. */}
+      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 pb-10">
+        <div className="inline-flex flex-wrap gap-2 justify-center sm:justify-start
+                        bg-imagineBg/10 border border-white/10 rounded-[var(--r-mediu)] p-3">
+          <a href="https://anpc.ro/ce-este-sal/" target="_blank" rel="noopener noreferrer"
+            className="block w-[250px] max-w-full">
+            <img src="/anpc-sal.png" alt="ANPC — Soluționarea Alternativă a Litigiilor"
+              width={250} height={62} className="w-[250px] max-w-full h-auto" /></a>
+          <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener noreferrer"
+            className="block w-[250px] max-w-full">
+            <img src="/anpc-sol.png" alt="SOL — Soluționarea Online a Litigiilor"
+              width={250} height={62} className="w-[250px] max-w-full h-auto" /></a>
         </div>
       </div>
       <div className="border-t border-white/10 text-[12px] text-footerText/50">

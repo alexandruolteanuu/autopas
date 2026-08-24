@@ -113,7 +113,11 @@ export default function Rapoarte() {
             className="rounded-lg border-2 border-line px-3 py-1 text-sm font-semibold hover:border-acc">Export CSV</button>
         </div>
         <div className="mt-3 overflow-x-auto">
-          <table className="w-full text-sm min-w-[620px]">
+          {/* `md:` ca la celelalte tabele de admin: pe telefon tabelul n-are lățime
+              minimă, deci nu poate împinge nimic în afara ecranului, indiferent ce
+              container îl cuprinde. De la md în sus își păstrează cei 620px și
+              defilează în cutia lui. */}
+          <table className="w-full text-sm md:min-w-[620px]">
             <thead><tr className="text-left text-mut text-xs border-b border-line">
               <th className="py-2">Vehicul</th><th className="py-2">Cost</th><th className="py-2">Încasat</th><th className="py-2">Profit</th><th className="py-2">Stare</th></tr></thead>
             <tbody className="divide-y divide-line">

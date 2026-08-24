@@ -44,7 +44,7 @@ export default async function Home() {
   return (
     <>
       <section className="bg-headerBg text-headerText">
-        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-12 lg:py-16 grid lg:grid-cols-[minmax(0,1.2fr),minmax(0,0.8fr)] gap-10">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-12 lg:py-16 grid items-stretch lg:grid-cols-[minmax(0,1.2fr),minmax(0,0.8fr)] gap-10">
           <div>
             {/* Supratitlul rămâne unde era, doar puțin mai mare și cu simbolul
                 reciclării alături. Titlul mare al paginii e cel de sub el. */}
@@ -60,12 +60,17 @@ export default async function Home() {
             <div className="mt-7"><VehicleFilter brands={brands} models={models} cats={cats} counts={counts} /></div>
             <p className="text-headerText/50 text-sm mt-3">Selectează marca, modelul și categoria pentru a găsi piesa de care ai nevoie.</p>
           </div>
-          <div>
+          {/* Coloana dreaptă se întinde cât cea stângă (grila e `items-stretch`), iar
+              cardurile împart între ele înălțimea rămasă. Plafonul de 140px oprește
+              întinderea când coloana stângă e neobișnuit de înaltă: patru carduri de
+              200px arată gol, nu echilibrat — atunci `justify-between` le distanțează.
+              Sub `lg:` coloanele se stivuiesc, deci egalizarea nu se aplică. */}
+          <div className="flex flex-col lg:h-full">
             <div className="dim !text-headerText/60">Mașini dezmembrate recent</div>
-            <div className="mt-4 space-y-3">
+            <div className="mt-4 flex flex-col gap-3 lg:flex-1 lg:justify-between">
               {cars.map((c) => (
                 <Link key={c.id} href={`/piese?vehicul=${c.slug}`}
-                  className="flex items-center justify-between gap-3 rounded-xl bg-white/5 border border-white/10 px-4 py-3 hover:border-accent transition">
+                  className="flex items-center justify-between gap-3 rounded-xl bg-white/5 border border-white/10 px-4 py-3 hover:border-accent transition lg:flex-1 lg:max-h-[140px]">
                   <div>
                     <b className="font-disp text-[15px] tracking-wide">{c.nume}{c.an ? ` · ${c.an}` : ""}</b>
                     <div className="text-headerText/50 text-xs">{nrPiese(c.piese_listate ?? 0)} {c.piese_listate === 1 ? "disponibilă" : "disponibile"}</div>

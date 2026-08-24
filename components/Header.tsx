@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { useCart } from "./CartContext";
 import { useFavorites } from "./FavoritesContext";
 import { sbBrowser } from "@/lib/supabase";
-import { CONFIG, PROGRAM, LIVRARE, telLink } from "@/lib/config";
+import { CONFIG, PROGRAM, PROGRAM_SCURT, LIVRARE, telLink } from "@/lib/config";
 import HartiLinks from "./HartiLinks";
 import Logo from "./Logo";
 import { IconTelefon } from "./Icoane";
@@ -80,15 +80,23 @@ export default function Header() {
 
   return (
     <header className={`text-headerText sticky top-0 z-40 transition-colors duration-200 ${defilat ? "sticla-header" : "bg-headerBg"}`}>
-      {/* Bara de sus: telefonul (țintă de atingere proprie) și hărțile.
-          Programul și textul despre livrare apar doar de la sm/lg în sus — pe
-          telefon nu încap lângă hărți și oricum sunt repetate în subsol. */}
+      {/* Bara de sus: telefonul (țintă de atingere proprie), programul și hărțile.
+          Pe telefon programul apare în formă scurtă („L–V 8:30–17:30"), lipit de
+          număr, ca lumea să nu sune noaptea. Costă zero înălțime: bara rămâne la
+          44px, cât ținta de atingere a numărului. Textul despre livrare rămâne
+          ascuns până la lg — nu încape și oricum e repetat în subsol.
+          Programul NU e link; doar numărul este. */}
       <div className="bg-black/25 text-[12px]">
         <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-2 min-w-0">
-          <div className="flex flex-wrap items-center gap-x-3 min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 sm:gap-x-3 min-w-0 flex-1">
             <a href={telLink()} className="inline-flex items-center gap-1.5 min-h-[44px] font-semibold hover:text-accent">
               <IconTelefon className="w-[15px] h-[15px]" />{CONFIG.telefonAfisat}
             </a>
+            {/* Sub 360px (iPhone SE) fiecare pixel contează: separatorul „·" pică,
+                spațierea scade, iar programul rămâne întreg. Așa bara stă pe un
+                singur rând de 44px până la 320px inclusiv. */}
+            <span className="sm:hidden text-headerText/70 whitespace-nowrap">
+              <span className="hidden min-[360px]:inline">· </span>{PROGRAM_SCURT}</span>
             <span className="hidden sm:inline text-headerText/70">Program: {PROGRAM}</span>
             <span className="hidden lg:inline text-headerText/70">{LIVRARE}</span>
           </div>
@@ -101,11 +109,19 @@ export default function Header() {
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-3 flex items-center gap-2 sm:gap-4 min-w-0">
         <Link href="/" aria-label="Autopas Dezmembrări — pagina principală"
           className="flex items-center shrink-0 min-h-[44px]">
-          {/* Înălțimea logo-ului: aici o schimbi dacă vrei marca mai mare sau mai mică. */}
-          <Logo className="h-10 min-[360px]:h-12 sm:h-16" eager />
+          {/* Înălțimea logo-ului: aici o schimbi dacă vrei marca mai mare sau mai mică.
+              Din 24 august 2026 fișierul e tăiat la conținut, deci înălțimea de aici
+              e chiar înălțimea logoului vizibil — nu mai există margine transparentă.
+              Desktop: 64px = înălțimea rândului (88px) minus 24px de aer.
+              Sub 768px: plafon de 36px, ca bara să nu mănânce ecranul telefonului. */}
+          <Logo className="h-8 min-[360px]:h-9 md:h-16" eager />
         </Link>
 
-        <form action="/piese" className="hidden md:flex flex-1 min-w-0">
+        {/* Bara de căutare. Plafonul de 60% („bara e prea lungă") se vede doar pe
+            ecran mare, deci se aplică abia de la 1280px: 500px ≈ 60% din cei 823px
+            pe care îi ocupa înainte. Între 768 și 1280 ia lățimea disponibilă, dar
+            nu sub 360px — sub atât nu mai încape un cod OEM de tipul 63117338709. */}
+        <form action="/piese" className="hidden md:flex flex-1 min-w-[360px] xl:max-w-[500px]">
           <input name="q" placeholder="Caută piesă sau cod OEM…"
             className="flex-1 min-w-0 rounded-l-xl bg-suprafata px-4 min-h-[44px] text-text text-base md:text-sm outline-none" />
           <button className="bg-accent text-accentText rounded-r-xl px-5 min-h-[44px] font-semibold text-sm shrink-0">Caută</button>
@@ -113,10 +129,18 @@ export default function Header() {
 
         <nav className="ml-auto flex items-center gap-2 shrink-0">
           {staff && (
+            /* Sub 360px butonul nu încape lângă cele patru iconițe — headerul ieșea
+               din ecran (340px pe un ecran de 320px). Acolo calea de acces e intrarea
+               „Panou de administrare" din meniul mobil, de mai jos. */
             <Link href="/admin" title="Panou de administrare"
-              className="flex items-center gap-1.5 rounded-lg bg-accent text-accentText px-2.5 min-h-[44px] text-[12px] font-semibold hover:brightness-110 transition">
+              className="hidden min-[360px]:flex items-center gap-1.5 rounded-lg bg-accent text-accentText px-2.5 min-h-[44px] text-[12px] font-semibold hover:brightness-110 transition">
               <Ic kind="admin" className="w-[18px] h-[18px]" />
-              <span className="hidden sm:block">Admin</span>
+              {/* Eticheta apare abia de la lg. Între 768 și 1023, pe un cont de
+                  echipă, cuvântul „Admin" (~51px) plus bara de căutare de minimum
+                  360px nu încăpeau — headerul ieșea cu 28px din ecran la 768px.
+                  Butonul rămâne țintă de 44px și păstrează `title`, deci nu pierde
+                  nimic funcțional. */}
+              <span className="hidden lg:block">Admin</span>
             </Link>
           )}
           <IconLink href="/favorite" kind="inima" eticheta="Favorite" badge={nr} />
@@ -140,6 +164,16 @@ export default function Header() {
             <Link key={n.href} href={n.href} onClick={() => setOpen(false)}
               className={`px-3 flex items-center min-h-[44px] ${path === n.href ? "bg-accent text-accentText" : "hover:bg-white/10"}`}>{n.t}</Link>
           ))}
+          {/* Panoul de administrare, doar în meniul mobil și doar pentru echipă.
+              Pe desktop există butonul „Admin" din bara de sus; sub 360px acela e
+              ascuns fiindcă nu încape, deci asta rămâne singura cale de acces din
+              header. Clienții nu văd intrarea — `staff` e fals pentru ei. */}
+          {staff && (
+            <Link href="/admin" onClick={() => setOpen(false)}
+              className="md:hidden px-3 flex items-center gap-2 min-h-[44px] border-t border-white/10 text-accent font-semibold">
+              <Ic kind="admin" className="w-[18px] h-[18px]" />Panou de administrare
+            </Link>
+          )}
         </div>
       </nav>
     </header>

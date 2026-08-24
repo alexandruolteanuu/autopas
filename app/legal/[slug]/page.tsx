@@ -16,8 +16,14 @@ export default async function LegalPage({ params }: { params: { slug: string } }
   const { firma } = await getSetariServer();
   const doc = getLegal(params.slug, firma);
   if (!doc) notFound();
+  // `grid-cols-1` de mai jos nu e de decor: fără el, sub `lg:` grila are o singură
+  // coloană `auto`, care se lățește cât cel mai lat conținut. Tabelul de cookie-uri
+  // are `min-w-[560px]`, iar cei 560px urcau prin coloană și scoteau toată pagina
+  // din ecran (578px pe un telefon de 320px), în loc să fie tăiați de
+  // `overflow-x-auto` al tabelului. `grid-cols-1` înseamnă `minmax(0,1fr)`, adică
+  // lățime minimă zero — abia atunci tabelul defilează singur, cum era gândit.
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8 grid lg:grid-cols-[240px,minmax(0,1fr)] gap-8">
+    <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-1 lg:grid-cols-[240px,minmax(0,1fr)] gap-8">
       <aside className="card p-4 h-fit text-sm lg:sticky lg:top-24">
         <b className="font-disp font-semibold text-[12px] text-textSecundar">Documente</b>
         <ul className="mt-2 space-y-1.5">

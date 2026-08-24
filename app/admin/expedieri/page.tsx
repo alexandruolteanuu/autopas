@@ -43,7 +43,7 @@ export default function Expedieri() {
       .semn{margin-top:40px;display:flex;justify-content:space-between;font-size:13px}
       .cap{display:flex;align-items:center;gap:14px}.cap img{height:52px;width:auto}</style></head>
       <body onload="window.print()">
-      <div class="cap"><img src="/logo.png" alt="Autopas Dezmembrări">
+      <div class="cap"><img src="/logo.png" alt="Autopas Dezmembrări" width="600" height="276">
       <h1>Borderou de predare colete</h1></div>
       <div>Data: ${new Date().toLocaleDateString("ro-RO")} · Colete: ${alese.length}</div>
       <table><tr><th>#</th><th>AWB</th><th>Comandă</th><th>Destinatar</th><th>Localitate</th><th>Curier</th><th>Greutate</th><th>Ramburs</th></tr>

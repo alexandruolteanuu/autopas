@@ -22,6 +22,10 @@ export const waLink = (text = "Bună! Am o întrebare despre o piesă.") =>
 // Se folosește în header, footer și în paginile publice.
 // ============================================================
 export const PROGRAM = "Luni – Vineri 8:30 – 17:30";
+/** Varianta scurtă, pentru hello bar-ul de pe telefon. Pe 360px lățime forma
+ *  lungă nu încape lângă număr și ar rupe bara pe două rânduri. Aceleași ore —
+ *  dacă schimbi programul, schimbi ambele constante. */
+export const PROGRAM_SCURT = "L–V 8:30–17:30";
 export const LIVRARE = "Livrare în 1–3 zile lucrătoare în toată România";
 /** Numărul curățat, pentru linkul „tel:” (fără spații). */
 export const telLink = (nr: string = CONFIG.telefonAfisat) => `tel:${nr.replace(/\s+/g, "")}`;
