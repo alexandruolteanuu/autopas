@@ -49,6 +49,21 @@ export const SITE_URL =
     : "") ||
   "http://localhost:3000";
 
+/** Domeniul, fără „https://" și fără bară finală — pentru textele citite de oameni
+ *  (mesaje WhatsApp, SMS), unde o adresă completă arată ca un link lipit din greșeală.
+ *  Se derivă din SITE_URL, deci nu există un al doilea loc de ținut la zi.
+ *
+ *  Întoarce șir GOL dacă domeniul nu e unul public. Motivul: în browser,
+ *  `VERCEL_PROJECT_PRODUCTION_URL` nu există (nu e variabilă `NEXT_PUBLIC_`), deci
+ *  fără `NEXT_PUBLIC_SITE_URL` setată în Vercel, SITE_URL cade pe „localhost:3000".
+ *  Mesajul de confirmare a comenzii pleacă direct la client — mai bine fără domeniu
+ *  decât cu „de pe localhost:3000" sau cu adresa temporară .vercel.app.
+ *  Textele care îl folosesc trebuie să funcționeze și când e gol. */
+export const SITE_DOMENIU = (() => {
+  const d = SITE_URL.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+  return /^localhost|^127\.0\.0\.1|\.vercel\.app$/.test(d) ? "" : d;
+})();
+
 /** Indexarea în Google se activează manual, la lansare: PERMITE_INDEXARE=da în Vercel.
  *  Cât timp nu e setată, robots.txt cere motoarelor să nu indexeze nimic — ca să nu
  *  ajungă în căutări piesele de probă de dinainte de lansare. */

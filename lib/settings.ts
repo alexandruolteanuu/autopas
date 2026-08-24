@@ -25,7 +25,10 @@ export const FIRMA_IMPLICITA: Firma = {
   iban: "",
   serie_factura: "AUTP",
   telefon: "0743 627 151",
-  email: "comenzi@autopas.ro",
+  // Adresa oficială și unică a firmei. Se schimbă din Admin → Setări → Date firmă;
+  // valoarea de aici e doar rezerva folosită când tabela `settings` n-a fost citită.
+  // Dacă o schimbi, schimbi și `supabase/email-unic.sql`, ca baza să spună la fel.
+  email: "contact@autopas-dezmembrari.ro",
   whatsapp: process.env.NEXT_PUBLIC_WHATSAPP_PHONE ?? "40743627151",
 };
 // FAN Courier este singurul curier al firmei (decizie: 7 august 2026).

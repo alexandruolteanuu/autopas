@@ -58,9 +58,26 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 5. `admin.sql` -> 6. `sprint-bc.sql` -> 7. `upgrade.sql` (include și politicile pentru poze) ->
 8. `favorite.sql` -> 9. `admin-fix.sql` -> 10. `date-firma.sql` -> 11. `comanda-server.sql` ->
 12. `livrare-dupa-comanda.sql` -> 13. `coduri-reducere-private.sql` -> 14. `view-security-invoker.sql` ->
-15. `cautare-fara-diacritice.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9, 10, 11, 12, 13, 14, 15. NU sunt încă idempotente: 1–5, 8.
+15. `cautare-fara-diacritice.sql` -> 16. `email-unic.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9, 10, 11, 12, 13, 14, 15, 16. NU sunt încă idempotente: 1–5, 8.
 Toate cele de mai sus sunt deja aplicate pe proiectul de producție (august 2026).
+
+## De configurat (nu e cod, se rezolvă din afara proiectului)
+
+Lucruri pe care codul le presupune deja făcute, dar care încă nu sunt. Nu le implementa —
+sunt sarcini ale utilizatorului. Consemnate la 24 august 2026.
+
+- **`contact@autopas-dezmembrari.ro` — cutia poștală nu există încă.** Adresa e sursa unică
+  din `settings.firma.email` și apare în toate cele 8 documente legale din `lib/legal.ts`,
+  unde clientul are drept legal să scrie (retur, garanție, GDPR). Până la configurarea
+  cutiei, mesajele trimise acolo **se pierd tăcut** — nimeni nu primește nimic și
+  expeditorul nu află.
+- **`NEXT_PUBLIC_SITE_URL` nu e setată în Vercel.** Fără ea: mesajul WhatsApp de
+  confirmare a comenzii iese fără domeniu (`SITE_DOMENIU` din `lib/config.ts` întoarce
+  intenționat șir gol, ca să nu scrie „de pe localhost:3000" într-un text către client),
+  iar `sitemap.xml`, `robots.txt` și linkurile Open Graph trimit spre adresa `.vercel.app`.
+  Valoarea corectă: `https://autopas-dezmembrari.ro`. Toate variabilele sunt documentate
+  în `.env.local.example`.
 
 ## Decizii deja luate (nu le schimba fără să întrebi)
 - Logo = imagine PNG (roată dințată + siluetă de mașină + „AUTOPAS DEZMEMBRĂRI", metalic cu

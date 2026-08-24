@@ -60,7 +60,7 @@ create table settings (
   valoare jsonb not null
 );
 insert into settings (cheie, valoare) values
- ('firma', '{"denumire":"S.C. PIESE AUTO PAS S.R.L.","cui":"RO 36608590","reg_com":"J27/893/2016","adresa":"Str. Petru Rareș nr. 181, com. Alexandru cel Bun, jud. Neamț","iban":"","serie_factura":"AUTP","telefon":"0743 627 151","email":"comenzi@autopas.ro","whatsapp":"40743627151"}'),
+ ('firma', '{"denumire":"S.C. PIESE AUTO PAS S.R.L.","cui":"RO 36608590","reg_com":"J27/893/2016","adresa":"Str. Petru Rareș nr. 181, com. Alexandru cel Bun, jud. Neamț","iban":"","serie_factura":"AUTP","telefon":"0743 627 151","email":"contact@autopas-dezmembrari.ro","whatsapp":"40743627151"}'),
  ('curieri', '[{"id":"fan","nume":"FAN Courier","detalii":"livrare 1–3 zile lucrătoare, ramburs inclus","pret":19.9}]');
 
 -- ---------- 5. ROLURI EXTINSE ----------

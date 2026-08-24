@@ -8,6 +8,7 @@ import { useParams, useRouter } from "next/navigation";
 import { sbBrowser } from "@/lib/supabase";
 import { lei } from "@/lib/format";
 import { getSetariBrowser, waLinkCu, CURIERI_IMPLICITI, type Curier, type Firma, FIRMA_IMPLICITA } from "@/lib/settings";
+import { SITE_DOMENIU } from "@/lib/config";
 import type { OrderFull, OrderEvent } from "@/lib/types";
 
 type Item = { id: number; nume: string; pret: number; cantitate: number; product_id: number | null;
@@ -202,9 +203,12 @@ export default function DetaliuComanda() {
             <p className="mt-1">{o.telefon} · {o.email}</p>
             <div className="flex flex-wrap gap-2 mt-3">
               {/* Mesajul de confirmare include defalcarea transportului — e suma pe care
-                  clientul o acceptă înainte de expediere. */}
+                  clientul o acceptă înainte de expediere.
+                  Domeniul vine din SITE_DOMENIU (lib/config.ts), nu scris de mână: mesajul
+                  ăsta pleacă direct la client, iar aici scria „autopas.ro", care nu e
+                  domeniul firmei. */}
               <a href={waLinkCu(o.telefon.replace(/^0/, "4"),
-                `Bună ziua, ${o.nume}! Confirmăm comanda ${o.numar} de pe autopas.ro:\n` +
+                `Bună ziua, ${o.nume}! Confirmăm comanda ${o.numar}${SITE_DOMENIU ? ` de pe ${SITE_DOMENIU}` : ""}:\n` +
                 items.map((i) => `• ${i.nume} — ${Number(i.pret)} lei`).join("\n") +
                 (Number(o.discount_valoare) > 0 ? `\nReducere ${o.discount_cod}: −${Number(o.discount_valoare)} lei` : "") +
                 (livrareStabilita
