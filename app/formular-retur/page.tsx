@@ -23,11 +23,7 @@ export default async function FormularRetur() {
             "Îți confirmăm pe e-mail că am primit decizia ta de retragere — legea ne obligă să o facem pe un suport durabil.",
             "Primești instrucțiunile de expediere și adresa exactă la care trimiți piesa.",
             "Trimiți piesa în cel mult 14 zile de la momentul în care ne-ai anunțat. Costul acestui transport îl suporți tu.",
-            // Termenul curge de la COMUNICAREA deciziei (art. 13 alin. 1 din OUG 34/2014),
-            // nu de la primirea coletului. Firma poate amâna plata până primește piesa sau
-            // dovada expedierii (alin. 3) — dar aia e excepția, nu regula. Formularea veche
-            // le inversa și lăsa impresia că termenul începe abia când ajunge coletul.
-            "Îți restituim toți banii, inclusiv costul livrării standard, în cel mult 14 zile de la anunțul tău. Putem aștepta să primim piesa sau dovada expedierii înainte de a face plata.",
+            "Îți restituim contravaloarea produselor în cel mult 14 zile de la anunțul tău.",
           ].map((pas, i) => (
             <li key={i} className="flex gap-3">
               <span className="shrink-0 w-6 h-6 rounded-full bg-accent text-accentContrast grid place-items-center text-xs font-bold">{i + 1}</span>
