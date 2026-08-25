@@ -161,6 +161,20 @@ sunt sarcini ale utilizatorului. Consemnate la 24 august 2026.
   se oprește în ~1s, jobul trece în `in_pauza` cu motivul scris, și poate fi continuat.
 - **Progresul unui lot se salvează din mers**, la fiecare 4 secunde (`SALVARE_LA_MS` în
   `app/api/import/route.ts`), nu doar la final. Fără asta, orice cerere tăiată pierdea tot lotul.
+- **Un lot întreabă baza doar despre rândurile pe care le poate atinge** (`randuri.slice(0, maxRanduri)`
+  în motor). Înainte întreba despre toată coada feed-ului: la 8.500 de rânduri însemna 85 de cereri
+  REST — 3,4 secunde măsurate — înainte de a procesa 4 piese, la fiecare lot. Nu accelerează nimic
+  spre pieseauto.ro (pauza politicoasă e neatinsă); doar nu mai irosește bugetul lotului.
+- **Invariantul unui lot**: `BUGET_MS + TIMEOUT_PAGINA_MS + BUGET_POZE_MS ≤ 55s`, adică 15 + 20 + 15 = 50,
+  sub limita de 60s a funcției. Bugetul se verifică înainte de fiecare rând, deci lotul mai poate începe
+  unul chiar la limită. Pozele unei piese au buget propriu (`BUGET_POZE_MS`) pe lângă timeout-ul fiecăreia:
+  opt poze lente s-ar înmulți, iar un rând neterminat nu avansează poziția — importul s-ar bloca pe el.
+  Cine schimbă una dintre cele trei valori reface suma; `verifica-import.mjs` o verifică.
+- **Pentru primul import mare (mii de piese) se folosește scriptul din terminal**, nu ecranul din admin.
+  `scripts/import-pieseauto.mjs` face o singură trecere: citește CSV-ul o dată, taxonomia o dată,
+  existența o dată. Ecranul din admin cere un lot pe HTTP, deci reciteste CSV-ul la fiecare lot —
+  la 8.500 de rânduri sunt ~2.000 de loturi × ~1 MB. Adminul e gândit pentru feed-ul zilnic
+  (mai ales actualizări de preț, care nu cer nicio pagină de la sursă).
 - **Nicio piesă importată nu mai rămâne fără categorie** (decizie 25 august 2026, care înlocuiește
   regula veche „ambiguu sau inexistent => se lasă gol"). Ce lipsește din arborele nostru se creează
   automat, cu numele luat din catalogul pieseauto.ro (`lib/import/taxonomie-sursa.mjs`, 742 categorii

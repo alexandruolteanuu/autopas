@@ -60,10 +60,11 @@ const taxonomieFalsa = {
 /** Depozit fals: ține minte ce s-a scris, nu atinge nimic real. */
 function depozitFals(existente = []) {
   const dupaId = new Map(existente.map((x) => [x.sursa_id, x]));
-  const scrise = { inserate: [], actualizate: [], poze: [], categorii: [], modele: [] };
+  const scrise = { inserate: [], actualizate: [], poze: [], categorii: [], modele: [], intrebariExistenta: [] };
   return {
     scrise,
     async citesteExistente(_s, ids) {
+      scrise.intrebariExistenta.push(ids.length);
       const m = new Map();
       for (const id of ids) if (dupaId.has(id)) m.set(id, dupaId.get(id));
       return m;
@@ -228,6 +229,18 @@ sectiune("5. Reluarea din poziția salvată");
   const dupaReluare = await proceseazaRanduri({
     depozit: dep2, randuri: feed.slice(primaParte.procesate), taxonomie: taxonomieFalsa,
   });
+  // Un lot întreabă baza DOAR despre rândurile pe care le poate atinge. Pare un
+  // detaliu, dar cine îl strică plătește scump: la un feed de 8.500, întrebarea
+  // despre toată coada înseamnă 85 de cereri REST (3,4s măsurate) înainte de a
+  // procesa 4 piese — la fiecare lot, de ~1.900 de ori.
+  const depFelie = depozitFals(inBaza);
+  await proceseazaRanduri({
+    depozit: depFelie, randuri: feed, taxonomie: taxonomieFalsa, maxRanduri: 120,
+  });
+  cer("lotul întreabă doar despre feliile lui, nu despre tot feed-ul",
+      depFelie.scrise.intrebariExistenta.every((n) => n <= 120),
+      `a întrebat despre ${depFelie.scrise.intrebariExistenta.join(", ")} rânduri`);
+
   cer("întrerupt la 237, reluat de acolo, total 500",
     primaParte.procesate + dupaReluare.procesate === 500,
     `${primaParte.procesate} + ${dupaReluare.procesate}`);
@@ -407,6 +420,29 @@ sectiune("8. Categoriile și modelele se completează de la sursă");
   cer("slug-ul e prefixat cu al părintelui", dep.scrise.categorii[0]?.slug === "motor-si-anexe-suporti-motor", dep.scrise.categorii[0]?.slug);
   cer("piesele inserate au subcategoria pusă", dep.scrise.inserate.every((r) => r.subcategorie_id), JSON.stringify(dep.scrise.inserate.map((r) => r.subcategorie_id)));
   cer("a doua piesă NU recreează categoria", rez.categoriiCreate === 1, `${rez.categoriiCreate}`);
+}
+
+// ============================================================
+// 10. Bugetul de poze pe piesă
+//
+// Fiecare poză are timeout-ul ei, dar opt poze lente s-ar înmulți și ar duce
+// rândul peste limita funcției. Cum un rând neterminat nu avansează poziția,
+// importul s-ar bloca pe el la nesfârșit — exact tiparul defectului de 504.
+// ============================================================
+sectiune("10. Pozele unei piese au un buget, nu doar timeout individual");
+{
+  const { BUGET_POZE_MS } = await import("../lib/import/motor.mjs");
+  cer("bugetul e declarat și rezonabil", BUGET_POZE_MS > 0 && BUGET_POZE_MS <= 30000, `${BUGET_POZE_MS}ms`);
+  // Bugetul lasă mereu prima poză să treacă, oricât ar dura: altfel o sursă lentă
+  // ar produce numai piese fără nicio poză.
+  const sursaAduce = (await import("../lib/import/aducere.mjs"));
+  cer("fiecare poză are și timeout propriu", sursaAduce.TIMEOUT_POZA_MS > 0, `${sursaAduce.TIMEOUT_POZA_MS}ms`);
+  // Invariantul care ține un lot sub limita de 60s a funcției serverless.
+  const { BUGET_MS, LIMITA_LOT_MS } = await import("../lib/import/motor.mjs");
+  const celMaiRauLot = BUGET_MS + sursaAduce.TIMEOUT_PAGINA_MS + BUGET_POZE_MS;
+  cer("cel mai rău lot rămâne sub limita funcției",
+      celMaiRauLot <= LIMITA_LOT_MS,
+      `buget ${BUGET_MS} + pagină ${sursaAduce.TIMEOUT_PAGINA_MS} + poze ${BUGET_POZE_MS} = ${celMaiRauLot}ms, plafon ${LIMITA_LOT_MS}ms`);
 }
 
 // ============================================================
