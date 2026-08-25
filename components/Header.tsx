@@ -138,7 +138,7 @@ export default function Header() {
             prag — lizibilitatea bate simetria. */}
         <div className="hidden md:flex flex-1 min-w-0 justify-center">
           <form action="/piese" className="flex w-full min-w-[360px] xl:max-w-[520px]">
-            <input name="q" placeholder="Caută piesă sau cod OEM…"
+            <input name="q" placeholder="Caută piesă…"
               className="flex-1 min-w-0 rounded-l-xl bg-suprafata px-4 min-h-[44px] text-text text-base md:text-sm outline-none" />
             <button className="bg-accent text-accentContrast rounded-r-xl px-5 min-h-[44px] font-semibold text-sm shrink-0">Caută</button>
           </form>
@@ -177,7 +177,7 @@ export default function Header() {
 
       {/* căutare pe mobil */}
       <form action="/piese" className="md:hidden px-4 sm:px-6 pb-3 flex min-w-0">
-        <input name="q" placeholder="Caută piesă sau cod OEM…"
+        <input name="q" placeholder="Caută piesă…"
           className="flex-1 min-w-0 rounded-l-xl bg-suprafata px-4 min-h-[44px] text-text text-base md:text-sm outline-none" />
         <button className="bg-accent text-accentContrast rounded-r-xl px-4 min-h-[44px] font-semibold text-sm shrink-0">Caută</button>
       </form>

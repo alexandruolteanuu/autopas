@@ -24,6 +24,21 @@ export default function Setari() {
   // schimbă rolul. Ține butonul dezactivat cât ține cererea, ca un al doilea
   // click să nu trimită aceleași date încă o dată.
   const [salvez, setSalvez] = useState<string | null>(null);
+  // Câte încărcări de date s-au terminat. Numărul ăsta e `key`-ul formularului de
+  // firmă și există dintr-un motiv precis (măsurat la 25 august 2026):
+  //
+  // câmpurile sunt NECONTROLATE (`defaultValue`), iar datele vin asincron, după ce
+  // pagina s-a randat cu valorile de rezervă din FIRMA_IMPLICITA. Când sosesc
+  // datele reale, React actualizează atributul `value`, dar browserul nu mai
+  // sincronizează valoarea AFIȘATĂ, fiindcă inputul e deja „murdar". Rezultatul,
+  // văzut în DOM: atributul și `defaultValue` aveau adresa nouă, iar pe ecran
+  // rămânea cea veche — adică salvarea reușea, dar operatorul vedea valoarea
+  // veche la refresh și credea că s-a pierdut.
+  //
+  // `key` schimbat = React remontează câmpurile, cu steagul „murdar" resetat, deci
+  // ce se vede e ce e în bază. Se schimbă doar când se încarcă date, niciodată în
+  // timp ce cineva scrie în formular.
+  const [incarcari, setIncarcari] = useState(0);
 
   const incarca = useCallback(async () => {
     const s = await getSetariBrowser(); setFirma(s.firma); setCurieri(s.curieri);
@@ -35,6 +50,7 @@ export default function Setari() {
     }
     const { data } = await sb.from("profiles").select("id,email,nume,role").order("created_at");
     setUseri((data ?? []) as Profil[]);
+    setIncarcari((n) => n + 1);
   }, []);
   useEffect(() => { incarca(); }, [incarca]);
 
@@ -76,7 +92,7 @@ export default function Setari() {
 
       <div className="grid lg:grid-cols-2 gap-4 items-start">
         {/* Firma */}
-        <form onSubmit={(e) => { e.preventDefault();
+        <form key={incarcari} onSubmit={(e) => { e.preventDefault();
           const f = new FormData(e.currentTarget);
           const nou: Firma = { denumire: String(f.get("denumire")), cui: String(f.get("cui")), reg_com: String(f.get("reg_com")),
             adresa: String(f.get("adresa")), iban: String(f.get("iban")), serie_factura: String(f.get("serie")),
