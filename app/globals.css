@@ -61,12 +61,13 @@
      piese sunt fotografiate pe fundal deschis; ținut aici, se schimbă dintr-un
      singur loc. Varianta „imaginea se topește în card": 25 25 25.
 
-     Valoarea e aceeași cu fundalul ilustrațiilor desenate din PartArt.tsx, ca un
-     card cu poză reală și unul cu ilustrație să arate la fel când stau alături în
-     grilă. ATENȚIE: PartArt NU citește variabila, își are culoarea scrisă în SVG —
-     intenționat, fiindcă desenul e în tușuri închise și ar dispărea dacă valoarea
-     de aici ar deveni întunecată. Dacă schimbi nuanța, schimb-o în ambele locuri. */
-  --imagine-bg: 236 233 226;    /* #ECE9E2 */
+     Valoarea e aceeași cu fundalul ilustrațiilor desenate din PartArt.tsx ȘI
+     aceeași pe ambele teme, ca un card cu poză reală și unul cu ilustrație să
+     arate la fel când stau alături în grilă. ATENȚIE: PartArt NU citește
+     variabila, își are culoarea scrisă în SVG — intenționat, fiindcă desenul e în
+     tușuri închise și ar dispărea dacă valoarea de aici ar deveni întunecată.
+     Dacă schimbi nuanța, schimb-o în ambele locuri, altfel se vede muchia. */
+  --imagine-bg: 233 234 234;    /* #E9EAEA — gri neutru, la fel în ambele teme */
 }
 
 /* ============================================================
@@ -107,7 +108,7 @@
   --hero-bg:           237 239 242;   /* hero deschis — cerința clientului */
   --hero-text:          20  23  26;
   --camp-bg:           255 255 255;
-  --imagine-bg:        239 241 243;   /* #EFF1F3 */
+  --imagine-bg:        233 234 234;   /* #E9EAEA — identic cu tema întunecată și cu PartArt */
   --umbra:               0   0   0;
   --sticla-bg:         255 255 255;
   --sticla-chenar:     221 225 230;

@@ -1,7 +1,19 @@
 // Ilustrațiile desenate ale pieselor (fără casete gri goale — cerință din brief).
 // Se folosesc pe carduri, pe pagina de produs și pe categorii, până apar fotografiile reale.
 // AC urmează accentul temei alese; restul rămân culori de desen, fixe.
+//
+// FUNDALUL (25 august 2026): #E9EAEA, gri neutru, ACELAȘI cu `--imagine-bg` din
+// ambele teme. Trebuie ținute la fel — dacă se despart, se vede o muchie în cardul
+// de produs, acolo unde desenul se termină și continuă fundalul zonei de imagine.
+// Înainte era #ECE9E2, un bej cald ales pe vremea când exista o singură temă; pe
+// tema luminoasă, cu griuri reci, ieșea ca o pată galbenă. Neutrul e și mai
+// coerent cu tușele desenului, care sunt griuri reci (#2A2F36, #535B65).
 const INK = "#2A2F36", ST = "#3A4048", AC = "rgb(var(--accent))", LT = "#535B65";
+// Fundalul ilustrației și cercul decorativ din colț. Se schimbă ODATĂ cu
+// `--imagine-bg` din app/globals.css — sunt aceeași suprafață, văzută din două
+// locuri: SVG-ul nu poate citi variabila CSS, fiindcă e desenat în tușuri închise
+// și ar dispărea dacă valoarea aceea ar deveni vreodată întunecată.
+const FUNDAL = "#E9EAEA", FUNDAL_2 = "#E0E1E1";
 
 function art(kind: string): JSX.Element {
   switch (kind) {
@@ -46,8 +58,8 @@ function art(kind: string): JSX.Element {
 export default function PartArt({ kind, className = "" }: { kind: string; className?: string }) {
   return (
     <svg viewBox="0 0 100 84" className={className} role="img" aria-label="ilustrație piesă">
-      <rect width="100" height="84" fill="#ECE9E2" />
-      <circle cx="82" cy="14" r="26" fill="#E4E1DA" />
+      <rect width="100" height="84" fill={FUNDAL} />
+      <circle cx="82" cy="14" r="26" fill={FUNDAL_2} />
       {art(kind)}
     </svg>
   );

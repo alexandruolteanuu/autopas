@@ -237,15 +237,30 @@ verdele WhatsApp `#25D366`) NU fac parte din temă și nu se ating. La fel banne
 Verificarea contrastului: `node scripts/verifica-contrast.mjs` — calculează raporturile pe cele
 **trei** palete (întunecat, luminos, `/admin`) și iese cu cod 1 dacă vreo pereche obligatorie pică.
 
-**Scriptul iese astăzi cu cod 1, și e știut.** Tema întunecată trece 14 din 14. Cele 6 perechi sub
-prag, la 25 august 2026:
-- `/admin` (2, vechi, dinainte de temele noi): alb pe portocaliul `#FF6B1A` dă 2,85:1 pe buton și
-  2,67:1 pe hover. Discuție separată despre paleta panoului.
-- tema luminoasă (4, deschise): `--chenar-puternic` `#BFC5CC` dă 1,74:1 pe alb (chenarele de input
-  și de buton secundar), iar `--accent-chenar` `#C99C05` dă 2,55:1 pe card și 2,21:1 pe fundal
-  (chenarul butonului galben). Ambele sunt sub pragul de 3:1 din WCAG 1.4.11. Valorile au fost
-  cerute explicit de client; propunerile care trec sunt `#7E8894` și `#A37E04`.
-Până se rezolvă, scriptul nu poate fi pus în CI ca poartă blocantă.
+**Scriptul iese astăzi cu cod 1, și e știut.** Ambele teme ale site-ului trec 14 din 14. Cele 2
+perechi sub prag sunt din paleta clasică a panoului `/admin`: alb pe portocaliul `#FF6B1A` dă
+2,85:1 pe buton și 2,67:1 pe hover. Problema e veche, dinainte de temele noi, și a rămas discuție
+separată despre paleta panoului. Până se rezolvă, scriptul nu poate fi pus în CI ca poartă blocantă.
+
+## Unelte de verificare și întreținere (`scripts/`)
+
+Niciuna nu e dependință a site-ului și niciuna nu rulează la build. Se cheamă cu mâna, când e cazul.
+
+| Script | Când se folosește |
+|---|---|
+| `verifica-contrast.mjs` | după orice atingere a paletei din `globals.css`. Calculează raporturile pe cele trei palete și iese cu cod 1 dacă o pereche obligatorie pică |
+| `verifica-import.mjs` | după orice modificare în `lib/import/`. 41 de verificări pe regulile importului — protecția de 20%, reluarea din poziția salvată, canarul, ce are voie să atingă un re-import. Fără rețea și fără bază de date: sursa și depozitul sunt false, deci se poate rula oricând |
+| `scan-responsive.mjs` | după modificări de așezare. 19 pagini × 13 lățimi; `TEMA=luminos` schimbă tema. Cere `playwright-core` legat în `node_modules` — vezi antetul fișierului |
+| `reconverteste-poze.mjs` | **rar, la nevoie.** Trece în WebP pozele rămase JPEG în bucket. A fost scris fiindcă primele piese importate au ajuns JPEG, când `sharp` nu era încă instalat, iar `lib/import/imagini.mjs` urcă originalul dacă lipsește codecul. Dacă apar iar JPEG-uri în bucket, ori a picat `sharp`, ori conversia a preferat originalul (poză deja bine comprimată) — scriptul spune care din două. Idempotent, cu `--uscat` |
+| `curata-orfani.mjs` | **periodic**, mai ales după sesiuni lungi de lucru pe produse. Găsește fișierele din `poze-piese` spre care nu mai arată niciun rând din `products`. Implicit doar raportează; șterge numai cu `--sterge` și numai fișiere mai vechi de 24h (`--ore=N`). Raportează și cazul invers, mai grav: adrese din bază fără fișier în stocare |
+
+**De ce apar orfani** (tipar structural, găsit la 25 august 2026): `components/admin/PhotoUploader.tsx`
+urcă poza în Storage **imediat** ce e aleasă, dar adresa ei intră doar în starea formularului —
+rândul din `products` se scrie abia la „Salvează". Cine închide tabul, apasă „Renunță" sau dă peste
+o eroare de salvare lasă fișierele în bucket, fără ca nimic să mai arate spre ele. Aceeași
+componentă șterge fișierul din Storage pe loc când apeși pe X, deci un formular nesalvat după o
+ștergere lasă în bază o adresă moartă. Ambele sunt deschise; până se rezolvă, `curata-orfani.mjs`
+e plasa de siguranță.
 
 ## Când termini o modificare
 Rulează `npm run build`. Dacă trece, fă commit cu mesaj clar în română și push pe `main`.
