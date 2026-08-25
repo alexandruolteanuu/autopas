@@ -1,7 +1,7 @@
 "use client";
 // INTEGRĂRI — starea reală a fiecărei conexiuni + ce trebuie făcut ca s-o activezi.
 import { useEffect, useState, useCallback } from "react";
-import { sbBrowser } from "@/lib/supabase";
+import { sbBrowser, scrieVerificat } from "@/lib/supabase";
 
 type Stare = { nume: string; grup: string; stare: "activ" | "pregatit" | "viitor"; desc: string; pasi: string[] };
 
@@ -46,6 +46,7 @@ export default function Integrari() {
   const [env, setEnv] = useState<Record<string, boolean>>({});
   const [conf, setConf] = useState<Record<string, any>>({});
   const [msg, setMsg] = useState("");
+  const [salvez, setSalvez] = useState<string | null>(null);
 
   const incarca = useCallback(async () => {
     const sb = sbBrowser(); if (!sb) return;
@@ -55,11 +56,17 @@ export default function Integrari() {
   useEffect(() => { fetch("/api/integrari").then((r) => r.json()).then(setEnv).catch(() => {}); incarca(); }, [incarca]);
 
   async function salveaza(cheie: string, valori: any) {
-    const sb = sbBrowser()!; setMsg("");
+    const sb = sbBrowser()!; setMsg(""); setSalvez(cheie);
     const nou = { ...conf, [cheie]: valori };
-    const { error } = await sb.from("settings").update({ valoare: nou }).eq("cheie", "integrari");
+    // Ca la Setări: un UPDATE oprit de RLS nu dă eroare, dă zero rânduri. Aici
+    // conta dublu — credențialele de curier salvate „cu succes" în gol înseamnă
+    // AWB-uri care nu se generează, descoperite abia la primul colet.
+    const r = await scrieVerificat(sb.from("settings").update({ valoare: nou }).eq("cheie", "integrari"));
+    setSalvez(null);
+    if (!r.ok) { setMsg(`Nu s-a salvat: ${r.eroare}`); return; }
     setConf(nou);
-    setMsg(error ? "Eroare: " + error.message + " (doar administratorul poate salva)" : "✓ Salvat.");
+    setMsg("✓ Salvat.");
+    incarca();
   }
 
   const grupuri = Array.from(new Set(INTEGRARI.map((i) => i.grup)));
@@ -105,7 +112,8 @@ export default function Integrari() {
                       <label className="flex items-center gap-2 text-xs cursor-pointer">
                         <input type="checkbox" name="activ" defaultChecked={conf[CHEI[i.nume]]?.activ ?? false} />
                         Activă (folosește această integrare)</label>
-                      <button className="btn-dark !py-2 text-xs">Salvează configurarea</button>
+                      <button className="btn-dark !py-2 text-xs" disabled={salvez !== null}>
+                        {salvez === CHEI[i.nume] ? "Se salvează…" : "Salvează configurarea"}</button>
                     </form>
                   )}
                 </div>

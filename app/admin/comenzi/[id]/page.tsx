@@ -5,7 +5,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { sbBrowser } from "@/lib/supabase";
+import { sbBrowser, scrieVerificat } from "@/lib/supabase";
 import { lei } from "@/lib/format";
 import { getSetariBrowser, waLinkCu, CURIERI_IMPLICITI, type Curier, type Firma, FIRMA_IMPLICITA } from "@/lib/settings";
 import { SITE_DOMENIU } from "@/lib/config";
@@ -24,6 +24,9 @@ export default function DetaliuComanda() {
   const [items, setItems] = useState<Item[]>([]);
   const [events, setEvents] = useState<OrderEvent[]>([]);
   const [msg, setMsg] = useState("");
+  // Blochează butoanele cât ține o scriere, ca un al doilea click să nu trimită
+  // aceeași schimbare de status încă o dată.
+  const [salvez, setSalvez] = useState(false);
   const [gata, setGata] = useState(false);
   const [curieri, setCurieri] = useState<Curier[]>(CURIERI_IMPLICITI);
   const [firma, setFirma] = useState<Firma>(FIRMA_IMPLICITA);
@@ -42,10 +45,19 @@ export default function DetaliuComanda() {
   useEffect(() => { incarca(); }, [incarca]);
 
   async function salveaza(campuri: Record<string, unknown>, jurnal?: string) {
-    const sb = sbBrowser()!; setMsg("");
-    const { error } = await sb.from("orders").update(campuri).eq("id", id);
-    if (error) { setMsg("Eroare: " + error.message); return; }
-    if (jurnal) await sb.from("order_events").insert({ order_id: Number(id), tip: "nota", mesaj: jurnal, autor: (await sb.auth.getUser()).data.user?.email ?? "echipa" });
+    const sb = sbBrowser()!; setMsg(""); setSalvez(true);
+    const r = await scrieVerificat(sb.from("orders").update(campuri).eq("id", id));
+    if (!r.ok) { setSalvez(false); setMsg(`Nu s-a salvat: ${r.eroare}`); return; }
+    if (jurnal) {
+      // Nota din jurnal se scria fără să se uite nimeni la rezultat: comanda se
+      // schimba, iar urma din jurnal dispărea tăcut. Acum se spune.
+      const { error } = await sb.from("order_events").insert({
+        order_id: Number(id), tip: "nota", mesaj: jurnal,
+        autor: (await sb.auth.getUser()).data.user?.email ?? "echipa",
+      });
+      if (error) setMsg(`Comanda s-a salvat, dar nota din jurnal NU: ${error.message}`);
+    }
+    setSalvez(false);
     incarca();
   }
 

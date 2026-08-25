@@ -1,7 +1,7 @@
 "use client";
 // MĂRCI ȘI MODELE — administrate din interfață (până acum se puteau schimba doar din SQL).
 import { useEffect, useState, useCallback } from "react";
-import { sbBrowser } from "@/lib/supabase";
+import { sbBrowser, scrieVerificat } from "@/lib/supabase";
 import type { Brand, Model } from "@/lib/types";
 
 const slugify = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
@@ -35,40 +35,48 @@ export default function Marci() {
     const f = new FormData(e.currentTarget); const sb = sbBrowser()!;
     const nume = String(f.get("nume"));
     const date = { nume, ordine: Number(f.get("ordine") || 99) };
-    let error;
-    if (editB) ({ error } = await sb.from("brands").update(date).eq("id", editB.id));
-    else ({ error } = await sb.from("brands").insert({ ...date, slug: slugify(nume) }));
-    setMsg(error ? "Eroare: " + error.message : "✓ Salvat.");
-    if (!error) { setEditB(null); (e.target as HTMLFormElement).reset(); incarca(); }
+    let eroare: string | undefined;
+    if (editB) {
+      const r = await scrieVerificat(sb.from("brands").update(date).eq("id", editB.id));
+      if (!r.ok) eroare = r.eroare;
+    } else {
+      const { error } = await sb.from("brands").insert({ ...date, slug: slugify(nume) });
+      if (error) eroare = error.message;
+    }
+    setMsg(eroare ? "Nu s-a salvat: " + eroare : "✓ Salvat.");
+    if (!eroare) { setEditB(null); (e.target as HTMLFormElement).reset(); incarca(); }
   }
 
   async function salveazaModel(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault(); setMsg("");
     const f = new FormData(e.currentTarget); const sb = sbBrowser()!;
     const nume = String(f.get("nume")); const brand_id = Number(f.get("brand"));
-    let error;
-    if (editM) ({ error } = await sb.from("models").update({ nume, brand_id }).eq("id", editM.id));
-    else {
+    let eroare: string | undefined;
+    if (editM) {
+      const r = await scrieVerificat(sb.from("models").update({ nume, brand_id }).eq("id", editM.id));
+      if (!r.ok) eroare = r.eroare;
+    } else {
       const b = brands.find((x) => x.id === brand_id);
-      ({ error } = await sb.from("models").insert({ nume, brand_id, slug: `${b?.slug ?? "x"}-${slugify(nume)}` }));
+      const { error } = await sb.from("models").insert({ nume, brand_id, slug: `${b?.slug ?? "x"}-${slugify(nume)}` });
+      if (error) eroare = error.message;
     }
-    setMsg(error ? "Eroare: " + error.message : "✓ Salvat.");
-    if (!error) { setEditM(null); (e.target as HTMLFormElement).reset(); incarca(); }
+    setMsg(eroare ? "Nu s-a salvat: " + eroare : "✓ Salvat.");
+    if (!eroare) { setEditM(null); (e.target as HTMLFormElement).reset(); incarca(); }
   }
 
   async function stergeMarca(b: Brand) {
     const n = models.filter((m) => m.brand_id === b.id).length;
     if (!confirm(`Ștergi „${b.nume}"?${n ? ` Se șterg și cele ${n} modele.` : ""}`)) return;
     const sb = sbBrowser()!;
-    const { error } = await sb.from("brands").delete().eq("id", b.id);
-    setMsg(error ? "Eroare: " + error.message : "✓ Șters."); setSel(null); incarca();
+    const r = await scrieVerificat(sb.from("brands").delete().eq("id", b.id));
+    setMsg(r.ok ? "✓ Șters." : `Nu s-a șters: ${r.eroare}`); setSel(null); incarca();
   }
   async function stergeModel(m: Model) {
     if (nrPiese[m.id]) { alert(`„${m.nume}" e folosit de ${nrPiese[m.id]} piese. Scoate-l întâi de pe ele.`); return; }
     if (!confirm(`Ștergi modelul „${m.nume}"?`)) return;
     const sb = sbBrowser()!;
-    const { error } = await sb.from("models").delete().eq("id", m.id);
-    setMsg(error ? "Eroare: " + error.message : "✓ Șters."); incarca();
+    const r = await scrieVerificat(sb.from("models").delete().eq("id", m.id));
+    setMsg(r.ok ? "✓ Șters." : `Nu s-a șters: ${r.eroare}`); incarca();
   }
 
   const modeleSel = sel ? models.filter((m) => m.brand_id === sel) : [];

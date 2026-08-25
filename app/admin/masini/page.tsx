@@ -3,7 +3,7 @@
 // cost de achiziție vs. încasat din piesele ei = profit + zile până la amortizare.
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { sbBrowser } from "@/lib/supabase";
+import { sbBrowser, scrieVerificat } from "@/lib/supabase";
 import { lei } from "@/lib/format";
 import type { VehiculAdmin } from "@/lib/types";
 
@@ -50,23 +50,27 @@ export default function Masini() {
       cost_achizitie: Number(f.get("cost")) || null, status: String(f.get("status")),
       intrare: String(f.get("intrare") || new Date().toISOString().slice(0, 10)),
     };
-    let error;
-    if (edit) ({ error } = await sb.from("vehicles").update(date).eq("id", edit.id));
-    else {
+    let eroare: string | undefined;
+    if (edit) {
+      const r = await scrieVerificat(sb.from("vehicles").update(date).eq("id", edit.id));
+      if (!r.ok) eroare = r.eroare;
+    } else {
       const slug = nume.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
         .replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + "-" + Math.floor(Math.random() * 999);
-      ({ error } = await sb.from("vehicles").insert({ ...date, slug, piese_listate: 0 }));
+      const { error } = await sb.from("vehicles").insert({ ...date, slug, piese_listate: 0 });
+      if (error) eroare = error.message;
     }
-    setMsg(error ? "Eroare: " + error.message : edit ? "✓ Mașina a fost actualizată." : "✓ Mașina a fost adăugată — o poți alege acum la piese.");
-    if (!error) { setEdit(null); setForm(false); incarca(); }
+    setMsg(eroare ? "Nu s-a salvat: " + eroare
+      : edit ? "✓ Mașina a fost actualizată." : "✓ Mașina a fost adăugată — o poți alege acum la piese.");
+    if (!eroare) { setEdit(null); setForm(false); incarca(); }
   }
 
   async function sterge(v: VehiculAdmin) {
     if (!confirm(`Ștergi „${v.nume}"? Piesele rămân, dar nu vor mai fi legate de o mașină.`)) return;
     const sb = sbBrowser()!;
     await sb.from("products").update({ vehicul_id: null }).eq("vehicul_id", v.id);
-    const { error } = await sb.from("vehicles").delete().eq("id", v.id);
-    setMsg(error ? "Eroare: " + error.message : "✓ Mașina a fost ștearsă."); incarca();
+    const r = await scrieVerificat(sb.from("vehicles").delete().eq("id", v.id));
+    setMsg(r.ok ? "✓ Mașina a fost ștearsă." : `Nu s-a șters: ${r.eroare}`); incarca();
   }
 
   const totalCost = cars.reduce((s, c) => s + Number(c.cost_achizitie || 0), 0);

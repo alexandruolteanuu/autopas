@@ -3,7 +3,7 @@
 // și sunt folosite automat în footer, la checkout și în exportul pentru Saga.
 // Tot aici se administrează rolurile echipei.
 import { useEffect, useState, useCallback } from "react";
-import { sbBrowser } from "@/lib/supabase";
+import { sbBrowser, scrieVerificat } from "@/lib/supabase";
 import { getSetariBrowser, type Firma, type Curier, FIRMA_IMPLICITA, CURIERI_IMPLICITI } from "@/lib/settings";
 
 type Profil = { id: string; email: string; nume: string | null; role: string };
@@ -20,6 +20,10 @@ export default function Setari() {
   const [useri, setUseri] = useState<Profil[]>([]);
   const [msg, setMsg] = useState("");
   const [eAdmin, setEAdmin] = useState(false);
+  // Ce se salvează chiar acum: „firma", „curieri" sau id-ul contului căruia i se
+  // schimbă rolul. Ține butonul dezactivat cât ține cererea, ca un al doilea
+  // click să nu trimită aceleași date încă o dată.
+  const [salvez, setSalvez] = useState<string | null>(null);
 
   const incarca = useCallback(async () => {
     const s = await getSetariBrowser(); setFirma(s.firma); setCurieri(s.curieri);
@@ -34,15 +38,34 @@ export default function Setari() {
   }, []);
   useEffect(() => { incarca(); }, [incarca]);
 
-  async function salveaza(cheie: string, valoare: unknown) {
-    const sb = sbBrowser()!; setMsg("");
-    const { error } = await sb.from("settings").update({ valoare }).eq("cheie", cheie);
-    setMsg(error ? "Eroare: " + error.message + " (doar administratorul poate salva setările)" : "✓ Salvat — se aplică imediat pe site.");
+  /** Golește cache-ul paginilor publice. `app/layout.tsx` are `revalidate = 300`,
+   *  iar datele firmei se citesc pe server — fără asta, subsolul, contactul și
+   *  documentele legale ar arăta valoarea veche încă până la 5 minute. */
+  async function golesteCache() {
+    const sb = sbBrowser();
+    const token = sb ? (await sb.auth.getSession()).data.session?.access_token : null;
+    if (!token) return;
+    await fetch("/api/revalideaza", { method: "POST", headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
   }
+
+  async function salveaza(cheie: string, valoare: unknown) {
+    const sb = sbBrowser()!; setMsg(""); setSalvez(cheie);
+    // `scrieVerificat`, nu `error === null`: un UPDATE oprit de RLS întoarce zero
+    // rânduri și NICIO eroare, deci varianta veche anunța „salvat" fără să salveze.
+    const r = await scrieVerificat(sb.from("settings").update({ valoare }).eq("cheie", cheie));
+    if (r.ok) await golesteCache();
+    setSalvez(null);
+    setMsg(r.ok
+      ? "✓ Salvat — se vede imediat pe site."
+      : `Nu s-a salvat: ${r.eroare}`);
+    if (r.ok) incarca();
+  }
+
   async function schimbaRol(p: Profil, role: string) {
-    const sb = sbBrowser()!;
-    const { error } = await sb.from("profiles").update({ role }).eq("id", p.id);
-    setMsg(error ? "Eroare: " + error.message : `✓ ${p.email} are acum rolul „${role}".`);
+    const sb = sbBrowser()!; setMsg(""); setSalvez(p.id);
+    const r = await scrieVerificat(sb.from("profiles").update({ role }).eq("id", p.id));
+    setSalvez(null);
+    setMsg(r.ok ? `✓ ${p.email} are acum rolul „${role}".` : `Rolul NU s-a schimbat: ${r.eroare}`);
     incarca();
   }
 
@@ -78,7 +101,8 @@ export default function Setari() {
           <div className="fld"><label>Număr WhatsApp <span className="font-normal text-mut">(format internațional, ex. 40740123456)</span></label>
             <input name="whatsapp" defaultValue={firma.whatsapp} placeholder="40740123456" /></div>
           <p className="text-[11px] text-mut -mt-1">Se aplică instant pe tot site-ul: butonul plutitor, pagina de produs, butoanele din admin.</p>
-          <button className="btn-acc" disabled={!eAdmin}>Salvează datele firmei</button>
+          <button className="btn-acc" disabled={!eAdmin || salvez !== null}>
+            {salvez === "firma" ? "Se salvează…" : "Salvează datele firmei"}</button>
         </form>
 
         <div className="space-y-4">
@@ -95,7 +119,8 @@ export default function Setari() {
                     onChange={(e) => { const n = [...curieri]; n[i] = { ...c, pret: Number(e.target.value) }; setCurieri(n); }} /></div>
               </div>
             ))}
-            <button className="btn-acc" disabled={!eAdmin}>Salvează curierii</button>
+            <button className="btn-acc" disabled={!eAdmin || salvez !== null}>
+              {salvez === "curieri" ? "Se salvează…" : "Salvează curierii"}</button>
           </form>
 
           {/* Roluri */}
@@ -110,7 +135,7 @@ export default function Setari() {
               {useri.map((u) => (
                 <div key={u.id} className="py-2.5 flex items-center gap-3">
                   <span className="flex-1 min-w-0 truncate">{u.email}{u.nume ? <span className="text-mut"> · {u.nume}</span> : null}</span>
-                  <select value={u.role} onChange={(e) => schimbaRol(u, e.target.value)} disabled={!eAdmin}
+                  <select value={u.role} onChange={(e) => schimbaRol(u, e.target.value)} disabled={!eAdmin || salvez !== null}
                     className="rounded-lg border-2 border-line px-2 py-1 text-xs bg-white disabled:opacity-50">
                     {ROLURI.map((r) => <option key={r.id} value={r.id}>{r.t}</option>)}
                   </select>

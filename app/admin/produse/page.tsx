@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { sbBrowser } from "@/lib/supabase";
+import { sbBrowser, scrieVerificat } from "@/lib/supabase";
 import { lei } from "@/lib/format";
 
 type Prod = { id: number; nume: string; oem: string | null; cod_intern: string | null; poze: string[] | null; pret_lei: number; stoc: number; publicat: boolean; slug: string;
@@ -23,6 +23,9 @@ function ProduseInner() {
   const [filtruStare, setFiltruStare] = useState<"" | "publicat" | "ascuns" | "epuizat">("");
   const [sel, setSel] = useState<number[]>([]);
   const [pagina, setPagina] = useState(0);
+  // `true` cât timp o scriere e pe drum: butoanele se dezactivează, ca un al
+  // doilea click să nu trimită aceeași comandă a doua oară.
+  const [lucru, setLucru] = useState(false);
   const PE_PAGINA = 50;
   useEffect(() => {
     const sb = sbBrowser(); if (!sb) return;
@@ -46,22 +49,23 @@ function ProduseInner() {
 
 
   async function comuta(p: Prod) {
-    const sb = sbBrowser()!;
-    // Regula „o piesă importată nu se publică fără poze" stă în bază, în triggerul
-    // `tr_verifica_publicarea`. Nu o repetăm aici: două locuri cu aceeași regulă
-    // ajung să se contrazică. Arătăm mesajul triggerului, care e deja în română.
-    const { error } = await sb.from("products").update({ publicat: !p.publicat }).eq("id", p.id);
-    if (error) setMsg(error.message);
+    const sb = sbBrowser()!; setLucru(true);
+    const r = await scrieVerificat(sb.from("products").update({ publicat: !p.publicat }).eq("id", p.id));
+    setLucru(false);
+    setMsg(r.ok
+      ? `✓ „${p.nume.slice(0, 40)}" ${p.publicat ? "ascunsă" : "publicată"}.`
+      : `Nu s-a schimbat: ${r.eroare}`);
     incarca();
   }
 
 
   // duplicare — „încă un alternator identic", cu un click
   async function duplica(p: Prod) {
-    const sb = sbBrowser()!;
+    const sb = sbBrowser()!; setLucru(true);
     const { id, slug, vizualizari, ...rest } = p as any;
     const nou = { ...rest, slug: slug.replace(/-\d+$/, "") + "-" + Math.floor(Math.random() * 9999), stoc: 1, publicat: false };
     const { error } = await sb.from("products").insert(nou);
+    setLucru(false);
     setMsg(error ? "Eroare: " + error.message : "✓ Copie creată (ascunsă) — editeaz-o și public-o.");
     incarca();
   }
@@ -69,8 +73,9 @@ function ProduseInner() {
   // ștergere protejată — dacă piesa apare într-o comandă, e doar ascunsă
   async function sterge(p: Prod) {
     if (!confirm(`Ștergi definitiv „${p.nume}"?`)) return;
-    const sb = sbBrowser()!;
+    const sb = sbBrowser()!; setLucru(true);
     const { data, error } = await sb.rpc("sterge_produs", { p_id: p.id });
+    setLucru(false);
     setMsg(error ? "Eroare: " + error.message : (data as any)?.mesaj ?? "Gata.");
     incarca();
   }
@@ -107,23 +112,33 @@ function ProduseInner() {
   }
 
   async function inMasa(actiune: "publica" | "ascunde" | "sterge") {
-    if (sel.length === 0) return;
-    const sb = sbBrowser()!;
+    if (sel.length === 0 || lucru) return;
+    const sb = sbBrowser()!; setLucru(true);
     if (actiune === "sterge") {
       if (!confirm(`Ștergi ${sel.length} piese? Cele care apar deja în comenzi nu se șterg — se ascund de pe site.`)) return;
-      for (const id of sel) await sb.rpc("sterge_produs", { p_id: id });
-      setMsg(`✓ ${sel.length} piese procesate.`);
+      // Rezultatul fiecărei ștergeri se citea până acum în gol: funcția întoarce
+      // `{ok, mesaj}`, iar o piesă refuzată trecea drept „procesată".
+      let sterse = 0; const refuzate: string[] = [];
+      for (const id of sel) {
+        const { data, error } = await sb.rpc("sterge_produs", { p_id: id });
+        if (error) refuzate.push(error.message);
+        else if ((data as any)?.ok === false) refuzate.push((data as any).mesaj);
+        else sterse++;
+      }
+      setMsg(`✓ ${sterse} piese șterse.` +
+        (refuzate.length ? ` ${refuzate.length} nu s-au putut șterge: ${refuzate[0]}` : ""));
     } else {
       // Una câte una, nu toate odată: dacă triggerul respinge o piesă fără poze,
       // un update în masă ar anula întreaga operațiune, inclusiv piesele bune.
       let reusite = 0; const respinse: string[] = [];
       for (const id of sel) {
-        const { error } = await sb.from("products").update({ publicat: actiune === "publica" }).eq("id", id);
-        if (error) respinse.push(error.message); else reusite++;
+        const r = await scrieVerificat(sb.from("products").update({ publicat: actiune === "publica" }).eq("id", id));
+        if (r.ok) reusite++; else respinse.push(r.eroare!);
       }
       setMsg(`✓ ${reusite} piese ${actiune === "publica" ? "publicate" : "ascunse"}.` +
         (respinse.length ? ` ${respinse.length} respinse: ${respinse[0]}` : ""));
     }
+    setLucru(false);
     incarca();
   }
 
@@ -165,9 +180,9 @@ function ProduseInner() {
           {sel.length > 0 && (
             <div className="card px-4 py-2.5 flex items-center gap-3 text-sm bg-acc/5 border-acc">
               <b>{sel.length} selectate</b>
-              <button onClick={() => inMasa("publica")} className="text-ok font-semibold">Publică</button>
-              <button onClick={() => inMasa("ascunde")} className="text-steel font-semibold">Ascunde</button>
-              <button onClick={() => inMasa("sterge")} className="text-red-600 font-semibold">Șterge</button>
+              <button onClick={() => inMasa("publica")} disabled={lucru} className="text-ok font-semibold disabled:opacity-40">Publică</button>
+              <button onClick={() => inMasa("ascunde")} disabled={lucru} className="text-steel font-semibold disabled:opacity-40">Ascunde</button>
+              <button onClick={() => inMasa("sterge")} disabled={lucru} className="text-red-600 font-semibold disabled:opacity-40">Șterge</button>
               <button onClick={() => setSel([])} className="ml-auto text-mut text-xs">renunț</button>
             </div>
           )}
@@ -190,13 +205,13 @@ function ProduseInner() {
                 </div>
                 <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${p.stoc > 0 ? "bg-ok/10 text-ok" : "bg-red-100 text-red-600"}`}>
                   {p.stoc > 0 ? `stoc ${p.stoc}` : "vândută"}</span>
-                <button onClick={() => comuta(p)} className={`px-2 py-0.5 rounded-full text-[11px] font-bold border-2 ${p.publicat ? "border-ok/40 text-ok" : "border-line text-mut"}`}>
+                <button onClick={() => comuta(p)} disabled={lucru} className={`px-2 py-0.5 rounded-full text-[11px] font-bold border-2 disabled:opacity-40 ${p.publicat ? "border-ok/40 text-ok" : "border-line text-mut"}`}>
                   {p.publicat ? "publicată" : "ascunsă"}</button>
                 <b className="font-disp text-acc whitespace-nowrap">{lei(Number(p.pret_lei))}</b>
                 <div className="flex gap-2 text-xs whitespace-nowrap">
                   <Link href={`/admin/produse/${p.id}`} className="text-acc font-semibold">Editează</Link>
-                  <button onClick={() => duplica(p)} className="text-mut hover:text-ink">Duplică</button>
-                  <button onClick={() => sterge(p)} className="text-mut hover:text-red-600">Șterge</button>
+                  <button onClick={() => duplica(p)} disabled={lucru} className="text-mut hover:text-ink disabled:opacity-40">Duplică</button>
+                  <button onClick={() => sterge(p)} disabled={lucru} className="text-mut hover:text-red-600 disabled:opacity-40">Șterge</button>
                 </div>
               </div>
             ))}

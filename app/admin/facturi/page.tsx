@@ -3,7 +3,7 @@
 // emiți factura în Saga, notezi seria aici, exporți CSV-ul pentru contabil.
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { sbBrowser } from "@/lib/supabase";
+import { sbBrowser, scrieVerificat } from "@/lib/supabase";
 import { lei } from "@/lib/format";
 import type { OrderFull } from "@/lib/types";
 
@@ -14,6 +14,9 @@ export default function Facturi() {
   const [pana, setPana] = useState(azi);
   const [filtru, setFiltru] = useState<"toate" | "de_emis" | "emisa">("toate");
   const [orders, setOrders] = useState<OrderFull[]>([]);
+  // Mesaj de eroare pentru salvarea seriei. Până acum rezultatul se pierdea:
+  // câmpul revenea la valoarea veche la reîncărcare, fără nicio explicație.
+  const [msg, setMsg] = useState("");
 
   const incarca = useCallback(async () => {
     const sb = sbBrowser(); if (!sb) return;
@@ -27,8 +30,13 @@ export default function Facturi() {
   useEffect(() => { incarca(); }, [incarca]);
 
   async function salveazaSerie(o: OrderFull, serie: string) {
-    const sb = sbBrowser()!;
-    await sb.from("orders").update({ factura_serie: serie || null, factura_status: serie ? "emisa" : "de_emis" }).eq("id", o.id);
+    const sb = sbBrowser()!; setMsg("");
+    // Seria facturii e legătura cu contabilitatea: dacă nu se scrie, comanda
+    // rămâne „de emis" la nesfârșit, iar exportul pentru Saga pleacă incomplet.
+    const r = await scrieVerificat(sb.from("orders")
+      .update({ factura_serie: serie || null, factura_status: serie ? "emisa" : "de_emis" })
+      .eq("id", o.id));
+    if (!r.ok) setMsg(`Seria NU s-a salvat pentru ${o.numar}: ${r.eroare}`);
     incarca();
   }
 
@@ -58,6 +66,8 @@ export default function Facturi() {
           <p className="text-sm text-mut mt-1">Saga nu are API public — fluxul standard e emiterea în Saga + importul acestui CSV. Statusul e-Factura ANAF îl gestionează Saga.</p></div>
         <button onClick={exportSaga} className="rounded-xl bg-ok/10 text-ok border-2 border-ok/30 px-4 py-2 text-sm font-semibold hover:bg-ok/20">Export Saga (CSV)</button>
       </div>
+
+      {msg && <div className="card p-3 text-sm border-2 border-red-300 bg-red-50 text-red-800">{msg}</div>}
 
       <div className="grid grid-cols-3 gap-3">
         {[["Comenzi în interval", String(orders.length)], ["De facturat", String(deEmis)], ["Valoare totală", lei(total)]].map(([t, v]) => (

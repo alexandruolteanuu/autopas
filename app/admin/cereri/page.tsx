@@ -3,7 +3,7 @@
 // Fiecare cerere are status (nouă → în lucru → rezolvată/respinsă), notă internă și contact rapid.
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { sbBrowser } from "@/lib/supabase";
+import { sbBrowser, scrieVerificat } from "@/lib/supabase";
 
 type Tab = "piese" | "predare" | "retur" | "contact";
 const TABURI: { id: Tab; t: string; tabel: string }[] = [
@@ -23,6 +23,8 @@ function CereriInner() {
   const [rows, setRows] = useState<any[]>([]);
   const [contor, setContor] = useState<Record<Tab, number>>({ piese: 0, predare: 0, retur: 0, contact: 0 });
   const [doarNoi, setDoarNoi] = useState(false);
+  // Mesaj pentru scrierile care nu reușesc. Până acum rezultatul se ignora complet.
+  const [msg, setMsg] = useState("");
 
   const tabel = TABURI.find((t) => t.id === tab)!.tabel;
 
@@ -37,17 +39,27 @@ function CereriInner() {
   }, [tabel, doarNoi]);
   useEffect(() => { incarca(); }, [incarca]);
 
+  // Cel mai tăcut loc din tot panoul: rezultatul nu se citea deloc. O cerere
+  // marcată „rezolvată" fără să se scrie nimic reapare mâine ca nouă, iar nota
+  // scrisă de operator dispare fără urmă.
   async function setStatus(id: number, status: string) {
-    const sb = sbBrowser()!; await sb.from(tabel).update({ status }).eq("id", id); incarca();
+    const sb = sbBrowser()!; setMsg("");
+    const r = await scrieVerificat(sb.from(tabel).update({ status }).eq("id", id));
+    if (!r.ok) setMsg(`Statusul NU s-a schimbat: ${r.eroare}`);
+    incarca();
   }
   async function salveazaNota(id: number, nota: string) {
-    const sb = sbBrowser()!; await sb.from(tabel).update({ nota: nota || null }).eq("id", id);
+    const sb = sbBrowser()!; setMsg("");
+    const r = await scrieVerificat(sb.from(tabel).update({ nota: nota || null }).eq("id", id));
+    setMsg(r.ok ? "✓ Notă salvată." : `Nota NU s-a salvat: ${r.eroare}`);
   }
 
   return (
     <div className="space-y-4">
       <div><div className="dim">Administrare</div><h1 className="font-disp font-bold text-2xl mt-1">Cereri (Inbox)</h1>
         <p className="text-sm text-mut mt-1">Fiecare cerere netratată e un client pierdut — iar cererile agregate îți spun ce mașini merită cumpărate la dezmembrat.</p></div>
+
+      {msg && <div className="card p-3 text-sm">{msg}</div>}
 
       <div className="flex flex-wrap gap-2 items-center">
         {TABURI.map((t) => (

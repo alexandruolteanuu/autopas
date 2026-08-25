@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { sbBrowser } from "@/lib/supabase";
+import { sbBrowser, scrieVerificat } from "@/lib/supabase";
 import PhotoUploader from "./PhotoUploader";
 import type { Category, Vehicle, Brand, Model, Product } from "@/lib/types";
 
@@ -60,15 +60,20 @@ export default function ProductForm({ produs }: { produs?: Product }) {
       publicat: f.get("publicat") === "on",
       stare_nota: String(f.get("descriere") || "") || null,
     };
-    let error;
-    if (produs) ({ error } = await sb.from("products").update(date).eq("id", produs.id));
-    else {
+    let eroare: string | undefined;
+    if (produs) {
+      // La UPDATE se verifică rândurile atinse: RLS nu ridică eroare, filtrează.
+      const r = await scrieVerificat(sb.from("products").update(date).eq("id", produs.id));
+      if (!r.ok) eroare = r.eroare;
+    } else {
       const slug = nume.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
         .replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + "-" + Math.floor(Math.random() * 9999);
-      ({ error } = await sb.from("products").insert({ ...date, slug }));
+      // La INSERT, RLS chiar dă eroare (42501), deci `error` e de ajuns.
+      const { error } = await sb.from("products").insert({ ...date, slug });
+      if (error) eroare = error.message;
     }
     setSalvez(false);
-    if (error) { setMsg("Eroare: " + error.message); return; }
+    if (eroare) { setMsg("Nu s-a salvat: " + eroare); return; }
     router.push("/admin/produse");
     router.refresh();
   }

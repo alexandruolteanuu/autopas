@@ -95,11 +95,11 @@
   --text:               20  23  26;   /* #14171A */
   --text-secundar:      83  90  97;   /* #535A61 */
   --chenar:            221 225 230;   /* #DDE1E6 — decorativ */
-  --chenar-puternic:   191 197 204;   /* #BFC5CC — inputuri și butoane */
+  --chenar-puternic:   126 136 148;   /* #7E8894 — 3,60:1 pe alb, 3,12:1 pe fundal */
   --accent:            242 183 5;     /* #F2B705 — DOAR umplutură, niciodată text */
   --accent-hover:      214 160 4;     /* #D6A004 */
   --accent-contrast:    16  16  16;   /* #101010 — text pe galben */
-  --accent-chenar:     201 156 5;     /* #C99C05 — conturul umpluturii galbene */
+  --accent-chenar:     163 126 4;     /* #A37E04 — conturul umpluturii galbene, 3,79:1 pe alb */
   --header-bg:           0   0   0;   /* negru — „zonele negre" */
   --header-text:       255 255 255;
   --footer-bg:           0   0   0;

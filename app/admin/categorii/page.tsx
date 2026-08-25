@@ -2,7 +2,7 @@
 // CATEGORII ȘI SUBCATEGORII — adăugare, editare, ștergere, ordonare.
 // Meniul și filtrele de pe site se construiesc din ce e aici.
 import { useEffect, useState, useCallback } from "react";
-import { sbBrowser } from "@/lib/supabase";
+import { sbBrowser, scrieVerificat } from "@/lib/supabase";
 import type { Category } from "@/lib/types";
 
 const ARTE = ["engine","alternator","headlight","gearbox","turbo","mirror","egr","compressor","wheel","suspension","brake","seat","panel"];
@@ -35,24 +35,31 @@ export default function Categorii() {
     const nume = String(f.get("nume"));
     const parent = f.get("parent") ? Number(f.get("parent")) : null;
     const date: any = { nume, parent_id: parent, ordine: Number(f.get("ordine") || 0), art: String(f.get("art") || "engine") };
-    let error;
-    if (edit) ({ error } = await sb.from("categories").update(date).eq("id", edit.id));
-    else {
+    let eroare: string | undefined;
+    if (edit) {
+      const r = await scrieVerificat(sb.from("categories").update(date).eq("id", edit.id));
+      if (!r.ok) eroare = r.eroare;
+    } else {
       const baza = parent ? (cats.find((c) => c.id === parent)?.slug ?? "") + "-" : "";
-      ({ error } = await sb.from("categories").insert({ ...date, slug: baza + slugify(nume), display_count: 0 }));
+      const { error } = await sb.from("categories").insert({ ...date, slug: baza + slugify(nume), display_count: 0 });
+      if (error) eroare = error.message;
     }
-    setMsg(error ? "Eroare: " + error.message : edit ? "✓ Categorie actualizată." : "✓ Categorie adăugată — apare imediat pe site.");
-    if (!error) { setEdit(null); setParinteNou(null); (e.target as HTMLFormElement).reset(); incarca(); }
+    setMsg(eroare ? "Nu s-a salvat: " + eroare : edit ? "✓ Categorie actualizată." : "✓ Categorie adăugată — apare imediat pe site.");
+    if (!eroare) { setEdit(null); setParinteNou(null); (e.target as HTMLFormElement).reset(); incarca(); }
   }
 
   async function sterge(c: Category) {
     const copii = cats.filter((x) => x.parent_id === c.id).length;
     if (!confirm(`Ștergi „${c.nume}"?${copii ? ` Se șterg și cele ${copii} subcategorii.` : ""} Piesele rămân, dar fără categorie.`)) return;
     const sb = sbBrowser()!;
+    // Dezlegarea pieselor rulează chiar dacă nu atinge niciun rând (categoria
+    // poate fi goală), deci acolo zero rânduri NU e eroare — se verifică doar
+    // ștergerea propriu-zisă, care trebuie să atingă exact un rând.
     await sb.from("products").update({ categorie_id: null }).eq("categorie_id", c.id);
     await sb.from("products").update({ subcategorie_id: null }).eq("subcategorie_id", c.id);
-    const { error } = await sb.from("categories").delete().eq("id", c.id);
-    setMsg(error ? "Eroare: " + error.message : "✓ Șters."); incarca();
+    const r = await scrieVerificat(sb.from("categories").delete().eq("id", c.id));
+    setMsg(r.ok ? "✓ Șters." : `Nu s-a șters: ${r.eroare}`);
+    incarca();
   }
 
   const principale = cats.filter((c) => !c.parent_id);

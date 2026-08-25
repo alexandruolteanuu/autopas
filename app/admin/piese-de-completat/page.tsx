@@ -15,7 +15,7 @@
 // ============================================================
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { sbBrowser } from "@/lib/supabase";
+import { sbBrowser, scrieVerificat } from "@/lib/supabase";
 import { lei } from "@/lib/format";
 
 type Piesa = {
@@ -123,9 +123,14 @@ export default function PieseDeCompletat() {
     if (!g || g <= 0) { campRef.current?.focus(); return; }
     setSalvezG(true);
     const sb = sbBrowser()!;
-    await sb.from("products").update({ greutate_kg: g, greutate_estimata: false }).eq("id", curenta.id);
-    setPiese((v) => v.map((x) => (x.id === curenta.id ? { ...x, greutate_kg: g, greutate_estimata: false } : x)));
+    // Greutatea e singurul lucru care ține AWB-ul corect. O salvare picată în
+    // tăcere aici ar însemna colete cântărite greșit, descoperite la factura de
+    // la curier — de asta se verifică rândul atins, nu doar lipsa erorii.
+    const r = await scrieVerificat(
+      sb.from("products").update({ greutate_kg: g, greutate_estimata: false }).eq("id", curenta.id));
     setSalvezG(false);
+    if (!r.ok) { setMsg(`Greutatea NU s-a salvat: ${r.eroare}`); return; }
+    setPiese((v) => v.map((x) => (x.id === curenta.id ? { ...x, greutate_kg: g, greutate_estimata: false } : x)));
     urmatoarea();
   }
 

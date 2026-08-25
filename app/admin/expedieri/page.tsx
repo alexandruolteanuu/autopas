@@ -2,7 +2,7 @@
 // EXPEDIERI — ecranul de depozit: ce colete predau azi curierului + borderoul printabil.
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { sbBrowser } from "@/lib/supabase";
+import { sbBrowser, scrieVerificat } from "@/lib/supabase";
 import { lei } from "@/lib/format";
 import { getSetariBrowser, type Curier } from "@/lib/settings";
 import type { OrderFull } from "@/lib/types";
@@ -12,6 +12,8 @@ export default function Expedieri() {
   const [greutati, setGreutati] = useState<Record<number, number>>({});
   const [curieri, setCurieri] = useState<Curier[]>([]);
   const [sel, setSel] = useState<number[]>([]);
+  const [lucru, setLucru] = useState(false);
+  const [msg, setMsg] = useState("");
   const [tab, setTab] = useState<"de_predat" | "in_tranzit" | "livrate">("de_predat");
 
   const incarca = useCallback(async () => {
@@ -59,9 +61,19 @@ export default function Expedieri() {
   }
 
   async function marcheazaExpediat() {
-    if (sel.length === 0) return;
-    const sb = sbBrowser()!;
-    for (const id of sel) await sb.from("orders").update({ status: "expediata" }).eq("id", id);
+    if (sel.length === 0 || lucru) return;
+    const sb = sbBrowser()!; setLucru(true); setMsg("");
+    // Fiecare comandă separat, cu rezultatul citit: până acum, dacă RLS oprea
+    // operațiunea, coletele rămâneau „de expediat" fără ca nimeni să afle, iar
+    // borderoul se tipărea a doua zi cu aceleași comenzi.
+    let ok = 0; const picate: string[] = [];
+    for (const id of sel) {
+      const r = await scrieVerificat(sb.from("orders").update({ status: "expediata" }).eq("id", id));
+      if (r.ok) ok++; else picate.push(r.eroare!);
+    }
+    setLucru(false);
+    setMsg(`✓ ${ok} ${ok === 1 ? "comandă marcată expediată" : "comenzi marcate expediate"}.` +
+      (picate.length ? ` ${picate.length} nu s-au putut marca: ${picate[0]}` : ""));
     incarca();
   }
 
@@ -71,6 +83,8 @@ export default function Expedieri() {
     <div className="space-y-4">
       <div><div className="dim">Administrare</div><h1 className="font-disp font-bold text-2xl mt-1">Expedieri (AWB)</h1>
         <p className="text-sm text-mut mt-1">Bifează coletele predate azi → printează borderoul → marchează-le expediate dintr-o mișcare.</p></div>
+
+      {msg && <div className="card p-3 text-sm">{msg}</div>}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="card p-4"><span className="text-xs text-mut">De predat azi</span>
@@ -88,7 +102,8 @@ export default function Expedieri() {
         {tab === "de_predat" && (
           <div className="ml-auto flex gap-2">
             <button onClick={borderou} className="rounded-xl border-2 border-line px-4 py-1.5 font-semibold hover:border-acc">Printează borderoul ({sel.length})</button>
-            <button onClick={marcheazaExpediat} disabled={sel.length === 0} className="btn-acc !py-1.5 !px-4 disabled:opacity-40">Marchează expediate</button>
+            <button onClick={marcheazaExpediat} disabled={sel.length === 0 || lucru} className="btn-acc !py-1.5 !px-4 disabled:opacity-40">
+              {lucru ? "Se marchează…" : "Marchează expediate"}</button>
           </div>
         )}
       </div>

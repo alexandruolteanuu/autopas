@@ -1,7 +1,7 @@
 "use client";
 // MARKETING — coduri de reducere reale: se creează aici, se validează în coș, se scad la checkout.
 import { useEffect, useState, useCallback } from "react";
-import { sbBrowser } from "@/lib/supabase";
+import { sbBrowser, scrieVerificat } from "@/lib/supabase";
 import { lei } from "@/lib/format";
 import type { Discount } from "@/lib/types";
 
@@ -27,11 +27,17 @@ export default function Marketing() {
     if (!error) { (e.target as HTMLFormElement).reset(); incarca(); }
   }
   async function comuta(c: Discount) {
-    const sb = sbBrowser()!; await sb.from("discount_codes").update({ activ: !c.activ }).eq("id", c.id); incarca();
+    const sb = sbBrowser()!; setMsg("");
+    const r = await scrieVerificat(sb.from("discount_codes").update({ activ: !c.activ }).eq("id", c.id));
+    if (!r.ok) setMsg(`Codul ${c.cod} NU s-a ${c.activ ? "dezactivat" : "activat"}: ${r.eroare}`);
+    incarca();
   }
   async function sterge(c: Discount) {
     if (!confirm(`Ștergi codul ${c.cod}?`)) return;
-    const sb = sbBrowser()!; await sb.from("discount_codes").delete().eq("id", c.id); incarca();
+    const sb = sbBrowser()!; setMsg("");
+    const r = await scrieVerificat(sb.from("discount_codes").delete().eq("id", c.id));
+    setMsg(r.ok ? `✓ Codul ${c.cod} a fost șters.` : `Codul NU s-a șters: ${r.eroare}`);
+    incarca();
   }
 
   return (

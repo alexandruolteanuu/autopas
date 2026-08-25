@@ -61,12 +61,12 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 12. `livrare-dupa-comanda.sql` -> 13. `coduri-reducere-private.sql` -> 14. `view-security-invoker.sql` ->
 15. `cautare-fara-diacritice.sql` -> 16. `email-unic.sql` -> 17. `import-pieseauto.sql` ->
 18. `taxonomie-import.sql` -> 19. `greutate-estimata.sql` -> 20. `import-index-fix.sql` ->
-21. `publicare-cu-poze.sql` -> 22. `import-din-admin.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22.
+21. `publicare-cu-poze.sql` -> 22. `import-din-admin.sql` -> 23. `rls-citire-echipa.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23.
 NU sunt încă idempotente: 1–5, 8.
-Aplicate pe producție: 1–21 (august 2026). **22 NU e încă rulată** — o rulează utilizatorul;
-fără ea, ecranul `/admin/import` nu are unde să-și scrie starea (`import_jobs` extinsă) și nici
-bucketul privat `import-csv`.
+Aplicate pe producție: 1–22 (august 2026). **23 NU e încă rulată** — o rulează utilizatorul.
+Fără ea, `operator` scrie în piese și în cereri, dar nu le poate CITI, iar verificarea
+`scrieVerificat()` (care cere înapoi rândul atins) ar raporta eșec la o scriere reușită.
 
 ## De configurat (nu e cod, se rezolvă din afara proiectului)
 
@@ -127,6 +127,17 @@ sunt sarcini ale utilizatorului. Consemnate la 24 august 2026.
 - **`products` are două legături către `categories`** (`categorie_id` și `subcategorie_id`), deci orice
   `select` cu `categories(*)` trebuie să numească cheia: `categories!products_categorie_id_fkey(*)`.
   Altfel Supabase respinge cererea ca ambiguă (PGRST201) și pagina rămâne goală.
+- **Orice UPDATE sau DELETE din `/admin` trece prin `scrieVerificat()`** din `lib/supabase.ts`.
+  Motivul e defectul din 25 august 2026: un UPDATE oprit de RLS întoarce 204, **zero rânduri
+  și NICIO eroare**, deci codul care se uită doar la `error` afișa „✓ Salvat" peste o
+  operațiune care n-a atins nimic. Funcția cere înapoi rândurile atinse (`.select()`) și
+  tratează zero rânduri ca eșec. La `insert` nu e nevoie: acolo RLS chiar ridică eroare (42501).
+  Excepție conștientă: dezlegările în masă („scoate categoria de pe toate piesele ei"), unde
+  zero rânduri e un rezultat legitim — sunt marcate cu comentariu în cod.
+- **După o salvare din Setări se cheamă `/api/revalideaza`**, care face
+  `revalidatePath("/", "layout")`. Fără el, `revalidate = 300` din `app/layout.tsx` ține datele
+  firmei vechi până la 5 minute în subsol, la contact și în documentele legale — exact simptomul
+  „am salvat și nu se vede".
 - **Rutele din `app/api/` nu sunt protejate de RLS** — rulează pe server, cu drepturi de server.
   Cele care fac ceva în numele firmei cer token-ul sesiunii și îl verifică cu `esteEchipa()` din
   `lib/supabase.ts` (vezi `app/api/awb/route.ts`).
