@@ -147,6 +147,17 @@ sunt sarcini ale utilizatorului. Consemnate la 24 august 2026.
   în `import_jobs` și fișierul CSV într-un bucket privat. Scriptul `scripts/import-pieseauto.mjs`
   rămâne, pentru rulări fără browser. AMÂNDOUĂ folosesc același motor, din `lib/import/` — nicio
   regulă de import nu are voie să existe în altă parte (vezi `lib/import/README.md`).
+- **Importul de piese NOI nu se poate rula de pe Vercel** (constatat 25 august 2026). pieseauto.ro
+  refuză cererile `fetch` din Node — întoarce pagina „sorry" cu HTTP 200 — iar singura variantă care
+  trece e `curl`, care lipsește din mediul serverless. Consecința veche: fiecare piesă nouă intra în
+  scara de reîncercări (5+15+45 = 65s), funcția era tăiată la 60s cu **504**, iar cum progresul se
+  scria doar la finalul lotului, `procesate` rămânea 0 și „Continuă importul" relua la infinit
+  aceleași rânduri. Azi refuzul e marcat `fatal` în `aducere.mjs`: lotul se oprește în ~1s, jobul
+  trece în `in_pauza` cu motivul scris, și se poate continua **din Codespace** (`npm run dev`, unde
+  există curl) sau din terminal cu `scripts/import-pieseauto.mjs`. Actualizările de preț ale
+  pieselor deja importate merg oriunde — nu cer nicio pagină de la sursă.
+- **Progresul unui lot se salvează din mers**, la fiecare 4 secunde (`SALVARE_LA_MS` în
+  `app/api/import/route.ts`), nu doar la final. Fără asta, orice cerere tăiată pierdea tot lotul.
 - **Piesele importate se publică direct**, cu pozele descărcate în timpul importului, chiar dacă le
   lipsește categoria sau modelul (decizie 25 august 2026). Greutatea primește 1 kg cu
   `greutate_estimata = true`; se cântărește la formarea coletului. Triggerul `verifica_publicarea`,

@@ -32,6 +32,20 @@ type Plan = {
   exempleActualizate: { titlu: string; vechi: number; nou: number }[];
 };
 
+/** De câte ori reîncearcă singură pagina un lot picat, înainte să ceară ajutorul
+ *  operatorului. Are voie: progresul se salvează din mers pe server, deci fiecare
+ *  reîncercare pornește de unde a rămas, nu de la capăt. */
+const INCERCARI_LOT = 3;
+
+/** Cât se așteaptă înainte de o reîncercare.
+ *
+ *  Nu 2 secunde, ci 20: când cererea e tăiată de un proxy, funcția de pe server
+ *  poate încă lucra. O reîncercare imediată ar face două loturi să macine în
+ *  paralel aceleași rânduri — le-am văzut ciocnindu-se pe `products_slug_key`,
+ *  la 25 august 2026. Un lot obișnuit se încheie în ~17 secunde, deci după 20
+ *  drumul e liber. */
+const ASTEPTARE_REINCERCARE_MS = 20000;
+
 const mb = (o: number) => `${(o / 1024 / 1024).toFixed(1)} MB`;
 const durata = (ms: number) => {
   const s = Math.max(0, Math.round(ms / 1000));
@@ -61,7 +75,15 @@ export default function ImportPieseauto() {
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify(corp),
     });
-    const j = await r.json().catch(() => ({ ok: false, eroare: `HTTP ${r.status}` }));
+    // Un 502/504 nu vine de la ruta noastră, ci de la serverul (sau proxy-ul) din
+    // fața ei, care a tăiat cererea fiindcă a ținut prea mult. Corpul nu e JSON,
+    // deci fără explicația asta operatorul vedea doar „HTTP 504", fără ce să facă.
+    const j = await r.json().catch(() => ({
+      ok: false,
+      eroare: r.status === 504 || r.status === 502
+        ? `Serverul a tăiat cererea (HTTP ${r.status}): lotul a durat mai mult decât are voie. Piesele apucate până acolo sunt salvate.`
+        : `HTTP ${r.status}`,
+    }));
     return j as any;
   }, []);
 
@@ -83,10 +105,23 @@ export default function ImportPieseauto() {
     opreste.current = false;
     setRuleaza(true); setMsg("");
     try {
+      let esecuri = 0;
       for (;;) {
         if (opreste.current) break;
         const j = await cere({ actiune: "lot", jobId });
-        if (!j.ok) { setMsg(j.eroare ?? "Eroare la lot."); break; }
+        if (!j.ok) {
+          // Un lot picat nu mai înseamnă import pierdut: serverul scrie progresul
+          // din mers, deci reluarea pornește din poziția salvată, nu de la zero.
+          if (++esecuri <= INCERCARI_LOT) {
+            setMsg(`${j.eroare ?? "Eroare la lot."} Reîncerc (${esecuri} din ${INCERCARI_LOT})…`);
+            await new Promise((r) => setTimeout(r, ASTEPTARE_REINCERCARE_MS));
+            continue;
+          }
+          setMsg(`${j.eroare ?? "Eroare la lot."} Am oprit după ${INCERCARI_LOT} reîncercări — apasă „Continuă importul" ca să reiei.`);
+          break;
+        }
+        esecuri = 0;
+        setMsg("");
         setJob(j.job);
         if (j.gata || j.job.status !== "in_curs") break;
       }

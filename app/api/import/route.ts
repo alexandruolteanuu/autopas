@@ -34,6 +34,35 @@ export const dynamic = "force-dynamic";
  *  lista se oprește — altfel un import cu 3.000 de erori ar umfla rândul. */
 const MAX_ERORI_PASTRATE = 300;
 
+/** La câte milisecunde se salvează progresul în timpul unui lot. Vezi `lot()`. */
+const SALVARE_LA_MS = 4000;
+
+/**
+ * Numărătorile jobului după ce s-a adunat rezultatul unui lot — sau al bucății
+ * din el făcute până acum. `job` e mereu rândul citit la începutul lotului, iar
+ * `rez` e acumulatorul motorului, deci formula dă un instantaneu corect oricând
+ * ar fi chemată. De asta o pot folosi și salvările intermediare, și cea finală,
+ * fără să dubleze nimic.
+ */
+function contoare(job: any, rez: any) {
+  const categorii = { ...(job.categorii_sursa ?? {}) };
+  for (const [k, v] of Object.entries(rez.categoriiSursa)) categorii[k] = (categorii[k] ?? 0) + (v as number);
+  return {
+    procesate: job.procesate + rez.procesate,
+    noi: job.noi + rez.noi,
+    actualizate: job.actualizate + rez.actualizate,
+    neschimbate: (job.neschimbate ?? 0) + rez.neschimbate,
+    pagini: (job.pagini ?? 0) + rez.pagini,
+    poze_salvate: (job.poze_salvate ?? 0) + rez.pozeSalvate,
+    octeti_poze: Number(job.octeti_poze ?? 0) + rez.octetiPoze,
+    canar_total: rez.canar.total,
+    canar_fara_poze: rez.canar.faraPoze,
+    categorii_sursa: categorii,
+    erori: [...(job.erori ?? []), ...rez.erori].slice(0, MAX_ERORI_PASTRATE),
+    nr_erori: (job.nr_erori ?? 0) + rez.erori.length,
+  };
+}
+
 const raspuns = (date: any, stare = 200) => NextResponse.json(date, { status: stare });
 const eroare = (mesaj: string, stare = 400) => raspuns({ ok: false, eroare: mesaj }, stare);
 
@@ -165,48 +194,56 @@ async function lot(depozit: any, corp: any) {
   if (!felie.length) return await incheie(depozit, job, randuri);
 
   const taxonomie = await depozit.citesteTaxonomia();
+
+  // Progresul se salvează DIN MERS, la fiecare câteva secunde, nu doar la finalul
+  // lotului (defect găsit la 25 august 2026). Dacă cererea e tăiată — funcție
+  // serverless expirată, proxy nerăbdător — munca făcută până atunci rămâne
+  // scrisă, iar „Continuă importul" pornește de unde a rămas. Fără asta, un lot
+  // tăiat pierdea tot: `procesate` rămânea 0, reluarea măcina exact aceleași
+  // rânduri, se lovea de aceeași limită, și importul nu putea avansa niciodată.
+  let ultimaSalvare = Date.now();
+  let inSalvare: Promise<any> = Promise.resolve();
+
   const rez = await proceseazaRanduri({
     depozit, randuri: felie, taxonomie,
     canar: { total: job.canar_total ?? 0, faraPoze: job.canar_fara_poze ?? 0 },
     bugetMs: BUGET_MS, maxPagini: LOT_PAGINI, maxRanduri: LOT_RANDURI,
+    laProgres: (ev: any) => {
+      if (Date.now() - ultimaSalvare < SALVARE_LA_MS) return;
+      ultimaSalvare = Date.now();
+      // Fără `await`: salvarea merge în paralel cu rândul următor, ca să nu adauge
+      // timp lotului. O eroare aici nu are voie să oprească importul — salvarea
+      // finală, de mai jos, scrie oricum totul.
+      inSalvare = depozit.jobActualizeaza(job.id, contoare(job, ev.rez)).catch(() => null);
+    },
   });
+  await inSalvare;   // ultima salvare intermediară să nu bată peste cea finală
 
-  const erori = [...(job.erori ?? []), ...rez.erori].slice(0, MAX_ERORI_PASTRATE);
-  const procesate = job.procesate + rez.procesate;
-  const octeti = Number(job.octeti_poze ?? 0) + rez.octetiPoze;
-
-  const categorii = { ...(job.categorii_sursa ?? {}) };
-  for (const [k, v] of Object.entries(rez.categoriiSursa)) categorii[k] = (categorii[k] ?? 0) + (v as number);
-
+  const patch: any = contoare(job, rez);
   const jurnal = [...(job.jurnal ?? [])];
   // Consumul de stocare, la fiecare 1.000 de piese procesate (A.5). Nu oprește
-  // nimic — doar spune unde suntem, ca să nu fie o surpriză la final.
-  if (Math.floor(procesate / 1000) > Math.floor(job.procesate / 1000))
+  // nimic — doar spune unde suntem, ca să nu fie o surpriză la final. Se scrie
+  // doar aici, nu și la salvările intermediare, ca să nu se repete în același lot.
+  if (Math.floor(patch.procesate / 1000) > Math.floor(job.procesate / 1000))
     jurnal.push({
       la: new Date().toISOString(),
-      text: `${procesate} piese procesate · ${(job.poze_salvate ?? 0) + rez.pozeSalvate} poze aduse · stocare folosită ${(octeti / 1024 / 1024).toFixed(1)} MB`,
+      text: `${patch.procesate} piese procesate · ${patch.poze_salvate} poze aduse · stocare folosită ${(patch.octeti_poze / 1024 / 1024).toFixed(1)} MB`,
     });
-
-  const patch: any = {
-    procesate,
-    noi: job.noi + rez.noi,
-    actualizate: job.actualizate + rez.actualizate,
-    neschimbate: (job.neschimbate ?? 0) + rez.neschimbate,
-    pagini: (job.pagini ?? 0) + rez.pagini,
-    poze_salvate: (job.poze_salvate ?? 0) + rez.pozeSalvate,
-    octeti_poze: octeti,
-    canar_total: rez.canar.total,
-    canar_fara_poze: rez.canar.faraPoze,
-    categorii_sursa: categorii,
-    erori, jurnal,
-    nr_erori: (job.nr_erori ?? 0) + rez.erori.length,
-  };
+  patch.jurnal = jurnal;
 
   if (rez.oprit) {
-    patch.status = "oprit";
+    const acum = new Date().toISOString();
     patch.mesaj = rez.mesaj;
-    patch.terminat_la = new Date().toISOString();
-    patch.jurnal = [...jurnal, { la: patch.terminat_la, text: rez.mesaj }];
+    patch.jurnal = [...jurnal, { la: acum, text: rez.mesaj }];
+    // „mediu" = mediul de rulare nu poate ajunge la sursă. Nu e vina fișierului și
+    // nu e o oprire definitivă: aceleași rânduri merg dintr-un mediu cu curl. Deci
+    // jobul rămâne în pauză, cu motivul la vedere, și poate fi continuat de acolo.
+    if (rez.oprit === "mediu") {
+      patch.status = "in_pauza";
+    } else {
+      patch.status = "oprit";
+      patch.terminat_la = acum;
+    }
   }
 
   const nou = await depozit.jobActualizeaza(job.id, patch);

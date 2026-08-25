@@ -19,7 +19,7 @@
 // ============================================================
 import {
   parseCSV, verificaColoane, planifica, proceseazaRanduri,
-  patchLaReimport, construiesteRand, PRAG_CANAR,
+  patchLaReimport, construiesteRand, PRAG_CANAR, REZERVA_MS,
 } from "../lib/import/index.mjs";
 
 let treceri = 0, picate = 0;
@@ -262,6 +262,67 @@ sectiune("6. Canarul: peste 20% pagini fără poze, importul se oprește");
   });
   cer("marca și modelul se potrivesc din pagină", unul.revizuire === 0, `${unul.revizuire} marcate pentru revizuire`);
   cer("categoria-sursă e numărată", unul.categoriiSursa.etriere === 1);
+}
+
+// ============================================================
+// 7. Bugetul unui lot
+//
+// Defectul din 25 august 2026: pe un mediu fără `curl`, fiecare piesă nouă
+// primea pagina „sorry", intra în scara de reîncercări (5+15+45 = 65 de secunde)
+// și ducea lotul peste limita funcției. Serverul îl tăia cu 504 înainte să apuce
+// să salveze ceva, deci `procesate` rămânea 0 și reluarea măcina la nesfârșit
+// exact aceleași rânduri. De aici cele două reguli verificate mai jos.
+// ============================================================
+sectiune("7. Bugetul unui lot: fatal oprește, trecător se sare");
+{
+  const feed = feedFals(40);
+
+  // a) eroare FATALĂ (mediul nu poate ajunge la sursă): lotul se oprește la primul
+  //    rând, cu motivul la vedere. NU marchează 40 de rânduri ca eșuate.
+  let ceruteFatal = 0;
+  const fatal = await proceseazaRanduri({
+    depozit: depozitFals([]), randuri: feed, taxonomie: taxonomieFalsa, uscat: true,
+    adu: async () => { ceruteFatal++; return { ok: false, fatal: true, eroare: "mediul n-are curl" }; },
+    pauza: async () => {},
+  });
+  cer("o eroare fatală oprește lotul", fatal.oprit === "mediu", `oprit=${fatal.oprit}`);
+  cer("se cere o singură pagină, nu toate 40", ceruteFatal === 1, `${ceruteFatal} cereri`);
+  cer("niciun rând nu e marcat ca eșuat", fatal.erori.length === 0, `${fatal.erori.length} erori`);
+  cer("poziția nu avansează peste rândul netrecut", fatal.procesate === 0, `${fatal.procesate}`);
+  cer("mesajul spune de ce", (fatal.mesaj ?? "").includes("curl"));
+  cer("pagina netrecută nu intră în canar", fatal.canar.total === 0, `canar=${fatal.canar.total}`);
+
+  // b) eroare TRECĂTOARE: rândul se sare, importul merge mai departe. Așa se
+  //    poate folosi apoi „Reia eșuările" doar pe ele.
+  const trecator = await proceseazaRanduri({
+    depozit: depozitFals([]), randuri: feedFals(5), taxonomie: taxonomieFalsa, uscat: true,
+    adu: async () => ({ ok: false, eroare: "HTTP 500" }),
+    pauza: async () => {},
+  });
+  cer("o eroare trecătoare nu oprește lotul", !trecator.oprit);
+  cer("rândurile picate sunt numărate, nu pierdute", trecator.erori.length === 5 && trecator.procesate === 5);
+
+  // c) termenul limită ajunge până la aducere, ca reîncercările să nu doarmă
+  //    peste bugetul lotului.
+  let pana = null;
+  await proceseazaRanduri({
+    depozit: depozitFals([]), randuri: feedFals(1), taxonomie: taxonomieFalsa, uscat: true,
+    bugetMs: 15000,
+    adu: async (_u, opt) => { pana = opt?.pana; return { ok: false, eroare: "x" }; },
+    pauza: async () => {},
+  });
+  const ramas = pana - Date.now();
+  cer("aducerea primește un termen limită", typeof pana === "number" && Number.isFinite(pana), `pana=${pana}`);
+  cer("termenul e bugetul plus rezerva", ramas > 15000 && ramas <= 15000 + REZERVA_MS, `mai are ${ramas}ms`);
+
+  // d) fără buget (scriptul din terminal) termenul rămâne infinit
+  let panaInfinit = null;
+  await proceseazaRanduri({
+    depozit: depozitFals([]), randuri: feedFals(1), taxonomie: taxonomieFalsa, uscat: true,
+    adu: async (_u, opt) => { panaInfinit = opt?.pana; return { ok: false, eroare: "x" }; },
+    pauza: async () => {},
+  });
+  cer("scriptul din terminal n-are termen limită", panaInfinit === Infinity, `pana=${panaInfinit}`);
 }
 
 console.log(`\n=== ${treceri} verificări trec · ${picate} pică ===`);
