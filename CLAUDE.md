@@ -169,10 +169,25 @@ sunt sarcini ale utilizatorului. Consemnate la 24 august 2026.
   automatismul („Răcitor gaze" merge la „EGR și Clapetă acceleratie", unde îl caută un mecanic);
   (2) părintele vine din grupa lor, prin `GRUPE_LA_PARINTE`; (3) o grupă nemapată devine ea însăși
   categorie-părinte. Taxonomia LOR e plată în breadcrumb — grupa se poate afla doar din `/categorii/`.
-- **Modelul se creează doar dacă titlul îl confirmă.** Compatibilitatea sursei se contrazice uneori
-  cu titlul: „Maneta Tempomat Vw Golf 5" e trecută la Jetta, „Debitmetru Aer Vw Sharan" la Ford
-  Galaxy. Întâi se caută modelul în titlu printre cele existente (`modelDinTitlu`), apoi se creează
-  din compatibilitate — dar numai dacă apare și în titlu. Altfel piesa rămâne fără model, marcată.
+- **O piesă se leagă de TOATE mașinile compatibile** (`products.model_ids`, corectat 25 august 2026).
+  Pagina sursei scrie „Piesă auto compatibilă cu:" și enumeră mai multe mașini, dar **doar prima e
+  link** — restul sunt text simplu în `<span class="q-car-model">`. Regexul vechi cerea `<a>` înăuntru
+  și pierdea tăcut celelalte linii, așa că „Debitmetru Aer Vw Sharan" apărea legat doar de Ford
+  Galaxy. Nu era o greșeală a sursei: Sharan și Galaxy sunt aceeași mașină, Caddy e pe platforma lui
+  Golf 5. Un radiator de Passat B6 se leagă legitim de 7 modele.
+- **Modelul „principal"** (`model_id`, pentru afișare) e primul recunoscut pe care îl confirmă și
+  titlul — titlul descrie mașina de pe care s-a demontat piesa. Semnalarea „⚠ nu apare în titlu" se
+  face doar dacă NICIUNA dintre compatibilități nu apare acolo; una singură care lipsește e a doua
+  mașină compatibilă, nu o eroare.
+- **Crearea unui model lipsă are două reguli diferite**: dacă piesa n-are niciun model, se creează
+  doar linia pe care titlul o confirmă (altfel am lega o piesă de Golf 5 la un „Jetta" nou-nouț);
+  dacă piesa are deja un model, restul liniilor sunt compatibilități în plus și se creează fără altă
+  condiție. Nu se creează NICIODATĂ un model generic când există deja generații pentru numele acela
+  („Octavia" lângă „Octavia 2" și „Octavia 3" ar rupe filtrul în două).
+- **Generația se deduce din anii din titlu**, întâi strict (anii încap în interval), apoi prin
+  suprapunere — dar numai dacă o singură generație se suprapune. „Caddy 2003 2004 2005" iese cu un an
+  din „Caddy III (2004–2015)" și tot se nimerește; „Golf 2008" prinde și Golf 5, și Golf 6, deci
+  rămâne ambiguu și nu se alege niciuna.
 - **Greutatea NU poate veni de la pieseauto.ro** (verificat 25 august 2026): nu e nici în CSV
   (ID, URL, Titlu, Moneda, Pret), nici pe pagina produsului — n-au tabel de specificații. Rămâne
   1 kg cu `greutate_estimata = true`, cântărit la formarea coletului.
@@ -279,8 +294,8 @@ Niciuna nu e dependință a site-ului și niciuna nu rulează la build. Se cheam
 |---|---|
 | `verifica-contrast.mjs` | după orice atingere a paletei din `globals.css`. Calculează raporturile pe cele trei palete și iese cu cod 1 dacă o pereche obligatorie pică |
 | `actualizeaza-taxonomie-sursa.mjs` | când catalogul pieseauto.ro se schimbă. Reface `lib/import/taxonomie-sursa.mjs` din pagina lor `/categorii/`. Are `--uscat`; refuză să scrie dacă extrage sub 300 de categorii (semn că pagina lor s-a schimbat) |
-| `completeaza-taxonomia.mjs` | o singură dată după schimbarea regulilor de taxonomie. Completează categoria și modelul pieselor importate ÎNAINTE de reguli — un re-import nu le repară, fiindcă `patchLaReimport` nu atinge categoria. Doar raportează; scrie cu `--scrie`. Nu atinge piesele cu `editat_manual` |
-| `verifica-import.mjs` | după orice modificare în `lib/import/`. 68 de verificări pe regulile importului — protecția de 20%, reluarea din poziția salvată, canarul, ce are voie să atingă un re-import. Fără rețea și fără bază de date: sursa și depozitul sunt false, deci se poate rula oricând |
+| `completeaza-taxonomia.mjs` | o singură dată după schimbarea regulilor de taxonomie. Completează categoria și modelul pieselor importate ÎNAINTE de reguli — un re-import nu le repară, fiindcă `patchLaReimport` nu atinge categoria. Doar raportează; scrie cu `--scrie`. Cu `--reciteste` cere din nou pagina fiecărei piese, când extragerea s-a schimbat. Nu atinge piesele cu `editat_manual` |
+| `verifica-import.mjs` | după orice modificare în `lib/import/`. 78 de verificări pe regulile importului — protecția de 20%, reluarea din poziția salvată, canarul, ce are voie să atingă un re-import. Fără rețea și fără bază de date: sursa și depozitul sunt false, deci se poate rula oricând |
 | `scan-responsive.mjs` | după modificări de așezare. 19 pagini × 13 lățimi; `TEMA=luminos` schimbă tema. Cere `playwright-core` legat în `node_modules` — vezi antetul fișierului |
 | `reconverteste-poze.mjs` | **rar, la nevoie.** Trece în WebP pozele rămase JPEG în bucket. A fost scris fiindcă primele piese importate au ajuns JPEG, când `sharp` nu era încă instalat, iar `lib/import/imagini.mjs` urcă originalul dacă lipsește codecul. Dacă apar iar JPEG-uri în bucket, ori a picat `sharp`, ori conversia a preferat originalul (poză deja bine comprimată) — scriptul spune care din două. Idempotent, cu `--uscat` |
 | `curata-orfani.mjs` | **periodic**, mai ales după sesiuni lungi de lucru pe produse. Găsește fișierele din `poze-piese` spre care nu mai arată niciun rând din `products`. Implicit doar raportează; șterge numai cu `--sterge` și numai fișiere mai vechi de 24h (`--ore=N`). Raportează și cazul invers, mai grav: adrese din bază fără fișier în stocare |

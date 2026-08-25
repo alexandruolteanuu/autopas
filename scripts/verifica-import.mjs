@@ -21,6 +21,7 @@ import {
   parseCSV, verificaColoane, planifica, proceseazaRanduri,
   patchLaReimport, construiesteRand, PRAG_CANAR, REZERVA_MS,
   potrivesteCategoria, modelDinTitlu, categoriaSursa, slugifica,
+  extrage, potriveste,
 } from "../lib/import/index.mjs";
 
 let treceri = 0, picate = 0;
@@ -40,7 +41,10 @@ const paginaFalsa = ({ titlu, poze = 1, model = "Volkswagen Passat B6" }) => `
 </head><body>
 <h1>${titlu}</h1>
 <div itemprop="description">Piesă testată, demontată de pe mașină.</div>
-<span class="q-car-model"><a href="#">${model}</a></span>
+<div class="pr-subtitle2">Piesă auto compatibilă cu:</div>
+${[].concat(model).map((m, i) => i === 0
+  ? `<p><span class="q-car-model"> <a href="https://www.pieseauto.ro/x/">${m}</a> </span></p>`
+  : `<p><span class="q-car-model"> ${m} </span></p>`).join("")}
 <script>let images = [${Array.from({ length: poze }, (_, i) => `{"original":"https://exemplu/poza${i}.jpg","size":[1024,576]}`).join(",")}];</script>
 </body></html>`;
 
@@ -403,6 +407,62 @@ sectiune("8. Categoriile și modelele se completează de la sursă");
   cer("slug-ul e prefixat cu al părintelui", dep.scrise.categorii[0]?.slug === "motor-si-anexe-suporti-motor", dep.scrise.categorii[0]?.slug);
   cer("piesele inserate au subcategoria pusă", dep.scrise.inserate.every((r) => r.subcategorie_id), JSON.stringify(dep.scrise.inserate.map((r) => r.subcategorie_id)));
   cer("a doua piesă NU recreează categoria", rez.categoriiCreate === 1, `${rez.categoriiCreate}`);
+}
+
+// ============================================================
+// 9. Compatibilitatea multiplă
+//
+// Defect găsit la 25 august 2026, semnalat de utilizator. Pagina scrie „Piesă auto
+// compatibilă cu:" și enumeră mai multe mașini, dar doar PRIMA e link — restul sunt
+// text simplu în `<span>`. Regexul vechi cerea `<a>` înăuntru și pierdea tăcut
+// celelalte linii. Consecința: „Debitmetru Aer Vw Sharan" apărea legat doar de Ford
+// Galaxy, iar dezacordul cu titlul era luat drept greșeală a sursei. Nu era —
+// Sharan și Galaxy sunt aceeași mașină, piesa se potrivește la amândouă.
+// ============================================================
+sectiune("9. Piesa se leagă de toate mașinile compatibile");
+{
+  const html = paginaFalsa({ titlu: "Debitmetru Aer Vw Sharan 1.9 Tdi 2001 2002",
+                             model: ["Ford Galaxy", "Volkswagen Sharan"] });
+  const ext = extrage(html, "https://www.pieseauto.ro/debitmetru/ford/galaxy/x.html");
+  cer("se citesc TOATE compatibilitățile, cu link sau fără",
+      JSON.stringify(ext.compat) === JSON.stringify(["Ford Galaxy", "Volkswagen Sharan"]), JSON.stringify(ext.compat));
+
+  const tax = {
+    brands: [{ id: 1, nume: "Volkswagen", slug: "vw" }, { id: 2, nume: "Ford", slug: "ford" }],
+    models: [{ id: 10, nume: "Sharan (2000–2010)", brand_id: 1 }, { id: 11, nume: "Galaxy (2000–2006)", brand_id: 2 }],
+    categories: [],
+  };
+  const pot = potriveste(ext, tax);
+  cer("piesa se leagă de amândouă modelele",
+      pot.model_ids.length === 2 && pot.model_ids.includes(10) && pot.model_ids.includes(11), JSON.stringify(pot.model_ids));
+  cer("modelul principal e cel confirmat de titlu", pot.model_id === 10, `model_id=${pot.model_id}`);
+  cer("marca principală vine tot de la el", pot.marca === "Volkswagen", pot.marca);
+  cer("nu se mai semnalează nepotrivire de marcă", !pot.nepotrivire_marca);
+  cer("nici nepotrivire de model", !pot.nepotrivire_titlu);
+
+  const rand = construiesteRand({ ...ext, ...pot, feed: { Titlu: ext.titlu, Pret: "350" }, sursa_id: "1" }, [], []);
+  cer("rândul salvat le poartă pe amândouă", rand.model_ids.length === 2, JSON.stringify(rand.model_ids));
+
+  // Generația se deduce și când anii din titlu ies puțin din interval — dar numai
+  // dacă o singură generație se suprapune.
+  const taxG = {
+    brands: [{ id: 1, nume: "Volkswagen", slug: "vw" }],
+    models: [{ id: 20, nume: "Caddy III (2004–2015)", brand_id: 1 },
+             { id: 21, nume: "Golf 5 (2003–2008)", brand_id: 1 },
+             { id: 22, nume: "Golf 6 (2008–2013)", brand_id: 1 }],
+  };
+  const caddy = potriveste({ titlu: "Yala Usa Fata Vw Caddy 2003 2004 2005", compat: ["Volkswagen Caddy"],
+                             an_min: 2003, an_max: 2005, erori: [] }, taxG);
+  cer("anii care ies puțin din interval nu mai pierd generația", caddy.model_id === 20, JSON.stringify(caddy.note));
+
+  const golf = potriveste({ titlu: "Piesă Vw Golf 2008", compat: ["Volkswagen Golf"],
+                            an_min: 2008, an_max: 2008, erori: [] }, taxG);
+  cer("două generații suprapuse rămân ambigue, nu se ghicește", golf.model_id === null, JSON.stringify(golf.note));
+
+  // O piesă chiar nepotrivită rămâne semnalată: nicio compatibilitate în titlu.
+  const htmlRau = paginaFalsa({ titlu: "Balast Xenon Skoda Octavia 2010", model: ["Ford Galaxy"] });
+  const potRau = potriveste(extrage(htmlRau, "https://www.pieseauto.ro/balast-xenon/ford/galaxy/x.html"), tax);
+  cer("când NICIUNA nu apare în titlu, tot se semnalează", potRau.nepotrivire_marca, JSON.stringify(potRau.note));
 }
 
 console.log(`\n=== ${treceri} verificări trec · ${picate} pică ===`);
