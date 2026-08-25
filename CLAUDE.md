@@ -141,6 +141,11 @@ sunt sarcini ale utilizatorului. Consemnate la 24 august 2026.
 - **Rutele din `app/api/` nu sunt protejate de RLS** — rulează pe server, cu drepturi de server.
   Cele care fac ceva în numele firmei cer token-ul sesiunii și îl verifică cu `esteEchipa()` din
   `lib/supabase.ts` (vezi `app/api/awb/route.ts`).
+- **Funcțiile rulează la Frankfurt** (`vercel.json`, `"regions": ["fra1"]`, 25 august 2026). Implicit
+  Vercel le pune la Washington (`iad1`), ceea ce e absurd pentru un magazin din Neamț: fiecare pagină
+  randată pe server făcea drumul peste Atlantic. Motivul imediat a fost însă altul — pieseauto.ro
+  refuzase IP-ul de pe care rula importul, iar Frankfurt e alt bazin de adrese. `vercel.json` nu
+  acceptă comentarii, de asta explicația stă aici.
 - Indexarea în Google e **oprită** până la lansare; se activează cu `PERMITE_INDEXARE=da` în Vercel.
   Domeniul ales: `autopas-dezmembrari.ro` (neînregistrat încă la 7 aug 2026).
 - **Importul din pieseauto.ro rulează din `/admin/import`**, în loturi cerute de browser, cu starea
