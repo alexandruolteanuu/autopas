@@ -108,7 +108,16 @@ export default function ImportPieseauto() {
       let esecuri = 0;
       for (;;) {
         if (opreste.current) break;
-        const j = await cere({ actiune: "lot", jobId });
+        // `cere` poate și ARUNCA, nu doar întoarce `ok:false` — de exemplu când
+        // reîmprospătarea token-ului Supabase are o sincopă. La un import de ore,
+        // o sincopă de o clipă nu are voie să oprească tot: e tratată ca orice lot
+        // picat, cu aceleași reîncercări.
+        let j: any;
+        try {
+          j = await cere({ actiune: "lot", jobId });
+        } catch (e: any) {
+          j = { ok: false, eroare: e?.message ?? "Cererea n-a ajuns la server." };
+        }
         if (!j.ok) {
           // Un lot picat nu mai înseamnă import pierdut: serverul scrie progresul
           // din mers, deci reluarea pornește din poziția salvată, nu de la zero.
@@ -126,7 +135,7 @@ export default function ImportPieseauto() {
         if (j.gata || j.job.status !== "in_curs") break;
       }
     } catch (e: any) {
-      setMsg(e.message);
+      setMsg(e?.message ?? "Eroare neașteptată.");
     } finally {
       setRuleaza(false);
       incarcaIstoric();
