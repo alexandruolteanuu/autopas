@@ -32,7 +32,7 @@ export default function Favorite() {
       <h1 className="t-sectiune mt-2 mb-2">Favoritele mele</h1>
       <p className="text-sm text-textSecundar mb-6">
         {logat ? "Lista e salvată în contul tău — o regăsești pe orice dispozitiv."
-               : <>Lista e salvată în acest browser. <Link href="/autentificare" className="text-accent font-semibold">Autentifică-te</Link> ca s-o păstrezi pe orice dispozitiv.</>}
+               : <>Lista e salvată în acest browser. <Link href="/autentificare" className="accentuat font-semibold">Autentifică-te</Link> ca s-o păstrezi pe orice dispozitiv.</>}
       </p>
       {!gata && <ScheletGrilaProduse cate={4} />}
       {gata && produse.length === 0 && (

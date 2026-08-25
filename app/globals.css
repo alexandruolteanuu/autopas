@@ -3,8 +3,11 @@
 @tailwind utilities;
 
 /* ============================================================
-   PALETA SITE-ULUI — „Atelier, galben industrial" (negru + #F2B705).
-   Temă unică și definitivă, aleasă de client în august 2026.
+   PALETA SITE-ULUI — „Atelier, galben industrial" (galbenul #F2B705).
+   Două teme, aceeași identitate: „Întunecat" (implicită, negru) și
+   „Luminos" (alb cald), comutabile din header. Alegerea se ține în
+   localStorage, cheia `autopas-tema`, și se aplică prin atributul
+   `data-tema` de pe <html>.
 
    ACESTA E SINGURUL LOC DE UNDE SE SCHIMBĂ CULORILE. Componentele nu
    scriu culori direct; folosesc clasele semantice din tailwind.config.ts
@@ -26,11 +29,24 @@
   --text: 255 255 255;          /* #FFFFFF */
   --text-secundar: 171 171 171; /* #ABABAB */
   --chenar: 42 42 42;           /* #2A2A2A — doar linii decorative și separatoare */
-  --accent: 242 183 5;          /* #F2B705 */
+  --accent: 242 183 5;          /* #F2B705 — UMPLUTURI: butoane, badge-uri */
   --accent-hover: 214 160 4;    /* #D6A004 */
   --accent-contrast: 16 16 16;  /* #101010 — text ÎNCHIS peste galben; alb ar da 1,8:1 */
+
+  /* Galbenul are DOUĂ roluri: umplutură și conturul umpluturii. Pe negru sunt
+     aceeași culoare, deci aici nu se vede diferența — dar pe alb #F2B705 dă
+     1,82:1, iar un buton galben ar rămâne fără margine vizibilă.
+       --accent-chenar = conturul unei umpluturi galbene (WCAG 1.4.11, 3:1)
+     Galben CA TEXT nu există pe tema luminoasă: acolo galbenul e exclusiv
+     culoare de fundal (vezi clasele `.accentuat` de mai jos). */
+  --accent-chenar: 242 183 5;   /* #F2B705 */
   --header-bg: 0 0 0;           /* #000000 */
   --header-text: 255 255 255;   /* #FFFFFF */
+  /* Banda de sus a paginii de acasă. Aici e neagră, ca headerul; pe tema
+     luminoasă devine deschisă („hero alb"). Celelalte benzi negre din site
+     rămân negre pe ambele teme — sunt „zonele negre" cerute de client. */
+  --hero-bg: 0 0 0;
+  --hero-text: 255 255 255;
   --footer-bg: 0 0 0;           /* #000000 */
   --footer-text: 171 171 171;   /* #ABABAB */
   --camp-bg: 36 36 36;   /* fundalul câmpurilor de formular — diferit de cardul din spate */
@@ -51,6 +67,51 @@
      intenționat, fiindcă desenul e în tușuri închise și ar dispărea dacă valoarea
      de aici ar deveni întunecată. Dacă schimbi nuanța, schimb-o în ambele locuri. */
   --imagine-bg: 236 233 226;    /* #ECE9E2 */
+}
+
+/* ============================================================
+   TEMA „LUMINOS" — hero alb, zonele negre păstrate.
+   Se activează prin `data-tema="luminos"` pe <html>, pus de comutatorul din
+   header și de scriptul anti-flash din app/layout.tsx.
+
+   Fundalul NU e alb pur: cardurile sunt albe, iar alb pe alb înseamnă zero
+   separare. #EDEFF2 e un gri RECE — varianta caldă de dinainte (#F7F7F5) trăgea
+   spre bej, mai ales lângă un galben-muștar, și tot ansamblul citea maro.
+   Galbenul rămâne, dar numai ca umplutură.
+
+   Headerul și subsolul rămân NEGRE, ca pe tema întunecată — sunt „zonele negre"
+   cerute de client, și țin identitatea aceeași între cele două teme.
+
+   Adâncimea se face aici prin UMBRE, invers față de tema întunecată, unde se
+   face prin chenar mai deschis. Scara de umbre e aceeași, doar că pe negru nu
+   se vedea.
+   ============================================================ */
+:root[data-tema="luminos"] {
+  color-scheme: light;
+
+  --fundal:            237 239 242;   /* #EDEFF2 — gri rece, nu alb cald */
+  --suprafata:         255 255 255;   /* #FFFFFF — cardurile ies din fundal */
+  --suprafata-2:       246 247 249;   /* #F6F7F9 */
+  --text:               20  23  26;   /* #14171A */
+  --text-secundar:      83  90  97;   /* #535A61 */
+  --chenar:            221 225 230;   /* #DDE1E6 — decorativ */
+  --chenar-puternic:   191 197 204;   /* #BFC5CC — inputuri și butoane */
+  --accent:            242 183 5;     /* #F2B705 — DOAR umplutură, niciodată text */
+  --accent-hover:      214 160 4;     /* #D6A004 */
+  --accent-contrast:    16  16  16;   /* #101010 — text pe galben */
+  --accent-chenar:     201 156 5;     /* #C99C05 — conturul umpluturii galbene */
+  --header-bg:           0   0   0;   /* negru — „zonele negre" */
+  --header-text:       255 255 255;
+  --footer-bg:           0   0   0;
+  --footer-text:       171 171 171;
+  --hero-bg:           237 239 242;   /* hero deschis — cerința clientului */
+  --hero-text:          20  23  26;
+  --camp-bg:           255 255 255;
+  --imagine-bg:        239 241 243;   /* #EFF1F3 */
+  --umbra:               0   0   0;
+  --sticla-bg:         255 255 255;
+  --sticla-chenar:     221 225 230;
+  --sticla-opacitate:  .80;
 }
 
 /* Panoul /admin rămâne LUMINOS, pe paleta clasică portocalie: e unealta de
@@ -78,6 +139,9 @@
   --accent: 255 107 26;
   --accent-hover: 255 118 29;
   --accent-contrast: 255 255 255;
+  /* Conturul unei umpluturi portocalii. Umpluturile NU se ating: paleta
+     panoului rămâne cea știută. */
+  --accent-chenar: 199 78 0;    /* #C74E00 — 4,65:1 pe alb */
   --header-bg: 21 24 28;
   --header-text: 255 255 255;
   --footer-bg: 21 24 28;
@@ -98,7 +162,10 @@
    paginile legale, singurele pe care le tipărește cineva.
    ============================================================ */
 @media print {
-  :root {
+  /* Și `:root[data-tema="luminos"]`, nu doar `:root`: altfel selectorul temei
+     luminoase, mai specific, ar câștiga și pe hârtie, iar subsolul negru ar
+     ieși ca o bandă neagră. */
+  :root, :root[data-tema="luminos"] {
     --fundal: 255 255 255;
     --suprafata: 255 255 255;
     --suprafata-2: 255 255 255;
@@ -122,6 +189,13 @@
 
 body { @apply bg-fundal text-text font-body; }
 
+/* Iconița comutatorului de temă. Se schimbă din CSS, nu din JavaScript: așa e
+   desenată corect din primul cadru, la fel ca paleta pusă de scriptul anti-flash.
+   Soare = „treci pe luminos" (deci pe tema întunecată), lună = invers. */
+.ic-luna { display: none; }
+:root[data-tema="luminos"] .ic-soare { display: none; }
+:root[data-tema="luminos"] .ic-luna { display: block; }
+
 /* ============================================================
    SCARA DE ROTUNJIRE — nu una singură pentru tot
    ============================================================ */
@@ -143,6 +217,33 @@ body { @apply bg-fundal text-text font-body; }
 /* „Cota tehnică" — elementul de semnătură al secțiunilor (din design-ul aprobat în PDF) */
 .dim { @apply flex items-center gap-2.5 font-disp font-medium text-[12px] tracking-[0.14em] uppercase text-textSecundar; }
 .dim::before, .dim::after { content: ""; @apply block w-6 h-px bg-textSecundar; border-left: 1px solid rgb(var(--text-secundar)); }
+
+/* ============================================================
+   GALBENUL CA TEXT — există doar pe tema întunecată
+   ============================================================
+   Pe negru, #F2B705 dă 11,55:1 și e semnătura mărcii. Pe fundal deschis dă
+   1,82:1: ilizibil. Nuanța închisă încercată înainte (#8A6A08) trecea pragul,
+   dar arăta muștar, iar lângă un fundal cald tot ansamblul citea maro.
+
+   Deci pe tema luminoasă galbenul NU e niciodată `color`, ci doar fundal.
+   Componentele cer accentul prin clasele de mai jos, nu prin `text-accent`:
+     .accentuat        — prețuri, săgeți, pictograme, cuvinte scoase în față
+     .accentuat-hover  — starea de hover a linkurilor
+   Pe tema luminoasă amândouă devin culoarea obișnuită a textului, iar hoverul
+   se marchează prin subliniere, ca să rămână un semn vizibil că e link.
+
+   EXCEPȚIE: headerul și subsolul sunt negre pe AMBELE teme, deci acolo se
+   folosește mai departe `text-accent` direct. Sunt singurele locuri.
+   ============================================================ */
+.accentuat { color: rgb(var(--accent)); }
+.accentuat-hover:hover { color: rgb(var(--accent)); }
+:root[data-tema="luminos"] .accentuat { color: rgb(var(--text)); }
+:root[data-tema="luminos"] .accentuat-hover:hover {
+  color: rgb(var(--text));
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 
 /* ============================================================
    SUPRAFEȚE — trei niveluri, atât
@@ -170,7 +271,12 @@ body { @apply bg-fundal text-text font-body; }
   min-height: 44px;
   transition: background-color 150ms, border-color 150ms, color 150ms, transform 150ms;
 }
-.btn-acc { background: rgb(var(--accent)); color: rgb(var(--accent-contrast)); }
+/* Chenarul e OBLIGATORIU, nu decorativ: pe tema luminoasă, galbenul pe alb dă
+   1,82:1, deci butonul n-ar avea margine vizibilă și ar pluti în pagină.
+   `--accent-chenar` trece pragul de 3:1 cerut de WCAG 1.4.11 pentru conturul
+   componentelor. Pe tema întunecată variabila e egală cu `--accent`, deci
+   regula nu schimbă nimic acolo — un singur cod pentru ambele teme. */
+.btn-acc { background: rgb(var(--accent)); color: rgb(var(--accent-contrast)); border: 1px solid rgb(var(--accent-chenar)); }
 .btn-acc:hover { background: rgb(var(--accent-hover)); }
 
 /* varianta închisă rămâne pentru acțiunile de pe fundal deschis */
@@ -180,7 +286,10 @@ body { @apply bg-fundal text-text font-body; }
 .btn-sec { background: transparent; color: rgb(var(--text)); border: 1px solid rgb(var(--chenar-puternic)); }
 .btn-sec:hover { background: rgb(var(--suprafata-2)); }
 
+/* Butonul-link e TEXT. Pe tema luminoasă galbenul nu are voie să fie text, deci
+   acolo devine culoarea obișnuită a textului, cu sublinierea care îl ține link. */
 .btn-tert { background: transparent; color: rgb(var(--accent)); padding-left: 0; padding-right: 0; }
+:root[data-tema="luminos"] .btn-tert { color: rgb(var(--text)); text-decoration: underline; text-underline-offset: 3px; }
 .btn-tert:hover { text-decoration: underline; text-underline-offset: 3px; }
 
 .btn-distructiv { background: transparent; color: #DC2626; border: 1px solid #FCA5A5; }
@@ -195,7 +304,10 @@ body { @apply bg-fundal text-text font-body; }
    ============================================================ */
 a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible,
 textarea:focus-visible, summary:focus-visible, [tabindex]:focus-visible, [role="button"]:focus-visible {
-  outline: 2px solid rgb(var(--accent)) !important;
+  /* `--accent-chenar`, nu `--accent`: inelul de focus e un contur, iar pe alb
+     galbenul de umplutură ar fi practic invizibil — exact pe elementul care
+     trebuie să se vadă cel mai bine. */
+  outline: 2px solid rgb(var(--accent-chenar)) !important;
   outline-offset: 2px;
 }
 
@@ -214,7 +326,7 @@ textarea:focus-visible, summary:focus-visible, [tabindex]:focus-visible, [role="
 }
 .fld input, .fld select { min-height: 44px; }
 .fld input:hover, .fld select:hover, .fld textarea:hover { border-color: rgb(var(--text-secundar)); }
-.fld input:focus, .fld select:focus, .fld textarea:focus { border-color: rgb(var(--accent)); }
+.fld input:focus, .fld select:focus, .fld textarea:focus { border-color: rgb(var(--accent-chenar)); }
 .fld input::placeholder, .fld textarea::placeholder { color: rgb(var(--text-secundar)); opacity: 1; }
 .fld input[aria-invalid="true"], .fld textarea[aria-invalid="true"] { border-color: #DC2626; }
 /* săgeata selectului, desenată de noi — pe telefon rămâne controlul nativ */
@@ -264,7 +376,9 @@ html { scroll-behavior: smooth; }
 h1, h2, h3 { letter-spacing: -0.02em; }
 .numar { font-variant-numeric: tabular-nums; }
 
-/* linia de accent de 3px, sub titlul secțiunii curente */
+/* Linia de accent de 3px, sub titlul secțiunii curente. Rămâne pe `--accent`:
+   e o bandă grafică lată, nu un contur de control și nu text, deci galbenul plin
+   se vede și pe alb — și e chiar semnătura mărcii. */
 .linie-accent { border-bottom: 3px solid rgb(var(--accent)); }
 
 /* bara de defilare, discretă, doar pe desktop */

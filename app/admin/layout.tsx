@@ -22,6 +22,7 @@ const MENIU = [
   { href: "/admin/cereri", t: "Cereri (Inbox)", ic: "✉", roluri: ["admin", "operator"], badge: "cereri" },
   { href: "/admin/produse", t: "Produse / Inventar", ic: "⚙", roluri: ["admin", "operator"] },
   { href: "/admin/piese-de-completat", t: "Piese de completat", ic: "◪", roluri: ["admin", "operator"], badge: "completat" },
+  { href: "/admin/import", t: "Import pieseauto.ro", ic: "⇩", roluri: ["admin", "operator"] },
   { href: "/admin/categorii", t: "Categorii", ic: "☰", roluri: ["admin"] },
   { href: "/admin/marci", t: "Mărci și modele", ic: "✧", roluri: ["admin"] },
   { href: "/admin/masini", t: "Mașini la dezmembrat", ic: "⛭", roluri: ["admin", "operator"] },
@@ -53,8 +54,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       sb.from("car_intake_requests").select("id", { count: "exact", head: true }).eq("status", "noua"),
       sb.from("return_requests").select("id", { count: "exact", head: true }).eq("status", "noua"),
       sb.from("contact_messages").select("id", { count: "exact", head: true }).eq("status", "noua"),
-      // piese importate, încă nepublicate — vezi /admin/piese-de-completat
-      sb.from("products").select("id", { count: "exact", head: true }).not("sursa", "is", null).eq("publicat", false),
+      // Piese importate cărora le lipsește ceva: poză, categorie sau greutate
+      // cântărită. Din 25 august 2026 ecranul nu mai e o poartă înainte de
+      // publicare — piesele sunt deja pe site — ci o listă de lucru.
+      sb.from("products").select("id", { count: "exact", head: true }).not("sursa", "is", null)
+        .or("poze.eq.{},categorie_id.is.null,greutate_estimata.eq.true"),
     ]);
     const cereri = (p1.count ?? 0) + (p2.count ?? 0) + (p3.count ?? 0) + (p4.count ?? 0);
     setBadges({ comenzi: o.count ?? 0, cereri, completat: pc.count ?? 0 });

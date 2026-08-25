@@ -20,7 +20,7 @@ export default function Rabla() {
         <div className="space-y-4">
           {PASI.map(([t, d], i) => (
             <div key={t} className="card p-4 flex gap-4">
-              <span className="w-9 h-9 rounded-full bg-accent text-accentText font-disp font-bold grid place-items-center shrink-0">{i + 1}</span>
+              <span className="w-9 h-9 rounded-full bg-accent text-accentContrast font-disp font-bold grid place-items-center shrink-0">{i + 1}</span>
               <div><b>{t}</b><p className="text-sm text-textSecundar mt-0.5">{d}</p></div>
             </div>
           ))}

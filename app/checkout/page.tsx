@@ -89,7 +89,7 @@ export default function Checkout() {
             <div className="flex gap-2 mt-3">
               {(["pf","firma"] as const).map((t) => (
                 <button type="button" key={t} onClick={() => setTip(t)}
-                  className={`px-4 min-h-[44px] rounded-lg text-sm font-bold border-2 ${tip === t ? "border-accent bg-accent/5 text-accent" : "border-chenar"}`}>
+                  className={`px-4 min-h-[44px] rounded-lg text-sm font-bold border-2 ${tip === t ? "border-accentChenar bg-accent/5 accentuat" : "border-chenar"}`}>
                   {t === "pf" ? "Persoană fizică" : "Firmă (B2B)"}</button>
               ))}
             </div>
@@ -110,7 +110,7 @@ export default function Checkout() {
           <div className="card p-5">
             <b className="font-disp font-semibold text-[13px]">2 · Livrarea</b>
             <div className="mt-3 space-y-3">
-              <div className="rounded-lg border-2 border-accent bg-accent/5 px-4 py-3">
+              <div className="rounded-lg border-2 border-accentChenar bg-accent/5 px-4 py-3">
                 <b>{curieri.find((c) => c.id === curier)?.nume ?? "FAN Courier"}</b>
                 <span className="text-textSecundar text-sm"> · livrare 1–3 zile lucrătoare în toată România</span>
               </div>
@@ -120,7 +120,7 @@ export default function Checkout() {
                 calculăm transportul exact și <b>te sunăm cu totalul final înainte de expediere</b>.
                 Nu expediem nimic până nu ești de acord cu suma.
               </div>
-              <p className="text-xs text-textSecundar">Piesele voluminoase (motoare, cutii de viteze) se livrează paletizat. Detalii în <Link href="/legal/livrare" className="text-accent font-semibold">pagina Livrare</Link>.</p>
+              <p className="text-xs text-textSecundar">Piesele voluminoase (motoare, cutii de viteze) se livrează paletizat. Detalii în <Link href="/legal/livrare" className="accentuat font-semibold">pagina Livrare</Link>.</p>
             </div>
           </div>
           {/* 3. Plata */}
@@ -128,7 +128,7 @@ export default function Checkout() {
             <b className="font-disp font-semibold text-[13px]">3 · Metoda de plată</b>
             <div className="mt-3 space-y-2">
               {[["card","Card online","Visa / Mastercard — plată securizată"],["ramburs","Ramburs la curier","plătești când primești piesa"],["transfer","Transfer bancar","primești proforma pe e-mail"]].map(([id,t,d]) => (
-                <label key={id} className={`flex items-center gap-3 rounded-lg border-2 px-4 min-h-[44px] py-3 cursor-pointer ${plata === id ? "border-accent bg-accent/5" : "border-chenar"}`}>
+                <label key={id} className={`flex items-center gap-3 rounded-lg border-2 px-4 min-h-[44px] py-3 cursor-pointer ${plata === id ? "border-accentChenar bg-accent/5" : "border-chenar"}`}>
                   <input type="radio" name="plata" checked={plata === id} onChange={() => setPlata(id)} className="w-5 h-5 shrink-0 accent-[rgb(var(--accent))]" />
                   <span><b>{t}</b> <span className="text-textSecundar text-sm">· {d}</span></span>
                 </label>
@@ -140,7 +140,7 @@ export default function Checkout() {
           {/* 4. GDPR */}
           <div className="card p-5 space-y-2 text-sm">
             <label className="flex gap-3 items-start min-h-[44px] py-2 cursor-pointer"><input type="checkbox" required className="w-5 h-5 shrink-0 mt-0.5 accent-[rgb(var(--accent))]" />
-              <span>Am citit și sunt de acord cu <Link href="/legal/termeni-si-conditii" className="text-accent font-semibold">Termenii și condițiile</Link> și cu <Link href="/legal/politica-de-retur" className="text-accent font-semibold">Politica de retur</Link>. *</span></label>
+              <span>Am citit și sunt de acord cu <Link href="/legal/termeni-si-conditii" className="accentuat font-semibold">Termenii și condițiile</Link> și cu <Link href="/legal/politica-de-retur" className="accentuat font-semibold">Politica de retur</Link>. *</span></label>
             <label className="flex gap-3 items-start min-h-[44px] py-2 cursor-pointer"><input type="checkbox" name="gdpr" className="w-5 h-5 shrink-0 mt-0.5 accent-[rgb(var(--accent))]" />
               <span className="text-textSecundar">Sunt de acord să primesc, ocazional, oferte pe e-mail (opțional).</span></label>
           </div>
@@ -155,7 +155,7 @@ export default function Checkout() {
           {reducereVal > 0 && <div className="flex justify-between text-ok"><span>Reducere {reducere?.cod}</span><b>−{lei(reducereVal)}</b></div>}
           <div className="flex justify-between border-t border-chenar pt-3 text-textSecundar"><span>Livrare</span><span className="text-[12px] text-right">se calculează<br />și ți-o comunicăm</span></div>
           <div className="flex justify-between text-base"><span>Total piese</span>
-            <b className="font-disp text-2xl text-accent tabular-nums">{lei(total - reducereVal)}</b></div>
+            <b className="font-disp text-2xl accentuat tabular-nums">{lei(total - reducereVal)}</b></div>
           <button disabled={stare === "trimit"} className="btn-acc w-full">{stare === "trimit" ? "Se plasează…" : "Plasează comanda"}</button>
           {stare === "eroare" && <p className="text-red-600 text-[13px]">{msg}</p>}
           <p className="text-[12px] text-textSecundar text-center">Comanda se salvează securizat. Nu cerem date de card.</p>
@@ -165,8 +165,8 @@ export default function Checkout() {
           </p>
           {/* Mențiunile legale obligatorii înainte de plasarea comenzii */}
           <p className="text-[12px] text-textSecundar text-center leading-relaxed">
-            Garanție 90 de zile conform <Link href="/legal/certificat-garantie" className="text-accent font-semibold">OUG 140/2021</Link> ·
-            drept de retragere în 14 zile conform <Link href="/legal/politica-de-retur" className="text-accent font-semibold">OUG 34/2014</Link>
+            Garanție 90 de zile conform <Link href="/legal/certificat-garantie" className="accentuat font-semibold">OUG 140/2021</Link> ·
+            drept de retragere în 14 zile conform <Link href="/legal/politica-de-retur" className="accentuat font-semibold">OUG 34/2014</Link>
           </p>
         </div>
       </form>

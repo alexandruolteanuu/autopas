@@ -13,7 +13,7 @@ export default function ProductCard({ p }: { p: Product }) {
   return (
         // Un singur efect la trecerea cu mouse-ul: chenar în accent, umbra de
     // nivel 2 și imaginea mărită cu 3%. Fără umbră în stare normală.
-    <div className="group h-full flex flex-col card overflow-hidden transition-[box-shadow,border-color] duration-200 hover:border-accent/40 hover:shadow-[var(--umbra-2)]">
+    <div className="group h-full flex flex-col card overflow-hidden transition-[box-shadow,border-color] duration-200 hover:border-accentChenar/40 hover:shadow-[var(--umbra-2)]">
       <Link href={`/piese/${p.slug}`} className="block overflow-hidden">
         <ProductPhoto poze={p.poze} art={p.art} alt={p.nume}
           className="w-full aspect-[4/3] transition-transform duration-200 group-hover:scale-[1.03]" />
@@ -25,11 +25,11 @@ export default function ProductCard({ p }: { p: Product }) {
         </div>
 
         <Link href={`/piese/${p.slug}`}
-          className="t-card hover:text-accent line-clamp-2 min-h-[44px]">
+          className="t-card accentuat-hover line-clamp-2 min-h-[44px]">
           {p.nume}
         </Link>
 
-        <div className="t-pret text-accent">
+        <div className="t-pret accentuat">
           {lei(Number(p.pret_lei), p.pret_sufix)}
         </div>
 
@@ -41,7 +41,7 @@ export default function ProductCard({ p }: { p: Product }) {
               ? <span className="inline-block text-[12px] px-2 py-0.5 rounded-full bg-ok/10 text-ok">În stoc</span>
               : <span className="inline-block text-[12px] px-2 py-0.5 rounded-full bg-chenar text-text">Stoc epuizat</span>}
             {p.originala !== false && (
-              <span className="inline-block text-[12px] px-2 py-0.5 rounded-full bg-accent/10 text-accent">Originală</span>
+              <span className="inline-block text-[12px] px-2 py-0.5 rounded-full bg-accent/10 accentuat">Originală</span>
             )}
           </div>
           <FavButton id={p.id} />

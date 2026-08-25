@@ -7,7 +7,7 @@ import Link from "next/link";
 
 type Ord = { id: number; numar: string; created_at: string; total: number; status: string; plata: string };
 const STATUS: Record<string, [string, string]> = {
-  noua: ["Nouă", "bg-accent/10 text-accent"], confirmata: ["Confirmată", "bg-blue-100 text-blue-700"],
+  noua: ["Nouă", "bg-accent/10 accentuat"], confirmata: ["Confirmată", "bg-blue-100 text-blue-700"],
   expediata: ["Expediată", "bg-purple-100 text-purple-700"], livrata: ["Livrată", "bg-ok/10 text-ok"],
   anulata: ["Anulată", "bg-red-100 text-red-600"],
 };
@@ -41,9 +41,9 @@ export default function Cont() {
       <div className="flex items-center justify-between mt-2 mb-6">
         <h1 className="font-disp font-bold text-3xl">Comenzile mele</h1>
         <div className="text-right text-sm"><b>{email}</b><br />
-          <button onClick={iesi} className="text-textSecundar hover:text-accent underline underline-offset-2">Ieși din cont</button></div>
+          <button onClick={iesi} className="text-textSecundar accentuat-hover underline underline-offset-2">Ieși din cont</button></div>
       </div>
-      {orders.length === 0 && <div className="card p-10 text-center text-textSecundar">Nicio comandă pe acest e-mail, încă. <Link href="/piese" className="text-accent font-bold">Vezi piesele →</Link></div>}
+      {orders.length === 0 && <div className="card p-10 text-center text-textSecundar">Nicio comandă pe acest e-mail, încă. <Link href="/piese" className="accentuat font-bold">Vezi piesele →</Link></div>}
       <div className="space-y-3">
         {orders.map((o) => {
           const [t, cls] = STATUS[o.status] ?? [o.status, "bg-suprafata2"];
@@ -52,7 +52,7 @@ export default function Cont() {
               <div className="flex-1"><b className="font-disp text-base">{o.numar}</b>
                 <div className="text-textSecundar text-xs">{new Date(o.created_at).toLocaleDateString("ro-RO")} · {o.plata === "ramburs" ? "ramburs" : "transfer bancar"}</div></div>
               <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${cls}`}>{t}</span>
-              <b className="font-disp text-lg text-accent">{lei(Number(o.total))}</b>
+              <b className="font-disp text-lg accentuat">{lei(Number(o.total))}</b>
             </div>
           );
         })}

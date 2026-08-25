@@ -63,7 +63,7 @@ export default async function PredaMasina() {
             </ul>
           </div>
 
-          <p className="text-sm text-textSecundar">Vrei ecotichetul Rabla în loc de vânzare directă? Vezi <Link href="/programul-rabla" className="text-accent font-bold">Programul Rabla</Link>.</p>
+          <p className="text-sm text-textSecundar">Vrei ecotichetul Rabla în loc de vânzare directă? Vezi <Link href="/programul-rabla" className="accentuat font-bold">Programul Rabla</Link>.</p>
         </div>
         <IntakeForm tip="predare" />
       </div>

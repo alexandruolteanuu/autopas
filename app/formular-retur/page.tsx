@@ -26,7 +26,7 @@ export default async function FormularRetur() {
             "După ce primim piesa, îți restituim toți banii, inclusiv costul livrării standard, în cel mult 14 zile.",
           ].map((pas, i) => (
             <li key={i} className="flex gap-3">
-              <span className="shrink-0 w-6 h-6 rounded-full bg-accent text-accentText grid place-items-center text-xs font-bold">{i + 1}</span>
+              <span className="shrink-0 w-6 h-6 rounded-full bg-accent text-accentContrast grid place-items-center text-xs font-bold">{i + 1}</span>
               <span>{pas}</span>
             </li>
           ))}
@@ -36,11 +36,11 @@ export default async function FormularRetur() {
       <div className="card p-5 mt-4">
         <b className="font-disp font-semibold text-[13px]">Înainte să trimiți piesa</b>
         <ul className="mt-3 space-y-2 text-sm leading-relaxed text-textSecundar">
-          <li className="flex gap-2"><span className="text-accent mt-[2px]">•</span><span>Pune în colet o copie a facturii — ne ajută să identificăm imediat comanda.</span></li>
-          <li className="flex gap-2"><span className="text-accent mt-[2px]">•</span><span>Ambalează piesa cel puțin la fel de bine cum ai primit-o. O piesă lovită pe drumul de întoarcere înseamnă o scădere de valoare care se reține din suma rambursată.</span></li>
-          <li className="flex gap-2"><span className="text-accent mt-[2px]">•</span><span>Poți despacheta și verifica piesa, o poți compara cu cea veche. Dar o piesă montată efectiv pe mașină, rodată sau vopsită, nu se mai poate returna ca nefolosită.</span></li>
+          <li className="flex gap-2"><span className="accentuat mt-[2px]">•</span><span>Pune în colet o copie a facturii — ne ajută să identificăm imediat comanda.</span></li>
+          <li className="flex gap-2"><span className="accentuat mt-[2px]">•</span><span>Ambalează piesa cel puțin la fel de bine cum ai primit-o. O piesă lovită pe drumul de întoarcere înseamnă o scădere de valoare care se reține din suma rambursată.</span></li>
+          <li className="flex gap-2"><span className="accentuat mt-[2px]">•</span><span>Poți despacheta și verifica piesa, o poți compara cu cea veche. Dar o piesă montată efectiv pe mașină, rodată sau vopsită, nu se mai poate returna ca nefolosită.</span></li>
           {firma.adresa && (
-            <li className="flex gap-2"><span className="text-accent mt-[2px]">•</span><span>Adresa de returnare: <b className="text-text">{firma.adresa}</b></span></li>
+            <li className="flex gap-2"><span className="accentuat mt-[2px]">•</span><span>Adresa de returnare: <b className="text-text">{firma.adresa}</b></span></li>
           )}
         </ul>
       </div>
@@ -52,7 +52,7 @@ export default async function FormularRetur() {
         <p className="text-sm mt-2 leading-relaxed text-textSecundar">
           Formularul acesta e pentru „m-am răzgândit”: 14 zile, fără motiv, piesa nefolosită.
           Dacă piesa are un defect, e altceva — atunci vorbim de{" "}
-          <Link href="/legal/certificat-garantie" className="text-accent font-semibold">garanție</Link>,
+          <Link href="/legal/certificat-garantie" className="accentuat font-semibold">garanție</Link>,
           care ține 90 de zile și cere alte documente. Sună-ne și îți spunem în care dintre cele două cazuri te afli.
         </p>
       </div>
@@ -61,7 +61,7 @@ export default async function FormularRetur() {
 
       <p className="text-sm text-textSecundar mt-6">
         Condițiile complete, inclusiv formularul-model prevăzut de lege, sunt în{" "}
-        <Link href="/legal/politica-de-retur" className="text-accent font-semibold">Politica de retur</Link>.
+        <Link href="/legal/politica-de-retur" className="accentuat font-semibold">Politica de retur</Link>.
       </p>
     </div>
   );

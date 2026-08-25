@@ -29,9 +29,9 @@ export default async function LegalPage({ params }: { params: { slug: string } }
         <ul className="mt-2 space-y-1.5">
           {LEGAL_SLUGS.map((d) => (
             <li key={d.slug}><Link href={`/legal/${d.slug}`}
-              className={d.slug === doc.slug ? "text-accent font-bold" : "hover:text-accent"}>{d.titlu}</Link></li>
+              className={d.slug === doc.slug ? "accentuat font-bold" : "accentuat-hover"}>{d.titlu}</Link></li>
           ))}
-          <li><Link href="/formular-retur" className="hover:text-accent">Formular de retur</Link></li>
+          <li><Link href="/formular-retur" className="accentuat-hover">Formular de retur</Link></li>
         </ul>
       </aside>
       <article>
@@ -47,7 +47,7 @@ export default async function LegalPage({ params }: { params: { slug: string } }
               {s.lista && (
                 <ul className="mt-2 space-y-1.5 text-[15px] leading-relaxed text-text">
                   {s.lista.map((el, i) => (
-                    <li key={i} className="flex gap-2"><span className="text-accent mt-[2px]">•</span><span>{el}</span></li>
+                    <li key={i} className="flex gap-2"><span className="accentuat mt-[2px]">•</span><span>{el}</span></li>
                   ))}
                 </ul>
               )}
@@ -84,10 +84,10 @@ export default async function LegalPage({ params }: { params: { slug: string } }
           <p className="text-sm mt-6">
             Textul oficial al OUG 34/2014:{" "}
             <a href="https://legislatie.just.ro/Public/DetaliiDocument/159792" target="_blank" rel="noopener noreferrer"
-              className="text-accent font-semibold">legislatie.just.ro</a>
+              className="accentuat font-semibold">legislatie.just.ro</a>
           </p>
         )}
-        <p className="text-xs text-textSecundar mt-8 border-t border-chenar pt-4">Ultima actualizare: august 2026 · Pentru orice întrebare, folosește pagina de <Link href="/contact" className="text-accent font-semibold">contact</Link>.</p>
+        <p className="text-xs text-textSecundar mt-8 border-t border-chenar pt-4">Ultima actualizare: august 2026 · Pentru orice întrebare, folosește pagina de <Link href="/contact" className="accentuat font-semibold">contact</Link>.</p>
       </article>
     </div>
   );

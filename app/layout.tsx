@@ -51,6 +51,23 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const { firma } = await getSetariServer();
   return (
     <html lang="ro" className={poppins.variable}>
+      <head>
+        {/* SCRIPT ANTI-FLASH. Rulează înainte de orice desenare: citește tema
+            salvată și o pune pe <html>. Fără el, pagina ar apărea o clipă
+            întunecată și apoi ar sări pe luminos la fiecare reîncărcare — exact
+            genul de licărire pe care oamenii o simt fără s-o poată numi.
+            Implicit rămâne întunecatul: dacă nu e nimic salvat, nu se pune nimic.
+            `dangerouslySetInnerHTML` e singura cale de a insera un script inline
+            în App Router; conținutul e scris de noi, nu vine de nicăieri. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){try{var t=localStorage.getItem('autopas-tema');" +
+              "if(t==='luminos'){document.documentElement.setAttribute('data-tema','luminos');}" +
+              "}catch(e){}})();",
+          }}
+        />
+      </head>
       <body>
         <CartProvider>
           <FavoritesProvider>

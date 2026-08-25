@@ -1,10 +1,13 @@
 // ============================================================
-// PUBLICAREA UNEI PIESE IMPORTATE
+// ADUCEREA POZELOR UNEI PIESE IMPORTATE (și publicarea ei)
 //
-// Aici se descarcă pozele — nu la import. Motivul e din C.5: 8.000 de produse ×
-// ~1,5 poze × ~186 KB ar însemna ~2,2 GB descărcați pentru un catalog care în
-// mare parte nu se publică niciodată. Așa stocarea crește odată cu catalogul
-// real, nu cu importul.
+// De la 25 august 2026 pozele se descarcă în timpul importului, nu aici — vezi
+// app/api/import/route.ts. Ruta asta a rămas pentru cazul în care descărcarea a
+// eșuat atunci: butonul „Reia pozele eșuate" din Admin → Piese de completat o
+// cheamă pentru piesele care au `poze_sursa`, dar `poze` gol.
+//
+// Supabase e pe plan Pro, deci limita de 1 GB nu mai e o constrângere și toate
+// pozele se aduc la import. Motivul vechi al amânării a dispărut odată cu ea.
 //
 // Rulează pe server pentru că browserul nu poate descărca de pe pieseauto.ro
 // (CORS) și pentru că scrierea în `products` cere drepturi de echipă.
@@ -46,12 +49,9 @@ export async function POST(req: Request) {
   const rezultate: { id: number; ok: boolean; poze?: number; eroare?: string }[] = [];
 
   for (const p of piese ?? []) {
-    // Regula din C.10: nu se publică nimic fără poză și fără categorie.
-    // Greutatea NU mai blochează — piesele importate primesc 1 kg estimat.
-    if (!p.categorie_id) {
-      rezultate.push({ id: p.id, ok: false, eroare: "fără categorie" });
-      continue;
-    }
+    // Nimic nu mai blochează publicarea: nici categoria lipsă, nici greutatea
+    // estimată, nici pozele (regula A.0). O piesă fără categorie e o piesă de
+    // completat, nu una de ascuns — apare oricum în ecranul de lucru.
     const areDejaPoze = (p.poze ?? []).length > 0;
     const surse = (p.poze_sursa ?? []) as string[];
     if (!areDejaPoze && surse.length === 0) {

@@ -14,7 +14,7 @@ export default function AddToCart({ p, mare = false }: { p: Product; mare?: bool
         router.push("/cos"); }}
       className={`w-full inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition
         min-h-[44px] whitespace-nowrap text-center px-4
-        ${mare ? "bg-accent text-accentText text-base hover:brightness-110" : "bg-headerBg text-headerText text-[13px] hover:bg-steel"}`}>
+        ${mare ? "bg-accent text-accentContrast text-base hover:brightness-110" : "bg-headerBg text-headerText text-[13px] hover:bg-steel"}`}>
       {inCos ? "În coș — vezi coșul" : "Adaugă în coș"}
     </button>
   );

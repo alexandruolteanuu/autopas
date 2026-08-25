@@ -97,7 +97,7 @@ export default async function Produs({ params }: { params: { slug: string } }) {
           <div className="mt-2 text-[13px] text-textSecundar">Cod intern: {prod.cod_intern ?? "—"}</div>
 
           <div className="mt-3 flex items-end gap-2.5 flex-wrap">
-            <span className="t-pret text-accent !text-[30px] sm:!text-[36px]">{lei(Number(prod.pret_lei), prod.pret_sufix)}</span>
+            <span className="t-pret accentuat !text-[30px] sm:!text-[36px]">{lei(Number(prod.pret_lei), prod.pret_sufix)}</span>
             <span className="text-textSecundar text-[13px]">TVA inclus</span>
           </div>
 
@@ -106,7 +106,7 @@ export default async function Produs({ params }: { params: { slug: string } }) {
               ? <span className="px-2.5 py-1 rounded-full bg-ok/10 text-ok">În stoc</span>
               : <span className="px-2.5 py-1 rounded-full bg-chenar text-text">Stoc epuizat</span>}
             {prod.originala !== false && (
-              <span className="px-2.5 py-1 rounded-full bg-accent/10 text-accent">Piesă originală</span>
+              <span className="px-2.5 py-1 rounded-full bg-accent/10 accentuat">Piesă originală</span>
             )}
           </div>
 
@@ -143,10 +143,10 @@ export default async function Produs({ params }: { params: { slug: string } }) {
           </div>
 
           <div className="mt-3 grid sm:grid-cols-2 gap-2 text-[13px]">
-            <Link href="/legal/livrare" className="card px-3.5 min-h-[44px] flex items-center gap-2 hover:border-accent">
-              <span className="text-accent"><TrustIcon kind="camion" /></span> Livrare 1–3 zile lucrătoare</Link>
-            <Link href="/legal/politica-de-retur" className="card px-3.5 min-h-[44px] flex items-center gap-2 hover:border-accent">
-              <span className="text-accent"><TrustIcon kind="retur" /></span> Retur în 14 zile</Link>
+            <Link href="/legal/livrare" className="card px-3.5 min-h-[44px] flex items-center gap-2 hover:border-accentChenar">
+              <span className="accentuat"><TrustIcon kind="camion" /></span> Livrare 1–3 zile lucrătoare</Link>
+            <Link href="/legal/politica-de-retur" className="card px-3.5 min-h-[44px] flex items-center gap-2 hover:border-accentChenar">
+              <span className="accentuat"><TrustIcon kind="retur" /></span> Retur în 14 zile</Link>
           </div>
 
           {prod.stare_nota && (

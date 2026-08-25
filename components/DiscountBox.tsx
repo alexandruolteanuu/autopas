@@ -40,8 +40,8 @@ export default function DiscountBox({ subtotal, reducere, setReducere }:
             de acolo venea pagina împinsă în lateral pe telefon. */}
         <input value={cod} onChange={(e) => setCod(e.target.value.toUpperCase())} placeholder="Cod de reducere"
           autoComplete="off" aria-label="Cod de reducere"
-          className="flex-1 min-w-0 rounded-lg border border-[rgb(var(--chenar-puternic))] bg-[rgb(var(--camp-bg))] px-3 min-h-[44px] text-base outline-none focus:border-accent uppercase" />
-        <button disabled={lucru} className="shrink-0 rounded-lg border border-[rgb(var(--chenar-puternic))] px-4 min-h-[44px] text-sm font-semibold hover:border-accent">{lucru ? "…" : "Aplică"}</button>
+          className="flex-1 min-w-0 rounded-lg border border-[rgb(var(--chenar-puternic))] bg-[rgb(var(--camp-bg))] px-3 min-h-[44px] text-base outline-none focus:border-accentChenar uppercase" />
+        <button disabled={lucru} className="shrink-0 rounded-lg border border-[rgb(var(--chenar-puternic))] px-4 min-h-[44px] text-sm font-semibold hover:border-accentChenar">{lucru ? "…" : "Aplică"}</button>
       </div>
       {msg && <p className="text-[13px] text-textSecundar">{msg}</p>}
     </form>

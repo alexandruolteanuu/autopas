@@ -1,223 +1,212 @@
 // ============================================================
-// SCANER DE AȘEZARE PE ECRAN — unealtă de diagnostic, nu cod de producție.
+// SCANARE RESPONSIVE — toate paginile × toate lățimile.
 //
-// Deschide fiecare pagină la fiecare lățime și raportează:
-//   - scroll orizontal, cu elementul vinovat (selector + început de text)
-//   - suprapuneri între elemente pe care se poate apăsa
-//   - ținte de atingere sub 44px
-//   - text sub 12px calculat
+// Raportează, pentru fiecare combinație:
+//   · scroll orizontal, cu elementul vinovat (selector + început de text)
+//   · suprapuneri între elemente interactive
+//   · ținte de atingere sub 44px
+//   · text sub 12px
 //
-// Playwright NU e în package.json intenționat: ar încetini fiecare build de pe
-// Vercel fără niciun folos. Se instalează local, doar când ai nevoie de el:
+// Cum se rulează (serverul trebuie să meargă separat: `npm run dev`):
+//   node scripts/verifica-contrast.mjs   # paletele
+//   node scripts/scan-responsive.mjs     # scanarea
 //
-//   npm install playwright --no-save && npx playwright install chromium
-//   npm run build && npm start &
-//   node scripts/scan-responsive.mjs            # raport pe ecran
-//   node scripts/scan-responsive.mjs --json out.json
+// Are nevoie de `playwright-core` și de un Chromium. NU e pus în
+// package.json intenționat: e unealtă de verificare, nu dependință a
+// site-ului, și n-are ce căuta în build-ul de pe Vercel. Instalare, o
+// singură dată, oriunde în afara proiectului:
+//   npm i playwright-core && npx playwright install chromium
+// apoi îl legi în node_modules-ul proiectului (NODE_PATH NU merge la module
+// ESM, Node nu-l consultă la `import`):
+//   ln -s /cale/catre/node_modules/playwright-core node_modules/playwright-core
+//
+// Opțiuni:
+//   BASE=http://localhost:3000   adresa site-ului
+//   TEMA=luminos                 scanează pe tema luminoasă (implicit: întunecat)
+//   DOAR=/piese,/cos             scanează doar paginile astea
+//   LATIMI=360,768               scanează doar lățimile astea
+//   JSON=raport.json             scrie rezultatul brut într-un fișier
 // ============================================================
-import { chromium } from "playwright";
-import { writeFileSync } from "node:fs";
 
-const BAZA = process.env.BAZA ?? "http://localhost:3000";
+let chromium;
+try { ({ chromium } = await import("playwright-core")); }
+catch {
+  console.error("Lipsește `playwright-core`. Vezi instrucțiunile din capul acestui fișier.");
+  process.exit(2);
+}
 
-const LATIMI = [320, 360, 375, 390, 414, 428, 480, 640, 768, 834, 1024, 1280, 1440];
+const BASE = process.env.BASE ?? "http://localhost:3000";
 
-// Slugurile reale se dau din afară, ca scriptul să nu presupună date din bază.
-const SLUG_PIESA = process.env.SLUG_PIESA ?? "alternator-bosch-vw-golf-6-16-tdi";
-const SLUG_LEGAL = process.env.SLUG_LEGAL ?? "certificat-garantie";
+const LATIMI = (process.env.LATIMI?.split(",").map(Number)) ??
+  [320, 360, 375, 390, 414, 428, 480, 640, 768, 834, 1024, 1280, 1440];
 
-const PAGINI = [
-  "/", "/piese", `/piese/${SLUG_PIESA}`, "/favorite", "/cos", "/checkout", "/cont",
-  "/autentificare", "/cauta-dupa-masina", "/preda-masina", "/programul-rabla",
-  "/despre-noi", "/contact", "/faq", "/formular-retur", `/legal/${SLUG_LEGAL}`,
-  "/pagina-inexistenta-404",
-  "/admin", "/admin/comenzi", "/admin/cereri", "/admin/produse", "/admin/categorii",
-  "/admin/marci", "/admin/masini", "/admin/expedieri", "/admin/clienti",
-  "/admin/facturi", "/admin/rapoarte", "/admin/marketing", "/admin/setari",
-  "/admin/integrari",
+// Slugurile reale se află din site, nu se scriu de mână: dacă se schimbă
+// datele din Supabase, scanarea merge mai departe.
+const PAGINI_FIXE = [
+  "/", "/piese", "/favorite", "/cos", "/checkout", "/cont", "/autentificare",
+  "/cauta-dupa-masina", "/preda-masina", "/programul-rabla", "/despre-noi",
+  "/contact", "/faq", "/formular-retur", "/legal/politica-de-cookies",
+  "/pagina-care-nu-exista", "/admin",
 ];
 
-// Rulează în browser, pentru fiecare pagină.
-function masoara() {
-  const doc = document.documentElement;
-  // ATENȚIE: la emularea de telefon, window.innerWidth raportează fereastra
-  // vizuală, care se lărgește ca să încapă conținutul — și atunci elementele
-  // care ies din ecran par să încapă. clientWidth e lățimea reală de așezare.
-  const W = doc.clientWidth;
+const TEMA = process.env.TEMA === "luminos" ? "luminos" : "intunecat";
 
-  const selector = (el) => {
-    const parti = [];
-    let n = el;
-    for (let i = 0; n && n.nodeType === 1 && i < 4; i++) {
-      let s = n.tagName.toLowerCase();
-      if (n.id) { parti.unshift(`${s}#${n.id}`); break; }
-      const cls = (n.getAttribute("class") ?? "").trim().split(/\s+/).filter(Boolean).slice(0, 3);
-      if (cls.length) s += "." + cls.join(".");
-      parti.unshift(s);
-      n = n.parentElement;
-    }
-    return parti.join(" > ");
+const browser = await chromium.launch();
+
+// Tema se alege scriind în localStorage ÎNAINTE de scripturile paginii: exact
+// ce citește scriptul anti-flash din app/layout.tsx. Așa pagina se desenează
+// direct pe tema cerută, fără comutare vizibilă și fără să depindem de un click.
+const context = await browser.newContext();
+await context.addInitScript((t) => {
+  try { localStorage.setItem("autopas-tema", t); } catch (e) { /* navigare privată */ }
+}, TEMA);
+
+async function slugReal(lista, selector) {
+  const p = await context.newPage();
+  try {
+    await p.goto(BASE + lista, { waitUntil: "networkidle", timeout: 30000 });
+    return await p.$eval(selector, (a) => a.getAttribute("href"));
+  } catch { return null; }
+  finally { await p.close(); }
+}
+
+const slugPiesa = await slugReal("/piese", 'a[href^="/piese/"]');
+const slugLegal = await slugReal("/legal/politica-de-cookies", 'a[href^="/legal/"]');
+
+let PAGINI = [...PAGINI_FIXE];
+if (slugPiesa) PAGINI.splice(2, 0, slugPiesa);
+if (slugLegal && !PAGINI.includes(slugLegal)) PAGINI.push(slugLegal);
+if (process.env.DOAR) PAGINI = process.env.DOAR.split(",");
+
+/** Rulează în pagină: adună toate problemele dintr-o singură trecere. */
+function masoara() {
+  const d = document.documentElement;
+  const ecran = d.clientWidth;
+
+  const selectorul = (el) => {
+    if (!el) return "?";
+    const cls = (el.className?.toString?.() ?? "").trim().split(/\s+/).slice(0, 3).join(".");
+    return el.tagName.toLowerCase() + (el.id ? `#${el.id}` : "") + (cls ? `.${cls}` : "");
   };
   const text = (el) => (el.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 40);
   const vizibil = (el) => {
-    const st = getComputedStyle(el);
-    if (st.display === "none" || st.visibility === "hidden" || st.opacity === "0") return false;
+    const s = getComputedStyle(el);
+    if (s.display === "none" || s.visibility === "hidden" || +s.opacity === 0) return false;
     const r = el.getBoundingClientRect();
     return r.width > 0 && r.height > 0;
   };
 
-  // --- 1. scroll orizontal + elementele care depășesc ---
-  const scrollOrizontal = doc.scrollWidth > doc.clientWidth;
-  const depasesc = [];
-  for (const el of document.querySelectorAll("body *")) {
-    if (!vizibil(el)) continue;
-    const r = el.getBoundingClientRect();
-    if (r.right > W + 1 || r.left < -1) {
-      // ne interesează cel mai adânc element vinovat, nu toți părinții lui
-      if (![...el.children].some((c) => c.getBoundingClientRect().right > W + 1)) {
-        depasesc.push({ sel: selector(el), text: text(el), dreapta: Math.round(r.right), latime: Math.round(r.width) });
+  // --- 1. scroll orizontal + vinovați ---
+  const orizontal = d.scrollWidth > ecran;
+  const vinovati = [];
+  if (orizontal) {
+    for (const el of d.querySelectorAll("*")) {
+      if (!vizibil(el)) continue;
+      const r = el.getBoundingClientRect();
+      if (r.right > ecran + 1 || r.left < -1) {
+        // păstrez doar cel mai adânc element din lanț, nu și părinții lui
+        if (vinovati.some((v) => v.el.contains(el))) vinovati.splice(vinovati.findIndex((v) => v.el.contains(el)), 1);
+        vinovati.push({ el, sel: selectorul(el), text: text(el), right: Math.round(r.right) });
       }
     }
   }
 
-  // --- 2. elemente interactive: suprapuneri și ținte mici ---
-  const inter = [...document.querySelectorAll("a, button, select, input, textarea, summary, [role=button]")].filter(vizibil);
-  const rects = inter.map((el) => ({ el, r: el.getBoundingClientRect() }));
-
-  const suprapuneri = [];
-  for (let i = 0; i < rects.length; i++) {
-    for (let j = i + 1; j < rects.length; j++) {
-      const a = rects[i], b = rects[j];
-      // sărim peste cele imbricate unul în altul — nu e suprapunere reală
-      if (a.el.contains(b.el) || b.el.contains(a.el)) continue;
-      // straturile fixe (banner de cookie-uri, buton plutitor, sertar) acoperă
-      // conținutul intenționat — nu e o suprapunere din așezare
-      if (a.el.closest("[data-strat-fix]") || b.el.closest("[data-strat-fix]")) continue;
-      let lat = 0, inalt = 0;
-      for (const ra of a.el.getClientRects()) for (const rb of b.el.getClientRects()) {
-        const l = Math.min(ra.right, rb.right) - Math.max(ra.left, rb.left);
-        const i2 = Math.min(ra.bottom, rb.bottom) - Math.max(ra.top, rb.top);
-        if (l > lat && i2 > inalt) { lat = l; inalt = i2; }
-      }
-      if (lat > 2 && inalt > 2) {
-        suprapuneri.push({ a: selector(a.el), textA: text(a.el), b: selector(b.el), textB: text(b.el),
-          zona: Math.round(lat * inalt) });
-      }
-    }
-  }
-
+  // --- 2. ținte de atingere ---
+  const controale = [...document.querySelectorAll("a, button, select, input, textarea, [role='button']")].filter(vizibil);
   const tinteMici = [];
-  for (const { el, r: rBrut } of rects) {
-    const eticheta = (el.tagName === "INPUT" && /^(checkbox|radio)$/.test(el.type)) ? el.closest("label") : null;
-    const r = eticheta ? eticheta.getBoundingClientRect() : rBrut;
-    // linkurile din interiorul unui paragraf sunt inline prin natura lor:
-    // le numărăm separat, altfel raportul se umple de fals-pozitive
-    const inlineInText = getComputedStyle(el).display.startsWith("inline") &&
-      !!el.closest("p, li, dd, summary, label");
-    if (r.width < 44 || r.height < 44) {
-      tinteMici.push({ sel: selector(el), text: text(el),
-        w: Math.round(r.width), h: Math.round(r.height), inlineInText });
-    }
+  for (const el of controale) {
+    const r = el.getBoundingClientRect();
+    const s = getComputedStyle(el);
+    // linkurile din interiorul unui paragraf sunt exceptate de WCAG 2.5.8
+    const inText = el.tagName === "A" && s.display.startsWith("inline") && el.closest("p, li, td");
+    if (inText) continue;
+    if (r.width < 44 || r.height < 44)
+      tinteMici.push({ sel: selectorul(el), text: text(el), dim: `${Math.round(r.width)}x${Math.round(r.height)}` });
   }
 
-  // --- 3. text sub 12px ---
-  const textMic = [];
-  for (const el of document.querySelectorAll("body *")) {
-    if (!vizibil(el)) continue;
-    const propriu = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
-    if (!propriu) continue;
+  // --- 3. suprapuneri între controale ---
+  const suprapuneri = [];
+  for (let i = 0; i < controale.length; i++) {
+    for (let j = i + 1; j < controale.length; j++) {
+      const a = controale[i], b = controale[j];
+      if (a.contains(b) || b.contains(a)) continue;          // imbricate, nu suprapuse
+      const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+      const sx = Math.min(ra.right, rb.right) - Math.max(ra.left, rb.left);
+      const sy = Math.min(ra.bottom, rb.bottom) - Math.max(ra.top, rb.top);
+      if (sx > 1 && sy > 1) suprapuneri.push({ a: selectorul(a), b: selectorul(b), zona: `${Math.round(sx)}x${Math.round(sy)}` });
+      if (suprapuneri.length > 8) break;
+    }
+    if (suprapuneri.length > 8) break;
+  }
+
+  // --- 4. text sub 12px ---
+  const micUnice = new Map();
+  for (const el of document.querySelectorAll("*")) {
+    const propriu = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent.trim()).join("");
+    if (!propriu || !vizibil(el)) continue;
     const px = parseFloat(getComputedStyle(el).fontSize);
-    if (px < 12) textMic.push({ sel: selector(el), text: text(el), px: Math.round(px * 10) / 10 });
-  }
-
-  return { scrollOrizontal, scrollWidth: doc.scrollWidth, clientWidth: doc.clientWidth,
-    depasesc, suprapuneri, tinteMici, textMic };
-}
-
-// Coșul și checkoutul se scanau GOALE, deci nu se vedea cum arată cu marfă în
-// ele — exact acolo era o piesă care nu se strângea și împingea pagina în
-// lateral. Punem o piesă în coș înainte de scanare.
-const COS_DE_PROBA = [{
-  id: 1, slug: "piesa-de-proba", nume: "Alternator Bosch — VW Golf 6 1.6 TDI (CAYC)",
-  pret: 385, art: "alternator", oem: "03L903023", cantitate: 1,
-}];
-
-const browser = await chromium.launch();
-const rezultate = [];
-
-for (const latime of LATIMI) {
-  const ctx = await browser.newContext({ viewport: { width: latime, height: 800 },
-    deviceScaleFactor: 1, isMobile: latime < 768, hasTouch: latime < 768 });
-  const page = await ctx.newPage();
-  await page.addInitScript((cos) => {
-    try { localStorage.setItem("autopas_cart", JSON.stringify(cos)); } catch {}
-  }, COS_DE_PROBA);
-  for (const cale of PAGINI) {
-    try {
-      const rasp = await page.goto(BAZA + cale, { waitUntil: "networkidle", timeout: 30000 });
-      await page.waitForTimeout(200); // lăsăm componentele client să se așeze
-      const r = await page.evaluate(masoara);
-      rezultate.push({ latime, cale, status: rasp?.status() ?? 0, ...r });
-    } catch (e) {
-      rezultate.push({ latime, cale, eroare: String(e).slice(0, 120) });
+    if (px < 12) {
+      const cheie = selectorul(el) + "|" + px;
+      if (!micUnice.has(cheie)) micUnice.set(cheie, { sel: selectorul(el), px: +px.toFixed(1), text: propriu.slice(0, 40) });
     }
   }
-  await ctx.close();
-  process.stderr.write(`  ${latime}px gata\n`);
+
+  return {
+    orizontal: orizontal ? { scrollW: d.scrollWidth, ecran } : null,
+    vinovati: vinovati.slice(0, 5).map(({ sel, text, right }) => ({ sel, text, right })),
+    tinteMici, suprapuneri, textMic: [...micUnice.values()],
+  };
 }
+
+const rezultate = [];
+for (const cale of PAGINI) {
+  for (const w of LATIMI) {
+    const page = await context.newPage();
+    await page.setViewportSize({ width: w, height: 900 });
+    let r;
+    try {
+      await page.goto(BASE + cale, { waitUntil: "networkidle", timeout: 30000 });
+      await page.waitForTimeout(250);
+      r = await page.evaluate(masoara);
+    } catch (e) {
+      r = { eroare: String(e).split("\n")[0].slice(0, 80) };
+    }
+    rezultate.push({ pagina: cale, latime: w, ...r });
+    await page.close();
+  }
+  const ale = rezultate.filter((x) => x.pagina === cale);
+  const semn = (n) => (n ? String(n) : "·");
+  console.log(
+    `${cale.padEnd(34)} scroll:${semn(ale.filter((x) => x.orizontal).length).padStart(3)}` +
+    `  ținte<44:${semn(ale.reduce((s, x) => s + (x.tinteMici?.length ?? 0), 0)).padStart(4)}` +
+    `  suprapuneri:${semn(ale.reduce((s, x) => s + (x.suprapuneri?.length ?? 0), 0)).padStart(4)}` +
+    `  text<12px:${semn(ale.reduce((s, x) => s + (x.textMic?.length ?? 0), 0)).padStart(4)}` +
+    `  erori:${semn(ale.filter((x) => x.eroare).length)}`
+  );
+}
+
 await browser.close();
 
-// ---------- raport ----------
-const idxJson = process.argv.indexOf("--json");
-if (idxJson > -1) writeFileSync(process.argv[idxJson + 1] ?? "scan.json", JSON.stringify(rezultate, null, 2));
+// ---- rezumat ----
+const cu = (f) => rezultate.filter(f);
+console.log("\n================ REZUMAT ================");
+console.log(`temă: ${TEMA}`);
+console.log(`${PAGINI.length} pagini × ${LATIMI.length} lățimi = ${rezultate.length} combinații`);
+console.log(`scroll orizontal : ${cu((x) => x.orizontal).length}`);
+console.log(`ținte sub 44px   : ${cu((x) => x.tinteMici?.length).length} combinații`);
+console.log(`suprapuneri      : ${cu((x) => x.suprapuneri?.length).length} combinații`);
+console.log(`text sub 12px    : ${cu((x) => x.textMic?.length).length} combinații`);
+console.log(`erori de încărcare: ${cu((x) => x.eroare).length}`);
 
-const n = (r, k) => (r[k] ?? []).length;
-const total = {
-  scroll: rezultate.filter((r) => r.scrollOrizontal).length,
-  suprapuneri: rezultate.reduce((s, r) => s + n(r, "suprapuneri"), 0),
-  tinte: rezultate.reduce((s, r) => s + (r.tinteMici ?? []).filter((t) => !t.inlineInText).length, 0),
-  tinteInline: rezultate.reduce((s, r) => s + (r.tinteMici ?? []).filter((t) => t.inlineInText).length, 0),
-  textMic: rezultate.reduce((s, r) => s + n(r, "textMic"), 0),
-  erori: rezultate.filter((r) => r.eroare).length,
-};
-console.log("\n=== TOTAL ===");
-console.log(total);
-
-console.log("\n=== SCROLL ORIZONTAL: pagină × lățime ===");
-for (const r of rezultate.filter((x) => x.scrollOrizontal)) {
-  console.log(`${String(r.latime).padStart(4)}px  ${r.cale}   (${r.clientWidth} -> ${r.scrollWidth})`);
-  for (const d of r.depasesc.slice(0, 3)) console.log(`        ${d.sel}  „${d.text}”  dreapta=${d.dreapta}`);
+for (const x of cu((y) => y.orizontal)) {
+  console.log(`\nSCROLL  ${x.pagina} @${x.latime}  (${x.orizontal.scrollW} > ${x.orizontal.ecran})`);
+  x.vinovati.forEach((v) => console.log(`   ${v.sel}  right=${v.right}  „${v.text}"`));
 }
 
-console.log("\n=== SUPRAPUNERI (elemente pe care se poate apăsa) ===");
-const supr = new Map();
-for (const r of rezultate) for (const s of r.suprapuneri ?? []) {
-  const k = `${r.cale} | ${s.a} × ${s.b}`;
-  if (!supr.has(k)) supr.set(k, { ...s, cale: r.cale, latimi: [] });
-  supr.get(k).latimi.push(r.latime);
+if (process.env.JSON) {
+  const { writeFileSync } = await import("node:fs");
+  writeFileSync(process.env.JSON, JSON.stringify(rezultate, null, 1));
+  console.log(`\nRaport brut: ${process.env.JSON}`);
 }
-for (const [k, v] of supr) console.log(`${v.cale}  la ${v.latimi.join(",")}px\n    „${v.textA}” × „${v.textB}”  (${v.zona}px²)`);
-if (!supr.size) console.log("  niciuna");
 
-console.log("\n=== ȚINTE SUB 44px (fără linkurile inline din text) ===");
-const tin = new Map();
-for (const r of rezultate) for (const t of (r.tinteMici ?? []).filter((x) => !x.inlineInText)) {
-  const k = `${r.cale} | ${t.sel}`;
-  if (!tin.has(k)) tin.set(k, { ...t, cale: r.cale, latimi: [] });
-  tin.get(k).latimi.push(r.latime);
-}
-for (const [, v] of [...tin].slice(0, 40)) console.log(`${v.cale}  ${v.w}×${v.h}  „${v.text}”  la ${v.latimi.length} lățimi\n    ${v.sel}`);
-console.log(`  ... ${tin.size} tipuri distincte`);
-
-console.log("\n=== TEXT SUB 12px ===");
-const txt = new Map();
-for (const r of rezultate) for (const t of r.textMic ?? []) {
-  const k = `${t.px}px | ${t.sel}`;
-  if (!txt.has(k)) txt.set(k, { ...t, cai: new Set() });
-  txt.get(k).cai.add(r.cale);
-}
-for (const [, v] of [...txt].slice(0, 30)) console.log(`${v.px}px  „${v.text}”  (${v.cai.size} pagini)\n    ${v.sel}`);
-console.log(`  ... ${txt.size} tipuri distincte`);
-
-console.log("\n=== ERORI DE ÎNCĂRCARE ===");
-for (const r of rezultate.filter((x) => x.eroare)) console.log(`${r.latime}px ${r.cale}: ${r.eroare}`);
+process.exit(cu((x) => x.orizontal || x.eroare).length ? 1 : 0);

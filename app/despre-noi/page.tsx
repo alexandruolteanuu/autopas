@@ -34,7 +34,7 @@ export default function DespreNoi() {
         {PASI.map(([t, d], i) => (
           <div key={t} className="card p-4">
             <div className="flex items-center gap-2.5">
-              <span className="shrink-0 w-6 h-6 rounded-full bg-accent text-accentText grid place-items-center text-xs font-bold">{i + 1}</span>
+              <span className="shrink-0 w-6 h-6 rounded-full bg-accent text-accentContrast grid place-items-center text-xs font-bold">{i + 1}</span>
               <b className="font-disp font-semibold text-[14px]">{t}</b>
             </div>
             <p className="text-sm text-textSecundar mt-2 leading-relaxed">{d}</p>
@@ -66,8 +66,8 @@ export default function DespreNoi() {
         Dacă ai o mașină avariată, defectă sau pur și simplu prea veche ca să mai merite reparată, o preluăm.
         Plata se face pe loc, transportul cu platforma este gratuit în zona Neamț, iar certificatul de distrugere
         se emite imediat — cel de care ai nevoie ca să radiezi mașina.
-        Detalii în paginile <Link href="/preda-masina" className="text-accent font-semibold">Predă mașina</Link> și{" "}
-        <Link href="/programul-rabla" className="text-accent font-semibold">Programul Rabla</Link>.
+        Detalii în paginile <Link href="/preda-masina" className="accentuat font-semibold">Predă mașina</Link> și{" "}
+        <Link href="/programul-rabla" className="accentuat font-semibold">Programul Rabla</Link>.
       </p>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-8">
@@ -79,7 +79,7 @@ export default function DespreNoi() {
       </div>
 
       <div className="card p-5 mt-6 flex items-center justify-between flex-wrap gap-3">
-        <span className="flex items-center gap-2"><IconPin className="w-[18px] h-[18px] shrink-0 text-accent" /><span><b>{ADRESA.scurt}</b> · deschis {PROGRAM}</span></span>
+        <span className="flex items-center gap-2"><IconPin className="w-[18px] h-[18px] shrink-0 accentuat" /><span><b>{ADRESA.scurt}</b> · deschis {PROGRAM}</span></span>
         <span className="text-textSecundar text-sm">Ridicare personală posibilă, cu programare telefonică.</span>
       </div>
     </div>

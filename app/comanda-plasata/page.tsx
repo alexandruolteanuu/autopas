@@ -16,7 +16,7 @@ export default function ComandaPlasata({ searchParams }: { searchParams: { nr?: 
           ["3","Primești pe e-mail" + (searchParams.email ? ` (${searchParams.email})` : "") + " factura și numărul AWB pentru urmărirea coletului."],
           ["4","Curierul livrează în 1–3 zile lucrătoare. Plătești ramburs la primire (dacă ai ales ramburs)."],
         ].map(([n,t]) => (
-          <div key={n} className="flex gap-3"><span className="w-6 h-6 rounded-full bg-accent text-accentText grid place-items-center text-xs font-bold shrink-0">{n}</span><span>{t}</span></div>
+          <div key={n} className="flex gap-3"><span className="w-6 h-6 rounded-full bg-accent text-accentContrast grid place-items-center text-xs font-bold shrink-0">{n}</span><span>{t}</span></div>
         ))}
       </div>
       <div className="mt-7 flex gap-3 justify-center">

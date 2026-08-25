@@ -34,7 +34,7 @@ export default function Autentificare() {
       <div className="flex gap-2 justify-center mt-4">
         {(["login","register"] as const).map((m) => (
           <button key={m} onClick={() => { setMod(m); setMsg(""); }}
-            className={`px-4 min-h-[44px] rounded-lg text-sm font-bold border-2 ${mod === m ? "border-accent text-accent bg-accent/5" : "border-chenar"}`}>
+            className={`px-4 min-h-[44px] rounded-lg text-sm font-bold border-2 ${mod === m ? "border-accentChenar accentuat bg-accent/5" : "border-chenar"}`}>
             {m === "login" ? "Am cont" : "Sunt client nou"}</button>
         ))}
       </div>

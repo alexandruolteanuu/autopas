@@ -18,9 +18,12 @@ const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
 
 const VARIABILE = ["--fundal", "--suprafata", "--suprafata-2", "--text", "--text-secundar",
   "--chenar", "--chenar-puternic", "--camp-bg", "--accent", "--accent-hover",
-  "--accent-contrast", "--header-bg", "--header-text", "--footer-bg", "--footer-text"];
+  "--accent-contrast", "--accent-chenar",
+  "--header-bg", "--header-text", "--footer-bg", "--footer-text", "--hero-bg", "--hero-text"];
 
-/** Extrage paletele: `:root { … }` (site-ul public) și `.tema-clasica { … }` (/admin).
+/** Extrage cele TREI palete: `:root` (site public, tema întunecată),
+ *  `:root[data-tema="luminos"]` (site public, tema luminoasă) și
+ *  `.tema-clasica` (/admin).
  *
  *  Blocul `@media print` conține și el un `:root` cu variabile răsturnate pentru
  *  hârtie. Îl scoatem din text înainte de căutare: altfel ar fi raportat ca o a
@@ -28,10 +31,17 @@ const VARIABILE = ["--fundal", "--suprafata", "--suprafata-2", "--text", "--text
 function citesteTeme() {
   const fara_print = css.replace(/@media\s+print\s*\{[\s\S]*?\n\}/g, "");
   const teme = [];
-  const re = /(:root|\.tema-clasica)\s*\{([^}]*)\}/g;
+  // Ordinea alternativelor contează: cea mai lungă întâi, altfel `:root` ar
+  // înghiți începutul selectorului de temă luminoasă.
+  const re = /(:root\[data-tema="luminos"\]|:root|\.tema-clasica)\s*\{([^}]*)\}/g;
+  const NUME = {
+    ':root[data-tema="luminos"]': "site public — tema LUMINOASĂ",
+    ":root": "site public — tema ÎNTUNECATĂ",
+    ".tema-clasica": "/admin (tema clasică)",
+  };
   let m;
   while ((m = re.exec(fara_print))) {
-    const nume = m[1] === ":root" ? "site public (atelier-galben)" : "/admin (tema clasică)";
+    const nume = NUME[m[1]];
     const corp = m[2];
     if (!corp.includes("--fundal")) continue; // sar peste :root-ul cu scara de rotunjire
     const val = {};
@@ -52,6 +62,13 @@ function contrast(a, b) {
 }
 
 // [etichetă, culoare, fundal, prag]
+//
+// Umplutura și conturul ei se verifică separat: pe tema luminoasă sunt culori
+// diferite, iar o singură pereche „accent pe card" ar fi ascuns exact problema
+// pentru care s-au despărțit.
+//
+// Galbenul CA TEXT nu mai apare aici, fiindcă nu mai există: pe tema luminoasă
+// accentul e exclusiv culoare de fundal (vezi `.accentuat` din globals.css).
 const PERECHI = [
   ["text pe fundal", "--text", "--fundal", 4.5],
   ["text pe card", "--text", "--suprafata", 4.5],
@@ -61,7 +78,9 @@ const PERECHI = [
   ["CHENAR INPUT pe câmp", "--chenar-puternic", "--camp-bg", 3],
   ["text pe buton", "--accent-contrast", "--accent", 4.5],
   ["text pe buton (hover)", "--accent-contrast", "--accent-hover", 4.5],
-  ["accent pe card (preț, link)", "--accent", "--suprafata", 4.5],
+  ["CHENAR buton galben pe card", "--accent-chenar", "--suprafata", 3],
+  ["CHENAR buton galben pe fundal", "--accent-chenar", "--fundal", 3],
+  ["text pe hero", "--hero-text", "--hero-bg", 4.5],
   ["accent pe header", "--accent", "--header-bg", 3],
   ["text header", "--header-text", "--header-bg", 4.5],
   ["text subsol", "--footer-text", "--footer-bg", 4.5],

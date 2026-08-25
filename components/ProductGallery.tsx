@@ -21,7 +21,7 @@ export default function ProductGallery({ poze, art, nume }: { poze: string[]; ar
         <div className="grid grid-cols-5 gap-2 mt-2">
           {poze.map((u, i) => (
             <button key={u} onClick={() => setActiv(i)}
-              className={`rounded-lg overflow-hidden border-2 ${i === activ ? "border-accent" : "border-chenar"}`}>
+              className={`rounded-lg overflow-hidden border-2 ${i === activ ? "border-accentChenar" : "border-chenar"}`}>
               <img src={u} alt="" className="w-full aspect-[100/72] object-cover bg-imagineBg" />
             </button>
           ))}

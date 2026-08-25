@@ -3,4 +3,8 @@ node_modules/
 .env.local
 .env
 .DS_Store
-import/
+# Doar folderul din rădăcină, cu feed-urile CSV descărcate de la sursă.
+# Bara din față e obligatorie: fără ea, tiparul prinde ORICE folder numit
+# `import` — inclusiv `lib/import/` (motorul de import) și rutele
+# `app/api/import/`, care ar fi rămas necomise fără să spună nimeni nimic.
+/import/

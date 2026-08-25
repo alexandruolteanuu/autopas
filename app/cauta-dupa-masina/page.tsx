@@ -30,12 +30,12 @@ export default async function CautaDupaMasina() {
       <p className="text-textSecundar mt-6 max-w-2xl">Sau alege una dintre mașinile aflate la noi în dezmembrare — vezi doar piesele care ți se potrivesc. Fiecare piesă e legată de mașina din care provine, cu seria de șasiu la vedere.</p>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-7">
         {cars.map((c) => (
-          <Link key={c.id} href={`/piese?vehicul=${c.slug}`} className="card p-5 hover:border-accent transition">
+          <Link key={c.id} href={`/piese?vehicul=${c.slug}`} className="card p-5 hover:border-accentChenar transition">
             <div className="dim !text-[12px]">VIN {c.vin_masca}</div>
             <b className="font-disp text-xl uppercase block mt-1">{c.nume} · {c.an}</b>
             <div className="mt-2 flex items-center justify-between text-sm">
               <span className="text-textSecundar">{nrPiese(c.piese_listate ?? 0)} {c.piese_listate === 1 ? "listată" : "listate"}</span>
-              <span className="text-accent font-bold">Vezi piesele →</span>
+              <span className="accentuat font-bold">Vezi piesele →</span>
             </div>
           </Link>
         ))}

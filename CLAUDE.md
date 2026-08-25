@@ -47,10 +47,11 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
   Bannerele ANPC/SOL sunt fișiere oficiale în `public/`, nu redesenate.
 
 ## Structura
-- `app/` — paginile (App Router). `app/admin/` = panoul de administrare (12 module).
+- `app/` — paginile (App Router). `app/admin/` = panoul de administrare (16 module).
 - `components/` — componente refolosibile; `components/admin/` = specifice adminului.
 - `lib/` — `supabase.ts` (clienți: server, browser, admin cu service key), `settings.ts`
-  (firmă/curieri/integrări din DB), `types.ts`, `format.ts`, `couriers.ts`, `config.ts`, `legal.ts`.
+  (firmă/curieri/integrări din DB), `types.ts`, `format.ts`, `couriers.ts`, `config.ts`, `legal.ts`,
+  `imagini.ts`. `lib/import/` = motorul de import, în `.mjs`, folosit și de script, și de rută.
 - `supabase/` — migrările SQL (vezi ordinea).
 
 ## Ordinea migrărilor SQL (rulare manuală în Supabase, o singură dată fiecare)
@@ -58,9 +59,14 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 5. `admin.sql` -> 6. `sprint-bc.sql` -> 7. `upgrade.sql` (include și politicile pentru poze) ->
 8. `favorite.sql` -> 9. `admin-fix.sql` -> 10. `date-firma.sql` -> 11. `comanda-server.sql` ->
 12. `livrare-dupa-comanda.sql` -> 13. `coduri-reducere-private.sql` -> 14. `view-security-invoker.sql` ->
-15. `cautare-fara-diacritice.sql` -> 16. `email-unic.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9, 10, 11, 12, 13, 14, 15, 16. NU sunt încă idempotente: 1–5, 8.
-Toate cele de mai sus sunt deja aplicate pe proiectul de producție (august 2026).
+15. `cautare-fara-diacritice.sql` -> 16. `email-unic.sql` -> 17. `import-pieseauto.sql` ->
+18. `taxonomie-import.sql` -> 19. `greutate-estimata.sql` -> 20. `import-index-fix.sql` ->
+21. `publicare-cu-poze.sql` -> 22. `import-din-admin.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22.
+NU sunt încă idempotente: 1–5, 8.
+Aplicate pe producție: 1–21 (august 2026). **22 NU e încă rulată** — o rulează utilizatorul;
+fără ea, ecranul `/admin/import` nu are unde să-și scrie starea (`import_jobs` extinsă) și nici
+bucketul privat `import-csv`.
 
 ## De configurat (nu e cod, se rezolvă din afara proiectului)
 
@@ -126,15 +132,27 @@ sunt sarcini ale utilizatorului. Consemnate la 24 august 2026.
   `lib/supabase.ts` (vezi `app/api/awb/route.ts`).
 - Indexarea în Google e **oprită** până la lansare; se activează cu `PERMITE_INDEXARE=da` în Vercel.
   Domeniul ales: `autopas-dezmembrari.ro` (neînregistrat încă la 7 aug 2026).
+- **Importul din pieseauto.ro rulează din `/admin/import`**, în loturi cerute de browser, cu starea
+  în `import_jobs` și fișierul CSV într-un bucket privat. Scriptul `scripts/import-pieseauto.mjs`
+  rămâne, pentru rulări fără browser. AMÂNDOUĂ folosesc același motor, din `lib/import/` — nicio
+  regulă de import nu are voie să existe în altă parte (vezi `lib/import/README.md`).
+- **Piesele importate se publică direct**, cu pozele descărcate în timpul importului, chiar dacă le
+  lipsește categoria sau modelul (decizie 25 august 2026). Greutatea primește 1 kg cu
+  `greutate_estimata = true`; se cântărește la formarea coletului. Triggerul `verifica_publicarea`,
+  care interzicea publicarea fără poze, a fost eliminat de migrarea 22. Ecranul „Piese de completat"
+  nu mai e o poartă, ci o listă de lucru cu ce lipsește, sortată după gravitate.
+- **Feed-ul pieseauto.ro e mereu complet**, deci o piesă lipsă din el înseamnă vândută: se depublică
+  automat (`sursa_activ = false`, `publicat = false`, rândul rămâne). Peste 20% piese lipsă,
+  importul cere confirmare separată — un export trunchiat ar stinge tot catalogul.
 - Favorite = model hibrid (localStorage pentru nelogați + tabela `favorites` pentru logați, cu sincronizare).
 - Roluri: `client`, `operator`, `contabil`, `admin` (coloana `role` în `profiles`, controlată prin RLS).
 
-## Cele 14 module de admin (toate funcționale)
+## Cele 16 module de admin
 Dashboard · Comenzi (+detaliu cu jurnal, cost livrare, anulare cu restoc, ștergere) ·
-Cereri (inbox 4 taburi) · Produse (pagină de editare cu poze reale) · Categorii (+subcategorii) ·
-Mărci și modele · Mașini la dezmembrat (profit/amortizare) · Expedieri (AWB) · Clienți ·
-Facturi (export Saga) · Rapoarte · Marketing (coduri reducere) · Setări (firmă, curier, roluri) ·
-Integrări.
+Cereri (inbox 4 taburi) · Produse (pagină de editare cu poze reale) · Piese de completat ·
+Import pieseauto.ro · Categorii (+subcategorii) · Mărci și modele · Mașini la dezmembrat
+(profit/amortizare) · Expedieri (AWB) · Clienți · Facturi (export Saga) · Rapoarte ·
+Marketing (coduri reducere) · Setări (firmă, curier, roluri) · Integrări.
 Meniul și drepturile pe rol sunt definite în `app/admin/layout.tsx` (constanta `MENIU`).
 
 ## Baza de date — tabele cheie
@@ -157,17 +175,31 @@ fiindcă `anon` moștenește dreptul prin rolul `PUBLIC`.
 
 ## Culorile site-ului
 
-**Temă definitivă: „Atelier, galben industrial" (negru + #F2B705), aleasă în august 2026.
-Culorile se modifică exclusiv din blocul `:root` din `app/globals.css`.** Selectorul temporar
-de teme a fost eliminat complet (13 august 2026), dar sistemul de variabile a rămas: componentele
-nu scriu niciodată culori direct, ci folosesc clasele semantice din `tailwind.config.ts`
-(`bg-fundal`, `text-text`, `text-textSecundar`, `bg-accent`, `text-accentText`, `border-chenar`,
-`bg-imagineBg`…), care citesc variabilele. O schimbare de nuanță = o linie modificată.
+**Identitate: „Atelier, galben industrial" (#F2B705). DOUĂ teme, din 25 august 2026:
+„Întunecat" (implicită, negru) și „Luminos" (griuri reci). Culorile se modifică exclusiv din
+`app/globals.css`: blocul `:root` pentru întunecat, `:root[data-tema="luminos"]` pentru luminos.**
+Componentele nu scriu niciodată culori direct, ci folosesc clasele semantice din
+`tailwind.config.ts` (`bg-fundal`, `text-text`, `text-textSecundar`, `bg-accent`,
+`text-accentContrast`, `border-chenar`, `bg-imagineBg`, `bg-heroBg`…), care citesc variabilele.
+O schimbare de nuanță = o linie modificată.
+
+Comutatorul e o iconiță soare/lună în header (`components/ComutatorTema.tsx`). Alegerea stă în
+`localStorage`, cheia `autopas-tema`, iar scriptul anti-flash din `<head>`-ul lui
+`app/layout.tsx` o aplică înainte de prima desenare. Implicit rămâne întunecatul, indiferent
+de `prefers-color-scheme`.
 
 Reguli care rezultă din asta:
 - **Nu scrie hexa în componente.** `bg-accent`, nu `bg-[#F2B705]`.
 - `--accent-contrast` e **închis** (#101010): textul de pe galben e negru. Alb pe #F2B705 dă
-  1,8:1, ilizibil. Pe butoanele de accent se folosește `text-accentText`, niciodată `text-white`.
+  1,8:1, ilizibil. Pe butoanele de accent se folosește `text-accentContrast`, niciodată `text-white`.
+- **Galbenul NU e niciodată text pe tema luminoasă** (dă 1,82:1 pe alb). Locurile care îl vor pe
+  tema întunecată — prețuri, săgeți, pictograme, cuvinte scoase în față — folosesc clasele
+  `.accentuat` / `.accentuat-hover` din `globals.css`, care pe tema luminoasă devin culoarea
+  obișnuită a textului. Singurele excepții care scriu `text-accent` direct sunt headerul, subsolul
+  și varianta întunecată a `TrustBar`: sunt negre pe ambele teme.
+- Butonul galben are `border: 1px solid rgb(var(--accent-chenar))`. Pe tema întunecată variabila
+  e egală cu `--accent`, deci regula nu schimbă nimic acolo; pe cea luminoasă e singurul lucru
+  care îi dă butonului o margine vizibilă.
 - `--chenar` (#2A2A2A) e doar pentru linii decorative și separatoare. Pentru chenarele care trebuie
   să se vadă — câmpuri de formular, butoane secundare, `select`, zone de încărcare — se folosește
   `--chenar-puternic` (#707070), care trece pragul de 3:1 din WCAG 1.4.11.
@@ -191,14 +223,18 @@ culoare în `/admin` iese alb pe alb. Aceeași grijă la orice clasă nouă care
 Culorile semantice (verdele `ok`, roșu de eroare, galben de avertizare, badge-urile de status,
 verdele WhatsApp `#25D366`) NU fac parte din temă și nu se ating. La fel bannerele ANPC din `public/`.
 
-Verificarea contrastului: `node scripts/verifica-contrast.mjs` — calculează raporturile pe ambele
-palete (site public și `/admin`) și iese cu cod 1 dacă vreo pereche obligatorie pică.
+Verificarea contrastului: `node scripts/verifica-contrast.mjs` — calculează raporturile pe cele
+**trei** palete (întunecat, luminos, `/admin`) și iese cu cod 1 dacă vreo pereche obligatorie pică.
 
-**Scriptul iese astăzi cu cod 1, și e știut.** Site-ul public trece 12 din 12. Cele 3 perechi sub
-prag sunt toate din paleta clasică a panoului `/admin`: alb pe portocaliul `#FF6B1A` dă 2,85:1
-(text pe buton, hover, accent pe card). Problema e veche, dinainte de trecerea pe tema întunecată,
-și a fost lăsată deschis în august 2026 ca discuție separată despre paleta adminului. Până se
-rezolvă, scriptul nu poate fi pus în CI ca poartă blocantă.
+**Scriptul iese astăzi cu cod 1, și e știut.** Tema întunecată trece 14 din 14. Cele 6 perechi sub
+prag, la 25 august 2026:
+- `/admin` (2, vechi, dinainte de temele noi): alb pe portocaliul `#FF6B1A` dă 2,85:1 pe buton și
+  2,67:1 pe hover. Discuție separată despre paleta panoului.
+- tema luminoasă (4, deschise): `--chenar-puternic` `#BFC5CC` dă 1,74:1 pe alb (chenarele de input
+  și de buton secundar), iar `--accent-chenar` `#C99C05` dă 2,55:1 pe card și 2,21:1 pe fundal
+  (chenarul butonului galben). Ambele sunt sub pragul de 3:1 din WCAG 1.4.11. Valorile au fost
+  cerute explicit de client; propunerile care trec sunt `#7E8894` și `#A37E04`.
+Până se rezolvă, scriptul nu poate fi pus în CI ca poartă blocantă.
 
 ## Când termini o modificare
 Rulează `npm run build`. Dacă trece, fă commit cu mesaj clar în română și push pe `main`.

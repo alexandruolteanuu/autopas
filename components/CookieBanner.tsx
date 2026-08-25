@@ -17,7 +17,7 @@ export default function CookieBanner() {
         </p>
         <div className="flex flex-col sm:flex-row gap-2 shrink-0">
           <button onClick={() => alege("necesare")} className="rounded-lg border border-white/30 px-4 min-h-[44px] text-sm font-semibold hover:bg-white/10">Doar necesare</button>
-          <button onClick={() => alege("toate")} className="rounded-lg bg-accent text-accentText px-4 min-h-[44px] text-sm font-bold">Accept toate</button>
+          <button onClick={() => alege("toate")} className="rounded-lg bg-accent text-accentContrast px-4 min-h-[44px] text-sm font-bold">Accept toate</button>
         </div>
       </div>
     </div>

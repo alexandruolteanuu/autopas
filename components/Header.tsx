@@ -10,6 +10,7 @@ import { sbBrowser } from "@/lib/supabase";
 import { CONFIG, PROGRAM, PROGRAM_SCURT, LIVRARE, telLink } from "@/lib/config";
 import HartiLinks from "./HartiLinks";
 import Logo from "./Logo";
+import ComutatorTema from "./ComutatorTema";
 import { IconTelefon } from "./Icoane";
 
 const NAV = [
@@ -72,7 +73,7 @@ export default function Header() {
       <Ic kind={kind} />
       <span className="hidden lg:block text-[12px] leading-none text-headerText/70">{eticheta}</span>
       {badge ? (
-        <span className="absolute top-0 right-0 bg-accent text-accentText text-[12px] font-bold rounded-full min-w-[20px] h-[20px] px-1 grid place-items-center">
+        <span className="absolute top-0 right-0 bg-accent text-accentContrast text-[12px] font-bold rounded-full min-w-[20px] h-[20px] px-1 grid place-items-center">
           {badge}</span>
       ) : null}
     </Link>
@@ -106,7 +107,16 @@ export default function Header() {
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-3 flex items-center gap-2 sm:gap-4 min-w-0">
+      {/* Spațiile dintre elementele barei se strâng pe ecran mic și se lărgesc pe
+          cel mare. Comutatorul de temă a adăugat o a cincea iconiță de 44px, iar
+          la 320px bara ieșea din ecran cu 26px (la un cont de echipă, cu butonul
+          „Admin", cu 40px la 360px și cu 33px la 768px). Țintele rămân toate de
+          44px — se strânge doar aerul dintre ele, nu ele.
+
+          Punctul cel mai strâns e md (768px): acolo apare bara de căutare, care
+          nu coboară sub 360px, lângă cinci iconițe și butonul „Admin". De aceea
+          spațierea scade din nou la md și se lărgește abia la lg. */}
+      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-3 flex items-center gap-1 sm:gap-2 md:gap-1 lg:gap-4 min-w-0">
         <Link href="/" aria-label="Autopas Dezmembrări — pagina principală"
           className="flex items-center shrink-0 min-h-[44px]">
           {/* Înălțimea logo-ului: aici o schimbi dacă vrei marca mai mare sau mai mică.
@@ -117,23 +127,34 @@ export default function Header() {
           <Logo className="h-8 min-[360px]:h-9 md:h-16" eager />
         </Link>
 
-        {/* Bara de căutare. Plafonul de 60% („bara e prea lungă") se vede doar pe
-            ecran mare, deci se aplică abia de la 1280px: 500px ≈ 60% din cei 823px
-            pe care îi ocupa înainte. Între 768 și 1280 ia lățimea disponibilă, dar
-            nu sub 360px — sub atât nu mai încape un cod OEM de tipul 63117338709. */}
-        <form action="/piese" className="hidden md:flex flex-1 min-w-[360px] xl:max-w-[500px]">
-          <input name="q" placeholder="Caută piesă sau cod OEM…"
-            className="flex-1 min-w-0 rounded-l-xl bg-suprafata px-4 min-h-[44px] text-text text-base md:text-sm outline-none" />
-          <button className="bg-accent text-accentText rounded-r-xl px-5 min-h-[44px] font-semibold text-sm shrink-0">Caută</button>
-        </form>
+        {/* Bara de căutare, CENTRATĂ în golul dintre logo și iconițe.
+            Zona din mijloc ia tot spațiul elastic (`flex-1 min-w-0`) și își
+            centrează conținutul; bara umple zona până la plafonul de 520px, care
+            se aplică abia de la 1280px. Între 768 și 1280 `w-full` o face să
+            ocupe toată zona, deci centrarea nu are ce muta — exact ce trebuie:
+            acolo lățimea contează mai mult decât simetria.
+            `min-w-[360px]` rămâne: sub atât nu mai încape un cod OEM de tipul
+            63117338709. Dacă golul ar scădea sub 360px, bara nu se strânge sub
+            prag — lizibilitatea bate simetria. */}
+        <div className="hidden md:flex flex-1 min-w-0 justify-center">
+          <form action="/piese" className="flex w-full min-w-[360px] xl:max-w-[520px]">
+            <input name="q" placeholder="Caută piesă sau cod OEM…"
+              className="flex-1 min-w-0 rounded-l-xl bg-suprafata px-4 min-h-[44px] text-text text-base md:text-sm outline-none" />
+            <button className="bg-accent text-accentContrast rounded-r-xl px-5 min-h-[44px] font-semibold text-sm shrink-0">Caută</button>
+          </form>
+        </div>
 
-        <nav className="ml-auto flex items-center gap-2 shrink-0">
+        <nav className="ml-auto flex items-center gap-0 sm:gap-1 lg:gap-2 shrink-0">
           {staff && (
             /* Sub 360px butonul nu încape lângă cele patru iconițe — headerul ieșea
                din ecran (340px pe un ecran de 320px). Acolo calea de acces e intrarea
                „Panou de administrare" din meniul mobil, de mai jos. */
             <Link href="/admin" title="Panou de administrare"
-              className="hidden min-[360px]:flex items-center gap-1.5 rounded-lg bg-accent text-accentText px-2.5 min-h-[44px] text-[12px] font-semibold hover:brightness-110 transition">
+              /* `px-2` până la lg: între 768 și 1023, cu bara de căutare de minimum
+                 360px și cinci iconițe, cei 4px în plus scoteau headerul din ecran
+                 cu 1px la un cont de echipă. De la lg, unde apare și eticheta
+                 „Admin", butonul își recapătă aerul. */
+              className="hidden min-[360px]:flex items-center gap-1.5 rounded-lg bg-accent text-accentContrast px-2 lg:px-2.5 min-h-[44px] text-[12px] font-semibold hover:brightness-110 transition">
               <Ic kind="admin" className="w-[18px] h-[18px]" />
               {/* Eticheta apare abia de la lg. Între 768 și 1023, pe un cont de
                   echipă, cuvântul „Admin" (~51px) plus bara de căutare de minimum
@@ -143,6 +164,9 @@ export default function Header() {
               <span className="hidden lg:block">Admin</span>
             </Link>
           )}
+          {/* Comutatorul de temă stă lângă grupul cont/coș, pe toate lățimile: e o
+              singură iconiță de 44px, deci nu lățește bara nici la 320px. */}
+          <ComutatorTema />
           <IconLink href="/favorite" kind="inima" eticheta="Favorite" badge={nr} />
           <IconLink href={logat ? "/cont" : "/autentificare"} kind="cont" eticheta="Contul meu" />
           <IconLink href="/cos" kind="cos" eticheta="Coșul meu" badge={items.length} />
@@ -155,14 +179,14 @@ export default function Header() {
       <form action="/piese" className="md:hidden px-4 sm:px-6 pb-3 flex min-w-0">
         <input name="q" placeholder="Caută piesă sau cod OEM…"
           className="flex-1 min-w-0 rounded-l-xl bg-suprafata px-4 min-h-[44px] text-text text-base md:text-sm outline-none" />
-        <button className="bg-accent text-accentText rounded-r-xl px-4 min-h-[44px] font-semibold text-sm shrink-0">Caută</button>
+        <button className="bg-accent text-accentContrast rounded-r-xl px-4 min-h-[44px] font-semibold text-sm shrink-0">Caută</button>
       </form>
 
       <nav className={`bg-steel/60 ${open ? "block" : "hidden"} md:block`}>
         <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row gap-x-1 text-[13.5px] font-medium">
           {NAV.map((n) => (
             <Link key={n.href} href={n.href} onClick={() => setOpen(false)}
-              className={`px-3 flex items-center min-h-[44px] ${path === n.href ? "bg-accent text-accentText" : "hover:bg-white/10"}`}>{n.t}</Link>
+              className={`px-3 flex items-center min-h-[44px] ${path === n.href ? "bg-accent text-accentContrast" : "hover:bg-white/10"}`}>{n.t}</Link>
           ))}
           {/* Panoul de administrare, doar în meniul mobil și doar pentru echipă.
               Pe desktop există butonul „Admin" din bara de sus; sub 360px acela e

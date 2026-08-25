@@ -43,9 +43,9 @@ export default function Cos() {
               <div className="flex gap-3 sm:gap-4 min-w-0">
                 <PartArt kind={i.art} className="w-20 sm:w-24 shrink-0 rounded-lg" />
                 <div className="min-w-0 flex-1">
-                  <Link href={`/piese/${i.slug}`} className="inline-flex items-center min-h-[44px] font-semibold text-[15px] leading-snug hover:text-accent break-words">{i.nume}</Link>
+                  <Link href={`/piese/${i.slug}`} className="inline-flex items-center min-h-[44px] font-semibold text-[15px] leading-snug accentuat-hover break-words">{i.nume}</Link>
                   <div className="text-[13px] text-textSecundar mt-0.5 break-words">OEM {i.oem} · piesă unică — rezervată 30 min</div>
-                  <b className="block mt-1.5 font-disp text-lg text-accent tabular-nums">{lei(i.pret)}</b>
+                  <b className="block mt-1.5 font-disp text-lg accentuat tabular-nums">{lei(i.pret)}</b>
                 </div>
               </div>
               <div className="mt-3 flex justify-end">
@@ -70,7 +70,7 @@ export default function Cos() {
               comandă și îl comunicăm clientului înainte de expediere. */}
           <div className="flex justify-between text-textSecundar"><span>Livrare</span><span>se calculează separat</span></div>
           <div className="flex justify-between border-t border-chenar pt-3 text-base"><span>Total piese</span>
-            <b className="font-disp text-2xl text-accent tabular-nums">{lei(Math.max(0, total - (reducere?.valoare ?? 0)))}</b></div>
+            <b className="font-disp text-2xl accentuat tabular-nums">{lei(Math.max(0, total - (reducere?.valoare ?? 0)))}</b></div>
           <p className="text-xs text-textSecundar bg-suprafata2 rounded-lg px-3 py-2 leading-relaxed">
             Costul livrării depinde de greutatea și dimensiunile pieselor. Îl calculăm după
             plasarea comenzii și te sunăm cu totalul exact înainte de expediere.

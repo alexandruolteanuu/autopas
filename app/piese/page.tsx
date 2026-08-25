@@ -130,13 +130,13 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
         <div className="-mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 mb-4 flex gap-2 overflow-x-auto">
           {filtreActive.map((f) => (
             <Link key={f.eticheta} href={f.href}
-              className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-chenar bg-suprafata pl-3 pr-2 min-h-[36px] text-[13px] hover:border-accent">
+              className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-chenar bg-suprafata pl-3 pr-2 min-h-[36px] text-[13px] hover:border-accentChenar">
               {f.eticheta}
               <span aria-hidden="true" className="grid place-items-center w-6 h-6 rounded-full text-textSecundar">×</span>
               <span className="sr-only">Elimină filtrul</span>
             </Link>
           ))}
-          <Link href="/piese" className="shrink-0 inline-flex items-center rounded-full px-3 min-h-[36px] text-[13px] text-accent font-semibold">
+          <Link href="/piese" className="shrink-0 inline-flex items-center rounded-full px-3 min-h-[36px] text-[13px] accentuat font-semibold">
             Șterge filtrele
           </Link>
         </div>
@@ -148,7 +148,7 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
             de la 1024px rămâne coloana laterală. */}
         <FiltreSertar nrFiltre={filtreActive.length}>
           <nav className="text-sm">
-            <Link href="/piese" className={`flex items-center rounded-lg px-3 min-h-[44px] ${!catActiva ? "bg-accent/10 text-accent font-semibold" : "hover:bg-suprafata2"}`}>
+            <Link href="/piese" className={`flex items-center rounded-lg px-3 min-h-[44px] ${!catActiva ? "bg-accent/10 accentuat font-semibold" : "hover:bg-suprafata2"}`}>
               Toate piesele</Link>
             {principale.map((c) => {
               const subs = subAle(c.id);
@@ -156,7 +156,7 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
               return (
                 <div key={c.id} className="mt-0.5">
                   <Link href={`/piese?categorie=${c.slug}`}
-                    className={`flex items-center justify-between gap-2 rounded-lg px-3 min-h-[44px] ${catActiva?.id === c.id ? "bg-accent/10 text-accent font-semibold" : "hover:bg-suprafata2"}`}>
+                    className={`flex items-center justify-between gap-2 rounded-lg px-3 min-h-[44px] ${catActiva?.id === c.id ? "bg-accent/10 accentuat font-semibold" : "hover:bg-suprafata2"}`}>
                     <span>{c.nume}</span>
                     <span className="text-[12px] text-textSecundar">{c.nr_piese ?? 0}</span>
                   </Link>
@@ -164,7 +164,7 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
                     <div className="ml-3 pl-2 border-l-2 border-chenar mt-0.5">
                       {subs.map((s) => (
                         <Link key={s.id} href={`/piese?subcategorie=${s.slug}`}
-                          className={`flex items-center justify-between gap-2 rounded-lg px-3 min-h-[44px] text-[13px] ${catActiva?.id === s.id ? "text-accent font-semibold" : "text-text hover:bg-suprafata2"}`}>
+                          className={`flex items-center justify-between gap-2 rounded-lg px-3 min-h-[44px] text-[13px] ${catActiva?.id === s.id ? "accentuat font-semibold" : "text-text hover:bg-suprafata2"}`}>
                           <span>{s.nume}</span><span className="text-[12px] text-textSecundar">{s.nr_piese ?? 0}</span>
                         </Link>
                       ))}

@@ -1,14 +1,17 @@
 "use client";
 // ============================================================
-// PIESE DE COMPLETAT — piesele venite din import, încă nepublicate.
+// PIESE DE COMPLETAT — lista de lucru a operatorului.
 //
-// Fără ecranul ăsta, piesele importate sunt un morman: apar în „Produse", dar
-// amestecate cu restul și fără să se vadă ce le lipsește. Aici se vede dintr-o
-// privire ce împiedică publicarea fiecăreia și se publică în masă cele gata.
+// ROLUL ECRANULUI S-A SCHIMBAT (25 august 2026)
+// Înainte era o poartă: piesele importate stăteau nepublicate până le completa
+// cineva. Acum piesele se publică direct la import, cu pozele descărcate atunci,
+// deci ecranul nu mai blochează nimic. Arată piesele care SUNT pe site, dar
+// cărora le lipsește ceva — poză, categorie, greutate cântărită, model — ca să
+// poată fi îmbunătățite când e timp, în ordinea gravității.
 //
-// Publicarea NU se face din browser: pozele se descarcă de pe pieseauto.ro, iar
-// browserul n-are voie (CORS). Ruta /api/publica-piesa face descărcarea,
-// conversia și urcarea în bucketul propriu, apoi trece piesa pe `publicat`.
+// Singurul lucru care rămâne blocant e în altă parte: detaliul comenzii
+// avertizează cu bandă galbenă dacă vreo piesă comandată are încă greutatea
+// estimată, fiindcă de acolo iese AWB-ul și factura de la curier.
 // ============================================================
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
@@ -20,29 +23,35 @@ type Piesa = {
   poze: string[] | null; poze_sursa: string[] | null;
   categorie_id: number | null; subcategorie_id: number | null;
   greutate_kg: number | null; greutate_estimata: boolean;
-  model_ids: number[]; sursa: string | null; sursa_url: string | null; publicat: boolean;
+  model_ids: number[]; sursa: string | null; sursa_url: string | null;
+  publicat: boolean; sursa_activ: boolean;
   import_erori: { revizuire?: string[] } | null;
 };
 
-/** Ce îi lipsește unei piese ca să poată fi publicată, plus ce merită completat
- *  chiar dacă nu blochează. Ordinea contează: prima e cea mai gravă. */
-function lipsuri(p: Piesa) {
-  const blocante: string[] = [];
-  const atentionari: string[] = [];
-  if (!(p.poze?.length) && !(p.poze_sursa?.length)) blocante.push("poză");
-  if (!p.categorie_id) blocante.push("categorie");
-  if (!p.subcategorie_id) atentionari.push("subcategorie");
-  if (p.greutate_estimata) atentionari.push("greutate estimată");
-  if (!p.model_ids?.length) atentionari.push("model");
-  return { blocante, atentionari, gata: blocante.length === 0 };
-}
+// Ce îi lipsește unei piese, în ordinea gravității. Prima din listă e cea mai
+// gravă: o piesă publicată fără poză o vede clientul goală chiar acum.
+const LIPSURI = [
+  { cheie: "poza",      eticheta: "poză",              grav: true,  are: (p: Piesa) => !(p.poze?.length) },
+  { cheie: "categorie", eticheta: "categorie",         grav: true,  are: (p: Piesa) => !p.categorie_id },
+  { cheie: "greutate",  eticheta: "greutate estimată", grav: false, are: (p: Piesa) => p.greutate_estimata },
+  { cheie: "model",     eticheta: "model",             grav: false, are: (p: Piesa) => !p.model_ids?.length },
+  { cheie: "subcat",    eticheta: "subcategorie",      grav: false, are: (p: Piesa) => !p.subcategorie_id },
+];
+
+const lipsuri = (p: Piesa) => LIPSURI.filter((l) => l.are(p));
+/** Scor de sortare: cu cât mai mic, cu atât mai urgent. */
+const urgenta = (p: Piesa) => {
+  const l = lipsuri(p);
+  if (!l.length) return 99;
+  return LIPSURI.findIndex((x) => x.cheie === l[0].cheie);
+};
 
 export default function PieseDeCompletat() {
   const [piese, setPiese] = useState<Piesa[]>([]);
   const [cats, setCats] = useState<Record<number, string>>({});
   const [sel, setSel] = useState<number[]>([]);
   const [q, setQ] = useState("");
-  const [doarGata, setDoarGata] = useState(false);
+  const [filtru, setFiltru] = useState("toate");
   const [lucru, setLucru] = useState(false);
   const [progres, setProgres] = useState<{ facut: number; total: number } | null>(null);
   const [msg, setMsg] = useState("");
@@ -55,12 +64,11 @@ export default function PieseDeCompletat() {
 
   const incarca = useCallback(async () => {
     const sb = sbBrowser(); if (!sb) return;
-    // Nu doar cele nepublicate: și cele publicate care au rămas FĂRĂ poze finale.
-    // Pe 25 august opt piese au ajuns pe site fără nicio poză, publicate din
-    // interfața de produse înainte ca descărcarea să poată rula. Ecranul ăsta e
-    // singurul loc unde se pot repara, deci trebuie să le și vadă.
+    // Piesele venite din import cărora le lipsește ceva. Cele complete nu apar
+    // deloc: n-au ce căuta într-o listă de lucru.
     let query = sb.from("products").select("*")
-      .not("sursa", "is", null).or("publicat.eq.false,poze.eq.{}")
+      .not("sursa", "is", null)
+      .or("poze.eq.{},categorie_id.is.null,greutate_estimata.eq.true,model_ids.eq.{},publicat.eq.false")
       .order("created_at", { ascending: false }).limit(500);
     if (q.trim()) query = query.or(`nume.ilike.%${q}%,cod_intern.ilike.%${q}%`);
     const { data } = await query;
@@ -68,16 +76,18 @@ export default function PieseDeCompletat() {
   }, [q]);
   useEffect(() => { const t = setTimeout(incarca, q ? 300 : 0); return () => clearTimeout(t); }, [incarca, q]);
 
-  const vizibile = doarGata ? piese.filter((p) => lipsuri(p).gata) : piese;
-  const gata = piese.filter((p) => lipsuri(p).gata);
-  // Publicate, dar fără poze finale: sunt LIVE pe site arătând gol. Cel mai grav
-  // caz din ecranul ăsta, deci se numără și se repară separat.
-  const stricate = piese.filter((p) => p.publicat && !(p.poze?.length));
+  const vizibile = piese
+    .filter((p) => filtru === "toate" || lipsuri(p).some((l) => l.cheie === filtru))
+    .sort((a, b) => urgenta(a) - urgenta(b));
+
+  // Piese LIVE pe site fără nicio poză: cel mai grav caz din ecran. Au URL-urile
+  // de la sursă intacte, deci pozele se pot aduce acum, fără reimport.
+  const faraPoze = piese.filter((p) => !(p.poze?.length) && (p.poze_sursa?.length ?? 0) > 0);
+  const nepublicate = piese.filter((p) => !p.publicat && p.sursa_activ);
 
   // ---------- modul rapid de greutăți ----------
   // Operatorul o să facă asta de mii de ori, deci fiecare click în plus contează.
   // O piesă pe ecran, câmpul deja focalizat, Enter salvează și trece mai departe.
-  // Fără mouse, fără scroll, fără deschis formulare.
   // Lista se FIXEAZĂ la intrarea în mod. Dacă am recalcula-o la fiecare salvare,
   // piesa tocmai cântărită ar dispărea din listă, iar indexul ar sări peste
   // următoarea — operatorul ar rămâne cu piese necântărite fără să înțeleagă de ce.
@@ -119,16 +129,17 @@ export default function PieseDeCompletat() {
     urmatoarea();
   }
 
-  /** Publicarea merge în loturi de 10: fiecare piesă înseamnă 1–5 descărcări de
-   *  imagini, iar o singură cerere cu 50 de piese ar depăși limita de timp. */
-  async function publica(ids: number[]) {
+  /** Aducerea pozelor merge în loturi de 10: fiecare piesă înseamnă 1–5
+   *  descărcări de imagini, iar o singură cerere cu 50 ar depăși limita de timp.
+   *  Ruta e aceeași cu cea de la publicare — descarcă, convertește, urcă. */
+  async function aduPoze(ids: number[]) {
     if (!ids.length || lucru) return;
     const sb = sbBrowser();
     const token = sb ? (await sb.auth.getSession()).data.session?.access_token : null;
     if (!token) { setMsg("Sesiunea a expirat. Autentifică-te din nou."); return; }
 
     setLucru(true); setMsg(""); setProgres({ facut: 0, total: ids.length });
-    let publicate = 0; const esecuri: string[] = [];
+    let reparate = 0; const esecuri: string[] = [];
     for (let i = 0; i < ids.length; i += 10) {
       const lot = ids.slice(i, i + 10);
       try {
@@ -138,9 +149,9 @@ export default function PieseDeCompletat() {
           body: JSON.stringify({ ids: lot }),
         });
         const j = await r.json();
-        if (!j.ok) { esecuri.push(j.eroare ?? `HTTP ${r.status}`); }
+        if (!j.ok) esecuri.push(j.eroare ?? `HTTP ${r.status}`);
         else {
-          publicate += j.publicate ?? 0;
+          reparate += j.publicate ?? 0;
           for (const e of j.esuate ?? []) {
             const p = piese.find((x) => x.id === e.id);
             esecuri.push(`${p?.nume?.slice(0, 40) ?? e.id}: ${e.eroare}`);
@@ -150,7 +161,7 @@ export default function PieseDeCompletat() {
       setProgres({ facut: Math.min(i + 10, ids.length), total: ids.length });
     }
     setLucru(false); setProgres(null);
-    setMsg(`✓ ${publicate} ${publicate === 1 ? "piesă publicată" : "piese publicate"}.` +
+    setMsg(`✓ ${reparate} ${reparate === 1 ? "piesă rezolvată" : "piese rezolvate"}.` +
       (esecuri.length ? ` ${esecuri.length} au eșuat: ${esecuri.slice(0, 3).join(" · ")}${esecuri.length > 3 ? " …" : ""}` : ""));
     incarca();
   }
@@ -160,48 +171,52 @@ export default function PieseDeCompletat() {
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="font-disp font-bold text-xl">Piese de completat</h1>
-          <p className="text-sm text-mut mt-1">
-            Piese venite din import, încă nepublicate. Publicarea descarcă pozele de la sursă
-            și le mută în stocarea proprie — durează câteva secunde pe piesă.
+          <p className="text-sm text-mut mt-1 max-w-2xl">
+            Piese venite din import care sunt deja pe site, dar cărora le lipsește ceva.
+            Nu blochează nimic — sunt de îmbunătățit când ai timp. Cele mai grave stau primele.
           </p>
         </div>
-        <Link href="/admin/produse" className="rounded-lg border-2 border-line px-3 py-2 text-sm font-semibold hover:border-acc">
-          Toate produsele
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/admin/import" className="rounded-lg border-2 border-line px-3 py-2 text-sm font-semibold hover:border-acc">
+            Import
+          </Link>
+          <Link href="/admin/produse" className="rounded-lg border-2 border-line px-3 py-2 text-sm font-semibold hover:border-acc">
+            Toate produsele
+          </Link>
+        </div>
       </div>
 
       {/* Rezumat */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { k: "În așteptare", v: piese.length },
-          { k: "Gata de publicat", v: gata.length, acc: true },
-          { k: "Fără poză", v: piese.filter((p) => lipsuri(p).blocante.includes("poză")).length },
-          { k: "Publicate fără poze", v: stricate.length, rau: stricate.length > 0 },
+          { k: "De completat", v: piese.length },
+          { k: "Fără poze", v: faraPoze.length, rau: faraPoze.length > 0 },
+          { k: "Fără categorie", v: piese.filter((p) => !p.categorie_id).length },
+          { k: "Greutate estimată", v: piese.filter((p) => p.greutate_estimata).length },
         ].map((c) => (
           <div key={c.k} className="card p-4">
-            <div className={`font-disp font-bold text-2xl ${c.rau ? "text-red-600" : c.acc ? "text-acc" : ""}`}>{c.v}</div>
+            <div className={`font-disp font-bold text-2xl ${c.rau ? "text-red-600" : ""}`}>{c.v}</div>
             <div className="text-xs text-mut mt-0.5">{c.k}</div>
           </div>
         ))}
       </div>
 
       {/* ===== Piese LIVE pe site, dar fără poze =====
-          Cel mai grav caz: clientul le vede goale chiar acum. Banda apare doar
-          când există, ca să nu fie zgomot în restul timpului. */}
-      {stricate.length > 0 && (
+          Clientul le vede goale chiar acum. Banda apare doar când există. */}
+      {faraPoze.length > 0 && (
         <div className="rounded-xl border-2 border-red-300 bg-red-50 p-4">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
               <b className="text-red-800 block">
-                {stricate.length} {stricate.length === 1 ? "piesă e publicată pe site fără nicio poză" : "piese sunt publicate pe site fără nicio poză"}
+                {faraPoze.length} {faraPoze.length === 1 ? "piesă e pe site fără nicio poză" : "piese sunt pe site fără nicio poză"}
               </b>
               <span className="text-xs text-red-800/80">
-                Clientul le vede goale. URL-urile de la sursă sunt intacte, deci pozele se pot aduce acum.
+                Descărcarea a eșuat la import. URL-urile de la sursă sunt intacte, deci pozele se pot aduce acum.
               </span>
             </div>
-            <button onClick={() => publica(stricate.map((p) => p.id))} disabled={lucru}
+            <button onClick={() => aduPoze(faraPoze.map((p) => p.id))} disabled={lucru}
               className="rounded-lg bg-red-600 text-white px-4 min-h-[44px] text-sm font-bold disabled:opacity-40">
-              Reia descărcarea pozelor ({stricate.length})
+              Reia pozele eșuate ({faraPoze.length})
             </button>
           </div>
         </div>
@@ -211,33 +226,44 @@ export default function PieseDeCompletat() {
       <div className="card p-4 flex flex-wrap items-center gap-3">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Caută după nume sau cod intern…"
           className="flex-1 min-w-[220px] rounded-lg border-2 border-line px-3 min-h-[44px] text-sm" />
-        <label className="flex items-center gap-2 text-sm min-h-[44px] cursor-pointer">
-          <input type="checkbox" checked={doarGata} onChange={(e) => setDoarGata(e.target.checked)} className="w-4 h-4" />
-          Doar cele gata de publicat
-        </label>
-        <button onClick={() => setSel(sel.length === vizibile.length ? [] : vizibile.map((p) => p.id))}
-          className="rounded-lg border-2 border-line px-3 min-h-[44px] text-sm font-semibold hover:border-acc">
-          {sel.length === vizibile.length && vizibile.length > 0 ? "Deselectează tot" : "Selectează tot"}
-        </button>
-        {/* Publicarea în masă: 50 de click-uri individuale ar fi acceptabile, 8.000 nu. */}
-        <button onClick={() => publica(sel.filter((id) => lipsuri(piese.find((p) => p.id === id)!).gata))}
-          disabled={lucru || !sel.length}
-          className="rounded-lg bg-acc text-white px-4 min-h-[44px] text-sm font-bold disabled:opacity-40">
-          {lucru ? "Se publică…" : `Publică selecția (${sel.filter((id) => { const p = piese.find((x) => x.id === id); return p && lipsuri(p).gata; }).length})`}
-        </button>
-        <button onClick={() => publica(gata.map((p) => p.id))} disabled={lucru || !gata.length}
-          className="rounded-lg border-2 border-acc text-acc px-4 min-h-[44px] text-sm font-bold disabled:opacity-40">
-          Publică toate cele gata ({gata.length})
-        </button>
+        <select value={filtru} onChange={(e) => setFiltru(e.target.value)}
+          className="rounded-lg border-2 border-line px-3 min-h-[44px] text-sm font-semibold">
+          <option value="toate">Ce lipsește: tot</option>
+          {LIPSURI.map((l) => (
+            <option key={l.cheie} value={l.cheie}>
+              Lipsă: {l.eticheta} ({piese.filter(l.are).length})
+            </option>
+          ))}
+        </select>
         <button onClick={porneste} disabled={lucru || !piese.some((p) => p.greutate_estimata)}
-          className="rounded-lg border-2 border-line px-4 min-h-[44px] text-sm font-semibold hover:border-acc disabled:opacity-40">
+          className="rounded-lg bg-acc text-white px-4 min-h-[44px] text-sm font-bold disabled:opacity-40">
           Completează greutățile ({piese.filter((p) => p.greutate_estimata).length})
         </button>
+        {sel.length > 0 && (
+          <button onClick={() => aduPoze(sel)} disabled={lucru}
+            className="rounded-lg border-2 border-acc text-acc px-4 min-h-[44px] text-sm font-bold disabled:opacity-40">
+            Adu pozele pentru selecție ({sel.length})
+          </button>
+        )}
       </div>
 
-      {/* ===== Completarea rapidă a greutăților =====
-          O piesă pe ecran, câmpul focalizat, Enter salvează și trece la următoarea.
-          Operatorul face asta de mii de ori: fără mouse, fără scroll, fără formulare. */}
+      {/* Piese depublicate (dispărute din feed și revenite manual) — se pot repune pe site. */}
+      {nepublicate.length > 0 && (
+        <div className="card p-4 flex items-center justify-between gap-3 flex-wrap">
+          <div className="text-sm">
+            <b>{nepublicate.length}</b> piese importate nu sunt publicate.
+            <span className="block text-xs text-mut">
+              Fie au fost depublicate manual, fie a eșuat inserarea lor. Verifică-le înainte de a le repune.
+            </span>
+          </div>
+          <Link href="/admin/produse?f=nepublicate"
+            className="rounded-lg border-2 border-line px-3 min-h-[40px] flex items-center text-sm font-semibold hover:border-acc">
+            Vezi în Produse
+          </Link>
+        </div>
+      )}
+
+      {/* ===== Completarea rapidă a greutăților ===== */}
       {curenta && modGreutati && (
         <div className="card p-5">
           <div className="flex items-center justify-between mb-3">
@@ -252,10 +278,9 @@ export default function PieseDeCompletat() {
           </div>
 
           <div className="flex gap-4 items-start flex-wrap">
-            {/* Poza de la sursă, doar pentru uz intern: ajută operatorul să
-                recunoască piesa fără s-o deschidă. Nu se servește niciodată public. */}
-            {curenta.poze_sursa?.[0] && (
-              <img src={curenta.poze_sursa[0]} alt="" className="w-32 h-24 object-cover rounded-lg border-2 border-line shrink-0" />
+            {(curenta.poze?.[0] || curenta.poze_sursa?.[0]) && (
+              <img src={curenta.poze?.[0] || curenta.poze_sursa![0]} alt=""
+                className="w-32 h-24 object-cover rounded-lg border-2 border-line shrink-0" />
             )}
             <div className="flex-1 min-w-[260px]">
               <div className="font-disp font-bold text-lg leading-snug">{curenta.nume}</div>
@@ -291,7 +316,7 @@ export default function PieseDeCompletat() {
       {progres && (
         <div className="card p-4">
           <div className="flex justify-between text-sm mb-2">
-            <span>Se publică… {progres.facut} din {progres.total}</span>
+            <span>Se aduc pozele… {progres.facut} din {progres.total}</span>
             <span className="text-mut">nu închide pagina</span>
           </div>
           <div className="h-2 rounded-full bg-line overflow-hidden">
@@ -319,7 +344,7 @@ export default function PieseDeCompletat() {
             {vizibile.map((p) => {
               const l = lipsuri(p);
               return (
-                <tr key={p.id} className={l.gata ? "" : "bg-paper/60"}>
+                <tr key={p.id} className={l.some((x) => x.grav) ? "bg-paper/60" : ""}>
                   <td className="py-2 pl-4">
                     <input type="checkbox" checked={sel.includes(p.id)} className="w-4 h-4"
                       onChange={(e) => setSel(e.target.checked ? [...sel, p.id] : sel.filter((x) => x !== p.id))} />
@@ -330,6 +355,7 @@ export default function PieseDeCompletat() {
                     </Link>
                     <div className="text-[11px] text-mut">
                       {p.cod_intern}
+                      {p.publicat ? "" : " · nepublicată"}
                       {p.poze_sursa?.length ? ` · ${p.poze_sursa.length} ${p.poze_sursa.length === 1 ? "poză la sursă" : "poze la sursă"}` : ""}
                     </div>
                   </td>
@@ -340,33 +366,30 @@ export default function PieseDeCompletat() {
                   <td className="py-2 whitespace-nowrap">{lei(p.pret_lei)}</td>
                   <td className="py-2">
                     <div className="flex flex-wrap gap-1">
-                      {l.blocante.map((x) => (
-                        <span key={x} className="rounded px-1.5 py-0.5 text-[11px] font-bold bg-red-100 text-red-700">{x}</span>
+                      {l.map((x) => (
+                        <span key={x.cheie} className={`rounded px-1.5 py-0.5 text-[11px] ${
+                          x.grav ? "font-bold bg-red-100 text-red-700" : "bg-line text-mut"}`}>{x.eticheta}</span>
                       ))}
-                      {l.atentionari.map((x) => (
-                        <span key={x} className="rounded px-1.5 py-0.5 text-[11px] bg-line text-mut">{x}</span>
-                      ))}
-                      {l.gata && !l.atentionari.length && (
-                        <span className="rounded px-1.5 py-0.5 text-[11px] font-bold bg-green-100 text-green-700">gata</span>
-                      )}
                     </div>
                   </td>
                   <td className="py-2 pr-4 text-right whitespace-nowrap">
-                    <Link href={`/admin/produse?editeaza=${p.id}`}
+                    <Link href={`/piese/${p.slug}`} target="_blank"
                       className="inline-flex items-center min-h-[36px] px-2.5 rounded-lg border border-line text-xs font-semibold hover:border-acc">
-                      Editează
+                      Vezi
                     </Link>
-                    <button onClick={() => publica([p.id])} disabled={lucru || !l.gata}
-                      className="ml-2 inline-flex items-center min-h-[36px] px-2.5 rounded-lg bg-acc text-white text-xs font-bold disabled:opacity-30">
-                      Publică
-                    </button>
+                    <Link href={`/admin/produse?editeaza=${p.id}`}
+                      className="ml-2 inline-flex items-center min-h-[36px] px-2.5 rounded-lg bg-acc text-white text-xs font-bold">
+                      Completează
+                    </Link>
                   </td>
                 </tr>
               );
             })}
             {vizibile.length === 0 && (
               <tr><td colSpan={6} className="py-10 text-center text-mut">
-                {piese.length === 0 ? "Nicio piesă în așteptare. Rulează importul din terminal." : "Nicio piesă nu corespunde filtrului."}
+                {piese.length === 0
+                  ? "Nicio piesă de completat. Tot ce s-a importat are poză, categorie și greutate cântărită."
+                  : "Nicio piesă nu corespunde filtrului."}
               </td></tr>
             )}
           </tbody>

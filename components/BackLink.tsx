@@ -7,7 +7,7 @@ export default function BackLink({ fallback = "/piese" }: { fallback?: string })
   return (
     <button onClick={() => { if (window.history.length > 1) router.back(); else router.push(fallback); }}
       aria-label="Înapoi"
-      className="inline-flex items-center gap-1.5 rounded-lg border-2 border-chenar px-2.5 min-h-[44px] text-[13px] font-medium text-text hover:border-accent hover:text-accent transition">
+      className="inline-flex items-center gap-1.5 rounded-lg border-2 border-chenar px-2.5 min-h-[44px] text-[13px] font-medium text-text hover:border-accentChenar accentuat-hover transition">
       <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M15 18l-6-6 6-6" /></svg>
       Înapoi
