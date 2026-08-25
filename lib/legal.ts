@@ -352,9 +352,7 @@ export function getLegalDocs(firma: Firma = FIRMA_IMPLICITA): LegalDoc[] {
         "Data: …",
       ]},
       { h: "4. Ce îți rambursăm (art. 13)", p: [
-        "Toate sumele primite de la tine, inclusiv costul livrării standard, în cel mult 14 zile de la data la care ne-ai comunicat decizia de retragere, folosind aceeași metodă de plată ca la achiziție.",
-        "Dacă ai ales expres o livrare mai scumpă decât cea standard oferită de noi, diferența de cost nu se rambursează.",
-        "Putem amâna rambursarea până primim piesa înapoi sau până ne trimiți dovada că ai expediat-o — se ia în calcul data cea mai apropiată.",
+        "Toate sumele primite de la tine reprezentând contravaloarea produselor, în cel mult 14 zile de la data la care ne-ai comunicat decizia de retragere, folosind aceeași metodă de plată ca la achiziție.",
       ]},
       { h: "5. Ce te costă pe tine (art. 14)", p: [
         "Suporți costul direct al returnării piesei.",
