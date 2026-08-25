@@ -105,8 +105,17 @@ const dezescapeaza = (s) => s
   .replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&nbsp;/g, " ")
   .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n));
 
-const faraTaguri = (s) => dezescapeaza(s.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, ""))
-  .replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+// `<br[^>]*>` — nu `<br\s*\/?>`. Sursa scrie `<br style="margin:0px;…" />`, cu
+// atribute, iar varianta scurtă nu-l prindea: rândurile se lipeau între ele și
+// ieșea „…2010 2011Pret afisat pe bucata". Aceeași grijă la `</p>` și `</div>`,
+// care sunt tot sfârșituri de rând în textul afișat.
+const faraTaguri = (s) => dezescapeaza(
+  s.replace(/<br[^>]*>/gi, "\n")
+   .replace(/<\/(p|div|li|tr|h[1-6])\s*>/gi, "\n")
+   .replace(/<[^>]+>/g, ""))
+  .replace(/[ \t]+/g, " ")
+  .split("\n").map((l) => l.trim()).join("\n")
+  .replace(/\n{3,}/g, "\n\n").trim();
 
 /** Pozele produsului. STRICT din array-ul `images`; nicio altă sursă.
  *  Pagina conține și pozele anunțurilor similare — un scraper care ia „toate
@@ -464,6 +473,61 @@ function potrivesteCategoria(slugSursa, categories, pragPiese, nrPiese) {
 }
 
 // ============================================================
+// DE LA DATELE EXTRASE LA RÂNDUL DIN `products`
+//
+// Numele coloanelor sunt cele reale, verificate în bază:
+//   · titlul       → `nume`
+//   · prețul       → `pret_lei` (nu `pret`)
+//   · descrierea   → `stare_nota` (nu există `descriere`; adminul afișează
+//                     `stare_nota` sub eticheta „Descriere")
+//   · `stare`      → rămâne NULL: are CHECK pe A/B/C, iar starea A/B/C a fost
+//                     scoasă din interfață (vezi CLAUDE.md)
+//   · `poze`       → rămâne gol. Pozele se descarcă abia la publicare (C.5);
+//                     aici se salvează doar URL-urile, în `poze_sursa`
+//   · `cod_intern` → îl pune triggerul `set_cod_intern` (AP-000123)
+// ============================================================
+const slugifica = (s) => normalizeaza(s).replace(/\s+/g, "-").replace(/-+/g, "-").slice(0, 70).replace(/^-|-$/g, "");
+
+export function construiesteRand(x, categories) {
+  // `art` (ilustrația de rezervă) vine din categoria potrivită, nu se inventează.
+  const cat = categories?.find((c) => c.id === (x.subcategorie_id ?? x.categorie_id));
+  const erori = x.revizuire?.length ? { revizuire: x.revizuire } : null;
+  return {
+    // identitate
+    slug: `${slugifica(x.titlu ?? x.feed.Titlu)}-${x.sursa_id}`,   // sufixul de ID garantează unicitatea
+    nume: x.titlu ?? x.feed.Titlu,
+    // preț: din FEED, care e sursa autoritară pentru preț
+    pret_lei: Number(x.feed.Pret),
+    // conținut
+    stare_nota: x.descriere ?? null,
+    ani: x.an_min ? (x.an_min === x.an_max ? String(x.an_min) : `${x.an_min}–${x.an_max}`) : null,
+    art: cat?.art ?? "engine",
+    categorie_id: x.categorie_id ?? null,
+    subcategorie_id: x.subcategorie_id ?? null,
+    model_ids: x.model_id ? [x.model_id] : [],
+    compat: x.compat?.length ? x.compat : [],
+    // Greutatea nu există pe pieseauto.ro. Ca să nu blocheze publicarea, piesa
+    // primește 1 kg — dar marcat ca estimat, ca nimeni să nu ia valoarea drept
+    // cântărită. Steagul cade pe `false` când operatorul salvează o greutate reală.
+    greutate_kg: 1,
+    greutate_estimata: true,
+    // stoc și vizibilitate
+    stoc: 1,
+    publicat: false,          // NIMIC nu se publică automat (C.10)
+    // proveniență
+    sursa: "pieseauto.ro",
+    sursa_id: x.sursa_id,
+    sursa_url: x.sursa_url,
+    sursa_activ: true,
+    poze: [],                 // se completează la publicare
+    poze_sursa: x.poze ?? [],
+    poze_descarcate: false,
+    editat_manual: false,
+    import_erori: erori,
+  };
+}
+
+// ============================================================
 // Taxonomia proprie, citită din Supabase cu cheia publică (doar citire).
 // ============================================================
 function citesteEnv() {
@@ -476,6 +540,77 @@ function citesteEnv() {
     }
   }
   return out;
+}
+
+// ============================================================
+// SCRIEREA ÎN BAZĂ
+//
+// Trece prin cheia de service, fiindcă `products` n-are politică de insert pentru
+// `anon` — a fost ștearsă intenționat (vezi CLAUDE.md). Cheia stă în `.env.local`,
+// niciodată în cod.
+//
+// `on_conflict=sursa,sursa_id` face inserția idempotentă: a doua rulare pe același
+// feed nu dublează nimic. Coloanele pe care le poate atinge un re-import sunt doar
+// cele de mai jos; munca operatorului (poze, greutate reală, categorii, descriere)
+// nu se suprascrie niciodată — vezi `COLOANE_LA_REIMPORT`.
+// ============================================================
+// Ce poate atinge un RE-import. Tot restul e muncă de operator și nu se
+// suprascrie niciodată: poze, greutate_kg, categorie_id, subcategorie_id,
+// cod_intern, originala, stare_nota (descrierea) și cost_lei.
+// `nume` intră în listă doar dacă piesa n-a fost editată manual.
+const COLOANE_LA_REIMPORT = ["pret_lei", "sursa_url", "sursa_activ", "sursa_sincronizat_la"];
+
+async function scrie(randuri, env) {
+  const key = env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!key) { console.error("Lipsește SUPABASE_SERVICE_ROLE_KEY din .env.local."); process.exit(2); }
+  const baza = env.NEXT_PUBLIC_SUPABASE_URL;
+  const h = { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" };
+  const rez = { noi: 0, actualizate: 0, neschimbate: 0, erori: [] };
+  const acum = new Date().toISOString();
+
+  // 1. Ce există deja? Ne uităm și la `editat_manual`, ca să știm dacă avem voie
+  //    să atingem titlul.
+  const existente = new Map();
+  for (let i = 0; i < randuri.length; i += 100) {
+    const ids = randuri.slice(i, i + 100).map((x) => `"${x.sursa_id}"`).join(",");
+    const r = await fetch(`${baza}/rest/v1/products?sursa=eq.pieseauto.ro&sursa_id=in.(${ids})&select=id,sursa_id,nume,pret_lei,editat_manual`, { headers: h });
+    if (!r.ok) { rez.erori.push(`citire existente: HTTP ${r.status} ${(await r.text()).slice(0, 200)}`); continue; }
+    for (const x of await r.json()) existente.set(x.sursa_id, x);
+  }
+
+  const noi = randuri.filter((x) => !existente.has(x.sursa_id));
+  const vechi = randuri.filter((x) => existente.has(x.sursa_id));
+
+  // 2. Piesele noi: inserție completă, nepublicate.
+  for (let i = 0; i < noi.length; i += 25) {
+    const lot = noi.slice(i, i + 25).map((x) => ({ ...x, sursa_sincronizat_la: acum }));
+    const r = await fetch(`${baza}/rest/v1/products`, {
+      method: "POST", headers: { ...h, Prefer: "return=representation" }, body: JSON.stringify(lot),
+    });
+    if (!r.ok) { const t = await r.text(); rez.erori.push(`insert: HTTP ${r.status} ${t.slice(0, 300)}`); console.error(`   ✗ insert: ${r.status} ${t.slice(0, 200)}`); continue; }
+    const d = await r.json(); rez.noi += d.length;
+    console.log(`   ✓ inserate ${d.length}`);
+  }
+
+  // 3. Piesele existente: DOAR coloanele permise. Titlul numai dacă piesa n-a
+  //    fost editată manual. Dacă nu s-a schimbat nimic, nu atingem rândul.
+  for (const x of vechi) {
+    const v = existente.get(x.sursa_id);
+    const patch = {};
+    if (Number(v.pret_lei) !== Number(x.pret_lei)) patch.pret_lei = x.pret_lei;
+    if (!v.editat_manual && v.nume !== x.nume) patch.nume = x.nume;
+    if (!Object.keys(patch).length) { rez.neschimbate++; continue; }
+    patch.sursa_sincronizat_la = acum;
+    patch.sursa_activ = true;
+    const r = await fetch(`${baza}/rest/v1/products?id=eq.${v.id}`, { method: "PATCH", headers: h, body: JSON.stringify(patch) });
+    if (!r.ok) { rez.erori.push(`update ${x.sursa_id}: HTTP ${r.status}`); continue; }
+    rez.actualizate++;
+  }
+
+  // 4. Piesele care au dispărut din feed nu se șterg: pot avea comenzi în istoric.
+  //    Se depublică și se marchează inactive. (Se face doar la rularea completă,
+  //    nu la un feed parțial — altfel un eșantion de 50 ar depublica restul de 7.950.)
+  return rez;
 }
 
 async function citesteTaxonomia() {
@@ -639,6 +774,16 @@ async function main() {
   }
 
   if (CALE_JSON) { writeFileSync(CALE_JSON, JSON.stringify(rezultate, null, 1)); console.log(`\nRezultat brut: ${CALE_JSON}`); }
+
+  // ---------- scrierea ----------
+  if (!USCAT && taxonomie) {
+    const randuri = bune.map((x) => construiesteRand(x, taxonomie.categories));
+    console.log(`\nScriu ${randuri.length} rânduri în products…`);
+    const s = await scrie(randuri, citesteEnv());
+    console.log(`\n  noi          ${s.noi}\n  actualizate  ${s.actualizate}\n  neschimbate  ${s.neschimbate}` +
+      (s.erori.length ? `\n  erori:\n    ` + s.erori.join("\n    ") : ""));
+  }
+
   return rezultate;
 }
 
