@@ -12,7 +12,7 @@ import { SITE_DOMENIU } from "@/lib/config";
 import type { OrderFull, OrderEvent } from "@/lib/types";
 
 type Item = { id: number; nume: string; pret: number; cantitate: number; product_id: number | null;
-  products: { oem: string; slug: string; greutate_kg: number | null; vehicles: { nume: string; an: number } | null } | null };
+  products: { oem: string; slug: string; greutate_kg: number | null; greutate_estimata?: boolean; vehicles: { nume: string; an: number } | null } | null };
 
 const PASI = ["noua", "confirmata", "expediata", "livrata"];
 const NUME: Record<string, string> = { noua: "Nouă", confirmata: "Confirmată", expediata: "Expediată", livrata: "Livrată", anulata: "Anulată" };
@@ -33,7 +33,7 @@ export default function DetaliuComanda() {
     const sb = sbBrowser(); if (!sb) return;
     const [ord, it, ev] = await Promise.all([
       sb.from("orders").select("*").eq("id", id).single(),
-      sb.from("order_items").select("*, products(oem,slug,greutate_kg,vehicles(nume,an))").eq("order_id", id),
+      sb.from("order_items").select("*, products(oem,slug,greutate_kg,greutate_estimata,vehicles(nume,an))").eq("order_id", id),
       sb.from("order_events").select("*").eq("order_id", id).order("created_at", { ascending: false }),
     ]);
     setO(ord.data as OrderFull); setItems((it.data ?? []) as Item[]); setEvents((ev.data ?? []) as OrderEvent[]);
@@ -250,6 +250,21 @@ export default function DetaliuComanda() {
               Completează datele coletului, exact ca în calculatorul FAN. La salvare, totalul
               comenzii se recalculează automat și intră în jurnal.
             </p>
+            {/* Piesele importate intră cu 1 kg pus automat, nu cântărit. Dacă vreuna
+                dintre ele e în comanda asta, avertismentul trebuie să sară în ochi:
+                un AWB emis pe o greutate presupusă înseamnă diferență de plată la
+                curier, suportată de firmă. */}
+            {items.some((i) => i.products?.greutate_estimata) && (
+              <div className="mt-3 rounded-lg bg-yellow-100 border-2 border-yellow-400 p-3 flex gap-2.5">
+                <span aria-hidden="true" className="text-xl leading-none">⚠</span>
+                <div>
+                  <b className="block text-[13px] text-ink">Greutate estimată — cântărește coletul înainte de a genera AWB.</b>
+                  <span className="text-[11px] text-ink/70">
+                    {items.filter((i) => i.products?.greutate_estimata).length} din {items.length} piese au primit 1 kg automat la import, nu o valoare cântărită.
+                  </span>
+                </div>
+              </div>
+            )}
             <form onSubmit={salveazaCostLivrare} className="mt-3 space-y-2">
               <div className="grid grid-cols-2 gap-2">
                 <label className="text-[11px] text-mut">Greutate (kg)

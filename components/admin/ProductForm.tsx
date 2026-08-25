@@ -44,6 +44,12 @@ export default function ProductForm({ produs }: { produs?: Product }) {
       pret_lei: Number(f.get("pret")), pret_sufix: String(f.get("sufix") || "") || null,
       ani: String(f.get("ani") || "") || null, art: f.get("art"),
       greutate_kg: Number(f.get("greutate")) || null, cost_lei: Number(f.get("cost")) || null,
+      // Orice greutate salvată din formular e una cântărită de om, deci steagul
+      // de „estimată" cade. Piesele importate intră cu 1 kg estimat; din momentul
+      // în care operatorul atinge câmpul, valoarea devine de încredere.
+      greutate_estimata: false,
+      // Marchează piesa ca atinsă de om: la re-import, titlul nu se mai suprascrie.
+      editat_manual: true,
       categorie_id: Number(f.get("categorie")) || null,
       subcategorie_id: Number(f.get("subcategorie")) || null,
       vehicul_id: Number(f.get("vehicul")) || null,

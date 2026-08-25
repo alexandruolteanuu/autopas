@@ -21,6 +21,7 @@ const MENIU = [
   { href: "/admin/comenzi", t: "Comenzi", ic: "⬚", roluri: ["admin", "operator", "contabil"], badge: "comenzi" },
   { href: "/admin/cereri", t: "Cereri (Inbox)", ic: "✉", roluri: ["admin", "operator"], badge: "cereri" },
   { href: "/admin/produse", t: "Produse / Inventar", ic: "⚙", roluri: ["admin", "operator"] },
+  { href: "/admin/piese-de-completat", t: "Piese de completat", ic: "◪", roluri: ["admin", "operator"], badge: "completat" },
   { href: "/admin/categorii", t: "Categorii", ic: "☰", roluri: ["admin"] },
   { href: "/admin/marci", t: "Mărci și modele", ic: "✧", roluri: ["admin"] },
   { href: "/admin/masini", t: "Mașini la dezmembrat", ic: "⛭", roluri: ["admin", "operator"] },
@@ -36,7 +37,7 @@ const MENIU = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [rol, setRol] = useState<Rol>("verific");
   const [email, setEmail] = useState("");
-  const [badges, setBadges] = useState<{ comenzi: number; cereri: number }>({ comenzi: 0, cereri: 0 });
+  const [badges, setBadges] = useState<{ comenzi: number; cereri: number; completat: number }>({ comenzi: 0, cereri: 0, completat: 0 });
   const [alerte, setAlerte] = useState<{ t: string; href: string }[]>([]);
   const [clopotel, setClopotel] = useState(false);
   const [q, setQ] = useState("");
@@ -46,15 +47,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const incarcaContor = useCallback(async () => {
     const sb = sbBrowser(); if (!sb) return;
-    const [o, p1, p2, p3, p4] = await Promise.all([
+    const [o, p1, p2, p3, p4, pc] = await Promise.all([
       sb.from("orders").select("id", { count: "exact", head: true }).eq("status", "noua"),
       sb.from("part_requests").select("id", { count: "exact", head: true }).eq("status", "noua"),
       sb.from("car_intake_requests").select("id", { count: "exact", head: true }).eq("status", "noua"),
       sb.from("return_requests").select("id", { count: "exact", head: true }).eq("status", "noua"),
       sb.from("contact_messages").select("id", { count: "exact", head: true }).eq("status", "noua"),
+      // piese importate, încă nepublicate — vezi /admin/piese-de-completat
+      sb.from("products").select("id", { count: "exact", head: true }).not("sursa", "is", null).eq("publicat", false),
     ]);
     const cereri = (p1.count ?? 0) + (p2.count ?? 0) + (p3.count ?? 0) + (p4.count ?? 0);
-    setBadges({ comenzi: o.count ?? 0, cereri });
+    setBadges({ comenzi: o.count ?? 0, cereri, completat: pc.count ?? 0 });
     const a: { t: string; href: string }[] = [];
     if (o.count) a.push({ t: `${o.count} comenzi noi de confirmat`, href: "/admin/comenzi?f=noua" });
     if (p1.count) a.push({ t: `${p1.count} cereri „caut o piesă" nerezolvate`, href: "/admin/cereri?tab=piese" });
@@ -129,7 +132,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <nav className="flex lg:flex-col flex-1 lg:py-3">
           {meniu.map((m) => {
             const activ = m.href === "/admin" ? path === "/admin" : path.startsWith(m.href);
-            const b = m.badge ? badges[m.badge as "comenzi" | "cereri"] : 0;
+            const b = m.badge ? badges[m.badge as "comenzi" | "cereri" | "completat"] : 0;
             return (
               <Link key={m.href} href={m.href}
                 className={`flex items-center gap-3 px-5 py-3 text-sm whitespace-nowrap ${activ ? "bg-acc text-white" : "text-white/75 hover:bg-white/10"}`}>
