@@ -161,6 +161,21 @@ sunt sarcini ale utilizatorului. Consemnate la 24 august 2026.
   se oprește în ~1s, jobul trece în `in_pauza` cu motivul scris, și poate fi continuat.
 - **Progresul unui lot se salvează din mers**, la fiecare 4 secunde (`SALVARE_LA_MS` în
   `app/api/import/route.ts`), nu doar la final. Fără asta, orice cerere tăiată pierdea tot lotul.
+- **Nicio piesă importată nu mai rămâne fără categorie** (decizie 25 august 2026, care înlocuiește
+  regula veche „ambiguu sau inexistent => se lasă gol"). Ce lipsește din arborele nostru se creează
+  automat, cu numele luat din catalogul pieseauto.ro (`lib/import/taxonomie-sursa.mjs`, 742 categorii
+  în 33 de grupe, regenerat cu `scripts/actualizeaza-taxonomie-sursa.mjs`). Ordinea deciziei:
+  (1) `REGULI_CATEGORII` — traducerile aprobate de om au întâietate, fiindcă sunt mai bune decât
+  automatismul („Răcitor gaze" merge la „EGR și Clapetă acceleratie", unde îl caută un mecanic);
+  (2) părintele vine din grupa lor, prin `GRUPE_LA_PARINTE`; (3) o grupă nemapată devine ea însăși
+  categorie-părinte. Taxonomia LOR e plată în breadcrumb — grupa se poate afla doar din `/categorii/`.
+- **Modelul se creează doar dacă titlul îl confirmă.** Compatibilitatea sursei se contrazice uneori
+  cu titlul: „Maneta Tempomat Vw Golf 5" e trecută la Jetta, „Debitmetru Aer Vw Sharan" la Ford
+  Galaxy. Întâi se caută modelul în titlu printre cele existente (`modelDinTitlu`), apoi se creează
+  din compatibilitate — dar numai dacă apare și în titlu. Altfel piesa rămâne fără model, marcată.
+- **Greutatea NU poate veni de la pieseauto.ro** (verificat 25 august 2026): nu e nici în CSV
+  (ID, URL, Titlu, Moneda, Pret), nici pe pagina produsului — n-au tabel de specificații. Rămâne
+  1 kg cu `greutate_estimata = true`, cântărit la formarea coletului.
 - **Piesele importate se publică direct**, cu pozele descărcate în timpul importului, chiar dacă le
   lipsește categoria sau modelul (decizie 25 august 2026). Greutatea primește 1 kg cu
   `greutate_estimata = true`; se cântărește la formarea coletului. Triggerul `verifica_publicarea`,
@@ -263,7 +278,9 @@ Niciuna nu e dependință a site-ului și niciuna nu rulează la build. Se cheam
 | Script | Când se folosește |
 |---|---|
 | `verifica-contrast.mjs` | după orice atingere a paletei din `globals.css`. Calculează raporturile pe cele trei palete și iese cu cod 1 dacă o pereche obligatorie pică |
-| `verifica-import.mjs` | după orice modificare în `lib/import/`. 41 de verificări pe regulile importului — protecția de 20%, reluarea din poziția salvată, canarul, ce are voie să atingă un re-import. Fără rețea și fără bază de date: sursa și depozitul sunt false, deci se poate rula oricând |
+| `actualizeaza-taxonomie-sursa.mjs` | când catalogul pieseauto.ro se schimbă. Reface `lib/import/taxonomie-sursa.mjs` din pagina lor `/categorii/`. Are `--uscat`; refuză să scrie dacă extrage sub 300 de categorii (semn că pagina lor s-a schimbat) |
+| `completeaza-taxonomia.mjs` | o singură dată după schimbarea regulilor de taxonomie. Completează categoria și modelul pieselor importate ÎNAINTE de reguli — un re-import nu le repară, fiindcă `patchLaReimport` nu atinge categoria. Doar raportează; scrie cu `--scrie`. Nu atinge piesele cu `editat_manual` |
+| `verifica-import.mjs` | după orice modificare în `lib/import/`. 68 de verificări pe regulile importului — protecția de 20%, reluarea din poziția salvată, canarul, ce are voie să atingă un re-import. Fără rețea și fără bază de date: sursa și depozitul sunt false, deci se poate rula oricând |
 | `scan-responsive.mjs` | după modificări de așezare. 19 pagini × 13 lățimi; `TEMA=luminos` schimbă tema. Cere `playwright-core` legat în `node_modules` — vezi antetul fișierului |
 | `reconverteste-poze.mjs` | **rar, la nevoie.** Trece în WebP pozele rămase JPEG în bucket. A fost scris fiindcă primele piese importate au ajuns JPEG, când `sharp` nu era încă instalat, iar `lib/import/imagini.mjs` urcă originalul dacă lipsește codecul. Dacă apar iar JPEG-uri în bucket, ori a picat `sharp`, ori conversia a preferat originalul (poză deja bine comprimată) — scriptul spune care din două. Idempotent, cu `--uscat` |
 | `curata-orfani.mjs` | **periodic**, mai ales după sesiuni lungi de lucru pe produse. Găsește fișierele din `poze-piese` spre care nu mai arată niciun rând din `products`. Implicit doar raportează; șterge numai cu `--sterge` și numai fișiere mai vechi de 24h (`--ore=N`). Raportează și cazul invers, mai grav: adrese din bază fără fișier în stocare |

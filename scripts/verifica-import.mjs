@@ -20,6 +20,7 @@
 import {
   parseCSV, verificaColoane, planifica, proceseazaRanduri,
   patchLaReimport, construiesteRand, PRAG_CANAR, REZERVA_MS,
+  potrivesteCategoria, modelDinTitlu, categoriaSursa, slugifica,
 } from "../lib/import/index.mjs";
 
 let treceri = 0, picate = 0;
@@ -55,7 +56,7 @@ const taxonomieFalsa = {
 /** Depozit fals: ține minte ce s-a scris, nu atinge nimic real. */
 function depozitFals(existente = []) {
   const dupaId = new Map(existente.map((x) => [x.sursa_id, x]));
-  const scrise = { inserate: [], actualizate: [], poze: [] };
+  const scrise = { inserate: [], actualizate: [], poze: [], categorii: [], modele: [] };
   return {
     scrise,
     async citesteExistente(_s, ids) {
@@ -67,6 +68,20 @@ function depozitFals(existente = []) {
     async insereazaPiesa(r) { scrise.inserate.push(r); return { ...r, id: scrise.inserate.length }; },
     async actualizeazaPiesa(id, patch) { scrise.actualizate.push({ id, patch }); },
     async urcaPoza(cale, date) { scrise.poze.push(cale); return `https://exemplu/${cale}`; },
+    async asiguraCategorie(c) {
+      const gasit = scrise.categorii.find((x) => x.slug === c.slug);
+      if (gasit) return gasit;
+      const rand = { ...c, id: 1000 + scrise.categorii.length };
+      scrise.categorii.push(rand);
+      return rand;
+    },
+    async asiguraModel(m) {
+      const gasit = scrise.modele.find((x) => x.slug === m.slug);
+      if (gasit) return gasit;
+      const rand = { ...m, id: 2000 + scrise.modele.length };
+      scrise.modele.push(rand);
+      return rand;
+    },
     async depublica() {},
     async citesteTaxonomia() { return taxonomieFalsa; },
   };
@@ -325,6 +340,69 @@ sectiune("7. Bugetul unui lot: fatal oprește, trecător se sare");
     pauza: async () => {},
   });
   cer("scriptul din terminal n-are termen limită", panaInfinit === Infinity, `pana=${panaInfinit}`);
+}
+
+// ============================================================
+// 8. Taxonomia care se completează singură
+//
+// Decizie a utilizatorului, 25 august 2026: niciun produs nu mai rămâne fără
+// categorie. Ce lipsește din arborele nostru se creează cu numele luat din
+// catalogul pieseauto.ro. Regulile scrise de om rămân și au prioritate, fiindcă
+// traduc mai bine decât automatismul.
+// ============================================================
+sectiune("8. Categoriile și modelele se completează de la sursă");
+{
+  const arbore = [
+    { id: 1, nume: "Motor și anexe", slug: "motor-si-anexe", parent_id: null, art: "engine", ordine: 1 },
+    { id: 2, nume: "EGR și Clapetă acceleratie", slug: "motor-si-anexe-egr", parent_id: 1, art: "engine", ordine: 1 },
+  ];
+
+  // a) regula scrisă de om are întâietate și nu cere nicio creare
+  const cuRegula = potrivesteCategoria("egr", arbore);
+  cer("regula existentă se folosește ca atare", cuRegula.subcategorie_id === 2 && !cuRegula.de_creat);
+
+  // b) fără regulă, dar grupa lor e mapată pe un părinte de-al nostru
+  const mapat = potrivesteCategoria("suporti-motor", arbore);
+  cer("grupa mapată păstrează părintele nostru", mapat.de_creat?.parinte.id === 1, JSON.stringify(mapat.de_creat));
+  cer("subcategoria primește numele de la sursă", mapat.de_creat?.sub.nume === "Suporți motor", mapat.de_creat?.sub?.nume);
+
+  // c) grupă nemapată => devine ea însăși părinte, cu numele ei
+  const nemapat = potrivesteCategoria("carcasa-filtru-aer", arbore);
+  cer("grupa nemapată devine părinte nou", nemapat.de_creat?.parinte.id === null && nemapat.de_creat?.parinte.nume === "Filtre auto",
+      JSON.stringify(nemapat.de_creat?.parinte));
+
+  // d) o categorie-sursă inexistentă în catalogul lor rămâne gol — n-avem nume de nicăieri
+  const habar = potrivesteCategoria("slug-inventat-xyz", arbore);
+  cer("ce nu e nici la ei rămâne gol, cu notă", !habar.de_creat && !habar.categorie_id && habar.note.length > 0);
+
+  cer("catalogul sursei e citit din fișier", categoriaSursa("etriere")?.nume === "Etriere", JSON.stringify(categoriaSursa("etriere")));
+  cer("slug-ul respectă convenția noastră", slugifica("Carcasă filtru aer") === "carcasa-filtru-aer", slugifica("Carcasă filtru aer"));
+
+  // e) modelul din titlu bate compatibilitatea greșită a sursei
+  const tax = {
+    brands: [{ id: 1, nume: "Volkswagen", slug: "vw" }, { id: 2, nume: "Ford", slug: "ford" }],
+    models: [{ id: 10, nume: "Golf 5 (2003–2009)", brand_id: 1 }, { id: 11, nume: "Golf 6 (2008–2013)", brand_id: 1 }],
+  };
+  cer("modelul se recunoaște din titlu",
+      modelDinTitlu("Maneta Tempomat Vw Golf 5 2004 2005", tax)?.model.id === 10);
+  cer("două mărci în titlu => nicio potrivire (prea riscant)",
+      modelDinTitlu("Debitmetru Vw Sharan Ford Galaxy 2001", tax) === null);
+  cer("titlu fără model cunoscut => null", modelDinTitlu("Piesă oarecare 2005", tax) === null);
+
+  // f) motorul chiar creează, iar piesa iese cu categorie
+  const dep = depozitFals([]);
+  const rez = await proceseazaRanduri({
+    depozit: dep, randuri: feedFals(2), taxonomie: { ...taxonomieFalsa, categories: arbore.map((c) => ({ ...c })) },
+    adu: async () => ({ ok: true, html: paginaFalsa({ titlu: "Suport motor Vw Passat B6 2008" }),
+                        urlFinal: "https://www.pieseauto.ro/suporti-motor/vw/passat-b6/x.html" }),
+    pauza: async () => {},
+  });
+  cer("categoria lipsă a fost creată", dep.scrise.categorii.length === 1, `${dep.scrise.categorii.length} create`);
+  cer("cu numele de la sursă", dep.scrise.categorii[0]?.nume === "Suporți motor", dep.scrise.categorii[0]?.nume);
+  cer("sub părintele nostru, nu unul nou", dep.scrise.categorii[0]?.parent_id === 1);
+  cer("slug-ul e prefixat cu al părintelui", dep.scrise.categorii[0]?.slug === "motor-si-anexe-suporti-motor", dep.scrise.categorii[0]?.slug);
+  cer("piesele inserate au subcategoria pusă", dep.scrise.inserate.every((r) => r.subcategorie_id), JSON.stringify(dep.scrise.inserate.map((r) => r.subcategorie_id)));
+  cer("a doua piesă NU recreează categoria", rez.categoriiCreate === 1, `${rez.categoriiCreate}`);
 }
 
 console.log(`\n=== ${treceri} verificări trec · ${picate} pică ===`);

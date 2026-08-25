@@ -26,6 +26,7 @@ cum se afișează).
 | `imagini.mjs` | conversia pozelor în WebP | script, rută, `/api/publica-piesa` |
 | `depozit.mjs` | singurul loc care vorbește cu Supabase în timpul importului | script, rută |
 | `motor.mjs` | planificarea și procesarea unei felii de rânduri | script, rută |
+| `taxonomie-sursa.mjs` | catalogul pieseauto.ro (742 categorii în 33 de grupe), **generat** — nu se editează cu mâna | `potrivire.mjs` |
 
 ## De ce `.mjs` și nu `.ts`
 
