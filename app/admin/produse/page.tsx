@@ -46,7 +46,13 @@ function ProduseInner() {
 
 
   async function comuta(p: Prod) {
-    const sb = sbBrowser()!; await sb.from("products").update({ publicat: !p.publicat }).eq("id", p.id); incarca();
+    const sb = sbBrowser()!;
+    // Regula „o piesă importată nu se publică fără poze" stă în bază, în triggerul
+    // `tr_verifica_publicarea`. Nu o repetăm aici: două locuri cu aceeași regulă
+    // ajung să se contrazică. Arătăm mesajul triggerului, care e deja în română.
+    const { error } = await sb.from("products").update({ publicat: !p.publicat }).eq("id", p.id);
+    if (error) setMsg(error.message);
+    incarca();
   }
 
 
@@ -108,8 +114,15 @@ function ProduseInner() {
       for (const id of sel) await sb.rpc("sterge_produs", { p_id: id });
       setMsg(`✓ ${sel.length} piese procesate.`);
     } else {
-      await sb.from("products").update({ publicat: actiune === "publica" }).in("id", sel);
-      setMsg(`✓ ${sel.length} piese ${actiune === "publica" ? "publicate" : "ascunse"}.`);
+      // Una câte una, nu toate odată: dacă triggerul respinge o piesă fără poze,
+      // un update în masă ar anula întreaga operațiune, inclusiv piesele bune.
+      let reusite = 0; const respinse: string[] = [];
+      for (const id of sel) {
+        const { error } = await sb.from("products").update({ publicat: actiune === "publica" }).eq("id", id);
+        if (error) respinse.push(error.message); else reusite++;
+      }
+      setMsg(`✓ ${reusite} piese ${actiune === "publica" ? "publicate" : "ascunse"}.` +
+        (respinse.length ? ` ${respinse.length} respinse: ${respinse[0]}` : ""));
     }
     incarca();
   }

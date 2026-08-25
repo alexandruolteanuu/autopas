@@ -20,7 +20,7 @@ type Piesa = {
   poze: string[] | null; poze_sursa: string[] | null;
   categorie_id: number | null; subcategorie_id: number | null;
   greutate_kg: number | null; greutate_estimata: boolean;
-  model_ids: number[]; sursa: string | null; sursa_url: string | null;
+  model_ids: number[]; sursa: string | null; sursa_url: string | null; publicat: boolean;
   import_erori: { revizuire?: string[] } | null;
 };
 
@@ -55,8 +55,12 @@ export default function PieseDeCompletat() {
 
   const incarca = useCallback(async () => {
     const sb = sbBrowser(); if (!sb) return;
+    // Nu doar cele nepublicate: și cele publicate care au rămas FĂRĂ poze finale.
+    // Pe 25 august opt piese au ajuns pe site fără nicio poză, publicate din
+    // interfața de produse înainte ca descărcarea să poată rula. Ecranul ăsta e
+    // singurul loc unde se pot repara, deci trebuie să le și vadă.
     let query = sb.from("products").select("*")
-      .not("sursa", "is", null).eq("publicat", false)
+      .not("sursa", "is", null).or("publicat.eq.false,poze.eq.{}")
       .order("created_at", { ascending: false }).limit(500);
     if (q.trim()) query = query.or(`nume.ilike.%${q}%,cod_intern.ilike.%${q}%`);
     const { data } = await query;
@@ -66,6 +70,9 @@ export default function PieseDeCompletat() {
 
   const vizibile = doarGata ? piese.filter((p) => lipsuri(p).gata) : piese;
   const gata = piese.filter((p) => lipsuri(p).gata);
+  // Publicate, dar fără poze finale: sunt LIVE pe site arătând gol. Cel mai grav
+  // caz din ecranul ăsta, deci se numără și se repară separat.
+  const stricate = piese.filter((p) => p.publicat && !(p.poze?.length));
 
   // ---------- modul rapid de greutăți ----------
   // Operatorul o să facă asta de mii de ori, deci fiecare click în plus contează.
@@ -169,14 +176,36 @@ export default function PieseDeCompletat() {
           { k: "În așteptare", v: piese.length },
           { k: "Gata de publicat", v: gata.length, acc: true },
           { k: "Fără poză", v: piese.filter((p) => lipsuri(p).blocante.includes("poză")).length },
-          { k: "Greutate estimată", v: piese.filter((p) => p.greutate_estimata).length },
+          { k: "Publicate fără poze", v: stricate.length, rau: stricate.length > 0 },
         ].map((c) => (
           <div key={c.k} className="card p-4">
-            <div className={`font-disp font-bold text-2xl ${c.acc ? "text-acc" : ""}`}>{c.v}</div>
+            <div className={`font-disp font-bold text-2xl ${c.rau ? "text-red-600" : c.acc ? "text-acc" : ""}`}>{c.v}</div>
             <div className="text-xs text-mut mt-0.5">{c.k}</div>
           </div>
         ))}
       </div>
+
+      {/* ===== Piese LIVE pe site, dar fără poze =====
+          Cel mai grav caz: clientul le vede goale chiar acum. Banda apare doar
+          când există, ca să nu fie zgomot în restul timpului. */}
+      {stricate.length > 0 && (
+        <div className="rounded-xl border-2 border-red-300 bg-red-50 p-4">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <b className="text-red-800 block">
+                {stricate.length} {stricate.length === 1 ? "piesă e publicată pe site fără nicio poză" : "piese sunt publicate pe site fără nicio poză"}
+              </b>
+              <span className="text-xs text-red-800/80">
+                Clientul le vede goale. URL-urile de la sursă sunt intacte, deci pozele se pot aduce acum.
+              </span>
+            </div>
+            <button onClick={() => publica(stricate.map((p) => p.id))} disabled={lucru}
+              className="rounded-lg bg-red-600 text-white px-4 min-h-[44px] text-sm font-bold disabled:opacity-40">
+              Reia descărcarea pozelor ({stricate.length})
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Bara de acțiuni */}
       <div className="card p-4 flex flex-wrap items-center gap-3">
