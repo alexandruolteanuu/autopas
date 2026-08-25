@@ -267,11 +267,13 @@ sectiune("6. Canarul: peste 20% pagini fără poze, importul se oprește");
 // ============================================================
 // 7. Bugetul unui lot
 //
-// Defectul din 25 august 2026: pe un mediu fără `curl`, fiecare piesă nouă
-// primea pagina „sorry", intra în scara de reîncercări (5+15+45 = 65 de secunde)
-// și ducea lotul peste limita funcției. Serverul îl tăia cu 504 înainte să apuce
-// să salveze ceva, deci `procesate` rămânea 0 și reluarea măcina la nesfârșit
-// exact aceleași rânduri. De aici cele două reguli verificate mai jos.
+// Defectul din 25 august 2026: pe un mediu fără `curl` se cădea pe `fetch`, care
+// vorbește HTTP/1.1 și e refuzat de sursă. Fiecare piesă nouă primea pagina
+// „sorry", intra în scara de reîncercări (5+15+45 = 65 de secunde) și ducea lotul
+// peste limita funcției. Serverul îl tăia cu 504 înainte să apuce să salveze ceva,
+// deci `procesate` rămânea 0 și reluarea măcina la nesfârșit aceleași rânduri.
+// Transportul e azi HTTP/2 și trece de peste tot, dar regulile de mai jos rămân:
+// un refuz care ține trebuie să oprească lotul, nu să-l macine.
 // ============================================================
 sectiune("7. Bugetul unui lot: fatal oprește, trecător se sare");
 {
@@ -282,14 +284,14 @@ sectiune("7. Bugetul unui lot: fatal oprește, trecător se sare");
   let ceruteFatal = 0;
   const fatal = await proceseazaRanduri({
     depozit: depozitFals([]), randuri: feed, taxonomie: taxonomieFalsa, uscat: true,
-    adu: async () => { ceruteFatal++; return { ok: false, fatal: true, eroare: "mediul n-are curl" }; },
+    adu: async () => { ceruteFatal++; return { ok: false, fatal: true, eroare: "refuz persistent de la sursă" }; },
     pauza: async () => {},
   });
-  cer("o eroare fatală oprește lotul", fatal.oprit === "mediu", `oprit=${fatal.oprit}`);
+  cer("o eroare fatală oprește lotul", fatal.oprit === "refuz", `oprit=${fatal.oprit}`);
   cer("se cere o singură pagină, nu toate 40", ceruteFatal === 1, `${ceruteFatal} cereri`);
   cer("niciun rând nu e marcat ca eșuat", fatal.erori.length === 0, `${fatal.erori.length} erori`);
   cer("poziția nu avansează peste rândul netrecut", fatal.procesate === 0, `${fatal.procesate}`);
-  cer("mesajul spune de ce", (fatal.mesaj ?? "").includes("curl"));
+  cer("mesajul spune de ce", (fatal.mesaj ?? "").includes("refuz"));
   cer("pagina netrecută nu intră în canar", fatal.canar.total === 0, `canar=${fatal.canar.total}`);
 
   // b) eroare TRECĂTOARE: rândul se sare, importul merge mai departe. Așa se

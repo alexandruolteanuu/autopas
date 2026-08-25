@@ -22,7 +22,7 @@ cum se afișează).
 | `extragere.mjs` | tot ce se citește din HTML-ul unei pagini de produs | script, rută |
 | `potrivire.mjs` | marcă, model, categorie; regulile de taxonomie | script, rută |
 | `rand.mjs` | rândul din `products`; ce are voie să atingă un re-import | script, rută |
-| `aducere.mjs` | cererea politicoasă (pauze, User-Agent, „sorry", reîncercări) | script, rută |
+| `aducere.mjs` | cererea politicoasă pe HTTP/2 (pauze, User-Agent, „sorry", reîncercări) | script, rută |
 | `imagini.mjs` | conversia pozelor în WebP | script, rută, `/api/publica-piesa` |
 | `depozit.mjs` | singurul loc care vorbește cu Supabase în timpul importului | script, rută |
 | `motor.mjs` | planificarea și procesarea unei felii de rânduri | script, rută |

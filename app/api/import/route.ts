@@ -235,10 +235,10 @@ async function lot(depozit: any, corp: any) {
     const acum = new Date().toISOString();
     patch.mesaj = rez.mesaj;
     patch.jurnal = [...jurnal, { la: acum, text: rez.mesaj }];
-    // „mediu" = mediul de rulare nu poate ajunge la sursă. Nu e vina fișierului și
-    // nu e o oprire definitivă: aceleași rânduri merg dintr-un mediu cu curl. Deci
+    // „refuz" = sursa ne-a respins și după toate reîncercările. Nu e vina
+    // fișierului și nu e o oprire definitivă — peste un timp poate merge. Deci
     // jobul rămâne în pauză, cu motivul la vedere, și poate fi continuat de acolo.
-    if (rez.oprit === "mediu") {
+    if (rez.oprit === "refuz") {
       patch.status = "in_pauza";
     } else {
       patch.status = "oprit";
