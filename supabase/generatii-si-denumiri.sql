@@ -157,7 +157,50 @@ end $$;
 
 
 -- ============================================================
--- 5. CE A IEȘIT
+-- 5. ⚠ BMW: patru rânduri duble, cod intern vs denumire comercială
+--
+-- Tabela avea, pentru aceleași patru mașini, și rândul din seed-ul inițial
+-- („Seria 3 E90 (2005–2012)", cu anii completați, dar ZERO piese), și rândul
+-- creat de import („E90", cu toate cele 31 de piese).
+--
+-- Se păstrează rândul-cod, din trei motive:
+--   · are piesele, deci nu se mută nimic;
+--   · restul celor 39 de modele BMW sunt oricum numite prin cod („F31", „G20"),
+--     iar patru nume comerciale printre ele ar arăta ca o scăpare;
+--   · sursa scrie ÎNTOTDEAUNA codul — verificat pe toate liniile de
+--     compatibilitate BMW din bază, „Seria" nu apare niciodată. Un rând numit
+--     „Seria 3 E90" n-ar fi potrivit oricum, deci ar rămâne gol pe veci.
+--
+-- Anii de pe rândul din seed se mută pe rândul-cod ÎNAINTE de ștergere: e
+-- singura informație pe care o are în plus, și e exact ce trebuie păstrat.
+-- ============================================================
+do $$
+declare
+  gol bigint; cod bigint;
+begin
+  for gol, cod in
+    select vechi.id, nou.id
+    from (values ('Seria 1 E87 (2004–2011)', 'E87'), ('Seria 3 E90 (2005–2012)', 'E90'),
+                 ('Seria 3 F30 (2012–2018)', 'F30'), ('Seria 5 F10 (2010–2017)', 'F10')) as x(comercial, cod)
+    join models vechi on vechi.nume = x.comercial
+    join models nou   on nou.nume = x.cod and nou.brand_id = vechi.brand_id
+  loop
+    -- anii trec pe rândul păstrat, dar numai dacă acolo sunt goi
+    update models n set an_start = v.an_start, an_final = v.an_final
+    from models v where n.id = cod and v.id = gol and n.an_start is null and n.an_final is null;
+
+    -- plasă: dacă între timp rândul comercial a primit piese, nu se pierd
+    update products p
+    set model_ids = (select array_agg(distinct e) from unnest(array_replace(p.model_ids, gol, cod)) e)
+    where p.model_ids @> array[gol];
+
+    delete from models where id = gol;
+  end loop;
+end $$;
+
+
+-- ============================================================
+-- 6. CE A IEȘIT
 -- ============================================================
 select count(*) as modele,
        count(an_start) as cu_ani,
