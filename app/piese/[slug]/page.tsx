@@ -24,6 +24,17 @@ export const dynamic = "force-dynamic";
 // unicat, deci stocul trebuie citit la secundă.
 export const fetchCache = "force-no-store";
 
+/**
+ * Deocamdată doar adresa canonică — titlul și descrierea vin în Partea B.
+ *
+ * Nu cere nimic din bază: `canonical` se construiește din slug-ul din adresă,
+ * care e chiar identificatorul paginii. O interogare aici s-ar face pe fiecare
+ * afișare de produs, în plus față de cea din pagină.
+ */
+export function generateMetadata({ params }: { params: { slug: string } }) {
+  return { alternates: { canonical: `/piese/${params.slug}` } };
+}
+
 export default async function Produs({ params }: { params: { slug: string } }) {
   const sb = sbServer();
   if (!sb) notFound();

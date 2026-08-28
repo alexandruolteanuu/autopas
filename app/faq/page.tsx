@@ -1,5 +1,5 @@
 import Breadcrumbs from "@/components/Breadcrumbs";
-export const metadata = { title: "Întrebări frecvente" };
+export const metadata = { title: "Întrebări frecvente", alternates: { canonical: "/faq" } };
 const FAQ = [
   ["Piesele sunt testate?","Da. Piesele cu valoare (alternatoare, electromotoare, turbine, compresoare) sunt testate în atelier și verificate înainte de livrare. Fiecare piesă are descriere, fotografii reale și codul OEM."],
   ["Ce garanție primesc?","90 de zile de la data facturării, conform OUG 140/2021. Consumabilele (filtre, becuri, ștergătoare, bujii, curele, simeringuri) nu sunt acoperite, iar montajul trebuie făcut într-un service autorizat RAR. Condițiile complete sunt în pagina Certificat de garanție."],

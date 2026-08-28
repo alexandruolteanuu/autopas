@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 // de aici — o piesă vândută rămânea „În stoc". La dezmembrări fiecare piesă e
 // unicat, deci stocul trebuie citit la secundă.
 export const fetchCache = "force-no-store";
-export const metadata = { title: "Caută după mașină" };
+export const metadata = { title: "Caută după mașină", alternates: { canonical: "/cauta-dupa-masina" } };
 
 export default async function CautaDupaMasina() {
   const sb = sbServer();

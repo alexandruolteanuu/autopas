@@ -2,7 +2,7 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import ReturnForm from "@/components/ReturnForm";
 import Link from "next/link";
 import { getSetariServer } from "@/lib/settings";
-export const metadata = { title: "Formular de retur" };
+export const metadata = { title: "Formular de retur", alternates: { canonical: "/formular-retur" } };
 
 export default async function FormularRetur() {
   // Adresa de returnare și datele firmei vin din Admin → Setări, ca peste tot.

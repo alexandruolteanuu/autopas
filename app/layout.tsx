@@ -30,7 +30,17 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: { default: "Autopas Dezmembrări — piese auto testate, cu garanție", template: "%s · Autopas Dezmembrări" },
   description: "Piese auto second-hand din dezmembrări autorizate, județul Neamț. Testate, fotografiate real, garanție 90 de zile, livrare în 1–3 zile lucrătoare în toată România.",
-  alternates: { canonical: "/" },
+  // AICI NU SE PUNE `alternates.canonical`. (Defect găsit la 28 august 2026.)
+  //
+  // Metadatele din layout se moștenesc de fiecare pagină care nu-și declară
+  // altele, iar un `canonical: "/"` pus aici nu înseamnă „prima pagină e
+  // canonică pentru ea însăși", ci „TOATE paginile sunt duplicate ale primei
+  // pagini". Așa spuneau toate cele 8.739 de pagini de piese, plus contact, faq,
+  // despre-noi și cele 8 documente legale — verificat pe producție.
+  //
+  // Consecința e mai rea decât lipsa oricărei etichete: fără canonical, Google
+  // folosește adresa paginii, adică exact ce trebuie. Fiecare pagină publică își
+  // declară acum canonical-ul propriu.
   // Dovada pentru Google Search Console că domeniul e al nostru. E un token public,
   // legat de proprietatea din Search Console, nu un secret — de asta stă în cod și
   // nu în Setări: trebuie să apară în HTML pe TOATE paginile, inclusiv pe cele

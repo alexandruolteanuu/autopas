@@ -4,7 +4,7 @@ import { IconTelefon, IconMesaj, IconMail, IconCamion, IconPin } from "@/compone
 import PartRequestForm from "@/components/PartRequestForm";
 import { getSetariServer } from "@/lib/settings";
 import { PROGRAM, LIVRARE, ADRESA, telLink } from "@/lib/config";
-export const metadata = { title: "Contact" };
+export const metadata = { title: "Contact", alternates: { canonical: "/contact" } };
 
 export const dynamic = "force-dynamic";
 

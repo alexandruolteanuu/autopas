@@ -3,7 +3,7 @@ import IntakeForm from "@/components/IntakeForm";
 import WhatsAppIcon from "@/components/WhatsAppIcon";
 import Link from "next/link";
 import { getSetariServer, waLinkCu } from "@/lib/settings";
-export const metadata = { title: "Predă mașina la dezmembrat" };
+export const metadata = { title: "Predă mașina la dezmembrat", alternates: { canonical: "/preda-masina" } };
 
 // Actele cerute la predare: aceleași ca la Rabla, plus certificatul fiscal.
 // Lista de bază stă în /programul-rabla — dacă o modifici acolo, adu-o și aici.

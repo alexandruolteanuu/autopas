@@ -7,7 +7,11 @@ import { notFound } from "next/navigation";
 
 export function generateStaticParams() { return LEGAL_SLUGS.map((d) => ({ slug: d.slug })); }
 export function generateMetadata({ params }: { params: { slug: string } }) {
-  const d = getLegal(params.slug); return { title: d?.titluScurt ?? d?.titlu ?? "Informații legale" };
+  const d = getLegal(params.slug);
+  return {
+    title: d?.titluScurt ?? d?.titlu ?? "Informații legale",
+    alternates: { canonical: `/legal/${params.slug}` },
+  };
 }
 
 export default async function LegalPage({ params }: { params: { slug: string } }) {

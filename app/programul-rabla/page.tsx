@@ -1,7 +1,7 @@
 // PAGINA CERUTĂ EXPLICIT DE CLIENT: Programul Rabla — detalii + „primesc la Rabla".
 import Breadcrumbs from "@/components/Breadcrumbs";
 import IntakeForm from "@/components/IntakeForm";
-export const metadata = { title: "Programul Rabla — predă mașina, primești certificatul pe loc" };
+export const metadata = { title: "Programul Rabla — predă mașina, primești certificatul pe loc", alternates: { canonical: "/programul-rabla" } };
 
 const PASI = [
   ["Ne suni sau completezi formularul","Ne spui ce mașină ai (marcă, model, an). Nu trebuie să fie funcțională."],

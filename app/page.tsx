@@ -20,6 +20,10 @@ export const dynamic = "force-dynamic";
 // unicat, deci stocul trebuie citit la secundă.
 export const fetchCache = "force-no-store";
 
+// Canonical-ul primei pagini, declarat explicit. Înainte venea din layout, de
+// unde îl moșteneau și toate celelalte pagini — vezi comentariul de acolo.
+export const metadata = { alternates: { canonical: "/" } };
+
 async function getData() {
   const sb = sbServer();
   if (!sb) return { cats: [] as Category[], products: [] as Product[], cars: [] as Vehicle[],
