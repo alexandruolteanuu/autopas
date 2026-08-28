@@ -1,87 +1,98 @@
-# RAPORT — 28 august 2026 · viteza lui /piese
+# RAPORT — 28 august 2026 · Partea B, punctul 1 (propunere)
 
-Ambele reparații sunt pe producție.
-
-## Cifrele, separat pentru fiecare reparație
-
-TTFB pe `/piese`, măsurat pe producție:
-
-| Etapă | TTFB (mediană) | Câștig |
-|---|---|---|
-| la început | **2,73 s** | — |
-| + migrarea 31 (view-ul) | **1,28 s** | −1,45 s |
-| + paralelizarea | **0,88 s** | −0,40 s |
-
-**De la 2,73 s la 0,88 s — de 3,1 ori mai rapid.**
-
-Celelalte pagini:
-
-| Pagină | înainte | acum |
-|---|---|---|
-| `/piese?marca=skoda` | 2,79 s | **0,79 s** |
-| `/piese?pagina=7` | 2,72 s | **0,88 s** |
-| prima pagină | 0,78 s | **0,60 s** |
-
-Prima pagină a câștigat fiindcă folosea și ea `categorii_cu_numar`.
-
-Atribuirea paralelizării s-a făcut **A/B local, pe aceeași infrastructură**, ca să nu compare
-local cu producție: `/piese` 1,08 → 0,78 s, `?marca=skoda` 1,03 → 0,71 s, câte cinci rulări.
-Se potrivește cu ce se vede pe producție.
+Generatorul de titlu și descriere e gata și rulat pe tot catalogul.
+**NU e aplicat în cod** — exemplele de mai jos sunt pentru aprobare.
 
 ---
 
-## De ce eșuase rularea din SQL Editor
+## Exemple pe piese reale
 
-Migrarea a picat cu:
+**Piesă obișnuită**
 
 ```
-ERROR: 42P16: cannot change data type of view column "nr_piese"
-              from bigint to integer
+nume (57): Motoraș etrier spate Audi A4 B8 2.0 TDI — testat pe stand
+TITLU (51): Motoraș etrier spate Audi A4 B8 2008–2011 | AUTOPAS
+DESCR (157): Motoraș etrier spate Audi A4 B8 2.0 TDI — testat. Cod intern AP-000011.
+             Piesă din dezmembrări, testată — 350 lei. Garanție 90 de zile, livrare în toată țara.
 ```
 
-`count(*)` din view-ul vechi întorcea `bigint`, iar noua definiție avea `::int`.
-`create or replace view` poate schimba CORPUL unui view, dar **nu tipul unei coloane**.
+**Titlu foarte lung — 110 caractere, 5 modele compatibile**
 
-Verificarea pe `zz_test_categorii` n-avea cum s-o prindă: acolo era un view **nou**, unde
-restricția nu se aplică. Se vede doar la înlocuirea propriu-zisă. Cast-ul a fost scos, iar
-motivul e scris acum în fișierul migrării.
+```
+nume (110): Supapa electromagnetica Skoda Karoq / Superb / Octavia / VW Tiguan / T-Roc / Tiguan 1.5 TSI DXD 2020 2021 2022
+TITLU  (64): Supapa electromagnetica Skoda Karoq / Superb / Octavia | AUTOPAS
+```
 
-Confirmat apoi pe definiția din bază, nu doar că a mers comanda: `union all` prezent,
-subinterogarea corelată dispărută, `security_invoker` păstrat, 349 de categorii, suma 17.478.
+**Fără model în bază**
+
+```
+nume (78): Ecu Calculator diferential cutie viteze Vw Touareg 3.0 tdi 2006 2007 2008 2009
+TITLU (64): Ecu Calculator diferential cutie viteze Vw Touareg 3.0 | AUTOPAS
+```
+
+**Fără ani**
+
+```
+nume (29): Bara fata BMW Z4 E89 Facelift
+TITLU (39): Bara fata BMW Z4 E89 Facelift | AUTOPAS
+```
+
+**Fără ani, 17 modele compatibile**
+
+```
+nume (46): Balast xenon AUDI 8K0941597C Q7 A3 A4 A5 A6 A8
+TITLU (56): Balast xenon AUDI 8K0941597C Q7 A3 A4 A5 A6 A8 | AUTOPAS
+```
 
 ---
 
-## Paralelizarea — două valuri, cu dependența respectată
+## Regulile la care s-a ajuns, toate din date
 
-- **valul 1**, în paralel: `categorii_cu_numar`, `brands`, `models`, `numar_piese_pe_model`;
-- **valul 2**: interogarea de piese, care traduce slug-urile din adresă în id-uri folosind
-  primele trei (`cats.find`, `models.find`, `brands.find`).
+**Șablonul din specificație nu se poate aplica literal.** `{denumire} — {marcă} {model} {ani}`
+ar da „Motoraș etrier spate Audi A4 B8 2.0 TDI — Audi A4 B8 2008–2015": numele conțin deja
+marca, modelul și anii. Regula devine: **se reconstruiește doar când numele nu încape**. La
+„Bara fata BMW Z4 E89 Facelift" numele intră întreg, deci se păstrează „Facelift", pe care
+reconstrucția l-ar fi pierdut.
 
-Cinci drumuri dus-întors în serie → două valuri.
+**Anii enumerați se strâng.** „2008 2009 2010 2011" din nume devine „2008–2011" din coloana
+`ani` — aceeași informație, de patru ori mai scurtă.
 
-`numar_piese_pe_model` a trecut și el prin `citesteTot`: avea 538 de rânduri azi, dar creștea
-odată cu modelele și n-avea nici paginare, nici tratare de eroare.
+**Piesele cu multe potriviri păstrează lista din nume.** La „Balast xenon Q7 A3 A4 A5 A6 A8",
+alegerea unui singur model ar fi arbitrară, iar enumerarea prinde mai multe căutări reale.
 
-## Erorile din valul 1 — verificate, nu presupuse
+## Trei defecte găsite doar rulând pe date reale
 
-O interogare a fost ruptă intenționat (pointată spre un view inexistent) și pagina construită
-așa:
+1. **„Škoda" nu se potrivea cu „Skoda".** Marca are diacritic în tabelă, numele piesei nu.
+   Potrivirea brută o rata mereu, iar titlurile Skoda ieșeau trunchiate greșit.
+2. **Trunchierea tăia exact partea utilă.** Prima variantă dădea „Ecu Calculator diferential
+   cutie viteze Vw | AUTOPAS" — se oprea fix înainte de „Touareg".
+3. **Prepoziții agățate:** „… — testat pe." Acum se elimină cuvintele de 1–2 litere rămase la
+   coadă.
 
-```
-HTTP 500
-conține „piese găsite": 0
-conține „Nicio piesă"  : 0
-```
+## Cifrele pe tot catalogul
 
-Pagina cade **vizibil**. Nu apare nici lista goală, nici mesajul „nicio piesă găsită", care ar
-fi arătat ca un rezultat corect. `Promise.all` respinge la prima eroare și nu o prindem —
-intenționat, și scris ca atare în cod. Un `?? []` pe fiecare rezultat ar fi produs exact
-tiparul de la plafonul de 1.000 de rânduri și de la RLS: o operațiune care pare că a reușit,
-dar n-a atins tot.
+| | rezultat |
+|---|---|
+| descrieri distincte | **8.739 din 8.739** |
+| titluri distincte | 8.165 (1.023 împart un titlu) |
+| titluri peste 65 caractere | **0** |
+| descrieri peste 160 | **0** |
+
+Unicitatea descrierilor vine din `cod_intern` — completat și unic pe toate cele 8.739,
+**afișat deja pe pagină**, deci nu e text inventat pentru Google. E și util: clientul îl poate
+cita la telefon.
+
+**Titlurile duplicate sunt oneste:** sunt șapte „Bara fata Skoda Octavia 4" în catalog — piese
+fizic diferite, cu același nume și același preț. Ar putea fi diferențiate tot cu codul intern,
+dar în rezultatele Google ar arăta a spam. Propunerea e să rămână așa.
+
+**Constatare colaterală:** `oem` e **null pe toate cele 8.739 de piese importate**. Ramura „Cod
+OEM" din descriere nu se declanșează niciodată azi — rămâne pentru piesele adăugate manual.
 
 ---
 
-## Ce urmează
+## Întrebarea deschisă
 
-**Partea B** — `generateMetadata` pe pagina de produs: cele 8.739 de pagini cu același titlu și
-aceeași descriere.
+Se aplică? Intră în `generateMetadata`, împărțind produsul și tabelele de modele/mărci cu
+pagina prin `cache()` — **zero interogări în plus** față de acum, cerința explicită de la
+punctul 1.
