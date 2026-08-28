@@ -170,6 +170,7 @@ export function getLegalDocs(firma: Firma = FIRMA_IMPLICITA): LegalDoc[] {
       ], lista: [
         "FAN Courier — numele, adresa și telefonul, ca să îți poată livra coletul;",
         "furnizorii care găzduiesc site-ul și baza de date, descriși mai jos;",
+        "Google, pentru statistica de trafic — dar numai dacă ai acceptat cookie-urile de statistică, și fără numele, telefonul, e-mailul sau adresa ta;",
         "contabilul firmei, prin exportul facturilor;",
         "autoritățile și instituțiile publice, atunci când legea ne obligă;",
         "instanțele judecătorești, avocații sau executorii, dacă este necesar pentru apărarea unui drept;",
@@ -177,7 +178,8 @@ export function getLegalDocs(firma: Firma = FIRMA_IMPLICITA): LegalDoc[] {
       ]},
       { h: "Unde sunt stocate datele", p: [
         "Baza de date și fotografiile sunt găzduite la Supabase, pe infrastructură aflată în Uniunea Europeană (Irlanda). Site-ul este găzduit de Vercel.",
-        "Ambii furnizori sunt societăți din Statele Unite. În măsura în care intervine un transfer de date în afara Spațiului Economic European, acesta se face pe baza garanțiilor prevăzute de Regulament — clauzele contractuale standard aprobate de Comisia Europeană și, după caz, Cadrul UE–SUA privind confidențialitatea datelor.",
+        "Dacă ai acceptat cookie-urile de statistică, datele de trafic ajung și la Google, prin Google Analytics. Ce anume se trimite scrie în Politica de cookies.",
+        "Toți trei sunt societăți din Statele Unite. În măsura în care intervine un transfer de date în afara Spațiului Economic European, acesta se face pe baza garanțiilor prevăzute de Regulament — clauzele contractuale standard aprobate de Comisia Europeană și, după caz, Cadrul UE–SUA privind confidențialitatea datelor.",
       ]},
       { h: "Cât timp păstrăm datele", lista: [
         "datele contului — până când ceri ștergerea contului;",
@@ -229,25 +231,28 @@ export function getLegalDocs(firma: Firma = FIRMA_IMPLICITA): LegalDoc[] {
   },
   // ---------------------------------------------------------------
   // COOKIES — scrisă pe baza a ce face codul în realitate, nu pe un
-  // șablon copiat. Site-ul nu pune cookie-uri proprii: tot ce salvează
-  // stă în localStorage / sessionStorage, în browserul vizitatorului.
-  // Dacă se adaugă vreodată un instrument de statistică, tabelul de mai
-  // jos și secțiunea „Ce nu folosim” trebuie actualizate.
+  // șablon copiat. Ce ține de funcționarea site-ului stă în localStorage /
+  // sessionStorage; singurele cookie-uri sunt cele puse de Google Analytics,
+  // și doar după „Accept toate” (28 august 2026).
+  // Dacă se schimbă ceva la măsurare — alt instrument, alt cookie, altă
+  // durată — se actualizează AICI, în ambele tabele, înainte de punerea în
+  // funcțiune. Vezi și docs/google-analytics.md.
   // ---------------------------------------------------------------
   {
     slug: "politica-de-cookies",
     titlu: "Politica de cookies",
     sectiuni: [
       { h: "Pe scurt", p: [
-        "Site-ul acesta nu te urmărește. Nu folosim Google Analytics, nu avem pixel de Facebook, nu afișăm reclame și nu facem profilare.",
-        "Tot ce salvăm în browserul tău servește la funcționarea site-ului: coșul, favoritele, contul și alegerea ta din bannerul de cookie-uri. Mai jos e lista completă, fără excepții.",
+        "Măsurăm traficul cu Google Analytics, dar numai dacă apeși „Accept toate” în bannerul de la prima vizită. Dacă alegi „Doar necesare”, sau dacă nu alegi nimic, browserul tău nu trimite nicio cerere către Google.",
+        "În rest, ce salvăm ține de funcționarea site-ului: coșul, favoritele, contul și chiar alegerea ta din banner. Mai jos sunt amândouă listele, fără excepții.",
+        "Nu avem pixel de Facebook, nu afișăm reclame și nu facem profilare.",
       ]},
       { h: "Ce sunt cookie-urile și „tehnologiile similare”", p: [
         "Cookie-urile sunt fișiere mici pe care un site le pune în browserul tău și pe care browserul le trimite înapoi la fiecare vizită.",
         "Există și alte metode prin care un site poate ține minte ceva: localStorage și sessionStorage, două spații de stocare din browser. Diferența practică e că acestea rămân în calculatorul tău și nu sunt trimise automat către server la fiecare cerere.",
-        "Precizarea contează, pentru că site-ul nostru folosește exclusiv a doua variantă: nu punem niciun cookie propriu.",
+        "Precizarea contează, pentru că tot ce are nevoie site-ul ca să meargă ținem exclusiv în a doua variantă. Singurele cookie-uri propriu-zise de pe site sunt cele puse de Google Analytics, și doar după ce le accepți.",
       ]},
-      { h: "Lista completă a ce salvăm în browserul tău", p: [
+      { h: "Ce salvăm ca să funcționeze site-ul", p: [
         "Poți verifica singur: deschide uneltele de dezvoltator din browser (F5 sau F12, secțiunea „Application” sau „Stocare”) și caută-le după nume.",
       ], tabel: {
         capuri: ["Ce salvăm", "Unde", "La ce folosește", "Cât rămâne"],
@@ -265,29 +270,39 @@ export function getLegalDocs(firma: Firma = FIRMA_IMPLICITA): LegalDoc[] {
         "Toate elementele din tabel intră în această excepție. Fără ele nu ai coș de cumpărături, nu poți rămâne autentificat și nu ți-am putea reține nici măcar refuzul de la banner.",
         "Nu le poți dezactiva din site, pentru că ar însemna să nu mai funcționeze. Le poți însă șterge oricând din browser — vezi mai jos.",
       ]},
+      { h: "Google Analytics — se încarcă doar dacă îl accepți", p: [
+        "Folosim Google Analytics 4 ca să vedem câți oameni intră pe site, ce piese caută și dacă găsesc ce le trebuie. Ne ajută să știm ce să dezmembrăm și ce să listăm mai întâi.",
+        "Se încarcă doar dacă apeși „Accept toate”. Până atunci, și dacă alegi „Doar necesare”, scriptul Google nu ajunge în pagină — nu stă adormit și nu așteaptă nimic. Poți verifica singur, în uneltele de dezvoltator, secțiunea „Network”: nu vei vedea nicio cerere către google-analytics.com.",
+        "Dacă te răzgândești, oprești statistica din pagina Setări cookie-uri. Din clipa aceea nu se mai măsoară nimic, iar la următoarea încărcare a paginii scriptul nu mai apare deloc.",
+        "Ce trimitem: paginile pe care intri, piesele pe care le deschizi și le pui în coș, sumele și numărul comenzii. Ce NU trimitem: numele, telefonul, e-mailul sau adresa ta — acestea rămân la noi, în comandă.",
+        "Datele ajung la Google, care le prelucrează pentru noi, inclusiv pe servere din afara Uniunii Europene. Adresa ta IP este anonimizată înainte de a fi înregistrată.",
+      ], tabel: {
+        capuri: ["Cookie", "Cine îl pune", "La ce folosește", "Cât rămâne"],
+        randuri: [
+          ["_ga", "Google", "Deosebește vizitatorii unul de altul, fără să știe cine ești", "2 ani"],
+          ["_ga_ urmat de codul contului nostru", "Google", "Ține minte sesiunea curentă de măsurare", "2 ani"],
+        ],
+      }},
       { h: "Ce nu folosim", p: [
         "Ca să fie clar prin negație, la data ultimei actualizări a acestei pagini site-ul nu conține:",
       ], lista: [
-        "instrumente de analiză a traficului (Google Analytics, Matomo, Plausible sau altele);",
+        "alte instrumente de analiză, în afară de Google Analytics (Matomo, Plausible, Hotjar sau altele);",
         "pixeli de urmărire ai rețelelor sociale (Meta, TikTok, LinkedIn);",
         "cookie-uri de publicitate sau de retargetare;",
         "hărți, videoclipuri sau alte elemente încorporate de la terți care ar putea seta cookie-uri fără știrea ta;",
         "profilare a vizitatorilor și decizii automate pe baza comportamentului tău.",
       ]},
       { h: "Despre bannerul de cookie-uri", p: [
-        "Bannerul afișat la prima vizită menționează și cookie-uri de statistică. În acest moment nu încărcăm niciun instrument de statistică, indiferent ce alegi acolo — alegerea ta se păstrează pentru momentul în care vom adăuga unul.",
-        "Cu alte cuvinte, dacă apeși „Doar necesare” nu se schimbă nimic față de „Accept toate”, fiindcă nu există nimic în plus de acceptat. Preferăm să spunem asta deschis, decât să lăsăm impresia unei alegeri care nu există.",
+        "Bannerul de la prima vizită are două butoane, iar diferența dintre ele e reală: „Doar necesare” lasă site-ul exact cum e descris în primul tabel, fără nicio măsurare; „Accept toate” adaugă Google Analytics și cele două cookie-uri ale lui.",
+        "Cât timp n-ai apăsat niciunul, tratăm asta ca pe un refuz: statistica nu pornește. Alegerea se ține în browserul tău, nu la noi, și o poți schimba oricând din Setări cookie-uri.",
       ]},
       { h: "Cum ștergi ce s-a salvat", p: [
         "Din site: pagina Setări cookie-uri îți arată alegerea curentă și îți permite să o schimbi.",
         "Din browser: în Chrome, Edge sau Firefox mergi la Setări → Confidențialitate → Ștergere date de navigare și alege „Cookie-uri și alte date ale site-urilor”. Poți șterge datele doar pentru acest site, dând click pe lacătul din bara de adrese.",
         "Atenție: dacă ștergi aceste date, îți pierzi coșul și favoritele salvate local și vei fi deconectat din cont.",
       ]},
-      { h: "Dacă vom adăuga statistică", p: [
-        "Dacă vom instala vreodată un instrument de măsurare a traficului, acesta se va încărca doar după acordul tău explicit, va apărea în tabelul de mai sus cu numele și durata lui, iar această pagină va fi actualizată înainte de punerea în funcțiune.",
-      ]},
       { h: "Modificări", p: [
-        "Data ultimei actualizări apare la finalul paginii. Orice element nou adăugat în browserul tău va fi trecut în tabel.",
+        "Data ultimei actualizări apare la finalul paginii. Orice instrument nou și orice cookie nou apar în tabelele de mai sus înainte de a fi puse în funcțiune, nu după.",
       ]},
     ],
   },
@@ -457,7 +472,7 @@ export function getLegalDocs(firma: Firma = FIRMA_IMPLICITA): LegalDoc[] {
       ]},
       { h: "Ce înseamnă fiecare variantă", lista: [
         "„Doar necesare” — rămân active doar elementele fără de care site-ul nu funcționează: coșul, favoritele, sesiunea de autentificare și chiar reținerea acestei alegeri.",
-        "„Accept toate” — la aceasta s-ar adăuga instrumentele de statistică. În acest moment nu avem niciunul instalat, deci practic nu se schimbă nimic față de varianta de mai sus.",
+        "„Accept toate” — pe lângă cele de mai sus, se încarcă Google Analytics, care măsoară anonim cum e folosit site-ul și pune două cookie-uri proprii. Detaliile, cu nume și durată, sunt în Politica de cookies.",
       ]},
       { h: "Ce nu poți dezactiva și de ce", p: [
         "Elementele strict necesare nu pot fi oprite din site: fără ele nu ai coș de cumpărături și nu poți rămâne autentificat în cont. Le poți însă șterge oricând din browser.",

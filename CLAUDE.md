@@ -357,9 +357,12 @@ sunt sarcini ale utilizatorului. Consemnate la 24 august 2026.
     (valoarea calculată de SERVER), iar pagina de mulțumire îl trimite și lasă un semn legat de
     numărul comenzii. Reîncărcarea nu îl retrimite.
   · **Niciun dat personal în evenimente.** Fără nume, telefon, e-mail, adresă.
-  · ⚠ **Politica de cookies spune încă explicit că NU folosim Google Analytics** — în cinci
-    locuri, plus tabelul cu lista completă. Textul trebuie actualizat ÎNAINTE ca proprietarul
-    să lipească ID-ul, altfel pagina devine falsă. Vezi `docs/google-analytics.md`.
+  · **Documentele legale sunt aliniate** (28 august 2026). Politica de cookies are acum o
+    secțiune proprie pentru GA, cu tabelul celor două cookie-uri (`_ga` și `_ga_` + codul
+    contului, 2 ani); „Setări cookie-uri" spune ce adaugă „Accept toate"; iar Google e trecut
+    în lista destinatarilor din politica de confidențialitate. Dacă se schimbă vreodată ceva
+    la măsurare — alt instrument, alt cookie, altă durată — se actualizează ÎNTÂI acolo, în
+    ambele tabele, și abia apoi se pune în funcțiune.
 - Roluri: `client`, `operator`, `contabil`, `admin` (coloana `role` în `profiles`, controlată prin RLS).
 
 ## Cele 16 module de admin

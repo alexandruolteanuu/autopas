@@ -31,6 +31,13 @@ export const metadata: Metadata = {
   title: { default: "Autopas Dezmembrări — piese auto testate, cu garanție", template: "%s · Autopas Dezmembrări" },
   description: "Piese auto second-hand din dezmembrări autorizate, județul Neamț. Testate, fotografiate real, garanție 90 de zile, livrare în 1–3 zile lucrătoare în toată România.",
   alternates: { canonical: "/" },
+  // Dovada pentru Google Search Console că domeniul e al nostru. E un token public,
+  // legat de proprietatea din Search Console, nu un secret — de asta stă în cod și
+  // nu în Setări: trebuie să apară în HTML pe TOATE paginile, inclusiv pe cele
+  // statice, iar o valoare citită din bază ar rămâne prinsă în build (vezi de ce
+  // și-a mutat `Analytics` id-ul în browser).
+  // Verificarea merge chiar dacă indexarea e oprită din `PERMITE_INDEXARE`.
+  verification: { google: "JaPSNJJ-InidGi9B9qXcy9fkyWF29FjN_Jsx43qLpX0" },
   openGraph: {
     type: "website",
     locale: "ro_RO",

@@ -2,8 +2,8 @@
 
 Scris pentru cine nu e tehnic. Durează cam 15 minute, o singură dată.
 
-**Înainte de orice, citește secțiunea „⚠ Un pas obligatoriu înainte" de la final.
-Are consecințe legale, nu tehnice.**
+Politica de cookies și cea de confidențialitate au fost deja actualizate pentru
+Google Analytics, deci nu mai ai nimic de pregătit înainte — vezi ultima secțiune.
 
 ---
 
@@ -119,33 +119,20 @@ ajunge la Google — doar codurile pieselor, sumele și numărul comenzii.
 
 ---
 
-## ⚠ Un pas obligatoriu înainte de a lipi codul
+## Despre politica de cookies
 
-**Politica de cookies de pe site spune acum, negru pe alb, că NU folosim Google
-Analytics.** E scrisă onest, pe baza a ce făcea codul până acum:
+A fost actualizată pe 28 august 2026, odată cu implementarea, deci **nu mai ai nimic de făcut
+înainte de a lipi codul**.
 
-> „Site-ul acesta nu te urmărește. Nu folosim Google Analytics, nu avem pixel de
-> Facebook, nu afișăm reclame și nu facem profilare."
+Ce spune acum, ca să știi ce ai promis clienților:
 
-Mai sunt patru locuri în aceeași pagină care spun același lucru, plus tabelul cu
-lista completă a ce se salvează în browser — tabel în care Google Analytics ar
-trebui să apară cu cookie-urile lui (`_ga` și `_ga_XXXXXXXX`, valabile 2 ani).
+- Google Analytics se încarcă doar după „Accept toate”; „Doar necesare” și lipsa unei alegeri
+  înseamnă că nu se încarcă nimic.
+- Cele două cookie-uri (`_ga` și `_ga_` urmat de codul contului) apar în tabel, cu durata lor
+  de 2 ani.
+- Google e trecut în lista destinatarilor din politica de confidențialitate.
+- Scrie explicit că nu trimitem nume, telefon, e-mail sau adresă.
 
-Din clipa în care lipești codul, pagina aceea devine **falsă**. E exact genul de
-lucru pe care ANPC îl verifică, iar o politică de confidențialitate care contrazice
-realitatea e o problemă mai mare decât lipsa ei.
-
-**Deci: nu lipi codul până nu e actualizată politica.** Textul se schimbă în
-`lib/legal.ts`, e o modificare de vreo 20 de minute, și trebuie cerută explicit —
-sunt documente legale, nu se rescriu din reflex.
-
-Ce trebuie schimbat, pe scurt:
-
-1. „Pe scurt" — nu mai putem spune „nu te urmărește"; se scrie că folosim GA doar
-   cu acordul vizitatorului.
-2. „Ce sunt cookie-urile" — afirmația „nu punem niciun cookie propriu" nu mai e
-   adevărată: GA pune `_ga` și `_ga_XXXXXXXX`, care sunt cookie-uri proprii.
-3. Tabelul — două rânduri noi, cu cele două cookie-uri și durata lor.
-4. „Ce nu folosim" — se scoate primul punct (instrumentele de analiză).
-5. „Despre bannerul de cookie-uri" — acum scrie că „Doar necesare" și „Accept
-   toate" fac același lucru. De acum chiar diferă, și trebuie spus.
+**Dacă schimbi vreodată ceva la măsurare** — alt instrument, alt cookie, altă durată — se
+actualizează întâi paginile legale și abia apoi se pune în funcțiune. Nu invers: o politică
+de confidențialitate care contrazice realitatea e o problemă mai mare decât lipsa ei.
