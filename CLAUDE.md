@@ -66,12 +66,16 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 27. `mod-vacanta.sql`
 Idempotente (se pot re-rula oricând): 6, 7, 9–27.
 NU sunt încă idempotente: 1–5, 8.
-Aplicate pe producție: 1–22, 24, 25 și 26 (august 2026). **23 și 27 NU sunt încă rulate** —
-le rulează utilizatorul.
+**Aplicate pe producție: toate, 1–27** (ultimele două, 23 și 27, pe 28 august 2026, prin
+conectorul Supabase).
 27 înlocuiește `plaseaza_comanda`, copiată integral din 12 cu o gardă adăugată la început;
-dacă modifici vreodată funcția în 12, o modifici și acolo.
-Fără 23, `operator` scrie în piese și în cereri, dar nu le poate CITI, iar verificarea
-`scrieVerificat()` (care cere înapoi rândul atins) ar raporta eșec la o scriere reușită.
+dacă modifici vreodată funcția în 12, o modifici și acolo. Înainte de a o rula s-a comparat
+mecanic funcția din 12 cu cea din 27: identice, în afară de cele 7 linii ale gărzii. Fă la fel
+înainte de orice re-rulare, altfel un `create or replace` poate da înapoi tăcut o modificare
+făcută între timp direct în bază.
+23 dă rolului `operator` dreptul de CITIRE pe piese și pe cele patru tabele de cereri — fără el
+scria fără să poată citi, iar `scrieVerificat()` (care cere înapoi rândul atins) ar fi raportat
+eșec la o scriere reușită.
 24 adaugă coloanele de ani pe `models` și mută două modele așezate greșit („MG 3" și „XC 40"
 stăteau sub Volkswagen); 25 adaugă mărcile lipsă și redenumește „KGM Ssangyong" în „SsangYong".
 Sunt independente între ele, dar codul din `lib/import/` le presupune pe amândouă rulate.

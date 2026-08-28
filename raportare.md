@@ -75,3 +75,99 @@ urmate de cifră. „Jumpy" rămâne cu majusculă — Citroën chiar așa îl s
 
 `node scripts/verifica-import.mjs` — **110 verificări trec**, față de 82 la începutul zilei.
 `npm run build` — trece.
+
+---
+---
+
+# RAPORT — 28 august 2026 · PARTEA A, încheiată
+
+Migrările 23 și 27 rulate pe producție. Cele 7 verificări din A.7 trec, toate măsurate.
+
+---
+
+## Migrările
+
+Rulate prin conectorul Supabase, în ordine, pe baza reală.
+
+**23 — `rls-citire-echipa.sql`.** Cinci politici de citire, toate cu `is_staff()`. Verificat
+după rulare: `products` are acum `publicat = true OR is_staff()`, iar `part_requests`,
+`car_intake_requests`, `return_requests` și `contact_messages` au `is_staff()`. Nimic nu s-a
+lărgit spre public — `is_staff()` înseamnă exact cine avea deja drept de scriere pe aceleași
+rânduri.
+
+**27 — `mod-vacanta.sql`.** Înainte de rulare am comparat mecanic funcția `plaseaza_comanda`
+din migrarea 12 cu cea din 27, cu comentariile și spațiile scoase. Diferența e exact cele 7
+linii ale gărzii de vacanță, inserate imediat după `begin`. Nimic altceva. Verificarea asta
+nu e ceremonie: `create or replace` pe funcția care creează comenzile ar fi dat înapoi tăcut
+orice modificare făcută între timp direct în bază.
+
+După rulare: rândul `settings.vacanta` există (`activ: false`), `vacanta_publica()` există și
+e executabilă doar de `anon` și `authenticated` — `PUBLIC` nu apare în lista de drepturi, deci
+`revoke` a prins. Garda e prezentă în corpul funcției de comandă.
+
+---
+
+## Cele 7 verificări din A.7
+
+`node scripts/verifica-vacanta.mjs` acoperă 5 dintre ele, pe baza reală, cu un ciclu
+activare/dezactivare adevărat: **12 verificări trec, 0 pică.**
+
+| # | Verificare | Rezultat |
+|---|---|---|
+| 1 | după ciclu revin exact aceleași piese | ✓ amprentă identică pe 8.754 de piese |
+| 2 | piesa ascunsă de operator rămâne ascunsă | ✓ |
+| 3 | piesa cu stoc 0 nu reapare | ✓ |
+| 4 | POST direct către `plaseaza_comanda` e refuzat | ✓ și refuzul vine ÎNAINTEA oricărei alte verificări |
+| 6 | zero scrieri în `products` la activare și la dezactivare | ✓ |
+
+Punctele 5 și 7 nu se pot verifica din script — unul trăiește în `localStorage`, celălalt e o
+măsurătoare de pixeli. Le-am făcut în browser real (Chromium, playwright-core):
+
+**7 — hello bar-ul sub 52px.** Cu un mesaj de exact 120 de caractere, cât plafonul din
+interfață:
+
+| lățime | înălțime | ≤52px | scroll orizontal | text tăiat |
+|---:|---:|:---:|:---:|:---:|
+| 320px | 44px | ✓ | nu | da |
+| 360px | 44px | ✓ | nu | da |
+| 390px | 44px | ✓ | nu | da |
+| 768px | 44px | ✓ | nu | da |
+| 1280px | 44px | ✓ | nu | nu |
+
+44px pe toate lățimile, fiindcă `truncate` ține bara pe un rând, iar `min-h-[44px]` e ținta de
+atingere. Mesajul întreg rămâne în `title`.
+
+**5 — coșul supraviețuiește ciclului.** ✓ Conținutul din `localStorage` e identic la octet
+înainte de activare, în timpul vacanței și după dezactivare.
+
+---
+
+## Două lucruri de știut pentru cine verifică a doua oară
+
+Ambele m-au trimis pe piste false. Le scriu ca să nu se repete.
+
+**Coșul PARE că se golește pe `npm run dev`. Nu se golește.** `CartProvider` are două efecte:
+unul citește `localStorage` la montare, celălalt scrie la fiecare schimbare. În dev, React
+rulează efectele de două ori (StrictMode): la a doua trecere, efectul de scriere a apucat deja
+să pună `[]`, iar cel de citire îl citește pe acela. Pe build de producție coșul persistă
+corect — verificat pe amândouă. Verificările de coș se fac pe `npm run build && npx next start`,
+nu pe `dev`.
+
+**Comutarea vacanței direct în bază NU e un test valid al afișării.** Site-ul public citește
+starea din layout, iar `app/layout.tsx` are `revalidate = 300`. Comutatorul din admin cheamă
+`golesteCachePublic()` din `lib/settings.ts` → `/api/revalideaza` imediat după o salvare
+confirmată, deci în folosire reală schimbarea se vede pe loc. Un `PATCH` prin REST sare peste
+pasul ăsta și lasă paginile cu starea veche până la 5 minute — arată ca un defect, dar e doar
+cache. Verificat cu cache-ul gol: bara de vacanță apare pe toate paginile, banda de avertizare
+pe `/piese`, `/cos`, `/checkout` și `/favorite`, butoanele de comandă dispar peste tot, iar
+prima pagină rămâne cu zero carduri de piese.
+
+---
+
+## Starea bazei la închidere
+
+Vacanța: **dezactivată**. Catalog: 8.754 de piese, toate publicate, zero cu stoc 0.
+Comenzi: 0 — sonda care testează garda folosește coșul gol, deci n-a creat nimic și n-a scos
+nicio piesă unicat din stoc.
+
+`npm run build` — trece.
