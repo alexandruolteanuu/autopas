@@ -21,7 +21,7 @@ import {
   parseCSV, verificaColoane, planifica, proceseazaRanduri,
   patchLaReimport, construiesteRand, PRAG_CANAR, REZERVA_MS,
   potrivesteCategoria, modelDinTitlu, categoriaSursa, slugifica,
-  extrage, potriveste, taxonomieDinUrl,
+  extrage, potriveste, taxonomieDinUrl, numeModelNou,
 } from "../lib/import/index.mjs";
 
 let treceri = 0, picate = 0;
@@ -591,6 +591,62 @@ sectiune("12. Generația se alege după an_start / an_final");
   const peu = potriveste({ titlu: "Bara Fata Peugeot 2008 2015", compat: ["Peugeot 2008"],
                            an_min: 2015, an_max: 2015, erori: [] }, taxD);
   cer("„Peugeot 2008” rămâne nume de model, nu an", peu.model_id === 60, JSON.stringify(peu.note));
+}
+
+// ============================================================
+// 14. Titlul contrazice marca liniei => nu se creează model nou
+//
+// „Hyundai Matrix" apare ca linie de compatibilitate pe faruri de Audi și de VW,
+// fiindcă „Matrix" e tehnologia farului, nu mașina. Cuvântul chiar e în titlu,
+// deci confirmarea prin titlu nu ajunge: contează CE MARCĂ numește titlul.
+// ============================================================
+sectiune("14. Marca din titlu contrazice compatibilitatea");
+{
+  const taxM = {
+    brands: [{ id: 1, nume: "Audi", slug: "audi" }, { id: 2, nume: "Hyundai", slug: "hyundai" }],
+    models: [{ id: 90, nume: "Q8", brand_id: 1 }],
+  };
+  const far = potriveste({ titlu: "Far stanga FULL LED Matrix Audi Q8 2018 2019 2020",
+                           compat: ["Audi Q8", "Hyundai Matrix"], an_min: 2018, an_max: 2020, erori: [] }, taxM);
+  cer("piesa rămâne legată de modelul confirmat de titlu", far.model_ids.join() === "90", JSON.stringify(far.model_ids));
+  cer("„Hyundai Matrix” NU intră între modelele de creat",
+      !(far.de_creat_modele ?? []).some((x) => x.nume.toLowerCase().includes("matrix")), JSON.stringify(far.de_creat_modele));
+  cer("și motivul e scris în notele de revizuire",
+      far.note.some((n) => n.includes("titlul numește") && n.includes("Hyundai")), JSON.stringify(far.note));
+
+  // Contra-proba: compatibilitatea legitimă între mărci NU are voie să cadă.
+  // Sharan și Galaxy sunt aceeași mașină, iar Galaxy îl avem deja în tabelă.
+  const taxG2 = {
+    brands: [{ id: 1, nume: "Volkswagen", slug: "vw" }, { id: 2, nume: "Ford", slug: "ford" }],
+    models: [{ id: 91, nume: "Sharan", brand_id: 1 }, { id: 92, nume: "Galaxy", brand_id: 2 }],
+  };
+  const deb = potriveste({ titlu: "Debitmetru Aer Vw Sharan 2005", compat: ["Volkswagen Sharan", "Ford Galaxy"],
+                           an_min: 2005, an_max: 2005, erori: [] }, taxG2);
+  cer("un model EXISTENT de altă marcă se leagă în continuare",
+      deb.model_ids.slice().sort().join() === "91,92", JSON.stringify(deb.model_ids));
+
+  // Piesele multi-marcă reale: fiecare linie își găsește marca în titlu.
+  const taxV = {
+    brands: [{ id: 1, nume: "Volkswagen", slug: "vw" }, { id: 2, nume: "Audi", slug: "audi" }],
+    models: [{ id: 93, nume: "Golf 5", brand_id: 1, an_start: 2003, an_final: 2008 },
+             { id: 94, nume: "A3 8P", brand_id: 2, an_start: 2003, an_final: 2012 }],
+  };
+  const senz = potriveste({ titlu: "Senzor presiune gaze evacuare VW AUDI 076906051A 2007",
+                            compat: ["Volkswagen Golf 5", "Audi A3 8P"], an_min: 2007, an_max: 2007, erori: [] }, taxV);
+  cer("piesa cu două mărci în titlu nu semnalează niciun conflict",
+      senz.model_ids.slice().sort().join() === "93,94" && !senz.note.some((n) => n.includes("titlul numește")),
+      JSON.stringify(senz.note));
+}
+
+// ============================================================
+// 15. Numele modelelor noi încep cu majusculă
+// ============================================================
+sectiune("15. Majuscula inițială la modelele noi");
+{
+  cer("„jumpy” devine „Jumpy”", numeModelNou("jumpy") === "Jumpy");
+  cer("„CX-5” rămâne neatins", numeModelNou("CX-5") === "CX-5");
+  cer("restul scrierii nu se atinge", numeModelNou("ix35") === "Ix35");
+  cer("spațiile din capete se taie", numeModelNou("  s-cross ") === "S-cross");
 }
 
 // ============================================================
