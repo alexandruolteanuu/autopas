@@ -11,10 +11,14 @@ import { lei } from "@/lib/format";
 import DiscountBox, { type Reducere } from "@/components/DiscountBox";
 import { getSetariBrowser, CURIERI_IMPLICITI, type Curier } from "@/lib/settings";
 import Link from "next/link";
+import { useVacanta } from "@/components/VacantaContext";
+import { VacantaBanner } from "@/components/VacantaNota";
+import StareGoala from "@/components/StareGoala";
 
 export default function Checkout() {
   const { items, total, clear } = useCart();
   const router = useRouter();
+  const vacanta = useVacanta();
   const [tip, setTip] = useState<"pf" | "firma">("pf");
   const [curier, setCurier] = useState("fan");
   const [plata, setPlata] = useState("ramburs");
@@ -76,6 +80,24 @@ export default function Checkout() {
     return <div className="mx-auto max-w-xl px-4 py-20 text-center">
       <h1 className="font-disp font-bold text-2xl">Coșul e gol</h1>
       <Link href="/piese" className="btn-acc mt-5">Vezi piesele</Link></div>;
+
+  // MOD VACANȚĂ — formularul nici nu se mai afișează. Nu e o măsură de
+  // securitate (aia e în `plaseaza_comanda`, pe server), ci de bun-simț: n-are
+  // rost ca omul să completeze adresa, ca la final să primească un refuz.
+  // Coșul rămâne intact — se poate întoarce la el.
+  if (vacanta.activ)
+    return (
+      <div className="mx-auto w-full max-w-2xl px-4 sm:px-6 py-12 space-y-5">
+        <VacantaBanner vacanta={vacanta} />
+        <StareGoala
+          icon={<span className="text-2xl" aria-hidden="true">⏸</span>}
+          titlu="Comanda nu poate fi plasată acum"
+          text="Piesele rămân în coșul tău și le găsești acolo când reluăm activitatea."
+          actiune={{ eticheta: "Înapoi la coș", href: "/cos" }}
+          secundar={{ eticheta: "Vezi piesele", href: "/piese" }}
+        />
+      </div>
+    );
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8">

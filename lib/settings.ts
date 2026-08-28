@@ -45,6 +45,53 @@ function compune(rows: { cheie: string; valoare: any }[] | null) {
   };
 }
 
+// ============================================================
+// MOD VACANȚĂ
+//
+// Comutator global, citit la afișare. NU atinge niciodată `products.publicat` —
+// vezi supabase/mod-vacanta.sql pentru motivul întreg. Pe scurt: dezactivarea ar
+// trebui să știe care piesă era ascunsă din vacanță și care din alt motiv (stoc
+// zero, scoasă de operator, dispărută din feed), iar informația aia nu există.
+//
+// Rândul din `settings` NU e citibil public: `activat_de` e adresa unui om din
+// echipă. Site-ul public primește doar `activ` și `mesaj`, prin funcția
+// `vacanta_publica()`.
+// ============================================================
+export type Vacanta = { activ: boolean; mesaj: string };
+export type VacantaAdmin = Vacanta & { data_activarii: string | null; activat_de: string | null };
+
+/** Textul arătat când vacanța e activă, dar proprietarul n-a scris niciun mesaj. */
+export const MESAJ_VACANTA_IMPLICIT = "Magazin în pauză temporară.";
+/** Plafonul din interfața de admin. Peste el, hello bar-ul de pe telefon ar trece
+ *  de 52px și ar împinge conținutul în jos. */
+export const LIMITA_MESAJ_VACANTA = 120;
+
+const vacantaDin = (d: any): Vacanta => ({
+  activ: d?.activ === true,
+  mesaj: typeof d?.mesaj === "string" ? d.mesaj.trim() : "",
+});
+
+/** Starea vacanței pentru site-ul public (server). Dacă apelul cade din orice
+ *  motiv, se întoarce „inactiv": un magazin care nu poate citi comutatorul
+ *  trebuie să vândă mai departe, nu să se închidă singur. */
+export async function getVacanta(): Promise<Vacanta> {
+  const sb = sbServer();
+  if (!sb) return { activ: false, mesaj: "" };
+  const { data } = await sb.rpc("vacanta_publica");
+  return vacantaDin(data);
+}
+
+/** Aceeași stare, în browser (coș, checkout, favorite). */
+export async function getVacantaBrowser(): Promise<Vacanta> {
+  const sb = sbBrowser();
+  if (!sb) return { activ: false, mesaj: "" };
+  const { data } = await sb.rpc("vacanta_publica");
+  return vacantaDin(data);
+}
+
+/** Mesajul de arătat, cu textul implicit când proprietarul n-a scris nimic. */
+export const mesajVacanta = (v: Vacanta) => v.mesaj || MESAJ_VACANTA_IMPLICIT;
+
 // pe server (layout, footer, pagini)
 export async function getSetariServer() {
   const sb = sbServer();
@@ -59,6 +106,21 @@ export async function getSetariBrowser() {
   const { data } = await sb.from("settings").select("cheie,valoare");
   return compune(data as any);
 }
+/**
+ * Golește cache-ul paginilor publice, după o salvare din Admin → Setări.
+ *
+ * `app/layout.tsx` are `revalidate = 300`, iar datele firmei ȘI starea vacanței
+ * se citesc pe server. Fără apelul ăsta, subsolul, documentele legale și hello
+ * bar-ul ar arăta valoarea veche încă până la 5 minute — exact simptomul „am
+ * salvat și nu se vede".
+ */
+export async function golesteCachePublic() {
+  const sb = sbBrowser();
+  const token = sb ? (await sb.auth.getSession()).data.session?.access_token : null;
+  if (!token) return;
+  await fetch("/api/revalideaza", { method: "POST", headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+}
+
 // link WhatsApp construit din numărul salvat în Setări
 export const waLinkCu = (numar: string, text = "Bună! Am o întrebare despre o piesă.") =>
   `https://wa.me/${(numar || "").replace(/\D/g, "")}?text=${encodeURIComponent(text)}`;

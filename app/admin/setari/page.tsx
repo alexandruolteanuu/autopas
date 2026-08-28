@@ -5,6 +5,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { sbBrowser, scrieVerificat } from "@/lib/supabase";
 import { getSetariBrowser, type Firma, type Curier, FIRMA_IMPLICITA, CURIERI_IMPLICITI } from "@/lib/settings";
+import ModVacanta from "@/components/admin/ModVacanta";
 
 type Profil = { id: string; email: string; nume: string | null; role: string };
 const ROLURI = [
@@ -89,6 +90,10 @@ export default function Setari() {
     <div className="space-y-4">
       <div><div className="dim">Administrare</div><h1 className="font-disp font-bold text-2xl mt-1">Setări</h1>
         {!eAdmin && <p className="text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2 mt-2">Doar administratorul poate salva modificările de aici.</p>}</div>
+
+      {/* Modul vacanță stă SUS, pe toată lățimea: e singurul comutator de aici
+          care oprește vânzarea, deci nu are ce căuta sub datele de facturare. */}
+      <ModVacanta eAdmin={eAdmin} />
 
       <div className="grid lg:grid-cols-2 gap-4 items-start">
         {/* Firma */}

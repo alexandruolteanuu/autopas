@@ -10,9 +10,14 @@ import { ScheletGrilaProduse } from "@/components/ScheletCarduri";
 import { IconInima } from "@/components/Icoane";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import type { Product } from "@/lib/types";
+import { useVacanta } from "@/components/VacantaContext";
+import { VacantaBanner } from "@/components/VacantaNota";
 
 export default function Favorite() {
   const { ids } = useFavorites();
+  // Favoritele NU se golesc în vacanță. Piesele rămân în listă, marcate
+  // „Indisponibil temporar" de `AddToCart`; banda de sus spune de ce.
+  const vacanta = useVacanta();
   const [produse, setProduse] = useState<Product[]>([]);
   const [gata, setGata] = useState(false);
   const [logat, setLogat] = useState(false);
@@ -34,6 +39,7 @@ export default function Favorite() {
         {logat ? "Lista e salvată în contul tău — o regăsești pe orice dispozitiv."
                : <>Lista e salvată în acest browser. <Link href="/autentificare" className="accentuat font-semibold">Autentifică-te</Link> ca s-o păstrezi pe orice dispozitiv.</>}
       </p>
+      {vacanta.activ && <VacantaBanner vacanta={vacanta} className="mb-6" />}
       {!gata && <ScheletGrilaProduse cate={4} />}
       {gata && produse.length === 0 && (
         <StareGoala

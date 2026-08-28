@@ -62,12 +62,14 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 15. `cautare-fara-diacritice.sql` -> 16. `email-unic.sql` -> 17. `import-pieseauto.sql` ->
 18. `taxonomie-import.sql` -> 19. `greutate-estimata.sql` -> 20. `import-index-fix.sql` ->
 21. `publicare-cu-poze.sql` -> 22. `import-din-admin.sql` -> 23. `rls-citire-echipa.sql` ->
-24. `ani-generatie.sql` -> 25. `marci-lipsa.sql` -> 26. `generatii-si-denumiri.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26.
+24. `ani-generatie.sql` -> 25. `marci-lipsa.sql` -> 26. `generatii-si-denumiri.sql` ->
+27. `mod-vacanta.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9–27.
 NU sunt încă idempotente: 1–5, 8.
-Aplicate pe producție: 1–22, 24 și 25 (august 2026). **23 și 26 NU sunt încă rulate** — le rulează utilizatorul.
-26 conține DOUĂ ȘTERGERI de rânduri din `models` (unificări de duplicate, cu piesele mutate
-înainte); e explicat în fișier, la partea 4.
+Aplicate pe producție: 1–22, 24, 25 și 26 (august 2026). **23 și 27 NU sunt încă rulate** —
+le rulează utilizatorul.
+27 înlocuiește `plaseaza_comanda`, copiată integral din 12 cu o gardă adăugată la început;
+dacă modifici vreodată funcția în 12, o modifici și acolo.
 Fără 23, `operator` scrie în piese și în cereri, dar nu le poate CITI, iar verificarea
 `scrieVerificat()` (care cere înapoi rândul atins) ar raporta eșec la o scriere reușită.
 24 adaugă coloanele de ani pe `models` și mută două modele așezate greșit („MG 3" și „XC 40"
@@ -250,6 +252,26 @@ sunt sarcini ale utilizatorului. Consemnate la 24 august 2026.
   „SsangYong …" și niciodată „KGM"; „VAG" și „MB" nu apar deloc. A rămas un singur sinonim,
   KGM -> SsangYong, și acela pentru viitor: marca se numește azi oficial KGM, dar clientul care
   vrea o piesă de Rexton scrie „SsangYong".
+- **Modul vacanță NU atinge niciodată `products.publicat`** (28 august 2026, `supabase/mod-vacanta.sql`).
+  Implementarea evidentă — „la activare `update products set publicat=false`, la dezactivare
+  invers" — ar distruge catalogul: a doua comandă ar republica piesele ascunse de operator, cele
+  cu stoc 0 depublicate de trigger, cele dispărute din feed și cele nepublicate fiindcă le lipsea
+  ceva. După dezactivare n-ar mai exista nicio cale de a distinge, iar informația s-ar pierde
+  ireversibil. E doar un comutator global în `settings.vacanta`, citit la AFIȘARE.
+  · Blocarea reală a comenzilor e în `plaseaza_comanda`, prima verificare din funcție, înaintea
+    oricărei scrieri. Restul (liste goale, butoane ascunse) e cosmetică: cine are checkout-ul
+    deschis tot nu poate comanda.
+  · Rândul din `settings` NU e citibil public — `activat_de` e adresa unui om din echipă. Site-ul
+    primește doar `activ` și `mesaj`, prin `vacanta_publica()`.
+  · **Paginile de produs rămân accesibile, cu HTTP 200, iar `sitemap.xml` nu se schimbă.** Dacă ar
+    întoarce 404, Google le-ar scoate din index, iar poziționarea s-ar recâștiga în săptămâni, nu
+    în ore. Se schimbă doar butonul de comandă.
+  · Verificarea „nu atinge catalogul" nu se poate face citind codul, fiindcă defectul ar fi
+    invizibil până la dezactivare: `scripts/verifica-vacanta.mjs` ia o amprentă a catalogului,
+    face un ciclu activare/dezactivare și o compară.
+  · Ascunderea butonului de coș stă în `AddToCart`, nu în `ProductCard`: e singurul loc prin care
+    o piesă ajunge în coș, deci acoperă dintr-o dată și favoritele, și piesele similare, și orice
+    listă adăugată pe viitor. (`ProductCard` e componentă de server, n-are acces la context.)
 - Roluri: `client`, `operator`, `contabil`, `admin` (coloana `role` în `profiles`, controlată prin RLS).
 
 ## Cele 16 module de admin
@@ -345,6 +367,7 @@ Niciuna nu e dependință a site-ului și niciuna nu rulează la build. Se cheam
 | `verifica-contrast.mjs` | după orice atingere a paletei din `globals.css`. Calculează raporturile pe cele trei palete și iese cu cod 1 dacă o pereche obligatorie pică |
 | `actualizeaza-taxonomie-sursa.mjs` | când catalogul pieseauto.ro se schimbă. Reface `lib/import/taxonomie-sursa.mjs` din pagina lor `/categorii/`. Are `--uscat`; refuză să scrie dacă extrage sub 300 de categorii (semn că pagina lor s-a schimbat) |
 | `completeaza-taxonomia.mjs` | o singură dată după schimbarea regulilor de taxonomie. Completează categoria și modelul pieselor importate ÎNAINTE de reguli — un re-import nu le repară, fiindcă `patchLaReimport` nu atinge categoria. Doar raportează; scrie cu `--scrie`. Cu `--reciteste` cere din nou pagina fiecărei piese, când extragerea s-a schimbat. Nu atinge piesele cu `editat_manual` |
+| `verifica-vacanta.mjs` | după orice atingere a modului vacanță. **Rulează pe baza reală** și comută vacanța câteva secunde, apoi o lasă dezactivată. Verifică cele 7 puncte din sarcină: amprenta catalogului înainte/după ciclu, refuzul lui `plaseaza_comanda`, ordinea gărzii. Nu creează nicio comandă |
 | `verifica-import.mjs` | după orice modificare în `lib/import/`. 78 de verificări pe regulile importului — protecția de 20%, reluarea din poziția salvată, canarul, ce are voie să atingă un re-import. Fără rețea și fără bază de date: sursa și depozitul sunt false, deci se poate rula oricând |
 | `scan-responsive.mjs` | după modificări de așezare. 19 pagini × 13 lățimi; `TEMA=luminos` schimbă tema. Cere `playwright-core` legat în `node_modules` — vezi antetul fișierului |
 | `reconverteste-poze.mjs` | **rar, la nevoie.** Trece în WebP pozele rămase JPEG în bucket. A fost scris fiindcă primele piese importate au ajuns JPEG, când `sharp` nu era încă instalat, iar `lib/import/imagini.mjs` urcă originalul dacă lipsește codecul. Dacă apar iar JPEG-uri în bucket, ori a picat `sharp`, ori conversia a preferat originalul (poză deja bine comprimată) — scriptul spune care din două. Idempotent, cu `--uscat` |

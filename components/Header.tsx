@@ -12,6 +12,7 @@ import HartiLinks from "./HartiLinks";
 import Logo from "./Logo";
 import ComutatorTema from "./ComutatorTema";
 import { IconTelefon } from "./Icoane";
+import { mesajVacanta, type Vacanta } from "@/lib/settings";
 
 const NAV = [
   { href: "/", t: "Acasă" },
@@ -36,7 +37,7 @@ function Ic({ kind, className = "w-[22px] h-[22px]" }: { kind: string; className
   );
 }
 
-export default function Header() {
+export default function Header({ vacanta }: { vacanta?: Vacanta }) {
   const path = usePathname();
   const { items } = useCart();
   const { nr } = useFavorites();
@@ -87,6 +88,29 @@ export default function Header() {
           44px, cât ținta de atingere a numărului. Textul despre livrare rămâne
           ascuns până la lg — nu încape și oricum e repetat în subsol.
           Programul NU e link; doar numărul este. */}
+      {vacanta?.activ ? (
+        /* MOD VACANȚĂ — ia locul barei obișnuite (telefon + program) cât timp e activ.
+           Fundal de avertizare, ca să nu poată fi confundat cu un anunț oarecare:
+           galbenul de accent cu text închis, aceleași două culori pe ambele teme.
+
+           Textul e scris de proprietar, deci ajunge aici ca text, niciodată prin
+           `dangerouslySetInnerHTML` — React îl escapează singur. În plus i se
+           strâng rândurile și spațiile, ca o apăsare de Enter în formular să nu
+           poată sparge bara în două rânduri.
+
+           Un singur rând, tăiat cu „…" (`truncate`): plafonul de 52px pe telefon
+           e obligatoriu, iar un mesaj de 120 de caractere la 320px ar face trei
+           rânduri și ar împinge tot conținutul în jos. Mesajul întreg rămâne în
+           `title`, pentru cine vrea să-l vadă. */
+        <div className="bg-accent text-accentContrast text-[12px]" role="status">
+          <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 flex items-center gap-2 min-h-[44px] min-w-0">
+            <span aria-hidden="true" className="shrink-0 font-bold">●</span>
+            <span className="font-semibold truncate" title={mesajVacanta(vacanta)}>
+              {mesajVacanta(vacanta).replace(/\s+/g, " ").trim()}
+            </span>
+          </div>
+        </div>
+      ) : (
       <div className="bg-black/25 text-[12px]">
         <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-2 min-w-0">
           <div className="flex flex-wrap items-center gap-x-2 sm:gap-x-3 min-w-0 flex-1">
@@ -106,6 +130,7 @@ export default function Header() {
           </div>
         </div>
       </div>
+      )}
 
       {/* Spațiile dintre elementele barei se strâng pe ecran mic și se lărgesc pe
           cel mare. Comutatorul de temă a adăugat o a cincea iconiță de 44px, iar

@@ -9,6 +9,8 @@ import FiltreSertar from "@/components/FiltreSertar";
 import StareGoala from "@/components/StareGoala";
 import { IconLupa } from "@/components/Icoane";
 import { fitmentCounts, marciCuPiese, textCautare } from "@/lib/format";
+import { getVacanta } from "@/lib/settings";
+import { VacantaStareGoala } from "@/components/VacantaNota";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +27,9 @@ type SP = { q?: string; oem?: string; categorie?: string; subcategorie?: string;
 
 export default async function Piese({ searchParams }: { searchParams: SP }) {
   const sb = sbServer();
+  // În vacanță listarea rămâne, cu filtre cu tot, dar fără rezultate. Paginile
+  // individuale de produs trăiesc mai departe, cu 200 — vezi app/piese/[slug].
+  const vacanta = await getVacanta();
   let products: Product[] = []; let cats: Category[] = []; let titlu = "Toate piesele";
   let brands: Brand[] = []; let models: Model[] = []; let fitRows: { model_ids: number[] }[] = [];
   let catActiva: Category | null = null;
@@ -182,14 +187,21 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
         </FiltreSertar>
 
         <div className="min-w-0">
-          <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-            <span className="text-sm text-textSecundar">{products.length} {products.length === 1 ? "piesă găsită" : "piese găsite"}</span>
-            <SortSelect />
-          </div>
-          <div className="grid grid-cols-1 min-[420px]:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
-            {products.map((p) => <ProductCard key={p.id} p={p} />)}
-          </div>
-          {products.length === 0 && (
+          {!vacanta.activ && (
+            <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+              <span className="text-sm text-textSecundar">{products.length} {products.length === 1 ? "piesă găsită" : "piese găsite"}</span>
+              <SortSelect />
+            </div>
+          )}
+          {!vacanta.activ && (
+            <div className="grid grid-cols-1 min-[420px]:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
+              {products.map((p) => <ProductCard key={p.id} p={p} />)}
+            </div>
+          )}
+          {/* Mesajul de vacanță ține locul stării goale obișnuite: aceea ar fi
+              spus „încearcă să elimini marca", trimițând omul să caute degeaba. */}
+          {vacanta.activ && <VacantaStareGoala vacanta={vacanta} titlu="Suntem în pauză" />}
+          {!vacanta.activ && products.length === 0 && (
             <StareGoala
               icon={<IconLupa className="w-7 h-7" />}
               titlu="Nicio piesă nu corespunde filtrelor"

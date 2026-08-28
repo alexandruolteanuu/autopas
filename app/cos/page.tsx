@@ -8,9 +8,14 @@ import DiscountBox, { type Reducere } from "@/components/DiscountBox";
 import Link from "next/link";
 import StareGoala from "@/components/StareGoala";
 import { IconCos } from "@/components/Icoane";
+import { useVacanta } from "@/components/VacantaContext";
+import { VacantaBanner } from "@/components/VacantaNota";
 
 export default function Cos() {
   const { items, remove, total } = useCart();
+  // Coșul NU se golește în vacanță: piesele rămân, ca omul să le regăsească
+  // la reluare. Se blochează doar drumul spre checkout.
+  const vacanta = useVacanta();
   const [reducere, setReducere] = useState<Reducere>(null);
   useEffect(() => { // păstrăm reducerea pentru checkout
     if (reducere) sessionStorage.setItem("autopas_reducere", JSON.stringify(reducere));
@@ -32,6 +37,7 @@ export default function Cos() {
     <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <Breadcrumbs items={[{ t: "Acasă", href: "/" }, { t: "Coșul meu" }]} />
       <h1 className="t-sectiune mt-2 mb-6">Coșul meu <span className="text-textSecundar text-lg">· {nrPiese(items.length)}</span></h1>
+      {vacanta.activ && <VacantaBanner vacanta={vacanta} className="mb-6" />}
       <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr),340px] gap-6 items-start">
         {/* Pe telefon fiecare piesă e un card: imagine 80px în stânga, denumirea
             și prețul în dreapta, iar „Șterge" pe rândul lui, ca țintă de 44px.
@@ -75,7 +81,12 @@ export default function Cos() {
             Costul livrării depinde de greutatea și dimensiunile pieselor. Îl calculăm după
             plasarea comenzii și te sunăm cu totalul exact înainte de expediere.
           </p>
-          <Link href="/checkout" className="btn-acc w-full">Finalizează comanda</Link>
+          {vacanta.activ
+            ? <span aria-disabled="true"
+                className="w-full rounded-xl bg-chenar text-text px-5 min-h-[44px] grid place-items-center text-sm font-semibold text-center cursor-not-allowed">
+                Comenzile sunt oprite temporar
+              </span>
+            : <Link href="/checkout" className="btn-acc w-full">Finalizează comanda</Link>}
           <p className="text-xs text-textSecundar text-center">Plată ramburs sau transfer bancar · Garanție 90 de zile · Retur în 14 zile</p>
         </div>
       </div>

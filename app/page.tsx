@@ -10,6 +10,7 @@ import RecycleIcon from "@/components/RecycleIcon";
 import StareGoala from "@/components/StareGoala";
 import { IconLupa } from "@/components/Icoane";
 import { fitmentCounts, marciCuPiese, nrPiese } from "@/lib/format";
+import { getVacanta } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 // Datele catalogului se citesc mereu proaspăt. `revalidate = 300` din layout
@@ -43,6 +44,9 @@ async function getData() {
 
 export default async function Home() {
   const { cats, products, cars, brands, models, counts } = await getData();
+  // În vacanță secțiunea „Piese adăugate recent" DISPARE cu totul, nu rămâne
+  // titlul cu gol dedesubt. Hello bar-ul din header spune deja de ce.
+  const vacanta = await getVacanta();
   return (
     <>
       {/* HERO. Singura bandă din site care își schimbă culoarea cu tema: pe
@@ -108,6 +112,7 @@ export default async function Home() {
         </div>
       </section>
 
+      {!vacanta.activ && (
       <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 pb-12">
         <div className="flex items-end justify-between mb-6">
           <div><div className="dim">Noutăți</div>
@@ -121,6 +126,7 @@ export default async function Home() {
           <StareGoala icon={<IconLupa className="w-7 h-7" />} titlu="Nicio piesă publicată încă" text="Adaugă prima piesă din panoul de administrare și va apărea imediat aici." actiune={{ eticheta: "Deschide panoul", href: "/admin/produse" }} />
         )}
       </section>
+      )}
 
       {brands.length > 0 && (
         <section className="bg-suprafata border-y border-chenar">

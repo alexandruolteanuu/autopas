@@ -5,7 +5,7 @@ import SiteChrome from "@/components/SiteChrome";
 import { CartProvider } from "@/components/CartContext";
 import { FavoritesProvider } from "@/components/FavoritesContext";
 import { CONFIG, SITE_URL } from "@/lib/config";
-import { getSetariServer } from "@/lib/settings";
+import { getSetariServer, getVacanta } from "@/lib/settings";
 
 // Fontul Poppins (local) — un singur font, patru grosimi, diacritice românești garantate.
 const poppins = localFont({
@@ -49,6 +49,11 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const { firma } = await getSetariServer();
+  // Starea vacanței, citită o dată pentru tot arborele public. Hello bar-ul o
+  // arată pe fiecare pagină, nu doar pe prima. `revalidate = 300` de mai sus ar
+  // ține-o veche până la 5 minute, de asta comutatorul din admin cheamă
+  // `/api/revalideaza` imediat după salvare — la fel ca datele firmei.
+  const vacanta = await getVacanta();
   return (
     <html lang="ro" className={poppins.variable}>
       <head>
@@ -71,7 +76,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body>
         <CartProvider>
           <FavoritesProvider>
-          <SiteChrome waPhone={firma.whatsapp || CONFIG.whatsapp} firma={firma}>{children}</SiteChrome>
+          <SiteChrome waPhone={firma.whatsapp || CONFIG.whatsapp} firma={firma} vacanta={vacanta}>{children}</SiteChrome>
         </FavoritesProvider>
         </CartProvider>
       </body>

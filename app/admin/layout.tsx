@@ -39,6 +39,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [rol, setRol] = useState<Rol>("verific");
   const [email, setEmail] = useState("");
   const [badges, setBadges] = useState<{ comenzi: number; cereri: number; completat: number }>({ comenzi: 0, cereri: 0, completat: 0 });
+  // Modul vacanță: banda de avertizare din tot panoul. Motivul e practic, nu
+  // estetic — cineva îl activează, pleacă în concediu, se întoarce și uită. O
+  // lună fără comenzi, fără ca nimeni să înțeleagă de ce. Trebuie să fie
+  // imposibil de ratat, pe fiecare ecran, nu doar în Setări.
+  const [vacantaActiva, setVacantaActiva] = useState(false);
   const [alerte, setAlerte] = useState<{ t: string; href: string }[]>([]);
   const [clopotel, setClopotel] = useState(false);
   const [q, setQ] = useState("");
@@ -69,6 +74,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (p3.count) a.push({ t: `${p3.count} cereri de retur în așteptare`, href: "/admin/cereri?tab=retur" });
     if (p4.count) a.push({ t: `${p4.count} mesaje de contact necitite`, href: "/admin/cereri?tab=contact" });
     setAlerte(a);
+
+    const { data: v } = await sb.rpc("vacanta_publica");
+    setVacantaActiva((v as any)?.activ === true);
   }, []);
 
   useEffect(() => {
@@ -196,6 +204,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             )}
           </div>
         </header>
+        {/* Banda de vacanță — pe fundal de avertizare, nu pe paleta panoului.
+            Culorile semantice nu fac parte din temă (vezi CLAUDE.md), deci
+            galbenul de aici nu se schimbă odată cu ea. */}
+        {vacantaActiva && (
+          <div role="alert" className="bg-amber-400 text-black px-4 lg:px-6 py-3 text-sm font-semibold flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span aria-hidden="true">⏸</span>
+            <span>MOD VACANȚĂ ACTIV — site-ul nu primește comenzi.</span>
+            <Link href="/admin/setari" className="underline underline-offset-2 font-bold">Dezactivează din Setări</Link>
+          </div>
+        )}
         <main className="p-4 lg:p-6">{children}</main>
         <NewOrderAlert />
       </div>

@@ -11,6 +11,8 @@ import { lei } from "@/lib/format";
 import { getSetariServer, waLinkCu } from "@/lib/settings";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getVacanta } from "@/lib/settings";
+import { VacantaBanner } from "@/components/VacantaNota";
 
 export const dynamic = "force-dynamic";
 // Datele catalogului se citesc mereu proaspăt. `revalidate = 300` din layout
@@ -30,6 +32,11 @@ export default async function Produs({ params }: { params: { slug: string } }) {
     .select("*, categories!products_categorie_id_fkey(*), vehicles(*)")
     .eq("slug", params.slug).single();
   if (!p) notFound();
+  // MOD VACANȚĂ — pagina rămâne accesibilă, cu status 200.
+  // Dacă ar întoarce 404 sau ar dispărea din sitemap, Google ar scoate-o din
+  // index, iar poziționarea s-ar recâștiga în săptămâni, nu în ore. Se schimbă
+  // doar butonul de comandă. Vezi supabase/mod-vacanta.sql și A.4 din sarcină.
+  const vacanta = await getVacanta();
   const prod = p as Product;
   const { firma } = await getSetariServer();
   await sb.rpc("vazut_produs", { p_id: prod.id });
@@ -110,8 +117,14 @@ export default async function Produs({ params }: { params: { slug: string } }) {
             )}
           </div>
 
+          {vacanta.activ && <VacantaBanner vacanta={vacanta} className="mt-4" />}
+
           <div className="mt-4 grid gap-2.5 sm:grid-cols-[minmax(0,1fr),auto]">
-            {prod.stoc > 0
+            {vacanta.activ
+              ? <div className="rounded-xl bg-chenar text-text px-5 min-h-[44px] grid place-items-center text-sm font-medium text-center">
+                  Comenzile sunt oprite temporar
+                </div>
+              : prod.stoc > 0
               ? <AddToCart p={prod} mare />
               : <div className="rounded-xl bg-chenar text-text px-5 min-h-[44px] grid place-items-center text-sm font-medium text-center">Stoc epuizat — vezi piese similare</div>}
             <div className="grid grid-cols-2 sm:flex gap-2.5">
