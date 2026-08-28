@@ -1,80 +1,64 @@
-# RAPORT — 28 august 2026 · SEO, TREAPTA 1 LA IMAGINI
 
-Partea A e închisă complet. Verificat pe producție după setările din Vercel:
-`robots.txt` permite crawlarea, `www` redirecționează **308** spre non-`www` (direcția
-corectă acum), iar canonical-ul e corect pe toate tipurile de pagini.
-
-*(308 și nu 301: Vercel folosește Permanent Redirect, echivalentul care păstrează metoda.
-Google le tratează la fel.)*
 
 ---
-
-## Treapta 1 — făcută, dar cu o veste
-
-Defectul e reparat: prima poză din listare, imaginea mare din galeria de produs și prima
-mașină din `/masini` primesc `eager` + `fetchpriority="high"`. **Doar prima** — dacă totul e
-prioritar, nimic nu e.
-
-Două lucruri aflate măsurând, care contrazic ce presupuneam:
-
-**Pe prima pagină nu era nimic de reparat.** Elementul LCP acolo e titlul `H1`, la 828 ms.
-Pozele de sub el pot rămâne leneșe; le-am lăsat așa.
-
-**Nu am pus `width`/`height` pe poze**, deși ar fi părut firesc: nu cunoaștem dimensiunile
-reale ale fiecărei imagini, containerul are deja `aspect-[4/3]`, iar CLS-ul e **0** pe toate
-paginile. Niște dimensiuni inventate ar fi stricat exact ce e în regulă.
-
-**Câștigul pe `/piese` e modest.** Mediana pe trei rulări: **3072 → 2912 ms**. Cererea pozei
-pornește cu 270 ms mai devreme — dar tot abia la 2,7 s.
-
 ---
 
-## Cauza reală a LCP-ului e altundeva
+# MIGRAREA 31 — numărătoarea pe categorii
 
-| Pagină | TTFB (3 rulări) |
-|---|---|
-| `/` | 0,58 s |
-| **`/piese`** | **2,6 – 2,8 s** |
-| `/masini` | 0,18 s |
+Scrisă și împinsă: **`supabase/categorii-numar-rapid.sql`**. Doar `create or replace view`,
+nedistructivă. **O rulează utilizatorul.**
 
-Poza nu poate începe să se încarce înainte să sosească HTML-ul. `fetchpriority` își face
-treaba în limita asta, dar plafonul e serverul.
+## 1. Confirmarea pe planul nou, pe date reale
 
-Am căutat ce durează și am găsit: **view-ul `categorii_cu_numar` ia 1.412 ms singur.**
-Numără piesele pe categorie cu o subinterogare corelată — o scanare completă peste toate
-cele 8.783 de produse, **de 349 de ori**, o dată pentru fiecare categorie:
+Prima măsurătoare a ieșit greșit și merită spus de ce: am cronometrat cu `count(*)`, iar
+planificatorul a eliminat exact subinterogarea pe care voiam s-o măsor — nu avea nevoie de
+coloana calculată. Refăcută cu `sum(nr_piese)`, care forțează calculul:
 
-```
-Seq Scan on categories c  (actual time=5.996..1409.633 rows=349)
-  SubPlan 1
-    ->  Seq Scan on products p  (actual time=1.252..4.020 rows=50 loops=349)
-          Rows Removed by Filter: 8733
-Execution Time: 1411.666 ms
-```
+| | rulările | medie |
+|---|---|---|
+| **vechi** | 1452 · 1398 · 1571 ms | **1474 ms** |
+| **nou** | 21,8 · 18,7 · 18,5 ms | **19,7 ms** |
 
-Rescris ca o singură agregare (`union all` peste cele două coloane de categorie, apoi
-`count(distinct)`), măsurat fără să modific nimic:
+Aceeași sumă în ambele: **17.478**. De ~75 de ori mai rapid.
 
-- **1.412 ms → 27 ms**, de **53 de ori** mai rapid;
-- rezultate **identice**: 349 de categorii, **0 diferențe**, aceeași sumă totală (17.478).
+Rescrierea folosește `union all` peste cele două coloane de categorie și o singură grupare, cu
+`count(distinct pid)` — nu `count(*)` — ca o piesă care ar avea aceeași categorie în ambele
+coloane să fie numărată o dată, exact ca vechiul `OR`.
 
-E jumătate din TTFB-ul lui `/piese`, iar view-ul e folosit și pe prima pagină, și în admin.
+## 2. Căutarea aceluiași tipar în tot proiectul
 
----
+Sunt trei view-uri în bază. Măsurate toate:
 
-## Întrebarea deschisă
+| View | Timp | Verdict |
+|---|---|---|
+| `categorii_cu_numar` | **1474 ms** | 🔴 vinovatul — 349 de scanări complete |
+| `numar_piese_pe_masina` | 0,9 ms | 🟡 aceeași formă, dar nevinovat |
+| `numar_piese_pe_model` | 25 ms | ✅ agregă o singură dată |
 
-**Aplic rescrierea view-ului acum?** E o migrare `create or replace view`, nedistructivă, cu
-rezultate verificate identice — vreo 10 minute cu tot cu verificare.
+`numar_piese_pe_masina` merită explicat, fiindcă are **exact același tipar** — subinterogare
+corelată, una per mașină. Nu doare fiindcă merge pe indexul `products_vehicul_idx`: face 23 de
+*căutări în index*, nu 23 de *scanări de tabelă*. Diferența e structurală, nu de mărime — la
+`categorii_cu_numar`, condiția `(categorie_id = c.id) OR (subcategorie_id = c.id)` nu poate
+folosi niciun index tocmai din cauza lui `OR`. Notat în `CLAUDE.md`: dacă indexul acela dispare
+vreodată, view-ul mașinilor devine aceeași problemă.
 
-Contează pentru ordinea de lucru: ar face ca **Treapta 2 la imagini** (varianta de 400px) să
-conteze cu adevărat. Acum, oricât ai micșora pozele, LCP-ul rămâne blocat de cei 2,6 s de
-server.
+**Trei locuri care numără în stratul greșit**, din aceeași familie:
 
-Dacă preferi ordinea strictă, o las pentru mai târziu și trec la **Partea B** —
-`generateMetadata` pe pagina de produs.
+- **`/piese` face cele 5 interogări secvențial**, fiecare un drum separat Frankfurt→Irlanda.
+  Interogarea principală de listare ia doar 21 ms; drumurile sunt cele care se adună.
+- **`/admin/masini`** aduce toate cele 8.783 de produse (9 cereri paginate) doar ca să numere
+  piesele pe mașină — deși `numar_piese_pe_masina` dă exact asta în 0,9 ms.
+- **`/admin/rapoarte`** aduce tot catalogul ca să traducă `product_id` în categorie și mașină.
+  Azi e necesar, dar la 30 de vânzări pe zi ar trebui mutat într-un `join` în bază.
 
----
+Niciunul nu e blocant acum — sunt ecrane interne, nu pagini publice.
 
-*Rapoartele anterioare rămân în istoricul git; ultimul, cel al Părții A, la commitul
-`7de0285`.*
+## 3. Ce urmează
+
+După rularea migrării: măsurare TTFB pe `/piese` și pe prima pagină.
+
+**Estimare: ~1,2 s** din cei 2,6 s de acum. Restul ar fi cele 5 drumuri secvențiale către
+Supabase. Dacă se confirmă, paralelizarea lor e următoarea reparație ieftină — și abia după ea
+Treapta 2 la imagini va conta cu adevărat.
+
+Apoi **Partea B** — `generateMetadata` pe pagina de produs.
