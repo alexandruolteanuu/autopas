@@ -13,14 +13,27 @@ import { sbServer } from "@/lib/supabase";
 export type MarcaTop = { slug: string; nume: string; nr_piese: number };
 
 // Fontul Poppins (local) — un singur font, patru grosimi, diacritice românești garantate.
+// WOFF2, nu TTF: aceleași patru grosimi, 617 KB -> 200 KB, cu 68% mai puțin.
+// Fonturile erau cel mai greu lucru din fiecare pagină a site-ului — mai grele
+// decât tot JavaScript-ul — iar TTF-ul e formatul necomprimat, potrivit pentru
+// instalare în sistem, nu pentru web. Fișierele .ttf rămân în `app/fonts/` ca
+// sursă: din ele se regenerează .woff2 dacă e nevoie.
+//
+// Toate patru grosimile sunt folosite: 400 în textul de corp, 500 la etichete,
+// 600 și 700 în titluri și butoane (174, respectiv 113 locuri în cod).
+//
+// `display: "swap"` — textul se desenează imediat cu fontul de sistem și se
+// schimbă când sosește Poppins. Alternativa, `optional`, ar sări complet fontul
+// pe conexiuni slabe; aici identitatea vizuală contează prea mult.
 const poppins = localFont({
   src: [
-    { path: "./fonts/Poppins-Regular.ttf", weight: "400" },
-    { path: "./fonts/Poppins-Medium.ttf", weight: "500" },
-    { path: "./fonts/Poppins-SemiBold.ttf", weight: "600" },
-    { path: "./fonts/Poppins-Bold.ttf", weight: "700" },
+    { path: "./fonts/Poppins-Regular.woff2", weight: "400" },
+    { path: "./fonts/Poppins-Medium.woff2", weight: "500" },
+    { path: "./fonts/Poppins-SemiBold.woff2", weight: "600" },
+    { path: "./fonts/Poppins-Bold.woff2", weight: "700" },
   ],
   variable: "--font-poppins",
+  display: "swap",
 });
 
 // Datele firmei (subsol, documente legale) vin din Admin → Setări. Fără linia asta,
