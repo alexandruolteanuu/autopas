@@ -1,82 +1,71 @@
-# RAPORT — 28 august 2026 · de ce pare lentă pagina /piese
+# RAPORT — 28 august 2026 · fonturi WOFF2, ecrane de așteptare, și o regresie scoasă
 
-B.4 punctul 1 e împins în `81740f4` (rutele de marcă și categorie). Mai jos e diagnosticul
-cerut pentru viteza lui `/piese`.
+## Rezultatul măsurat pe producție
 
-**Măsurat, nu implementat.** Rezultatul **infirmă ipoteza cu imaginile.**
-
----
-
-## Unde se duce timpul
-
-Lighthouse, mobil, producție:
-
-| | |
-|---|---|
-| Performanță | 81 |
-| First Contentful Paint | 1,1 s |
-| **Speed Index** | **2,4 s** |
-| LCP | 4,7 s |
-| **Time to Interactive** | **4,8 s** |
-| Total Blocking Time | 140 ms |
-| CLS | 0 |
-
-Greutatea paginii — **736 KB, 39 de cereri**:
-
-| | cereri | KB |
+| | înainte | acum |
 |---|---:|---:|
-| **Fonturi** | 4 | **285** |
-| Scripturi | 18 | 199 |
-| **Imagini** | 8 | **188** |
-| HTML | 1 | 36 |
-| Restul | 8 | 27 |
+| **Greutate totală** | 736 KB | **655 KB** |
+| **Fonturi** | 285 KB | **201 KB** |
+| Time to Interactive | 4,8 s | **4,5 s** |
+| Total Blocking Time | 140 ms | **70 ms** |
+| Speed Index | 2,4 s | 3,4 s |
+| CLS | 0 | **0** |
 
-**Imaginile sunt 188 KB, nu 1,44 MB.** Cei 1,44 MB dintr-un raport anterior erau greutatea
-tuturor celor 24 de poze descărcate forțat. În realitate `loading="lazy"` face ca la prima
-încărcare să se descarce doar cele **8 vizibile**. Măsurătoarea de atunci era corectă ca
-număr, dar concluzia trasă din ea a fost greșită.
+Fonturile au dat exact ce promiteau: **−84 KB pe fiecare pagină a site-ului**, nu doar pe
+`/piese`. TBT s-a înjumătățit — mai puțin de decodat la pornire.
 
-## Navigarea din meniu e mai RAPIDĂ, nu mai lentă
+**Speed Index a crescut**, de la 2,4 la 3,4 s. E singura cifră în minus și nu am o explicație
+măsurată pentru ea; Speed Index variază mult între rulări, iar restul indicatorilor merg în
+sens invers. Se reia, ca să nu treacă o presupunere drept răspuns.
 
-| | |
-|---|---|
-| navigare din meniu (client-side) | 1156 · 1165 · 1200 ms |
-| încărcare directă a adresei | 1614 · 1559 · 1447 ms |
+## Fonturile
 
-Senzația e reală, dar cauza e alta: după click, **pagina veche rămâne pe ecran ~1,2 secunde
-fără niciun semn că se întâmplă ceva**. Next randează pe server înainte să arate orice, iar
-`/piese` n-are `loading.tsx`.
+Patru fișiere TTF, 617 KB, convertite în WOFF2: 200 KB. Fișierele `.ttf` rămân în
+`app/fonts/` ca sursă.
 
-Nu e lentoare, e lipsă de răspuns — care se simte mai rău decât e.
+Toate patru grosimile sunt folosite — 400 în textul de corp, 500 la etichete, 600 și 700 în
+titluri și butoane (174, respectiv 113 locuri în cod). Niciuna nu se putea scoate fără să
+schimbe felul în care arată site-ul, deci au rămas toate.
 
-## Ce s-a găsit în schimb: fonturile
-
-Cel mai greu lucru din pagină. Sunt patru fișiere **TTF**, nu WOFF2. Convertite ca să existe
-cifra exactă, nu o estimare:
-
-```
-Poppins-Regular    156 KB  ->   50 KB
-Poppins-Medium     154 KB  ->   49 KB
-Poppins-SemiBold   153 KB  ->   50 KB
-Poppins-Bold       152 KB  ->   49 KB
-TOTAL              617 KB  ->  200 KB   (68% mai puțin)
-```
+`display: "swap"`, nu `optional`: textul se desenează imediat cu fontul de sistem și se
+schimbă când sosește Poppins. `optional` ar sări complet fontul pe conexiuni slabe.
 
 ---
 
-## Propunerea, în ordinea câștigului
+## Regresia pe care am introdus-o și am scos-o
 
-1. **`loading.tsx` pe `/piese` și pe rutele noi** — rezolvă exact senzația descrisă. Next îl
-   arată instantaneu, prin Suspense, cât timp serverul randează. ~20 de minute, zero risc.
-2. **Fonturile în WOFF2** — 285 KB transferați → ~110 KB. Cel mai mare câștig de greutate din
-   pagină. O oră.
-3. **Treapta 2 la imagini** — rămâne utilă, dar **nu pentru prima încărcare**: ajută la
-   derulare și taie datele consumate pe mobil. Nu e cauza problemei de acum.
+Scheletele de pe listări **anulau încărcarea leneșă a imaginilor.** Măsurat A/B pe același
+build:
 
-Recomandarea: **1 și 2 înaintea lui 3**, exact pe motivul pentru care treapta 2 fusese urcată
-în prioritate — e pagina cea mai importantă, iar primele două o fac să pară, și să fie, rapidă
-mai mult decât ar face-o imaginile.
+| | poze descărcate | greutate |
+|---|---:|---:|
+| fără schelet | 6 | **338 KB** |
+| cu schelet | **24** | **1.475 KB** |
+
+Pe producție se vedea ca 2.025 KB și 29 de cereri de imagini — un plus de **1,1 MB pe
+telefon**, exact opusul a ce urmăream.
+
+Am presupus că imaginile intră în pagină înainte ca stilurile să le dea o formă și am
+încercat `width`/`height` explicite. **N-a schimbat nimic**, deci explicația era greșită;
+codul n-a rămas acolo.
+
+Scheletele au fost scoase **doar de pe listări**. Pe pagina de piesă, pe `/masini` și pe
+pagina unei mașini rămân — verificat că acolo nu produc efectul (0, respectiv 6 poze, cât
+încarcă galeria oricum).
+
+## Ce înseamnă pentru cererea inițială
+
+Cererea era `loading.tsx` pe toate rutele care randează pe server. **Pe trei dintre ele nu se
+poate**, în forma asta: costă 1,1 MB. Pe celelalte trei e livrat.
+
+Pentru listări, alternativa care dă răspuns la click fără să atingă imaginile e **o bară
+subțire de progres în partea de sus**, arătată în timpul navigării. Nu schimbă așezarea, deci
+nu poate influența ce imagini se încarcă. Adaugă însă un element vizibil nou, așa că e
+propusă, nu făcută.
 
 ## Ce aștept
 
-Confirmarea schimbării de ordine.
+Bara de progres pe listări — da sau nu. Dacă nu, listările rămân fără feedback la click până
+găsim altă cale.
+
+Apoi treapta 2 la imagini, care rămâne la coadă, cum am stabilit.
