@@ -100,12 +100,30 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
   const pagina = Math.max(1, Number(searchParams.pagina) || 1);
 
   if (sb) {
-    cats = await citesteTot<Category>(() => sb.from("categorii_cu_numar").select("*", { count: "exact" }).order("ordine").order("id"), { eticheta: "categoriile" });
-    brands = await citesteTot<Brand>(() => sb.from("brands").select("*", { count: "exact" }).order("ordine").order("id"), { eticheta: "mărcile" });
-    models = await citesteTot<Model>(() => sb.from("models").select("*", { count: "exact" }).order("nume").order("id"), { eticheta: "modelele" });
-    // Contoarele filtrului vin din view (537 de rânduri), nu din `products`
-    // (8.754, tăiate la 1.000). Vezi supabase/numar-piese-pe-model.sql.
-    fitRows = ((await sb.from("numar_piese_pe_model").select("*")).data ?? []) as any[];
+    // ---- VALUL 1: tot ce nu depinde de nimic, în paralel ----
+    //
+    // Erau cinci `await` unul după altul, deci cinci drumuri dus-întors până la
+    // Supabase, în serie. Doar interogarea de piese are nevoie de rezultatele
+    // celorlalte — traduce slug-urile din adresă în id-uri, prin `cats.find`,
+    // `models.find` și `brands.find` — așa că restul pot pleca deodată.
+    //
+    // Contoarele filtrului vin din view (538 de rânduri), nu din `products`
+    // (8.783, tăiate la 1.000). Vezi supabase/numar-piese-pe-model.sql.
+    //
+    // `Promise.all` respinge la PRIMA eroare, iar noi n-o prindem aici: pagina
+    // pică vizibil. E intenționat. Dacă am fi pus `?? []` pe fiecare rezultat,
+    // o interogare căzută ar fi dat o listă goală de mărci sau de categorii, iar
+    // pagina ar fi arătat „nicio piesă găsită" ca și cum ar fi fost adevărat —
+    // exact tiparul de la plafonul de 1.000 de rânduri și de la RLS: o
+    // operațiune care pare că a reușit, dar n-a atins tot. Mai bine o eroare
+    // văzută decât un catalog gol care pare corect.
+    const [rCats, rBrands, rModels, rFit] = await Promise.all([
+      citesteTot<Category>(() => sb.from("categorii_cu_numar").select("*", { count: "exact" }).order("ordine").order("id"), { eticheta: "categoriile" }),
+      citesteTot<Brand>(() => sb.from("brands").select("*", { count: "exact" }).order("ordine").order("id"), { eticheta: "mărcile" }),
+      citesteTot<Model>(() => sb.from("models").select("*", { count: "exact" }).order("nume").order("id"), { eticheta: "modelele" }),
+      citesteTot<any>(() => sb.from("numar_piese_pe_model").select("*", { count: "exact" }).order("model_id"), { eticheta: "contoarele pe model" }),
+    ]);
+    cats = rCats; brands = rBrands; models = rModels; fitRows = rFit;
 
     // Atenție: `products` are DOUĂ legături către `categories` (categorie_id și
     // subcategorie_id). Fără să spunem pe care o vrem, Supabase respinge cererea

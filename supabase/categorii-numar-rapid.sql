@@ -38,11 +38,22 @@
 -- `security_invoker = true` se păstrează, din același motiv ca la migrarea 14:
 -- view-ul aplică politicile RLS ale celui care îl citește. Se redeclară pentru că
 -- `create or replace view` NU păstrează opțiunile view-ului vechi.
+--
+-- ⚠ DE CE NU E `count(distinct pid)::int`
+-- Prima variantă avea cast la `int` și a fost respinsă:
+--
+--   ERROR: 42P16: cannot change data type of view column „nr_piese"
+--                 from bigint to integer
+--
+-- `create or replace view` poate schimba CORPUL unui view, dar nu tipul unei
+-- coloane. Vechiul `count(*)` întorcea `bigint`, deci noul trebuie tot `bigint`.
+-- Capcana nu se vede testând definiția sub alt nume: acolo e un view NOU, iar
+-- restricția nu se aplică. Se vede doar la înlocuirea propriu-zisă.
 -- ============================================================
 
 create or replace view public.categorii_cu_numar as
   with numarate as (
-    select cid, count(distinct pid)::int as nr
+    select cid, count(distinct pid) as nr
       from (
         select id as pid, categorie_id    as cid from products
          where publicat and stoc > 0 and categorie_id is not null
