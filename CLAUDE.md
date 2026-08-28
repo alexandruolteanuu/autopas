@@ -374,6 +374,16 @@ sunt sarcini ale utilizatorului. Consemnate la 24 august 2026.
     indexul acela dispare vreodată, devine exact aceeași problemă.
   · Contoarele nu se calculează nici în Node, nici cu o subinterogare pe rând. Se calculează o
     dată, în bază, într-un view (vezi și `numar_piese_pe_model`).
+- **Datorie tehnică știută, de reparat înainte ca al catalogul să se dubleze** (28 august 2026):
+  · `/admin/masini` aduce toate cele 8.783 de produse (9 cereri paginate) doar ca să numere
+    piesele pe mașină — `numar_piese_pe_masina` dă exact aceleași cifre în 0,9 ms. Se
+    înlocuiește cu view-ul.
+  · `/admin/rapoarte` aduce tot catalogul ca să traducă `product_id` în categorie și mașină.
+    Azi e singura cale, dar la 30 de vânzări pe zi ar trebui mutat într-un `join` în bază.
+  · `/piese` își face interogările de căutare în două valuri (vezi mai jos). Ecranele de admin
+    n-au fost încă trecute prin aceeași verificare.
+  Niciuna nu e blocantă: sunt ecrane interne, nu pagini publice. Devin dureroase când catalogul
+  crește — exact ca plafonul de 1.000 de rânduri, care n-a durut până la a 1.001-a piesă.
 - Roluri: `client`, `operator`, `contabil`, `admin` (coloana `role` în `profiles`, controlată prin RLS).
 
 ## Cele 16 module de admin
