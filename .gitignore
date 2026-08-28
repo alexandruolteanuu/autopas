@@ -8,3 +8,7 @@ node_modules/
 # `import` — inclusiv `lib/import/` (motorul de import) și rutele
 # `app/api/import/`, care ar fi rămas necomise fără să spună nimeni nimic.
 /import/
+
+# fișiere temporare de depanare, scrise în rădăcină ca să vadă node_modules
+dbg-temp.mjs
+dbg*.mjs
