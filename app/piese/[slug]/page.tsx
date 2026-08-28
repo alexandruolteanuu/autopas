@@ -1,4 +1,6 @@
+import { cache } from "react";
 import { sbServer, citesteTot } from "@/lib/supabase";
+import { titluPiesa, descrierePiesa } from "@/lib/seo";
 import type { Product, Category, Brand, Model } from "@/lib/types";
 import AddToCart from "@/components/AddToCart";
 import ProductCard from "@/components/ProductCard";
@@ -13,6 +15,7 @@ import { piesaGa, MONEDA } from "@/lib/analytics";
 import { getSetariServer, waLinkCu } from "@/lib/settings";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { getVacanta } from "@/lib/settings";
 import { VacantaBanner } from "@/components/VacantaNota";
 
@@ -24,26 +27,77 @@ export const dynamic = "force-dynamic";
 // unicat, deci stocul trebuie citit la secundă.
 export const fetchCache = "force-no-store";
 
-/**
- * Deocamdată doar adresa canonică — titlul și descrierea vin în Partea B.
- *
- * Nu cere nimic din bază: `canonical` se construiește din slug-ul din adresă,
- * care e chiar identificatorul paginii. O interogare aici s-ar face pe fiecare
- * afișare de produs, în plus față de cea din pagină.
- */
-export function generateMetadata({ params }: { params: { slug: string } }) {
-  return { alternates: { canonical: `/piese/${params.slug}` } };
+// ---- CITIRI ÎMPĂRȚITE ÎNTRE METADATE ȘI PAGINĂ ----
+//
+// `generateMetadata` și componenta paginii rulează amândouă la fiecare afișare
+// de produs. Fără `cache()` din React, fiecare și-ar face propriile interogări:
+// pe 8.739 de pagini asta ar însemna dublarea cererilor exact după ce am tăiat
+// timpul de răspuns de la 2,73 s la 0,88 s.
+//
+// `cache()` reține rezultatul pe durata UNEI cereri HTTP, deci a doua chemare
+// primește ce a adus prima. Nu e cache între vizitatori — nu se bate cap în cap
+// cu `fetchCache = "force-no-store"` de mai sus, care ține stocul proaspăt.
+const iaPiesa = cache(async (slug: string) => {
+  const sb = sbServer();
+  if (!sb) return null;
+  // Numim explicit cheia străină: `products` leagă `categories` de două ori
+  // (categorie_id și subcategorie_id), iar fără precizare cererea e respinsă ca
+  // ambiguă, produsul iese `null` și pagina răspundea 404 pentru orice piesă.
+  const { data } = await sb.from("products")
+    .select("*, categories!products_categorie_id_fkey(*), vehicles(*)")
+    .eq("slug", slug).single();
+  return (data as Product | null) ?? null;
+});
+
+const iaModeleSiMarci = cache(async () => {
+  const sb = sbServer();
+  if (!sb) return { models: [] as Model[], brands: [] as Brand[] };
+  const [models, brands] = await Promise.all([
+    citesteTot<Model>(() => sb.from("models").select("*", { count: "exact" }).order("id"), { eticheta: "modelele" }),
+    citesteTot<Brand>(() => sb.from("brands").select("*", { count: "exact" }).order("id"), { eticheta: "mărcile" }),
+  ]);
+  return { models, brands };
+});
+
+/** Modelul „principal" e primul din `model_ids` — cel pe care importul îl
+ *  confirmă din titlu (vezi CLAUDE.md). Marca vine de la el. */
+function masinaPiesei(prod: Product, models: Model[], brands: Brand[]) {
+  const primul = (prod.model_ids ?? [])[0];
+  const model = primul ? models.find((m) => m.id === primul) ?? null : null;
+  const marca = model ? brands.find((b) => b.id === model.brand_id) ?? null : null;
+  return { model, marca };
+}
+
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  const prod = await iaPiesa(params.slug);
+  if (!prod) return { title: "Piesă negăsită", alternates: { canonical: `/piese/${params.slug}` } };
+
+  const { models, brands } = await iaModeleSiMarci();
+  const { model, marca } = masinaPiesei(prod, models, brands);
+  const descriere = descrierePiesa(prod);
+  const titlu = titluPiesa(prod, marca, model);
+  return {
+    // `absolute` ocolește șablonul „%s · Autopas Dezmembrări" din layout. Fără
+    // el, titlul ieșea „… | AUTOPAS · Autopas Dezmembrări" — marca de două ori
+    // și 74 de caractere, din care Google ar fi arătat vreo 60.
+    title: { absolute: titlu },
+    description: descriere,
+    alternates: { canonical: `/piese/${params.slug}` },
+    openGraph: {
+      title: titlu,
+      description: descriere,
+      // Poza reală a piesei, nu imaginea generică de partajare a site-ului.
+      images: prod.poze && prod.poze.length > 0 ? [prod.poze[0]] : undefined,
+    },
+  };
 }
 
 export default async function Produs({ params }: { params: { slug: string } }) {
   const sb = sbServer();
   if (!sb) notFound();
-  // Numim explicit cheia străină: `products` leagă `categories` de două ori
-  // (categorie_id și subcategorie_id), iar fără precizare cererea e respinsă ca
-  // ambiguă, produsul iese `null` și pagina răspundea 404 pentru orice piesă.
-  const { data: p } = await sb.from("products")
-    .select("*, categories!products_categorie_id_fkey(*), vehicles(*)")
-    .eq("slug", params.slug).single();
+  // Aceeași citire pe care a folosit-o și `generateMetadata`: `cache()` o
+  // servește din memoria cererii curente, deci nu pleacă a doua interogare.
+  const p = await iaPiesa(params.slug);
   if (!p) notFound();
   // MOD VACANȚĂ — pagina rămâne accesibilă, cu status 200.
   // Dacă ar întoarce 404 sau ar dispărea din sitemap, Google ar scoate-o din
@@ -54,8 +108,7 @@ export default async function Produs({ params }: { params: { slug: string } }) {
   const { firma } = await getSetariServer();
   await sb.rpc("vazut_produs", { p_id: prod.id });
 
-  const models = await citesteTot<Model>(() => sb.from("models").select("*", { count: "exact" }).order("id"), { eticheta: "modelele" });
-  const brands = await citesteTot<Brand>(() => sb.from("brands").select("*", { count: "exact" }).order("id"), { eticheta: "mărcile" });
+  const { models, brands } = await iaModeleSiMarci();
   const modeleProd = models.filter((m) => (prod.model_ids ?? []).includes(m.id));
   const marcaProd = brands.find((b) => modeleProd.some((m) => m.brand_id === b.id));
   const subcat = prod.subcategorie_id
