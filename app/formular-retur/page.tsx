@@ -2,7 +2,7 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import ReturnForm from "@/components/ReturnForm";
 import Link from "next/link";
 import { getSetariServer } from "@/lib/settings";
-export const metadata = { title: "Formular de retur", alternates: { canonical: "/formular-retur" } };
+export const metadata = { title: "Formular de retur", alternates: { canonical: "/formular-retur" }, description: "Retur în 14 zile, conform OUG 34/2014. Completezi formularul, primești confirmarea pe e-mail și instrucțiunile de expediere. Transportul de retur îl suporți tu." };
 
 export default async function FormularRetur() {
   // Adresa de returnare și datele firmei vin din Admin → Setări, ca peste tot.

@@ -16,7 +16,9 @@
 // Deci o mașină fără piese legate NU e un defect, ci starea normală până la
 // prima mașină dezmembrată de noi. Pagina ei arată o invitație, nu un gol.
 // ============================================================
+import { cache } from "react";
 import { sbServer, citesteTot } from "@/lib/supabase";
+import { titluMasinaSeo, descriereMasina } from "@/lib/seo";
 import type { Product, Vehicle, Brand, Model, Category } from "@/lib/types";
 import ProductCard from "@/components/ProductCard";
 import ProductGallery from "@/components/ProductGallery";
@@ -57,7 +59,9 @@ function titluMasina(v: Vehicle) {
   return v.an ? `${cuMotor} · ${v.an}` : cuMotor;
 }
 
-async function iaMasina(slug: string) {
+// `cache()`: `generateMetadata` și pagina cer amândouă aceeași mașină. Fără el
+// pleacă două interogări identice la fiecare afișare.
+const iaMasina = cache(async (slug: string) => {
   const sb = sbServer();
   if (!sb) return null;
   // Politica de citire din migrarea 28 e `publicat = true or is_staff()`, iar
@@ -65,21 +69,38 @@ async function iaMasina(slug: string) {
   // 404-ul e garantat de bază, nu doar de codul de mai jos.
   const { data } = await sb.from("vehicles").select("*").eq("slug", slug).maybeSingle();
   return (data as Vehicle | null) ?? null;
-}
+});
+
+/** Numărul REAL de piese publicate, din view. Un rând, nu tot catalogul.
+ *  Tot prin `cache()`: îl folosesc și metadatele, și pagina. */
+const iaNrPiese = cache(async (vehiculId: number) => {
+  const sb = sbServer();
+  if (!sb) return 0;
+  const { data } = await sb.from("numar_piese_pe_masina")
+    .select("nr_piese").eq("vehicul_id", vehiculId).maybeSingle();
+  return Number((data as { nr_piese?: number } | null)?.nr_piese ?? 0);
+});
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const v = await iaMasina(params.slug);
   if (!v) return { title: "Mașină negăsită" };
   const t = titluMasina(v);
-  const cate = v.piese_listate ?? 0;
+  // Numărul se citește live, nu din `piese_listate`: coloana aia e o valoare
+  // memorată de trigger, iar o descriere care promite piese inexistente e mai
+  // rea decât una fără cifre.
+  const cate = await iaNrPiese(v.id);
+  const titlu = titluMasinaSeo(t);
+  const descriere = descriereMasina(t, cate);
   return {
-    title: `Dezmembrări ${t} — piese disponibile`,
-    description: cate > 0
-      ? `${nrPiese(cate)} demontate de pe ${t}, testate, cu garanție 90 de zile și livrare în toată România.`
-      : `Dezmembrăm ${t}. Spune-ne ce piesă cauți și verificăm pe loc dacă o avem.`,
+    // `absolute`, ca la pagina de piesă: șablonul din layout adăuga „· Autopas
+    // Dezmembrări" peste titlu, care ajungea la 85 de caractere cu marca de
+    // două ori. Verificat pe producție.
+    title: { absolute: titlu },
+    description: descriere,
     alternates: { canonical: `/masini/${v.slug}` },
     openGraph: {
-      title: `Dezmembrări ${t}`,
+      title: titlu,
+      description: descriere,
       images: v.poze && v.poze.length > 0 ? [v.poze[0]] : undefined,
     },
   };

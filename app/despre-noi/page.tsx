@@ -2,7 +2,7 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import Link from "next/link";
 import { IconPin } from "@/components/Icoane";
 import { PROGRAM, ADRESA } from "@/lib/config";
-export const metadata = { title: "Despre noi", alternates: { canonical: "/despre-noi" } };
+export const metadata = { title: "Despre noi", alternates: { canonical: "/despre-noi" }, description: "Dezmembrări auto autorizate în județul Neamț: cum identificăm mașina, cum tratăm fluidele conform autorizației de mediu și de ce fiecare piesă e fotografiată real" };
 // Fără date inventate: nicio cifră de vechime, de suprafață sau de număr de mașini.
 // Tot ce scrie aici descrie procesul real, verificabil în felul în care funcționează site-ul.
 // Adresa depozitului vine din `ADRESA` (lib/config.ts), un singur loc pentru tot site-ul.

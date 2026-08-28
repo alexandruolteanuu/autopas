@@ -1,4 +1,5 @@
 import Breadcrumbs from "@/components/Breadcrumbs";
+import { cache } from "react";
 import { sbServer, citesteTot } from "@/lib/supabase";
 import type { Product, Category, Brand, Model } from "@/lib/types";
 import ProductCard from "@/components/ProductCard";
@@ -72,10 +73,32 @@ function numerePaginare(pagina: number, ultima: number): (number | null)[] {
  * dar aceeași canonică și le-ar considera duplicate — exact invers față de ce
  * vrem, adică fiecare piesă găsibilă. `prev`/`next` îi spun că sunt o serie.
  */
+/** Câte piese sunt publicate, pentru descriere. Interogare de numărare pură
+ *  (`head: true`), fără rânduri, prin `cache()` ca să nu se repete. */
+const cateePiese = cache(async () => {
+  const sb = sbServer();
+  if (!sb) return 0;
+  const { count } = await sb.from("products")
+    .select("id", { count: "exact", head: true }).eq("publicat", true).gt("stoc", 0);
+  return count ?? 0;
+});
+
 export async function generateMetadata({ searchParams }: { searchParams: SP }) {
   const pagina = Math.max(1, Number(searchParams.pagina) || 1);
+  const cate = await cateePiese();
+  // Numărul e informație reală și se schimbă odată cu catalogul — exact ce
+  // caută omul care se întreabă dacă merită să intre.
+  // Paginile 2+ primesc numărul paginii: altfel toate cele 365 ar avea aceeași
+  // descriere. Canonical-ul le desparte oricum, dar o descriere repetată de 365
+  // de ori nu ajută pe nimeni.
+  const descriere = cate > 0
+    ? (pagina > 1
+        ? `Pagina ${pagina} din catalogul de piese auto second-hand — ${cate.toLocaleString("ro-RO")} de piese pe stoc, din dezmembrări autorizate în județul Neamț.`
+        : `${cate.toLocaleString("ro-RO")} de piese auto second-hand pe stoc, din dezmembrări autorizate în județul Neamț. Testate, cu garanție 90 de zile și livrare în toată țara.`)
+    : undefined;
   return {
     title: pagina > 1 ? `Piese auto — pagina ${pagina}` : "Piese auto",
+    description: descriere,
     alternates: { canonical: adresaPaginii(searchParams, pagina) },
     // `rel=prev/next` NU se pun aici: `metadata.other` ar emite
     // `<meta name="link:prev">`, care nu înseamnă nimic pentru Google. Se pun ca

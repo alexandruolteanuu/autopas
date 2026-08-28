@@ -3,13 +3,20 @@ import { getSetariServer } from "@/lib/settings";
 import CookieSettings from "@/components/CookieSettings";
 import Link from "next/link";
 import Breadcrumbs from "@/components/Breadcrumbs";
+import { taieText } from "@/lib/seo";
 import { notFound } from "next/navigation";
 
 export function generateStaticParams() { return LEGAL_SLUGS.map((d) => ({ slug: d.slug })); }
 export function generateMetadata({ params }: { params: { slug: string } }) {
   const d = getLegal(params.slug);
+  // Descrierea se ia din PRIMUL paragraf al documentului, nu se scrie separat:
+  // altfel ar fi al doilea loc de ținut la zi, iar cele opt documente ar ajunge
+  // să spună în metadate altceva decât în pagină. Toate aveau până acum aceeași
+  // descriere, moștenită din layout.
+  const primulParagraf = d?.sectiuni?.find((x) => x.p && x.p.length > 0)?.p?.[0];
   return {
     title: d?.titluScurt ?? d?.titlu ?? "Informații legale",
+    description: primulParagraf ? taieText(primulParagraf, 158) : undefined,
     alternates: { canonical: `/legal/${params.slug}` },
   };
 }

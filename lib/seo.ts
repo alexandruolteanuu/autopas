@@ -121,3 +121,43 @@ export function descrierePiesa(p: Product) {
     .replace(/[^.]$/, (c) => c + ".");
   return taie(`${cap2} ${coada}`.replace(/\s+/g, " ").trim(), MAX_DESCRIERE);
 }
+
+// ============================================================
+// PAGINI ÎN AFARA CATALOGULUI
+// ============================================================
+
+/** Taie un text la o lungime, la ultimul cuvânt întreg. Exportat ca să poată
+ *  descrierile paginilor legale să se genereze din chiar textul documentului. */
+export const taieText = (t: string, max: number) => taie(t, max);
+
+/**
+ * Titlul unei mașini dezmembrate: „Dezmembrări VW Passat B6 2.0 TDI 2008".
+ *
+ * Fără sufixul „— piese disponibile" pe care îl avea înainte: cu șablonul din
+ * layout adăugat peste, titlul ajungea la 85 de caractere și repeta marca —
+ * „Dezmembrări Vw Passat B6 2.0 TDI BMP · 2008 — piese disponibile · Autopas
+ * Dezmembrări". Se folosește cu `title: { absolute }`.
+ */
+export function titluMasinaSeo(numeAfisat: string) {
+  return taie(`Dezmembrări ${numeAfisat}`.replace(/\s+/g, " "), MAX_TITLU + 6) + SUFIX;
+}
+
+/**
+ * Descrierea unei mașini dezmembrate. Numărul de piese e informație reală, se
+ * schimbă odată cu catalogul, și e chiar ce caută omul: „au sau n-au piese de
+ * pe mașina mea".
+ */
+export function descriereMasina(numeAfisat: string, nrPiese: number) {
+  const cap = nrPiese > 0
+    ? `${nrPiese} ${nrPiese === 1 ? "piesă demontată" : "piese demontate"} de pe ${numeAfisat}, testate, cu garanție 90 de zile.`
+    : `Dezmembrăm ${numeAfisat}. Spune-ne ce piesă cauți și verificăm pe loc dacă o avem.`;
+  return taie(`${cap} Livrare în toată țara.`.replace(/\s+/g, " "), MAX_DESCRIERE);
+}
+
+/** Descrierea listei de mașini, cu cifrele reale ale depozitului. */
+export function descriereListaMasini(cuPiese: number, total: number) {
+  const cap = cuPiese > 0
+    ? `${cuPiese} ${cuPiese === 1 ? "mașină" : "mașini"} cu piese pe site, din ${total} aflate la dezmembrat.`
+    : `${total} ${total === 1 ? "mașină aflată" : "mașini aflate"} la dezmembrat în depozitul nostru.`;
+  return taie(`${cap} Vezi ce piese avem de pe fiecare, cu garanție 90 de zile.`, MAX_DESCRIERE);
+}

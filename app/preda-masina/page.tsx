@@ -3,7 +3,7 @@ import IntakeForm from "@/components/IntakeForm";
 import WhatsAppIcon from "@/components/WhatsAppIcon";
 import Link from "next/link";
 import { getSetariServer, waLinkCu } from "@/lib/settings";
-export const metadata = { title: "Predă mașina la dezmembrat", alternates: { canonical: "/preda-masina" } };
+export const metadata = { title: "Predă mașina la dezmembrat", alternates: { canonical: "/preda-masina" }, description: "Îți preluăm mașina la dezmembrat. Ce acte îți trebuie — cartea de identitate și certificatul de înmatriculare — cum trimiți pozele și cum primești oferta." };
 
 // Actele cerute la predare: aceleași ca la Rabla, plus certificatul fiscal.
 // Lista de bază stă în /programul-rabla — dacă o modifici acolo, adu-o și aici.

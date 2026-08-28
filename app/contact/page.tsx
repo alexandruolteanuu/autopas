@@ -4,7 +4,7 @@ import { IconTelefon, IconMesaj, IconMail, IconCamion, IconPin } from "@/compone
 import PartRequestForm from "@/components/PartRequestForm";
 import { getSetariServer } from "@/lib/settings";
 import { PROGRAM, LIVRARE, ADRESA, telLink } from "@/lib/config";
-export const metadata = { title: "Contact", alternates: { canonical: "/contact" } };
+export const metadata = { title: "Contact", alternates: { canonical: "/contact" }, description: "Telefon, WhatsApp și adresa depozitului de pe DN15, între Piatra-Neamț și Bicaz. Programul de lucru și formularul prin care ne spui ce piesă cauți." };
 
 export const dynamic = "force-dynamic";
 

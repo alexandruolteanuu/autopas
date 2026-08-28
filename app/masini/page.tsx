@@ -15,7 +15,9 @@
 // `recalc_piese_vehicul`), dar e o valoare memorată: dacă vreodată se desincronizează,
 // aici s-ar vedea ca „0 piese" pe o mașină plină.
 // ============================================================
+import { cache } from "react";
 import { sbServer, citesteTot } from "@/lib/supabase";
+import { descriereListaMasini } from "@/lib/seo";
 import type { Vehicle } from "@/lib/types";
 import MasinaArt from "@/components/MasinaArt";
 import Breadcrumbs from "@/components/Breadcrumbs";
@@ -27,11 +29,17 @@ import type { Metadata } from "next";
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-export const metadata: Metadata = {
-  title: "Mașini dezmembrate — piese pe stoc",
-  description: "Mașinile pe care le dezmembrăm acum și piesele disponibile de pe fiecare. Piese testate, cu garanție 90 de zile.",
-  alternates: { canonical: "/masini" },
-};
+/** Descrierea poartă cifrele reale ale depozitului, care se schimbă odată cu
+ *  catalogul. Interogările sunt aceleași pe care le face pagina, prin `cache()`. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { masini, cate } = await iaMasini();
+  const cuPiese = masini.filter((v) => (cate[v.id] ?? 0) > 0).length;
+  return {
+    title: "Mașini dezmembrate — piese pe stoc",
+    description: descriereListaMasini(cuPiese, masini.length),
+    alternates: { canonical: "/masini" },
+  };
+}
 
 function CardMasina({ v, cate, prioritara = false }: { v: Vehicle; cate: number; prioritara?: boolean }) {
   return (
@@ -55,20 +63,27 @@ function CardMasina({ v, cate, prioritara = false }: { v: Vehicle; cate: number;
   );
 }
 
-export default async function Masini() {
+// Citirile paginii, împărțite cu `generateMetadata` prin `cache()`: altfel
+// fiecare afișare ar face de două ori aceleași două interogări.
+const iaMasini = cache(async () => {
   const sb = sbServer();
-  const masini: Vehicle[] = sb
-    ? await citesteTot<Vehicle>(() => sb.from("vehicles").select("*", { count: "exact" })
-        .eq("publicat", true).order("intrare", { ascending: false }).order("id"), { eticheta: "mașinile" })
-    : [];
-
-  // Numărătorile vin din view: un rând pe mașină. Varianta veche aducea un rând
-  // pe piesă legată și se oprea tăcut la 1.000 — vezi supabase/numar-piese-pe-model.sql.
-  const randuri = sb
-    ? (((await sb.from("numar_piese_pe_masina").select("*")).data ?? []) as { vehicul_id: number; nr_piese: number }[])
-    : [];
+  if (!sb) return { masini: [] as Vehicle[], cate: {} as Record<number, number> };
+  const [masini, randuri] = await Promise.all([
+    citesteTot<Vehicle>(() => sb.from("vehicles").select("*", { count: "exact" })
+      .eq("publicat", true).order("intrare", { ascending: false }).order("id"), { eticheta: "mașinile" }),
+    // Numărătorile vin din view: un rând pe mașină. Varianta veche aducea un rând
+    // pe piesă legată și se oprea tăcut la 1.000 — vezi supabase/numar-piese-pe-model.sql.
+    citesteTot<{ vehicul_id: number; nr_piese: number }>(
+      () => sb.from("numar_piese_pe_masina").select("*", { count: "exact" }).order("vehicul_id"),
+      { eticheta: "numărul de piese pe mașină" }),
+  ]);
   const cate: Record<number, number> = {};
   for (const r of randuri) cate[r.vehicul_id] = r.nr_piese;
+  return { masini, cate };
+});
+
+export default async function Masini() {
+  const { masini, cate } = await iaMasini();
 
   const cuPiese = masini.filter((v) => (cate[v.id] ?? 0) > 0);
   const faraPiese = masini.filter((v) => (cate[v.id] ?? 0) === 0);
