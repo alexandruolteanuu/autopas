@@ -27,7 +27,7 @@
 // ============================================================
 import { depozitDinMediu, SURSA, taxonomieDinUrl, potriveste, potrivesteCategoria,
          asiguraCategoria, asiguraModelul, asiguraModeleleInPlus, aducePagina, extrage,
-         urlCanonic, pauzaPoliticoasa, aniDinTitlu } from "../lib/import/index.mjs";
+         urlCanonic, pauzaPoliticoasa, aniDinTitlu, modelDinTitlu } from "../lib/import/index.mjs";
 
 const SCRIE = process.argv.includes("--scrie");
 const RECITESTE = process.argv.includes("--reciteste");
@@ -42,6 +42,17 @@ console.log(`${piese.length} piese de la ${SURSA}${SCRIE ? "" : "  ·  MOD RAPOR
 
 const catNoi = [], modNoi = [], atinse = [], nerezolvate = [];
 let recitite = 0, compatMaiBogate = 0;
+
+// Modelele pe care rularea LE-AR CREA, strânse în modul raport. Fără lista asta,
+// „--scrie" ar fi un salt în gol: se creează zeci de modele noi în tabela care
+// alimentează filtrul de pe site, fără ca nimeni să le fi văzut înainte.
+// Cheia e marca + numele, ca să se numere piesele care cer același model.
+const propuse = new Map();
+const propun = (marca, nume, motiv, titlu) => {
+  const cheie = `${marca}|${nume}`;
+  const x = propuse.get(cheie) ?? { marca, nume, motiv, piese: 0, exemplu: titlu };
+  x.piese++; propuse.set(cheie, x);
+};
 
 for (const p of piese) {
   if (p.editat_manual) continue;
@@ -93,13 +104,26 @@ for (const p of piese) {
     let m = null;
     if (SCRIE) m = await asiguraModelul(depozit, taxonomie, ext, pot);
     else {
-      const { modelDinTitlu } = await import("../lib/import/potrivire.mjs");
+      // Modul raport urmează EXACT decizia lui `asiguraModelul`, dar fără să scrie:
+      // întâi modelele pe care le avem deja și pe care titlul le confirmă, abia apoi
+      // crearea unuia nou din compatibilitate — și numai dacă titlul o confirmă.
       const d = modelDinTitlu(ext.titlu, taxonomie);
       if (d) m = { model_id: d.model.id, model: d.model.nume, nota: "din titlu" };
+      else if (pot.brand_pentru_creare && pot.model_compat_brut) {
+        const marca = taxonomie.brands.find((b) => b.id === pot.brand_pentru_creare);
+        if (marca) propun(marca.nume, pot.model_compat_brut, "confirmat de titlu", p.nume);
+      }
     }
     if (m) {
       idsNoi = [m.model_id];
       if (m.nota?.startsWith("model nou") && !modNoi.includes(m.model)) modNoi.push(m.model);
+    }
+  } else if (!SCRIE && (pot.de_creat_modele ?? []).length) {
+    // Piesa are deja un model; restul liniilor sunt compatibilități în plus.
+    // Aici nu se cere confirmarea titlului — vezi `asiguraModeleleInPlus`.
+    for (const cerut of pot.de_creat_modele) {
+      const marca = taxonomie.brands.find((b) => b.id === cerut.brand_id);
+      if (marca) propun(marca.nume, cerut.nume, "compatibilitate în plus", p.nume);
     }
   } else if (SCRIE && (pot.de_creat_modele ?? []).length) {
     // Piesa are deja un model, dar sursa mai enumeră mașini pe care nu le avem.
@@ -135,6 +159,13 @@ const cuDouaPlus = atinse.filter((x) => (x.patch.model_ids ?? []).length > 1).le
 if (cuDouaPlus) console.log(`  piese legate de 2+ modele    ${cuDouaPlus}`);
 if (catNoi.length) console.log(`\ncategorii care s-ar crea (${catNoi.length}):\n  ` + catNoi.join("\n  "));
 if (modNoi.length) console.log(`\nmodele create (${modNoi.length}): ` + modNoi.join(", "));
+if (propuse.size) {
+  const lista = [...propuse.values()].sort((a, b) => b.piese - a.piese || a.marca.localeCompare(b.marca));
+  console.log(`\nMODELE CARE S-AR CREA (${lista.length}) — de aprobat înainte de --scrie:`);
+  console.log("  piese  marcă           model                     motiv");
+  for (const x of lista)
+    console.log(`  ${String(x.piese).padStart(5)}  ${x.marca.padEnd(14).slice(0, 14)}  ${x.nume.padEnd(24).slice(0, 24)}  ${x.motiv}`);
+}
 if (nerezolvate.length) {
   console.log(`\nrămân nerezolvate (${nerezolvate.length}):`);
   nerezolvate.slice(0, 15).forEach((x) => console.log("  · " + x));

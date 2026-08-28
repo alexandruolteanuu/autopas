@@ -29,7 +29,23 @@ export function textCautare(t: string) {
 }
 
 // Numărătorile pentru filtru: câte piese publicate există per model ("m<id>") și per marcă ("b<id>").
-import type { Model } from "./types";
+import type { Brand, Model } from "./types";
+
+/**
+ * Mărcile care merită arătate în filtru: cele cu cel puțin o piesă publicată.
+ *
+ * Tabela `brands` e completă intenționat — are și mărcile de care nu avem încă
+ * piese (BYD, Cherry, OMODA, JAECOO, rămase din lista de dealer). Curățenia se
+ * face la afișare, nu prin ștergere: dacă mâine intră o piesă de BYD, marca apare
+ * singură, fără nicio migrare. Invers, o marcă rămasă fără piese dispare din
+ * meniu, dar nu și din bază, deci istoricul nu se pierde.
+ *
+ * `counts` vine din `fitmentCounts`, care numără DOAR piesele publicate — deci
+ * regula ține cont automat și de piesele depublicate, și de cele epuizate.
+ */
+export function marciCuPiese(brands: Brand[], counts: Record<string, number>) {
+  return brands.filter((b) => (counts[`b${b.id}`] ?? 0) > 0);
+}
 export function fitmentCounts(rows: { model_ids: number[] | null }[], models: Model[]) {
   const counts: Record<string, number> = {};
   const brandOf: Record<number, number> = {};

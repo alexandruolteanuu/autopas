@@ -5,7 +5,7 @@ import Link from "next/link";
 import PartRequestForm from "@/components/PartRequestForm";
 import VehicleFilter from "@/components/VehicleFilter";
 import type { Brand, Model, Category } from "@/lib/types";
-import { nrPiese } from "@/lib/format";
+import { fitmentCounts, marciCuPiese, nrPiese } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 // Datele catalogului se citesc mereu proaspăt. `revalidate = 300` din layout
@@ -22,11 +22,16 @@ export default async function CautaDupaMasina() {
   const brands = sb ? (((await sb.from("brands").select("*").order("ordine")).data ?? []) as Brand[]) : [];
   const models = sb ? (((await sb.from("models").select("*").order("nume")).data ?? []) as Model[]) : [];
   const cats = sb ? (((await sb.from("categories").select("*").order("ordine")).data ?? []) as Category[]) : [];
+  // Aceleași numărători ca pe /piese și pe prima pagină. Aici lipseau cu totul, deci
+  // filtrul de aici arăta toate mărcile din tabelă, fără să spună câte piese au —
+  // inclusiv cele rămase din lista de dealer, care n-au niciuna.
+  const fitRows = sb ? (((await sb.from("products").select("model_ids").eq("publicat", true)).data ?? []) as { model_ids: number[] }[]) : [];
+  const counts = fitmentCounts(fitRows, models);
   return (
     <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <Breadcrumbs items={[{ t: "Acasă", href: "/" }, { t: "Caută după mașină" }]} />
       <h1 className="t-sectiune mt-2">Caută piese după mașina ta</h1>
-      <div className="mt-5 mb-2"><VehicleFilter brands={brands} models={models} cats={cats} compact /></div>
+      <div className="mt-5 mb-2"><VehicleFilter brands={marciCuPiese(brands, counts)} models={models} cats={cats} counts={counts} compact /></div>
       <p className="text-textSecundar mt-6 max-w-2xl">Sau alege una dintre mașinile aflate la noi în dezmembrare — vezi doar piesele care ți se potrivesc. Fiecare piesă e legată de mașina din care provine, cu seria de șasiu la vedere.</p>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-7">
         {cars.map((c) => (

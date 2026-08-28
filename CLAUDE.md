@@ -61,12 +61,16 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 12. `livrare-dupa-comanda.sql` -> 13. `coduri-reducere-private.sql` -> 14. `view-security-invoker.sql` ->
 15. `cautare-fara-diacritice.sql` -> 16. `email-unic.sql` -> 17. `import-pieseauto.sql` ->
 18. `taxonomie-import.sql` -> 19. `greutate-estimata.sql` -> 20. `import-index-fix.sql` ->
-21. `publicare-cu-poze.sql` -> 22. `import-din-admin.sql` -> 23. `rls-citire-echipa.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23.
+21. `publicare-cu-poze.sql` -> 22. `import-din-admin.sql` -> 23. `rls-citire-echipa.sql` ->
+24. `ani-generatie.sql` -> 25. `marci-lipsa.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25.
 NU sunt încă idempotente: 1–5, 8.
-Aplicate pe producție: 1–22 (august 2026). **23 NU e încă rulată** — o rulează utilizatorul.
-Fără ea, `operator` scrie în piese și în cereri, dar nu le poate CITI, iar verificarea
+Aplicate pe producție: 1–22 (august 2026). **23, 24 și 25 NU sunt încă rulate** — le rulează utilizatorul.
+Fără 23, `operator` scrie în piese și în cereri, dar nu le poate CITI, iar verificarea
 `scrieVerificat()` (care cere înapoi rândul atins) ar raporta eșec la o scriere reușită.
+24 adaugă coloanele de ani pe `models` și mută două modele așezate greșit („MG 3" și „XC 40"
+stăteau sub Volkswagen); 25 adaugă mărcile lipsă și redenumește „KGM Ssangyong" în „SsangYong".
+Sunt independente între ele, dar codul din `lib/import/` le presupune pe amândouă rulate.
 
 ## De configurat (nu e cod, se rezolvă din afara proiectului)
 
@@ -219,6 +223,31 @@ sunt sarcini ale utilizatorului. Consemnate la 24 august 2026.
   automat (`sursa_activ = false`, `publicat = false`, rândul rămâne). Peste 20% piese lipsă,
   importul cere confirmare separată — un export trunchiat ar stinge tot catalogul.
 - Favorite = model hibrid (localStorage pentru nelogați + tabela `favorites` pentru logați, cu sincronizare).
+- **Anii generației stau în `models.an_start` / `models.an_final`, nu în nume** (migrarea 24,
+  28 august 2026). Înainte, `interval()` din `lib/import/potrivire.mjs` îi citea din numele
+  modelului, cu un regex care cerea paranteze: „Fabia 2 (2007–2014)". Doar 69 din 345 de modele
+  îi aveau scriși, și în formate amestecate („Crafter 2E 2006 -2017", fără paranteze). Un model
+  fără interval era eliminat TĂCUT din dezambiguizare, deci „Fabia 3" nu putea fi ales niciodată
+  — cele 40 de piese de „Skoda Fabia" rămâneau fără model din cauza asta. `an_final` null
+  înseamnă „încă în producție", nu „necunoscut". Numele rămâne doar pentru afișare, iar citirea
+  din nume a rămas ca plasă pentru modelele create înainte de migrare. Anii se completează din
+  Admin → Mărci și modele; un model fără ani e marcat acolo cu „⚠ fără ani".
+  Atenție la Peugeot: „2008", „3008", „308" sunt NUME de modele. De aceea nu se caută niciodată
+  un an singur, ci doar un interval („2006–2014") sau o formă deschisă („2026 +").
+- **Tabela `brands` e completă intenționat; curățenia se face la AFIȘARE** (decizie 28 august
+  2026). Filtrul de pe site arată doar mărcile cu cel puțin o piesă publicată — `marciCuPiese`
+  din `lib/format.ts`, folosită în `app/page.tsx`, `app/piese/page.tsx` și
+  `app/cauta-dupa-masina/page.tsx`. Așa mărcile rămase din lista de dealer (BYD, Cherry, OMODA,
+  JAECOO) dispar singure din meniu fără să ștergem un rând, iar una care primește prima piesă
+  apare singură, fără migrare. La mărci NU există prag pe număr de piese, spre deosebire de
+  subcategorii: cine caută Alfa Romeo caută exact asta, iar 8 piese invizibile sunt 8 piese
+  pierdute.
+- **Sinonimele de marcă sunt măsurate, nu presupuse** (`SINONIME_MARCI` din `potrivire.mjs`).
+  La 28 august 2026 s-au numărat toate cele 12.410 linii de compatibilitate din bază: sursa
+  scrie „Mercedes …" și niciodată „Mercedes-Benz", „Land Rover …" și niciodată „Range Rover",
+  „SsangYong …" și niciodată „KGM"; „VAG" și „MB" nu apar deloc. A rămas un singur sinonim,
+  KGM -> SsangYong, și acela pentru viitor: marca se numește azi oficial KGM, dar clientul care
+  vrea o piesă de Rexton scrie „SsangYong".
 - Roluri: `client`, `operator`, `contabil`, `admin` (coloana `role` în `profiles`, controlată prin RLS).
 
 ## Cele 16 module de admin

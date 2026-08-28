@@ -12,7 +12,10 @@ export type Product  = {
 };
 export type CartItem = { id: number; slug: string; nume: string; pret: number; art: string; oem: string; cantitate: number };
 export type Brand = { id: number; slug: string; nume: string; ordine: number };
-export type Model = { id: number; brand_id: number; slug: string; nume: string };
+// an_start / an_final = anii generației, ca date (supabase/ani-generatie.sql).
+// an_final null = model încă în producție. Numele rămâne doar pentru afișare.
+export type Model = { id: number; brand_id: number; slug: string; nume: string;
+  an_start?: number | null; an_final?: number | null };
 export type OrderEvent = { id: number; order_id: number; tip: string; mesaj: string; autor: string; created_at: string };
 export type OrderFull = { id: number; numar: string; tip_client: string; nume: string; email: string; telefon: string;
   firma: string | null; cui: string | null; adresa: string; oras: string; judet: string; curier: string; plata: string;

@@ -9,7 +9,7 @@ import TrustBar from "@/components/TrustBar";
 import RecycleIcon from "@/components/RecycleIcon";
 import StareGoala from "@/components/StareGoala";
 import { IconLupa } from "@/components/Icoane";
-import { fitmentCounts, nrPiese } from "@/lib/format";
+import { fitmentCounts, marciCuPiese, nrPiese } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 // Datele catalogului se citesc mereu proaspăt. `revalidate = 300` din layout
@@ -32,10 +32,12 @@ async function getData() {
     sb.from("products").select("model_ids").eq("publicat", true),
   ]);
   const models = (m.data ?? []) as Model[];
+  const counts = fitmentCounts((fit.data ?? []) as { model_ids: number[] }[], models);
   return {
     cats: (c.data ?? []) as Category[], products: (p.data ?? []) as Product[], cars: (v.data ?? []) as Vehicle[],
-    brands: (b.data ?? []) as Brand[], models,
-    counts: fitmentCounts((fit.data ?? []) as { model_ids: number[] }[], models),
+    // Doar mărcile care au măcar o piesă publicată ajung în filtru și în secțiunea
+    // „Mărci auto". Tabela rămâne completă; vezi `marciCuPiese` din lib/format.ts.
+    brands: marciCuPiese((b.data ?? []) as Brand[], counts), models, counts,
   };
 }
 

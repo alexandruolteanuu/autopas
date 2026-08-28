@@ -21,7 +21,7 @@ import {
   parseCSV, verificaColoane, planifica, proceseazaRanduri,
   patchLaReimport, construiesteRand, PRAG_CANAR, REZERVA_MS,
   potrivesteCategoria, modelDinTitlu, categoriaSursa, slugifica,
-  extrage, potriveste,
+  extrage, potriveste, taxonomieDinUrl,
 } from "../lib/import/index.mjs";
 
 let treceri = 0, picate = 0;
@@ -499,6 +499,97 @@ sectiune("9. Piesa se leagă de toate mașinile compatibile");
   const htmlRau = paginaFalsa({ titlu: "Balast Xenon Skoda Octavia 2010", model: ["Ford Galaxy"] });
   const potRau = potriveste(extrage(htmlRau, "https://www.pieseauto.ro/balast-xenon/ford/galaxy/x.html"), tax);
   cer("când NICIUNA nu apare în titlu, tot se semnalează", potRau.nepotrivire_marca, JSON.stringify(potRau.note));
+}
+
+// ============================================================
+// 11. Taxonomia din URL — și forma scurtă, cu două segmente
+//
+// Sursa scrie uneori doar /categorie/titlu.html, când anunțul n-are marca și
+// modelul completate. 206 din cele 8.754 de piese importate la 26 august 2026 au
+// intrat fără categorie exact din cauza asta, deși primul segment E categoria.
+// ============================================================
+sectiune("11. Categoria se citește și din URL-ul scurt");
+{
+  const lung = taxonomieDinUrl("https://www.pieseauto.ro/etriere/audi/a4-b8/piesa-1.html");
+  cer("forma lungă: categorie + marcă + model", lung.categorie === "etriere" && lung.marca === "audi" && lung.model === "a4-b8");
+
+  const scurt = taxonomieDinUrl("https://www.pieseauto.ro/bandouri/bandou-usa-dreapta-vw-touareg-123.html");
+  cer("forma scurtă: categoria se citește, marca rămâne goală",
+      scurt.categorie === "bandouri" && scurt.marca === null && scurt.model === null, JSON.stringify(scurt));
+
+  const treiSeg = taxonomieDinUrl("https://www.pieseauto.ro/faruri/bmw/piesa-9.html");
+  cer("forma cu trei segmente e neatinsă", treiSeg.categorie === "faruri" && treiSeg.marca === "bmw" && treiSeg.model === null);
+
+  cer("un URL fără cale nu inventează nimic", taxonomieDinUrl("https://www.pieseauto.ro/").categorie === null);
+  cer("un URL stricat nu aruncă", taxonomieDinUrl("nu-e-url").categorie === null);
+}
+
+// ============================================================
+// 12. Anii generației vin din coloane, nu din numele modelului
+//
+// Regula veche citea intervalul din nume, cu un regex care cerea paranteze. Doar
+// 69 din 345 de modele îl aveau scris, deci „Fabia 3" nu putea fi ales niciodată.
+// ============================================================
+sectiune("12. Generația se alege după an_start / an_final");
+{
+  const taxA = {
+    brands: [{ id: 1, nume: "Škoda", slug: "skoda" }],
+    models: [{ id: 30, nume: "Fabia 2", brand_id: 1, an_start: 2007, an_final: 2014 },
+             { id: 31, nume: "Fabia 3", brand_id: 1, an_start: 2014, an_final: 2021 }],
+  };
+  const f3 = potriveste({ titlu: "Far Stanga Skoda Fabia 2016 2017", compat: ["Skoda Fabia"],
+                          an_min: 2016, an_max: 2017, erori: [] }, taxA);
+  cer("un model FĂRĂ ani în nume poate fi ales, dacă are coloanele", f3.model_id === 31, JSON.stringify(f3.note));
+
+  const f2 = potriveste({ titlu: "Far Stanga Skoda Fabia 2009 2010", compat: ["Skoda Fabia"],
+                          an_min: 2009, an_max: 2010, erori: [] }, taxA);
+  cer("generația veche se alege tot corect", f2.model_id === 30, JSON.stringify(f2.note));
+
+  // an_final gol = încă în producție, nu „necunoscut".
+  const taxB = {
+    brands: [{ id: 1, nume: "Volvo", slug: "volvo" }],
+    models: [{ id: 40, nume: "XC 40", brand_id: 1, an_start: 2017, an_final: null }],
+  };
+  const xc = potriveste({ titlu: "Bara Fata Volvo XC 40 2024", compat: ["Volvo XC 40"],
+                          an_min: 2024, an_max: 2024, erori: [] }, taxB);
+  cer("an_final gol înseamnă „încă în producție”", xc.model_id === 40, JSON.stringify(xc.note));
+
+  // Plasa din nume rămâne, pentru modelele create înainte de migrare.
+  const taxC = {
+    brands: [{ id: 1, nume: "Volkswagen", slug: "vw" }],
+    models: [{ id: 50, nume: "Crafter 2E 2006 -2017", brand_id: 1 },
+             { id: 51, nume: "Crafter 7C 2018 - 2026", brand_id: 1 }],
+  };
+  const cr = potriveste({ titlu: "Far Vw Crafter 2020 2021", compat: ["Volkswagen Crafter"],
+                          an_min: 2020, an_max: 2021, erori: [] }, taxC);
+  cer("anii scriși în nume fără paranteze rămân o plasă valabilă", cr.model_id === 51, JSON.stringify(cr.note));
+
+  // Peugeot: „2008" e nume de model, nu an. Nu are voie să devină interval.
+  const taxD = {
+    brands: [{ id: 1, nume: "Peugeot", slug: "peugeot" }],
+    models: [{ id: 60, nume: "2008", brand_id: 1 }],
+  };
+  const peu = potriveste({ titlu: "Bara Fata Peugeot 2008 2015", compat: ["Peugeot 2008"],
+                           an_min: 2015, an_max: 2015, erori: [] }, taxD);
+  cer("„Peugeot 2008” rămâne nume de model, nu an", peu.model_id === 60, JSON.stringify(peu.note));
+}
+
+// ============================================================
+// 13. Sinonimele de marcă — măsurate, nu inventate
+// ============================================================
+sectiune("13. Sinonime de marcă");
+{
+  const taxS = {
+    brands: [{ id: 1, nume: "SsangYong", slug: "ssangyong" }],
+    models: [{ id: 70, nume: "Korando", brand_id: 1 }],
+  };
+  const sub = potriveste({ titlu: "Far Stanga SsangYong Korando 2015", compat: ["SsangYong Korando"],
+                           an_min: 2015, an_max: 2015, erori: [] }, taxS);
+  cer("numele obișnuit al mărcii se potrivește", sub.model_id === 70, JSON.stringify(sub.note));
+
+  const kgm = potriveste({ titlu: "Far Stanga KGM Korando 2015", compat: ["KGM Korando"],
+                           an_min: 2015, an_max: 2015, erori: [] }, taxS);
+  cer("numele corporativ nou (KGM) e recunoscut ca sinonim", kgm.model_id === 70, JSON.stringify(kgm.note));
 }
 
 console.log(`\n=== ${treceri} verificări trec · ${picate} pică ===`);

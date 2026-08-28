@@ -8,7 +8,7 @@ import SortSelect from "@/components/SortSelect";
 import FiltreSertar from "@/components/FiltreSertar";
 import StareGoala from "@/components/StareGoala";
 import { IconLupa } from "@/components/Icoane";
-import { fitmentCounts, textCautare } from "@/lib/format";
+import { fitmentCounts, marciCuPiese, textCautare } from "@/lib/format";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -112,6 +112,11 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
   if (searchParams.model) filtreActive.push({ eticheta: models.find((m) => m.slug === searchParams.model)?.nume ?? searchParams.model, href: faraParam("model") });
   if (searchParams.vehicul) filtreActive.push({ eticheta: "Mașina aleasă", href: faraParam("vehicul") });
 
+  // Numărătorile se calculează o dată: le folosesc și filtrul (ca să scrie „· 12 piese"),
+  // și `marciCuPiese`, ca să nu arate în listă mărci fără nicio piesă publicată.
+  // `brands` rămâne întreg mai sus, la etichetele filtrelor active: cine ajunge pe
+  // /piese?marca=byd cu un link vechi trebuie să vadă tot „BYD", nu slug-ul brut.
+  const counts = fitmentCounts(fitRows, models);
   const principale = cats.filter((c) => !c.parent_id);
   const subAle = (id: number) => cats.filter((c) => c.parent_id === id);
   const parintele = catActiva?.parent_id ? cats.find((c) => c.id === catActiva!.parent_id) : catActiva;
@@ -123,7 +128,7 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
         ...(catActiva?.parent_id ? [{ t: cats.find((c) => c.id === catActiva!.parent_id)?.nume ?? "", href: `/piese?categorie=${cats.find((c) => c.id === catActiva!.parent_id)?.slug}` }] : []),
         ...(catActiva ? [{ t: catActiva.nume }] : [])]} />
       <h1 className="t-sectiune mt-2 mb-4">{titlu}</h1>
-      <div className="mb-6"><VehicleFilter brands={brands} models={models} cats={principale} counts={fitmentCounts(fitRows, models)} compact /></div>
+      <div className="mb-6"><VehicleFilter brands={marciCuPiese(brands, counts)} models={models} cats={principale} counts={counts} compact /></div>
 
       {/* Filtrele active, pe un rând care se defilează orizontal pe telefon */}
       {filtreActive.length > 0 && (

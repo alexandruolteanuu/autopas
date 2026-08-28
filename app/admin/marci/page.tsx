@@ -51,13 +51,17 @@ export default function Marci() {
     e.preventDefault(); setMsg("");
     const f = new FormData(e.currentTarget); const sb = sbBrowser()!;
     const nume = String(f.get("nume")); const brand_id = Number(f.get("brand"));
+    // Anii generației. Câmp gol = null, nu 0: la `an_final`, null înseamnă „încă
+    // în producție", iar un 0 ar pica pe constrângerea `models_ani_valizi`.
+    const an = (c: string) => { const v = String(f.get(c) ?? "").trim(); return v ? Number(v) : null; };
+    const date = { nume, brand_id, an_start: an("an_start"), an_final: an("an_final") };
     let eroare: string | undefined;
     if (editM) {
-      const r = await scrieVerificat(sb.from("models").update({ nume, brand_id }).eq("id", editM.id));
+      const r = await scrieVerificat(sb.from("models").update(date).eq("id", editM.id));
       if (!r.ok) eroare = r.eroare;
     } else {
       const b = brands.find((x) => x.id === brand_id);
-      const { error } = await sb.from("models").insert({ nume, brand_id, slug: `${b?.slug ?? "x"}-${slugify(nume)}` });
+      const { error } = await sb.from("models").insert({ ...date, slug: `${b?.slug ?? "x"}-${slugify(nume)}` });
       if (error) eroare = error.message;
     }
     setMsg(eroare ? "Nu s-a salvat: " + eroare : "✓ Salvat.");
@@ -123,6 +127,12 @@ export default function Marci() {
             {modeleSel.map((m) => (
               <div key={m.id} className="px-4 py-2.5 flex items-center gap-3 text-sm">
                 <span className="flex-1">{m.nume}</span>
+                {/* Anii nu sunt decor: fără ei, importul nu poate alege între „Fabia 2"
+                    și „Fabia 3" când sursa scrie doar „Skoda Fabia". Un model fără ani
+                    e semnalat, ca operatorul să știe ce are de completat. */}
+                <span className={`text-xs ${m.an_start == null ? "text-amber-600" : "text-mut"}`}
+                  title={m.an_start == null ? "Fără ani — importul nu poate alege această generație" : "Anii generației"}>
+                  {m.an_start == null ? "⚠ fără ani" : `${m.an_start}–${m.an_final ?? "azi"}`}</span>
                 <span className="text-xs text-mut">{nrPiese[m.id] ?? 0} piese</span>
                 <button onClick={() => setEditM(m)} className="text-mut hover:text-ink text-xs">✎</button>
                 <button onClick={() => stergeModel(m)} className="text-mut hover:text-red-600 text-xs">✕</button>
@@ -130,7 +140,7 @@ export default function Marci() {
             ))}
             {sel && modeleSel.length === 0 && <p className="p-6 text-center text-mut text-sm">Nicio model pentru această marcă.</p>}
           </div>
-          <form key={editM?.id ?? "m-nou"} onSubmit={salveazaModel} className="p-4 border-t border-line grid sm:grid-cols-[160px,1fr,auto] gap-2 text-sm">
+          <form key={editM?.id ?? "m-nou"} onSubmit={salveazaModel} className="p-4 border-t border-line grid sm:grid-cols-[150px,1fr,84px,84px,auto] gap-2 text-sm">
             <select name="brand" required defaultValue={editM?.brand_id ?? sel ?? ""}
               className="rounded-xl border-2 border-line px-3 py-2 outline-none focus:border-acc">
               <option value="">Marca…</option>
@@ -138,6 +148,10 @@ export default function Marci() {
             </select>
             <input name="nume" required placeholder="ex. Clasa C W205 (2014–2021)" defaultValue={editM?.nume}
               className="rounded-xl border-2 border-line px-3 py-2 outline-none focus:border-acc" />
+            <input name="an_start" type="number" min={1950} max={2100} placeholder="An de la" defaultValue={editM?.an_start ?? ""}
+              title="Primul an de fabricație al generației" className="rounded-xl border-2 border-line px-2 py-2 outline-none focus:border-acc" />
+            <input name="an_final" type="number" min={1950} max={2100} placeholder="până la" defaultValue={editM?.an_final ?? ""}
+              title="Ultimul an. Lasă gol dacă modelul e încă în producție." className="rounded-xl border-2 border-line px-2 py-2 outline-none focus:border-acc" />
             <div className="flex gap-2">
               <button className="btn-acc !py-2 !px-4 text-xs">{editM ? "Salvează" : "Adaugă"}</button>
               {editM && <button type="button" onClick={() => setEditM(null)} className="rounded-xl border-2 border-line px-3 text-xs">Renunț</button>}
