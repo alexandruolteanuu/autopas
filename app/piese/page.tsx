@@ -83,8 +83,15 @@ const cateePiese = cache(async () => {
   return count ?? 0;
 });
 
+/** Parametrii care descriu CE se filtrează — `pagina` și `sort` nu schimbă
+ *  mulțimea de piese, doar felia sau ordinea. */
+const FILTRE: (keyof SP)[] = ["marca", "model", "categorie", "subcategorie", "vehicul", "q", "oem"];
+
 export async function generateMetadata({ searchParams }: { searchParams: SP }) {
   const pagina = Math.max(1, Number(searchParams.pagina) || 1);
+  // Catalogul nefiltrat se indexează. Orice filtru activ aici înseamnă fie o
+  // căutare, fie o combinație — niciuna nu merită o adresă în index.
+  const filtreIndexabile = FILTRE.every((f) => !String(searchParams[f] ?? "").trim());
   const cate = await cateePiese();
   // Numărul e informație reală și se schimbă odată cu catalogul — exact ce
   // caută omul care se întreabă dacă merită să intre.
@@ -100,6 +107,16 @@ export async function generateMetadata({ searchParams }: { searchParams: SP }) {
     title: pagina > 1 ? `Piese auto — pagina ${pagina}` : "Piese auto",
     description: descriere,
     alternates: { canonical: adresaPaginii(searchParams, pagina) },
+    // COMBINAȚIILE DE FILTRE NU SE INDEXEAZĂ.
+    //
+    // Un singur filtru are rută proprie și e redirecționat acolo de middleware.
+    // Ce rămâne aici sunt combinațiile — `?marca=skoda&categorie=faruri` — și
+    // căutările. Sunt aceleași piese rearanjate: dacă le-am lăsa indexabile, am
+    // ajunge la mii de adrese generate combinatoriu, cu conținut care se repetă.
+    //
+    // `follow`, nu `nofollow`: pagina nu intră în index, dar linkurile ei către
+    // piese rămân drumuri bune pentru crawler.
+    ...(filtreIndexabile ? {} : { robots: { index: false, follow: true } }),
     // `rel=prev/next` NU se pun aici: `metadata.other` ar emite
     // `<meta name="link:prev">`, care nu înseamnă nimic pentru Google. Se pun ca
     // elemente `<link>` adevărate în corpul paginii, unde numărul total de pagini
@@ -285,7 +302,7 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
               const deschis = parintele?.id === c.id;
               return (
                 <div key={c.id} className="mt-0.5">
-                  <Link href={`/piese?categorie=${c.slug}`}
+                  <Link href={`/piese/categorie/${c.slug}`}
                     className={`flex items-center justify-between gap-2 rounded-lg px-3 min-h-[44px] ${catActiva?.id === c.id ? "bg-accent/10 accentuat font-semibold" : "hover:bg-suprafata2"}`}>
                     <span>{c.nume}</span>
                     <span className="text-[12px] text-textSecundar">{c.nr_piese ?? 0}</span>
@@ -293,7 +310,7 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
                   {deschis && subs.length > 0 && (
                     <div className="ml-3 pl-2 border-l-2 border-chenar mt-0.5">
                       {subs.map((s) => (
-                        <Link key={s.id} href={`/piese?subcategorie=${s.slug}`}
+                        <Link key={s.id} href={`/piese/categorie/${s.slug}`}
                           className={`flex items-center justify-between gap-2 rounded-lg px-3 min-h-[44px] text-[13px] ${catActiva?.id === s.id ? "accentuat font-semibold" : "text-text hover:bg-suprafata2"}`}>
                           <span>{s.nume}</span><span className="text-[12px] text-textSecundar">{s.nr_piese ?? 0}</span>
                         </Link>

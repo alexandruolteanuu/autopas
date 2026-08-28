@@ -96,6 +96,40 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
 
     intrari.push({ url: `${SITE_URL}/masini`, lastModified: acum, changeFrequency: "weekly", priority: 0.8 });
+
+    // ---- paginile de marcă ----
+    // Toate mărcile care au măcar o piesă. Fără prag: „piese Alfa Romeo" e o
+    // căutare la fel de legitimă ca „piese Volkswagen", iar 8 piese invizibile
+    // sunt 8 piese pierdute (aceeași regulă ca la filtrul de pe site).
+    const marci = await citesteTot<{ slug: string; nr_piese: number }>(
+      () => sb.from("numar_piese_pe_marca").select("slug,nr_piese", { count: "exact" })
+        .gt("nr_piese", 0).order("marca_id"),
+      { eticheta: "mărcile pentru sitemap" },
+    );
+    for (const m of marci) {
+      intrari.push({ url: `${SITE_URL}/piese/marca/${m.slug}`, lastModified: acum,
+        changeFrequency: "weekly", priority: 0.7 });
+    }
+
+    // ---- paginile de categorie ----
+    // PRAG DE 3 PIESE. O categorie cu una-două piese e o pagină subțire; dacă o
+    // trimitem la indexare, Google învață că site-ul are pagini slabe. Ea există
+    // ca rută și primește linkuri din sertarul de filtre — doar nu o anunțăm.
+    //
+    // Regula de IEȘIRE e automată: pragul se aplică la fiecare regenerare a
+    // sitemap-ului (o dată pe oră, `revalidate = 3600`), pe numărul de atunci.
+    // Când o categorie trece de 3 piese, intră singură; când scade sub, iese.
+    // Nu există nicio listă de ținut la zi.
+    const PRAG_CATEGORIE = 3;
+    const categorii = await citesteTot<{ slug: string; nr_piese: number }>(
+      () => sb.from("categorii_cu_numar").select("slug,nr_piese", { count: "exact" })
+        .gte("nr_piese", PRAG_CATEGORIE).order("id"),
+      { eticheta: "categoriile pentru sitemap" },
+    );
+    for (const c of categorii) {
+      intrari.push({ url: `${SITE_URL}/piese/categorie/${c.slug}`, lastModified: acum,
+        changeFrequency: "weekly", priority: 0.7 });
+    }
   }
 
   return intrari;

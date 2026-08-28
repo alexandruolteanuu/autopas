@@ -10,15 +10,16 @@ import WhatsAppFloat from "./WhatsAppFloat";
 import { VacantaProvider } from "./VacantaContext";
 import Analytics from "./Analytics";
 
-export default function SiteChrome({ children, waPhone, firma, vacanta }:
-  { children: React.ReactNode; waPhone: string; firma?: Firma; vacanta?: Vacanta }) {
+export default function SiteChrome({ children, waPhone, firma, vacanta, marciTop }:
+  { children: React.ReactNode; waPhone: string; firma?: Firma; vacanta?: Vacanta;
+    marciTop?: { slug: string; nume: string; nr_piese: number }[] }) {
   const path = usePathname();
   if (path.startsWith("/admin")) return <>{children}</>;
   return (
     <VacantaProvider vacanta={vacanta}>
       <Header vacanta={vacanta} />
       <main className="min-h-[60vh]">{children}</main>
-      <Footer firma={firma} />
+      <Footer firma={firma} marciTop={marciTop} />
       <CookieBanner />
       <WhatsAppFloat phone={waPhone} />
       {/* Montat AICI, nu în layout: `SiteChrome` iese devreme pentru /admin, deci

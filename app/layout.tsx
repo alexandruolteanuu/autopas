@@ -7,6 +7,10 @@ import { FavoritesProvider } from "@/components/FavoritesContext";
 import { CONFIG, SITE_URL } from "@/lib/config";
 import { getSetariServer, getVacanta } from "@/lib/settings";
 import { SABLON_TITLU } from "@/lib/seo";
+import { sbServer } from "@/lib/supabase";
+
+/** Rândul de mărci din subsol. */
+export type MarcaTop = { slug: string; nume: string; nr_piese: number };
 
 // Fontul Poppins (local) — un singur font, patru grosimi, diacritice românești garantate.
 const poppins = localFont({
@@ -72,6 +76,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // ține-o veche până la 5 minute, de asta comutatorul din admin cheamă
   // `/api/revalideaza` imediat după salvare — la fel ca datele firmei.
   const vacanta = await getVacanta();
+  // Primele mărci după numărul de piese, pentru rândul de navigație din subsol.
+  // Vin de aici, de pe SERVER, fiindcă subsolul e componentă de client și
+  // fiindcă linkurile trebuie să existe în HTML — altfel crawlerul nu le vede.
+  // Din view, 38 de rânduri; vezi supabase/piese-marca-categorie.sql.
+  const sbTop = sbServer();
+  const marciTop = sbTop
+    ? (((await sbTop.from("numar_piese_pe_marca").select("slug,nume,nr_piese")
+        .gt("nr_piese", 0).order("nr_piese", { ascending: false }).limit(10)).data ?? []) as MarcaTop[])
+    : [];
   return (
     <html lang="ro" className={poppins.variable}>
       <head>
@@ -94,7 +107,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body>
         <CartProvider>
           <FavoritesProvider>
-          <SiteChrome waPhone={firma.whatsapp || CONFIG.whatsapp} firma={firma} vacanta={vacanta}>{children}</SiteChrome>
+          <SiteChrome waPhone={firma.whatsapp || CONFIG.whatsapp} firma={firma} vacanta={vacanta} marciTop={marciTop}>{children}</SiteChrome>
         </FavoritesProvider>
         </CartProvider>
       </body>

@@ -6,7 +6,8 @@ import HartiLinks from "./HartiLinks";
 import Logo from "./Logo";
 import { IconTelefon, IconPin } from "./Icoane";
 // Footer complet — modelul cerut de client: toate paginile legale + bannere ANPC/SOL vizibile.
-export default function Footer({ firma = FIRMA_IMPLICITA }: { firma?: Firma }) {
+export default function Footer({ firma = FIRMA_IMPLICITA, marciTop = [] }:
+  { firma?: Firma; marciTop?: { slug: string; nume: string; nr_piese: number }[] }) {
   return (
     <footer className="bg-footerBg text-footerText mt-16">
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 pt-10 pb-8 grid gap-8 sm:grid-cols-2 lg:grid-cols-4 text-sm">
@@ -87,6 +88,33 @@ export default function Footer({ firma = FIRMA_IMPLICITA }: { firma?: Firma }) {
               width={250} height={62} className="w-[250px] max-w-full h-auto" /></a>
         </div>
       </div>
+      {/* NAVIGAȚIE, nu conținut editorial: un rând de linkuri către paginile de
+          marcă. Locul contează — subsolul apare pe FIECARE pagină, inclusiv pe
+          cele 8.739 de piesă, deci fiecare pagină de marcă primește linkuri
+          interne din tot catalogul, nu doar de pe prima pagină. E cel mai
+          puternic semnal intern care se poate da fără un cuvânt nou scris.
+          Numele vin din date (view-ul `numar_piese_pe_marca`), ordonate după
+          numărul de piese; dacă mâine o marcă rămâne fără piese, dispare singură. */}
+      {marciTop.length > 0 && (
+        <div className="border-t border-white/10">
+          <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
+            <div className="text-footerText/50 text-[12px] mb-1.5">Piese după marcă</div>
+            {/* `leading-relaxed` ține rândurile lizibile când textul se rupe pe
+                telefon; la 320px cele zece nume ocupă cel mult trei rânduri. */}
+            <p className="text-[13px] leading-relaxed">
+              {marciTop.map((m, i) => (
+                <span key={m.slug}>
+                  {i > 0 && <span className="text-footerText/30"> · </span>}
+                  <Link href={`/piese/marca/${m.slug}`} className="text-footerText/75 hover:text-footerText">
+                    {m.nume}
+                  </Link>
+                </span>
+              ))}
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="border-t border-white/10 text-[12px] text-footerText/50">
         <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap gap-2 justify-between">
           {/* Datele firmei vin din Admin → Setări → Date firmă (tabela settings), nu din cod. */}

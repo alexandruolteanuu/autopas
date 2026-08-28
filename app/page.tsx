@@ -175,7 +175,7 @@ export default async function Home() {
             <h2 className="t-sectiune mt-2 mb-5">Caută piese după marcă</h2>
             <div className="flex flex-wrap gap-2.5">
               {brands.map((b) => (
-                <Link key={b.id} href={`/piese?marca=${b.slug}`}
+                <Link key={b.id} href={`/piese/marca/${b.slug}`}
                   className="rounded-xl border-2 border-chenar px-4 py-2.5 font-disp font-semibold text-[15px] hover:border-accentChenar accentuat-hover transition">
                   {b.nume}</Link>
               ))}
