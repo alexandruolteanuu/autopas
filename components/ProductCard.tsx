@@ -9,7 +9,7 @@ import type { Product } from "@/lib/types";
 // preț, stoc, buton. Butonul stă lipit de baza cardului (`mt-auto`) și ocupă
 // toată lățimea — înainte împărțea rândul cu prețul, se strângea, iar eticheta
 // „Adaugă în coș" se rupea pe două rânduri pe telefon.
-export default function ProductCard({ p }: { p: Product }) {
+export default function ProductCard({ p, prioritara = false }: { p: Product; prioritara?: boolean }) {
   return (
         // Un singur efect la trecerea cu mouse-ul: chenar în accent, umbra de
     // nivel 2 și imaginea mărită cu 3%. Fără umbră în stare normală.
@@ -17,7 +17,7 @@ export default function ProductCard({ p }: { p: Product }) {
       {/* `LinkPiesa` în loc de `Link`: raportează `select_item` la click. Cardul
           rămâne componentă de server — doar linkul trece în browser. */}
       <LinkPiesa p={p} className="block overflow-hidden">
-        <ProductPhoto poze={p.poze} art={p.art} alt={p.nume}
+        <ProductPhoto poze={p.poze} art={p.art} alt={p.nume} prioritara={prioritara}
           className="w-full aspect-[4/3] transition-transform duration-200 group-hover:scale-[1.03]" />
       </LinkPiesa>
 

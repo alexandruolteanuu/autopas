@@ -33,13 +33,15 @@ export const metadata: Metadata = {
   alternates: { canonical: "/masini" },
 };
 
-function CardMasina({ v, cate }: { v: Vehicle; cate: number }) {
+function CardMasina({ v, cate, prioritara = false }: { v: Vehicle; cate: number; prioritara?: boolean }) {
   return (
     <Link href={`/masini/${v.slug}`}
       className="group card overflow-hidden flex flex-col transition-[box-shadow,border-color] duration-200 hover:border-accentChenar/40 hover:shadow-[var(--umbra-2)]">
       <div className="overflow-hidden">
         {v.poze && v.poze.length > 0
           ? <img src={v.poze[0]} alt={v.nume}
+              loading={prioritara ? "eager" : "lazy"}
+              fetchPriority={prioritara ? "high" : undefined}
               className="w-full aspect-[4/3] object-cover bg-imagineBg transition-transform duration-200 group-hover:scale-[1.03]" />
           : <MasinaArt className="w-full aspect-[4/3] transition-transform duration-200 group-hover:scale-[1.03]" />}
       </div>
@@ -97,7 +99,7 @@ export default async function Masini() {
             <section className="mt-8">
               <h2 className="font-disp font-bold text-xl mb-4">Cu piese pe site</h2>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {cuPiese.map((v) => <CardMasina key={v.id} v={v} cate={cate[v.id] ?? 0} />)}
+                {cuPiese.map((v, i) => <CardMasina key={v.id} v={v} cate={cate[v.id] ?? 0} prioritara={i === 0} />)}
               </div>
             </section>
           )}
@@ -109,7 +111,7 @@ export default async function Masini() {
                 Piesele nu sunt încă listate. Sună-ne sau trimite o cerere — verificăm pe loc.
               </p>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {faraPiese.map((v) => <CardMasina key={v.id} v={v} cate={0} />)}
+                {faraPiese.map((v, i) => <CardMasina key={v.id} v={v} cate={0} prioritara={cuPiese.length === 0 && i === 0} />)}
               </div>
             </section>
           )}

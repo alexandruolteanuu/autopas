@@ -20,7 +20,10 @@ export default function ProductGallery({ poze, art = "engine", nume, rezerva }:
     <div>
       <div className="card overflow-hidden">
         {/* fundalul zonei de imagine: --imagine-bg din app/globals.css */}
-        <img src={poze[activ]} alt={nume} className="w-full aspect-[100/72] object-cover bg-imagineBg" />
+        {/* Imaginea mare e elementul LCP al paginii de produs (măsurat: 876 ms).
+            Era deja încărcată devreme, dar fără prioritate declarată. */}
+        <img src={poze[activ]} alt={nume} className="w-full aspect-[100/72] object-cover bg-imagineBg"
+          fetchPriority="high" decoding="sync" />
       </div>
       {poze.length > 1 && (
         <div className="grid grid-cols-5 gap-2 mt-2">

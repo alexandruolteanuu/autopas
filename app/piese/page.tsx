@@ -296,7 +296,8 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
           )}
           {!vacanta.activ && (
             <div className="grid grid-cols-1 min-[420px]:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
-              {products.map((p) => <ProductCard key={p.id} p={p} />)}
+              {/* Doar PRIMA e prioritară: ea e elementul LCP. Vezi ProductPhoto. */}
+              {products.map((p, i) => <ProductCard key={p.id} p={p} prioritara={i === 0} />)}
             </div>
           )}
 
