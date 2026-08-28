@@ -27,7 +27,7 @@
 // ============================================================
 import { depozitDinMediu, SURSA, taxonomieDinUrl, potriveste, potrivesteCategoria,
          asiguraCategoria, asiguraModelul, asiguraModeleleInPlus, aducePagina, extrage,
-         urlCanonic, pauzaPoliticoasa, aniDinTitlu, modelDinTitlu } from "../lib/import/index.mjs";
+         urlCanonic, pauzaPoliticoasa, aniDinTitlu, modelDinTitlu, numeModelNou } from "../lib/import/index.mjs";
 
 const SCRIE = process.argv.includes("--scrie");
 const RECITESTE = process.argv.includes("--reciteste");
@@ -48,7 +48,8 @@ let recitite = 0, compatMaiBogate = 0;
 // alimentează filtrul de pe site, fără ca nimeni să le fi văzut înainte.
 // Cheia e marca + numele, ca să se numere piesele care cer același model.
 const propuse = new Map();
-const propun = (marca, nume, motiv, titlu) => {
+const propun = (marca, numeBrut, motiv, titlu) => {
+  const nume = numeModelNou(numeBrut);
   const cheie = `${marca}|${nume}`;
   const x = propuse.get(cheie) ?? { marca, nume, motiv, piese: 0, exemplu: titlu };
   x.piese++; propuse.set(cheie, x);
