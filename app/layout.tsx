@@ -47,7 +47,7 @@ export const metadata: Metadata = {
   // statice, iar o valoare citită din bază ar rămâne prinsă în build (vezi de ce
   // și-a mutat `Analytics` id-ul în browser).
   // Verificarea merge chiar dacă indexarea e oprită din `PERMITE_INDEXARE`.
-  verification: { google: "JaPSNJJ-InidGi9B9qXcy9fkyWF29FjN_Jsx43qLpX0" },
+  verification: { google: "4u7KgciMTRXG3ZTRkQJmE5J9Geb52TMLk7S3WWWfdCo" },
   openGraph: {
     type: "website",
     locale: "ro_RO",
