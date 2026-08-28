@@ -1,11 +1,11 @@
 import Breadcrumbs from "@/components/Breadcrumbs";
-import { sbServer } from "@/lib/supabase";
+import { sbServer, citesteTot } from "@/lib/supabase";
 import type { Vehicle } from "@/lib/types";
 import Link from "next/link";
 import PartRequestForm from "@/components/PartRequestForm";
 import VehicleFilter from "@/components/VehicleFilter";
 import type { Brand, Model, Category } from "@/lib/types";
-import { fitmentCounts, marciCuPiese, nrPiese } from "@/lib/format";
+import { counturiPeModel, marciCuPiese, nrPiese } from "@/lib/format";
 import { getVacanta } from "@/lib/settings";
 import { VacantaStareGoala } from "@/components/VacantaNota";
 
@@ -20,23 +20,22 @@ export const metadata = { title: "Caută după mașină" };
 
 export default async function CautaDupaMasina() {
   const sb = sbServer();
-  const cars = sb ? (((await sb.from("vehicles").select("*").eq("publicat", true)
-    .order("intrare", { ascending: false })).data ?? []) as Vehicle[]) : [];
-  // Numărul de piese pe mașină, calculat live — la fel ca în hero și în /masini.
-  // `vehicles.piese_listate` e corect (îl ține triggerul), dar e valoare memorată,
-  // iar aici o desincronizare s-ar vedea drept „0 piese listate" pe o mașină plină.
-  const legRows = sb ? (((await sb.from("products").select("vehicul_id")
-    .eq("publicat", true).gt("stoc", 0).not("vehicul_id", "is", null)).data ?? []) as { vehicul_id: number }[]) : [];
+  const cars = sb ? await citesteTot<Vehicle>(() => sb.from("vehicles").select("*", { count: "exact" })
+    .eq("publicat", true).order("intrare", { ascending: false }).order("id"), { eticheta: "mașinile" }) : [];
+  // Numărul de piese pe mașină, din view: un rând pe mașină, calculat la citire.
+  // Vezi supabase/numar-piese-pe-model.sql pentru de ce nu e `piese_listate`.
+  type NrMasina = { vehicul_id: number; nr_piese: number };
+  const legRows = sb ? (((await sb.from("numar_piese_pe_masina").select("*")).data ?? []) as NrMasina[]) : [];
   const catePiese: Record<number, number> = {};
-  for (const r of legRows) catePiese[r.vehicul_id] = (catePiese[r.vehicul_id] ?? 0) + 1;
-  const brands = sb ? (((await sb.from("brands").select("*").order("ordine")).data ?? []) as Brand[]) : [];
-  const models = sb ? (((await sb.from("models").select("*").order("nume")).data ?? []) as Model[]) : [];
-  const cats = sb ? (((await sb.from("categories").select("*").order("ordine")).data ?? []) as Category[]) : [];
+  for (const r of legRows) catePiese[r.vehicul_id] = r.nr_piese;
+  const brands = sb ? await citesteTot<Brand>(() => sb.from("brands").select("*", { count: "exact" }).order("ordine").order("id"), { eticheta: "mărcile" }) : [];
+  const models = sb ? await citesteTot<Model>(() => sb.from("models").select("*", { count: "exact" }).order("nume").order("id"), { eticheta: "modelele" }) : [];
+  const cats = sb ? await citesteTot<Category>(() => sb.from("categories").select("*", { count: "exact" }).order("ordine").order("id"), { eticheta: "categoriile" }) : [];
   // Aceleași numărători ca pe /piese și pe prima pagină. Aici lipseau cu totul, deci
   // filtrul de aici arăta toate mărcile din tabelă, fără să spună câte piese au —
   // inclusiv cele rămase din lista de dealer, care n-au niciuna.
-  const fitRows = sb ? (((await sb.from("products").select("model_ids").eq("publicat", true)).data ?? []) as { model_ids: number[] }[]) : [];
-  const counts = fitmentCounts(fitRows, models);
+  const fitRows = sb ? (((await sb.from("numar_piese_pe_model").select("*")).data ?? []) as any[]) : [];
+  const counts = counturiPeModel(fitRows, models);
   // În vacanță selectoarele rămân — omul poate să se uite ce avem — dar lista de
   // mașini nu mai duce nicăieri, fiindcă `/piese` nu întoarce rezultate.
   const vacanta = await getVacanta();

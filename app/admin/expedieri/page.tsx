@@ -2,7 +2,7 @@
 // EXPEDIERI — ecranul de depozit: ce colete predau azi curierului + borderoul printabil.
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { sbBrowser, scrieVerificat } from "@/lib/supabase";
+import { sbBrowser, scrieVerificat, citesteTot, citesteDupaIduri } from "@/lib/supabase";
 import { lei } from "@/lib/format";
 import { getSetariBrowser, type Curier } from "@/lib/settings";
 import type { OrderFull } from "@/lib/types";
@@ -19,13 +19,18 @@ export default function Expedieri() {
   const incarca = useCallback(async () => {
     const sb = sbBrowser(); if (!sb) return;
     const stat = tab === "de_predat" ? "confirmata" : tab === "in_tranzit" ? "expediata" : "livrata";
-    const { data } = await sb.from("orders").select("*").eq("status", stat).order("created_at", { ascending: false });
-    const list = (data ?? []) as OrderFull[];
+    const list = await citesteTot<OrderFull>(
+      () => sb.from("orders").select("*", { count: "exact" }).eq("status", stat).order("id"),
+      { eticheta: "comenzile de expediat" });
     setOrders(list); setSel([]);
     if (list.length) {
-      const { data: it } = await sb.from("order_items").select("order_id,cantitate,products(greutate_kg)").in("order_id", list.map((o) => o.id));
+      // În loturi + paginat: borderoul dat curierului se calculează de aici.
+      const it = await citesteDupaIduri<any>(list.map((o) => o.id),
+        (lot) => sb.from("order_items").select("order_id,cantitate,products(greutate_kg)", { count: "exact" })
+          .in("order_id", lot).order("id"),
+        { eticheta: "liniile comenzilor" });
       const g: Record<number, number> = {};
-      ((it ?? []) as any[]).forEach((i) => { g[i.order_id] = (g[i.order_id] ?? 0) + (Number(i.products?.greutate_kg) || 5) * i.cantitate; });
+      it.forEach((i) => { g[i.order_id] = (g[i.order_id] ?? 0) + (Number(i.products?.greutate_kg) || 5) * i.cantitate; });
       setGreutati(g);
     }
   }, [tab]);

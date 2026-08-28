@@ -54,11 +54,13 @@ export default function PieseDeCompletat() {
   const [filtru, setFiltru] = useState("toate");
   const [lucru, setLucru] = useState(false);
   const [progres, setProgres] = useState<{ facut: number; total: number } | null>(null);
+  /** Câte piese sunt de completat ÎN TOTAL, nu câte s-au adus în listă. */
+  const [total, setTotal] = useState(0);
   const [msg, setMsg] = useState("");
 
   useEffect(() => {
     const sb = sbBrowser(); if (!sb) return;
-    sb.from("categories").select("id,nume").then(({ data }) =>
+    sb.from("categories").select("id,nume").order("id").then(({ data }) =>
       setCats(Object.fromEntries((data ?? []).map((c: any) => [c.id, c.nume]))));
   }, []);
 
@@ -66,13 +68,17 @@ export default function PieseDeCompletat() {
     const sb = sbBrowser(); if (!sb) return;
     // Piesele venite din import cărora le lipsește ceva. Cele complete nu apar
     // deloc: n-au ce căuta într-o listă de lucru.
-    let query = sb.from("products").select("*")
+    // `count: "exact"` cere serverului CÂTE piese sunt de completat cu totul, nu
+    // câte încap în listă. Fără el, ecranul scria „De completat: 500" — lungimea
+    // listei plafonate — când realitatea era 8.625. Lista rămâne la 500: e o listă
+    // de lucru, nu un raport, iar 8.625 de rânduri în browser n-ar ajuta pe nimeni.
+    let query = sb.from("products").select("*", { count: "exact" })
       .not("sursa", "is", null)
       .or("poze.eq.{},categorie_id.is.null,greutate_estimata.eq.true,model_ids.eq.{},publicat.eq.false")
       .order("created_at", { ascending: false }).limit(500);
     if (q.trim()) query = query.or(`nume.ilike.%${q}%,cod_intern.ilike.%${q}%`);
-    const { data } = await query;
-    setPiese((data ?? []) as Piesa[]); setSel([]);
+    const { data, count } = await query;
+    setPiese((data ?? []) as Piesa[]); setTotal(count ?? 0); setSel([]);
   }, [q]);
   useEffect(() => { const t = setTimeout(incarca, q ? 300 : 0); return () => clearTimeout(t); }, [incarca, q]);
 
@@ -194,7 +200,7 @@ export default function PieseDeCompletat() {
       {/* Rezumat */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { k: "De completat", v: piese.length },
+          { k: "De completat", v: total },
           { k: "Fără poze", v: faraPoze.length, rau: faraPoze.length > 0 },
           { k: "Fără categorie", v: piese.filter((p) => !p.categorie_id).length },
           { k: "Greutate estimată", v: piese.filter((p) => p.greutate_estimata).length },
@@ -400,6 +406,16 @@ export default function PieseDeCompletat() {
           </tbody>
         </table>
       </div>
+
+      {/* Spune explicit că lista e o felie, nu tot. Fără rândul ăsta, contorul de
+          sus („8.625") și lista de dedesubt („500 de rânduri") s-ar contrazice, iar
+          operatorul n-ar ști care dintre ele minte. */}
+      {total > piese.length && (
+        <p className="text-sm text-mut">
+          Se arată primele {piese.length} din {total}. Completează-le și reîncarcă
+          pagina pentru următoarele — sau caută piesa după cod, mai sus.
+        </p>
+      )}
     </div>
   );
 }

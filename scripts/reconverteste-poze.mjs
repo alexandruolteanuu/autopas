@@ -28,6 +28,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { creeazaDepozit } from "../lib/import/depozit.mjs";
 import { converteste, extensiaPentru } from "../lib/import/imagini.mjs";
+import { citesteTotRest } from "../lib/rest.mjs";
 
 const USCAT = process.argv.includes("--uscat");
 
@@ -51,10 +52,11 @@ const depozit = creeazaDepozit({ url: BAZA, key: env.SUPABASE_SERVICE_ROLE_KEY }
 const PREFIX = `${BAZA}/storage/v1/object/public/poze-piese/`;
 const calea = (u) => (u.startsWith(PREFIX) ? u.slice(PREFIX.length) : null);
 
-const r = await fetch(`${BAZA}/rest/v1/products?select=id,nume,poze&poze=not.eq.{}`, {
-  headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}` },
-});
-const piese = await r.json();
+// PAGINAT: fără asta primea 1.000 de piese din 8.754 și raporta „gata" după ce
+// convertise doar prima optime. Vezi `lib/rest.mjs`.
+const antete = { apikey: env.SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}` };
+const piese = await citesteTotRest(BAZA, antete, "products?select=id,nume,poze&poze=not.eq.{}&order=id",
+  { eticheta: "piesele cu poze" });
 
 let deFacut = 0, facute = 0, sarite = 0, inainte = 0, dupa = 0;
 const erori = [];

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { sbBrowser, scrieVerificat } from "@/lib/supabase";
+import { sbBrowser, scrieVerificat, citesteTot } from "@/lib/supabase";
 import PhotoUploader from "./PhotoUploader";
 import type { Category, Vehicle, Brand, Model, Product } from "@/lib/types";
 
@@ -24,10 +24,10 @@ export default function ProductForm({ produs }: { produs?: Product }) {
   useEffect(() => {
     const sb = sbBrowser(); if (!sb) return;
     (async () => {
-      setCats(((await sb.from("categories").select("*").order("ordine")).data ?? []) as Category[]);
-      setCars(((await sb.from("vehicles").select("*").order("intrare", { ascending: false })).data ?? []) as Vehicle[]);
-      setBrands(((await sb.from("brands").select("*").order("ordine")).data ?? []) as Brand[]);
-      setModels(((await sb.from("models").select("*").order("nume")).data ?? []) as Model[]);
+      setCats(await citesteTot<Category>(() => sb.from("categories").select("*", { count: "exact" }).order("ordine").order("id"), { eticheta: "categoriile" }));
+      setCars(await citesteTot<Vehicle>(() => sb.from("vehicles").select("*", { count: "exact" }).order("intrare", { ascending: false }).order("id"), { eticheta: "mașinile" }));
+      setBrands(await citesteTot<Brand>(() => sb.from("brands").select("*", { count: "exact" }).order("ordine").order("id"), { eticheta: "mărcile" }));
+      setModels(await citesteTot<Model>(() => sb.from("models").select("*", { count: "exact" }).order("nume").order("id"), { eticheta: "modelele" }));
     })();
   }, []);
 

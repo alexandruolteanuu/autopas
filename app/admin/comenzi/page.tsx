@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { sbBrowser } from "@/lib/supabase";
+import { sbBrowser, citesteTot, citesteDupaIduri } from "@/lib/supabase";
 import { lei } from "@/lib/format";
 import type { OrderFull } from "@/lib/types";
 
@@ -28,9 +28,14 @@ function ComenziInner() {
     if (q.trim()) query = query.or(`numar.ilike.%${q}%,nume.ilike.%${q}%,telefon.ilike.%${q}%,email.ilike.%${q}%`);
     const { data } = await query;
     setOrders((data ?? []) as OrderFull[]); setGata(true);
-    const toate = await sb.from("orders").select("status");
-    const c: Record<string, number> = { "": (toate.data ?? []).length };
-    (toate.data ?? []).forEach((o: any) => { c[o.status] = (c[o.status] ?? 0) + 1; });
+    // PAGINAT: contoarele taburilor numărau TOATE comenzile, dar primeau cel mult
+    // 1.000. Lista de deasupra rămâne la 200 — e o listă de lucru, nu un raport —
+    // însă contorul trebuie să spună adevărul.
+    const toate = await citesteTot<{ status: string }>(
+      () => sb.from("orders").select("status", { count: "exact" }).order("id"),
+      { eticheta: "comenzile" });
+    const c: Record<string, number> = { "": toate.length };
+    toate.forEach((o) => { c[o.status] = (c[o.status] ?? 0) + 1; });
     setContor(c);
   }, [filtru, q]);
   useEffect(() => { const t = setTimeout(incarca, q ? 300 : 0); return () => clearTimeout(t); }, [incarca, q]);
@@ -39,9 +44,11 @@ function ComenziInner() {
   async function exportSaga() {
     const sb = sbBrowser()!;
     const de = orders.filter((o) => o.status !== "anulata");
-    const { data: items } = await sb.from("order_items").select("*").in("order_id", de.map((o) => o.id));
+    const items = await citesteDupaIduri<any>(de.map((o) => o.id),
+      (lot) => sb.from("order_items").select("*", { count: "exact" }).in("order_id", lot).order("id"),
+      { eticheta: "liniile comenzilor" });
     const rows = [["Numar comanda","Data","Client","CUI","Adresa","Oras","Judet","Email","Telefon","Produs","Cant","Pret cu TVA","Baza (fara TVA)","TVA 19%","Curier","Cost livrare","Plata","Serie factura"]];
-    for (const o of de) for (const i of (items ?? []).filter((x: any) => x.order_id === o.id)) {
+    for (const o of de) for (const i of items.filter((x: any) => x.order_id === o.id)) {
       const brut = Number(i.pret) * i.cantitate, baza = brut / 1.19;
       rows.push([o.numar, new Date(o.created_at).toLocaleDateString("ro-RO"), o.firma ?? o.nume, o.cui ?? "-", o.adresa, o.oras, o.judet, o.email, o.telefon, i.nume, String(i.cantitate), brut.toFixed(2), baza.toFixed(2), (brut - baza).toFixed(2), o.curier, Number(o.livrare).toFixed(2), o.plata, o.factura_serie ?? ""]);
     }

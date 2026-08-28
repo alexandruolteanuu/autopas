@@ -2,7 +2,7 @@
 // CATEGORII ȘI SUBCATEGORII — adăugare, editare, ștergere, ordonare.
 // Meniul și filtrele de pe site se construiesc din ce e aici.
 import { useEffect, useState, useCallback } from "react";
-import { sbBrowser, scrieVerificat } from "@/lib/supabase";
+import { sbBrowser, scrieVerificat, citesteTot } from "@/lib/supabase";
 import type { Category } from "@/lib/types";
 
 const ARTE = ["engine","alternator","headlight","gearbox","turbo","mirror","egr","compressor","wheel","suspension","brake","seat","panel"];
@@ -19,12 +19,12 @@ export default function Categorii() {
   const incarca = useCallback(async () => {
     const sb = sbBrowser(); if (!sb) return;
     const [c, v] = await Promise.all([
-      sb.from("categories").select("*").order("ordine"),
-      sb.from("categorii_cu_numar").select("id,nr_piese"),
+      citesteTot<Category>(() => sb.from("categories").select("*", { count: "exact" }).order("ordine").order("id"), { eticheta: "categoriile" }),
+      citesteTot<any>(() => sb.from("categorii_cu_numar").select("id,nr_piese", { count: "exact" }).order("id"), { eticheta: "numărul de piese" }),
     ]);
-    setCats((c.data ?? []) as Category[]);
+    setCats(c);
     const m: Record<number, number> = {};
-    ((v.data ?? []) as any[]).forEach((x) => { m[x.id] = x.nr_piese; });
+    (v as any[]).forEach((x) => { m[x.id] = x.nr_piese; });
     setNrPiese(m);
   }, []);
   useEffect(() => { incarca(); }, [incarca]);

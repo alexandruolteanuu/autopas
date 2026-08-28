@@ -3,7 +3,7 @@
 // emiți factura în Saga, notezi seria aici, exporți CSV-ul pentru contabil.
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { sbBrowser, scrieVerificat } from "@/lib/supabase";
+import { sbBrowser, scrieVerificat, citesteTot, citesteDupaIduri } from "@/lib/supabase";
 import { lei } from "@/lib/format";
 import type { OrderFull } from "@/lib/types";
 
@@ -20,12 +20,19 @@ export default function Facturi() {
 
   const incarca = useCallback(async () => {
     const sb = sbBrowser(); if (!sb) return;
-    let q = sb.from("orders").select("*").neq("status", "anulata")
-      .gte("created_at", new Date(de + "T00:00:00").toISOString())
-      .lte("created_at", new Date(pana + "T23:59:59").toISOString())
-      .order("created_at", { ascending: false });
-    if (filtru !== "toate") q = q.eq("factura_status", filtru);
-    setOrders(((await q).data ?? []) as OrderFull[]);
+    // PAGINAT. Exportul pentru Saga pleacă din lista asta: dacă intervalul are
+    // peste 1.000 de comenzi, varianta veche lua primele 1.000 și scria un CSV
+    // care arată perfect valid, dar e incomplet. La contabilitate ăsta nu mai e
+    // un defect tehnic.
+    const comenzi = await citesteTot<OrderFull>(() => {
+      let q = sb.from("orders").select("*", { count: "exact" }).neq("status", "anulata")
+        .gte("created_at", new Date(de + "T00:00:00").toISOString())
+        .lte("created_at", new Date(pana + "T23:59:59").toISOString())
+        .order("id");
+      if (filtru !== "toate") q = q.eq("factura_status", filtru);
+      return q;
+    }, { eticheta: "comenzile pentru facturi" });
+    setOrders(comenzi);
   }, [de, pana, filtru]);
   useEffect(() => { incarca(); }, [incarca]);
 
@@ -42,9 +49,14 @@ export default function Facturi() {
 
   async function exportSaga() {
     const sb = sbBrowser()!;
-    const { data: items } = await sb.from("order_items").select("*").in("order_id", orders.map((o) => o.id));
+    // În loturi: `.in()` pune fiecare id în URL, iar la câteva mii de comenzi
+    // adresa depășește ce acceptă serverul. Fiecare lot e și paginat, fiindcă
+    // 200 de comenzi pot avea peste 1.000 de linii.
+    const items = await citesteDupaIduri<any>(orders.map((o) => o.id),
+      (lot) => sb.from("order_items").select("*", { count: "exact" }).in("order_id", lot).order("id"),
+      { eticheta: "liniile comenzilor" });
     const rows: (string | number)[][] = [["Numar comanda","Data","Serie factura","Client","CUI","Adresa","Oras","Judet","Email","Telefon","Produs","Cant","Pret cu TVA","Baza fara TVA","TVA 19%","Curier","Cost livrare","Plata"]];
-    for (const o of orders) for (const i of (items ?? []).filter((x: any) => x.order_id === o.id)) {
+    for (const o of orders) for (const i of items.filter((x: any) => x.order_id === o.id)) {
       const brut = Number(i.pret) * i.cantitate, baza = brut / 1.19;
       rows.push([o.numar, new Date(o.created_at).toLocaleDateString("ro-RO"), o.factura_serie ?? "", o.firma ?? o.nume, o.cui ?? "-",
         o.adresa, o.oras, o.judet, o.email, o.telefon, i.nume, i.cantitate, brut.toFixed(2), baza.toFixed(2), (brut - baza).toFixed(2),

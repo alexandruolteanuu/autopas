@@ -2,7 +2,7 @@
 // RAPOARTE — trei rapoarte reale, calculate din baza de date, cu export CSV.
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { sbBrowser } from "@/lib/supabase";
+import { sbBrowser, citesteTot } from "@/lib/supabase";
 import { lei } from "@/lib/format";
 
 type Rand = { nume: string; suma: number; buc: number };
@@ -32,18 +32,26 @@ export default function Rapoarte() {
     const d1 = new Date(pana + "T23:59:59").toISOString();
 
     const [items, catAll, veh, prod] = await Promise.all([
-      sb.from("order_items").select("pret,cantitate,product_id,orders!inner(created_at,status)")
-        .gte("orders.created_at", d0).lte("orders.created_at", d1).neq("orders.status", "anulata"),
-      sb.from("categories").select("id,nume"),
-      sb.from("vehicles").select("id,nume,slug,cost_achizitie,intrare"),
-      sb.from("products").select("id,nume,oem,slug,pret_lei,stoc,categorie_id,vehicul_id,created_at"),
+      citesteTot<any>(() => sb.from("order_items")
+        .select("pret,cantitate,product_id,orders!inner(created_at,status)", { count: "exact" })
+        .gte("orders.created_at", d0).lte("orders.created_at", d1).neq("orders.status", "anulata")
+        .order("id"), { eticheta: "liniile din interval" }),
+      citesteTot<any>(() => sb.from("categories").select("id,nume", { count: "exact" }).order("id"), { eticheta: "categoriile" }),
+      citesteTot<any>(() => sb.from("vehicles").select("id,nume,slug,cost_achizitie,intrare", { count: "exact" }).order("id"), { eticheta: "mașinile" }),
+      // PAGINAT. Harta asta traduce `order_items.product_id` în categorie și
+      // mașină. Incompletă, o vânzare a oricăreia dintre piesele nevăzute cădea
+      // tăcut la „Altele", iar profitul ei nu se aduna la mașină — un raport
+      // greșit care arată perfect valid.
+      citesteTot<any>(() => sb.from("products")
+        .select("id,nume,oem,slug,pret_lei,stoc,categorie_id,vehicul_id,created_at", { count: "exact" })
+        .order("id"), { eticheta: "piesele" }),
     ]);
-    const produse = new Map<number, any>(((prod.data ?? []) as any[]).map((p) => [p.id, p]));
-    const numeCat = new Map<number, string>(((catAll.data ?? []) as any[]).map((c) => [c.id, c.nume]));
+    const produse = new Map<number, any>((prod as any[]).map((p) => [p.id, p]));
+    const numeCat = new Map<number, string>((catAll as any[]).map((c) => [c.id, c.nume]));
 
     // 1) vânzări pe categorii
     const perCat = new Map<string, Rand>();
-    ((items.data ?? []) as any[]).forEach((i) => {
+    (items as any[]).forEach((i) => {
       const p = produse.get(i.product_id);
       const n = numeCat.get(p?.categorie_id) ?? "Altele";
       const r = perCat.get(n) ?? { nume: n, suma: 0, buc: 0 };
@@ -52,20 +60,22 @@ export default function Rapoarte() {
     setCats(Array.from(perCat.values()).sort((a, b) => b.suma - a.suma));
 
     // 2) profit pe mașină (pe tot istoricul, nu doar interval — e o metrică de ciclu de viață)
-    const toateItems = await sb.from("order_items").select("pret,cantitate,product_id,orders!inner(status)").neq("orders.status", "anulata");
+    const toateItems = await citesteTot<any>(() => sb.from("order_items")
+      .select("pret,cantitate,product_id,orders!inner(status)", { count: "exact" })
+      .neq("orders.status", "anulata").order("id"), { eticheta: "toate liniile" });
     const incasatVeh = new Map<number, number>();
-    ((toateItems.data ?? []) as any[]).forEach((i) => {
+    (toateItems as any[]).forEach((i) => {
       const p = produse.get(i.product_id); if (!p?.vehicul_id) return;
       incasatVeh.set(p.vehicul_id, (incasatVeh.get(p.vehicul_id) ?? 0) + Number(i.pret) * i.cantitate);
     });
-    setProfituri(((veh.data ?? []) as any[]).map((v) => {
+    setProfituri((veh as any[]).map((v) => {
       const inc = incasatVeh.get(v.id) ?? 0, cost = Number(v.cost_achizitie || 0);
       return { nume: v.nume, slug: v.slug, cost, incasat: inc, profit: inc - cost,
         zile: Math.round((Date.now() - new Date(v.intrare).getTime()) / 86400000) };
     }).sort((a, b) => b.profit - a.profit));
 
     // 3) stocuri vechi
-    setVechi(((prod.data ?? []) as any[]).filter((p) => p.stoc > 0)
+    setVechi((prod as any[]).filter((p) => p.stoc > 0)
       .map((p) => ({ id: p.id, nume: p.nume, oem: p.oem, slug: p.slug, pret: Number(p.pret_lei),
         zile: Math.round((Date.now() - new Date(p.created_at).getTime()) / 86400000) }))
       .filter((p) => p.zile >= prag).sort((a, b) => b.zile - a.zile));

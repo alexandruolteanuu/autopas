@@ -3,7 +3,7 @@
 // cost de achiziție vs. încasat din piesele ei = profit + zile până la amortizare.
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { sbBrowser, scrieVerificat } from "@/lib/supabase";
+import { sbBrowser, scrieVerificat, citesteTot } from "@/lib/supabase";
 import { lei } from "@/lib/format";
 import PhotoUploader from "@/components/admin/PhotoUploader";
 import type { VehiculAdmin, Brand, Model } from "@/lib/types";
@@ -26,24 +26,29 @@ export default function Masini() {
   const incarca = useCallback(async () => {
     const sb = sbBrowser(); if (!sb) return;
     const [v, p, it, b, m] = await Promise.all([
-      sb.from("vehicles").select("*").order("intrare", { ascending: false }),
-      sb.from("products").select("id,vehicul_id,stoc,pret_lei"),
-      sb.from("order_items").select("pret,cantitate,product_id,orders!inner(status)").neq("orders.status", "anulata"),
-      sb.from("brands").select("*").order("nume"),
-      sb.from("models").select("*").order("nume"),
+      citesteTot<VehiculAdmin>(() => sb.from("vehicles").select("*", { count: "exact" }).order("intrare", { ascending: false }).order("id"), { eticheta: "mașinile" }),
+      // PAGINAT: `products` are 8.754 de rânduri, iar PostgREST taie la 1.000.
+      // Fără asta, „piese listate / vândute" pe mașină se calculau pe o optime
+      // din catalog. Vezi `citesteTot` din lib/supabase.ts.
+      citesteTot<any>(() => sb.from("products")
+        .select("id,vehicul_id,stoc,pret_lei", { count: "exact" }).order("id"),
+        { eticheta: "piesele" }),
+      citesteTot<any>(() => sb.from("order_items").select("pret,cantitate,product_id,orders!inner(status)", { count: "exact" }).neq("orders.status", "anulata").order("id"), { eticheta: "liniile comenzilor" }),
+      citesteTot<Brand>(() => sb.from("brands").select("*", { count: "exact" }).order("nume").order("id"), { eticheta: "mărcile" }),
+      citesteTot<Model>(() => sb.from("models").select("*", { count: "exact" }).order("nume").order("id"), { eticheta: "modelele" }),
     ]);
-    setCars((v.data ?? []) as VehiculAdmin[]);
-    setMarci((b.data ?? []) as Brand[]);
-    setModele((m.data ?? []) as Model[]);
-    const pieseDupaId = new Map<number, any>(((p.data ?? []) as any[]).map((x) => [x.id, x]));
+    setCars(v);
+    setMarci(b);
+    setModele(m);
+    const pieseDupaId = new Map<number, any>((p as any[]).map((x) => [x.id, x]));
     const r: Record<number, Randament> = {};
-    ((p.data ?? []) as any[]).forEach((x) => {
+    (p as any[]).forEach((x) => {
       if (!x.vehicul_id) return;
       r[x.vehicul_id] ??= { listate: 0, vandute: 0, incasat: 0 };
       r[x.vehicul_id].listate++;
       if (x.stoc <= 0) r[x.vehicul_id].vandute++;
     });
-    ((it.data ?? []) as any[]).forEach((i) => {
+    (it as any[]).forEach((i) => {
       const p = pieseDupaId.get(i.product_id); if (!p?.vehicul_id) return;
       r[p.vehicul_id] ??= { listate: 0, vandute: 0, incasat: 0 };
       r[p.vehicul_id].incasat += Number(i.pret) * i.cantitate;

@@ -40,19 +40,38 @@ import type { Brand, Model } from "./types";
  * singură, fără nicio migrare. Invers, o marcă rămasă fără piese dispare din
  * meniu, dar nu și din bază, deci istoricul nu se pierde.
  *
- * `counts` vine din `fitmentCounts`, care numără DOAR piesele publicate — deci
+ * `counts` vine din `counturiPeModel`, care numără DOAR piesele publicate — deci
  * regula ține cont automat și de piesele depublicate, și de cele epuizate.
  */
 export function marciCuPiese(brands: Brand[], counts: Record<string, number>) {
   return brands.filter((b) => (counts[`b${b.id}`] ?? 0) > 0);
 }
-export function fitmentCounts(rows: { model_ids: number[] | null }[], models: Model[]) {
+/**
+ * Contoarele pentru filtru: „m<id>" = piese pe model, „b<id>" = piese pe marcă.
+ *
+ * Rândurile vin din view-ul `numar_piese_pe_model` (supabase/numar-piese-pe-model.sql),
+ * NU din `products`. Varianta veche, `fitmentCounts`, primea toate piesele
+ * publicate și le număra aici — dar PostgREST taie tăcut la 1.000 de rânduri,
+ * deci numărătoarea se făcea pe 1.000 din 8.754 de piese. Nu ieșeau cifre puțin
+ * greșite, ci mărci dispărute: `marciCuPiese` de mai jos citește ACELEAȘI
+ * contoare, așa că din 38 de mărci cu piese se vedeau 16 (fără Dacia, fără
+ * Toyota, fără Volvo).
+ *
+ * Funcția s-a redenumit intenționat: schimbarea de semnătură face compilatorul
+ * să arate fiecare loc care mai folosea varianta veche, în loc să treacă tăcut.
+ *
+ * Modelele fără nicio piesă primesc explicit 0, ca `VehicleFilter` să scrie
+ * „· 0 piese" în loc să nu scrie nimic.
+ */
+export function counturiPeModel(
+  randuri: { model_id: number; brand_id: number; nr_piese: number }[],
+  models: Model[],
+) {
   const counts: Record<string, number> = {};
-  const brandOf: Record<number, number> = {};
-  models.forEach((m) => { brandOf[m.id] = m.brand_id; counts[`m${m.id}`] = 0; });
-  for (const r of rows) for (const id of r.model_ids ?? []) {
-    counts[`m${id}`] = (counts[`m${id}`] ?? 0) + 1;
-    const b = brandOf[id]; if (b) counts[`b${b}`] = (counts[`b${b}`] ?? 0) + 1;
+  models.forEach((m) => { counts[`m${m.id}`] = 0; });
+  for (const r of randuri) {
+    counts[`m${r.model_id}`] = (counts[`m${r.model_id}`] ?? 0) + r.nr_piese;
+    counts[`b${r.brand_id}`] = (counts[`b${r.brand_id}`] ?? 0) + r.nr_piese;
   }
   return counts;
 }

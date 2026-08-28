@@ -1,5 +1,5 @@
 import Breadcrumbs from "@/components/Breadcrumbs";
-import { sbServer } from "@/lib/supabase";
+import { sbServer, citesteTot } from "@/lib/supabase";
 import type { Product, Category, Brand, Model } from "@/lib/types";
 import ProductCard from "@/components/ProductCard";
 import VehicleFilter from "@/components/VehicleFilter";
@@ -8,7 +8,7 @@ import SortSelect from "@/components/SortSelect";
 import FiltreSertar from "@/components/FiltreSertar";
 import StareGoala from "@/components/StareGoala";
 import { IconLupa } from "@/components/Icoane";
-import { fitmentCounts, marciCuPiese, textCautare } from "@/lib/format";
+import { counturiPeModel, marciCuPiese, textCautare } from "@/lib/format";
 import { getVacanta } from "@/lib/settings";
 import { VacantaStareGoala } from "@/components/VacantaNota";
 import Link from "next/link";
@@ -20,10 +20,67 @@ export const dynamic = "force-dynamic";
 // de aici — o piesă vândută rămânea „În stoc". La dezmembrări fiecare piesă e
 // unicat, deci stocul trebuie citit la secundă.
 export const fetchCache = "force-no-store";
-export const metadata = { title: "Piese auto" };
+/** Câte piese pe pagină. 24 se împarte exact la 1, 2 și 3 coloane, deci ultimul
+ *  rând al grilei e plin la orice lățime.
+ *  NU e exportată: Next acceptă în fișierul unei pagini doar o listă fixă de
+ *  exporturi (`metadata`, `dynamic`, `revalidate`…) și respinge build-ul pentru
+ *  oricare altul. */
+const PE_PAGINA = 24;
 
 type SP = { q?: string; oem?: string; categorie?: string; subcategorie?: string; vehicul?: string;
-  sort?: string; marca?: string; model?: string };
+  sort?: string; marca?: string; model?: string; pagina?: string };
+
+/** Adresa aceleiași căutări, la altă pagină. Pagina 1 rămâne fără parametru, ca
+ *  să existe o singură adresă canonică pentru ea, nu și `?pagina=1`. */
+function adresaPaginii(sp: SP, n: number) {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(sp)) if (k !== "pagina" && v) q.set(k, String(v));
+  if (n > 1) q.set("pagina", String(n));
+  const qs = q.toString();
+  return `/piese${qs ? `?${qs}` : ""}`;
+}
+
+/**
+ * Numerele de pagină de arătat: primele, ultimele și vecinii paginii curente,
+ * cu „…" în locul golurilor. `null` = gol.
+ *
+ * La 365 de pagini nu se pot afișa toate — pe telefon ar fi un perete de cifre
+ * lung cât pagina. Se arată mereu prima și ultima, ca saltul la capăt să fie la
+ * un clic, plus câte una de-o parte și de alta a celei curente: maximum 7
+ * elemente, deci încape și la 320px.
+ */
+function numerePaginare(pagina: number, ultima: number): (number | null)[] {
+  // Fără `Set`: `tsconfig` țintește ES5, unde răspândirea unui Set n-are voie.
+  const brute = [1, ultima, pagina - 1, pagina, pagina + 1];
+  const n = brute
+    .filter((x, i) => x >= 1 && x <= ultima && brute.indexOf(x) === i)
+    .sort((a, b) => a - b);
+  const out: (number | null)[] = [];
+  for (let i = 0; i < n.length; i++) {
+    if (i > 0 && n[i] - n[i - 1] > 1) out.push(null);
+    out.push(n[i]);
+  }
+  return out;
+}
+
+/**
+ * Titlul și adresa canonică pentru fiecare pagină.
+ *
+ * Fără `canonical` pe pagină, Google ar vedea 365 de adrese cu conținut diferit
+ * dar aceeași canonică și le-ar considera duplicate — exact invers față de ce
+ * vrem, adică fiecare piesă găsibilă. `prev`/`next` îi spun că sunt o serie.
+ */
+export async function generateMetadata({ searchParams }: { searchParams: SP }) {
+  const pagina = Math.max(1, Number(searchParams.pagina) || 1);
+  return {
+    title: pagina > 1 ? `Piese auto — pagina ${pagina}` : "Piese auto",
+    alternates: { canonical: adresaPaginii(searchParams, pagina) },
+    // `rel=prev/next` NU se pun aici: `metadata.other` ar emite
+    // `<meta name="link:prev">`, care nu înseamnă nimic pentru Google. Se pun ca
+    // elemente `<link>` adevărate în corpul paginii, unde numărul total de pagini
+    // e deja calculat — Next le ridică singur în <head>.
+  };
+}
 
 export default async function Piese({ searchParams }: { searchParams: SP }) {
   const sb = sbServer();
@@ -31,20 +88,30 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
   // individuale de produs trăiesc mai departe, cu 200 — vezi app/piese/[slug].
   const vacanta = await getVacanta();
   let products: Product[] = []; let cats: Category[] = []; let titlu = "Toate piesele";
-  let brands: Brand[] = []; let models: Model[] = []; let fitRows: { model_ids: number[] }[] = [];
+  let brands: Brand[] = []; let models: Model[] = []; let fitRows: any[] = [];
   let catActiva: Category | null = null;
+  // Numărul REAL de rezultate, din `count: "exact"` — adică din antetul
+  // `content-range` al lui PostgREST. Înainte se afișa `products.length`, iar
+  // aceea era lungimea listei primite: cu plafonul de 1.000 al serverului,
+  // pagina scria „1000 piese găsite" pentru un catalog de 8.754.
+  let total = 0;
+  const pagina = Math.max(1, Number(searchParams.pagina) || 1);
 
   if (sb) {
-    cats = ((await sb.from("categorii_cu_numar").select("*").order("ordine")).data ?? []) as Category[];
-    brands = ((await sb.from("brands").select("*").order("ordine")).data ?? []) as Brand[];
-    models = ((await sb.from("models").select("*").order("nume")).data ?? []) as Model[];
-    fitRows = ((await sb.from("products").select("model_ids").eq("publicat", true)).data ?? []) as { model_ids: number[] }[];
+    cats = await citesteTot<Category>(() => sb.from("categorii_cu_numar").select("*", { count: "exact" }).order("ordine").order("id"), { eticheta: "categoriile" });
+    brands = await citesteTot<Brand>(() => sb.from("brands").select("*", { count: "exact" }).order("ordine").order("id"), { eticheta: "mărcile" });
+    models = await citesteTot<Model>(() => sb.from("models").select("*", { count: "exact" }).order("nume").order("id"), { eticheta: "modelele" });
+    // Contoarele filtrului vin din view (537 de rânduri), nu din `products`
+    // (8.754, tăiate la 1.000). Vezi supabase/numar-piese-pe-model.sql.
+    fitRows = ((await sb.from("numar_piese_pe_model").select("*")).data ?? []) as any[];
 
     // Atenție: `products` are DOUĂ legături către `categories` (categorie_id și
     // subcategorie_id). Fără să spunem pe care o vrem, Supabase respinge cererea
     // ca ambiguă (eroarea PGRST201) și lista rămâne goală. Numim cheia străină.
+    // `count: "exact"` cere serverului totalul filtrului, nu doar rândurile
+    // paginii — el ajunge în `count` și de acolo în contorul de sus.
     let q = sb.from("products")
-      .select("*, categories!products_categorie_id_fkey(*), vehicles(*)")
+      .select("*, categories!products_categorie_id_fkey(*), vehicles(*)", { count: "exact" })
       .eq("publicat", true);
 
     if (searchParams.subcategorie) {
@@ -99,8 +166,18 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
     else if (searchParams.sort === "nume") q = q.order("nume", { ascending: true });
     else q = q.order("created_at", { ascending: false });
 
-    products = ((await q).data ?? []) as Product[];
+    // Ordinea secundară după `id` face paginarea deterministă: `created_at` nu e
+    // unic (importul scrie sute de piese în aceeași secundă), iar fără un
+    // departajator Postgres n-are nicio obligație să păstreze ordinea între două
+    // cereri — aceeași piesă ar putea apărea pe pagina 2 și pe 3, iar alta deloc.
+    q = q.order("id", { ascending: false });
+
+    const de = (pagina - 1) * PE_PAGINA;
+    const r = await q.range(de, de + PE_PAGINA - 1);
+    products = (r.data ?? []) as Product[];
+    total = r.count ?? 0;
   }
+  const ultimaPagina = Math.max(1, Math.ceil(total / PE_PAGINA));
 
   // Filtrele active, ca etichete cu „×": fiecare link duce la aceeași căutare,
   // fără parametrul respectiv. Se construiesc pe server, din searchParams.
@@ -121,7 +198,7 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
   // și `marciCuPiese`, ca să nu arate în listă mărci fără nicio piesă publicată.
   // `brands` rămâne întreg mai sus, la etichetele filtrelor active: cine ajunge pe
   // /piese?marca=byd cu un link vechi trebuie să vadă tot „BYD", nu slug-ul brut.
-  const counts = fitmentCounts(fitRows, models);
+  const counts = counturiPeModel(fitRows, models);
   const principale = cats.filter((c) => !c.parent_id);
   const subAle = (id: number) => cats.filter((c) => c.parent_id === id);
   const parintele = catActiva?.parent_id ? cats.find((c) => c.id === catActiva!.parent_id) : catActiva;
@@ -189,7 +266,10 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
         <div className="min-w-0">
           {!vacanta.activ && (
             <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-              <span className="text-sm text-textSecundar">{products.length} {products.length === 1 ? "piesă găsită" : "piese găsite"}</span>
+              <span className="text-sm text-textSecundar">
+                {total} {total === 1 ? "piesă găsită" : "piese găsite"}
+                {ultimaPagina > 1 && <> · pagina {pagina} din {ultimaPagina}</>}
+              </span>
               <SortSelect />
             </div>
           )}
@@ -197,6 +277,43 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
             <div className="grid grid-cols-1 min-[420px]:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
               {products.map((p) => <ProductCard key={p.id} p={p} />)}
             </div>
+          )}
+
+          {/* Paginarea. Linkuri adevărate, nu butoane cu JavaScript: Google
+              trebuie să poată urma fiecare pagină ca să ajungă la toate cele
+              8.754 de piese. `rel=prev/next` sunt elemente `<link>` reale —
+              Next le ridică în <head> — și se pun doar când există într-adevăr
+              o pagină înainte sau după. */}
+          {!vacanta.activ && ultimaPagina > 1 && (
+            <>
+              {pagina > 1 && <link rel="prev" href={adresaPaginii(searchParams, pagina - 1)} />}
+              {pagina < ultimaPagina && <link rel="next" href={adresaPaginii(searchParams, pagina + 1)} />}
+              <nav aria-label="Paginare" className="mt-8 flex items-center justify-center gap-1.5 flex-wrap">
+                {pagina > 1 && (
+                  <Link href={adresaPaginii(searchParams, pagina - 1)} rel="prev"
+                    className="rounded-lg border border-chenarPuternic px-3 min-h-[44px] inline-flex items-center text-sm">
+                    ← Înapoi
+                  </Link>
+                )}
+                {numerePaginare(pagina, ultimaPagina).map((n, i) =>
+                  n === null ? (
+                    <span key={`gol-${i}`} className="px-1.5 text-textSecundar">…</span>
+                  ) : (
+                    <Link key={n} href={adresaPaginii(searchParams, n)}
+                      aria-current={n === pagina ? "page" : undefined}
+                      className={`rounded-lg border px-3 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-sm ${
+                        n === pagina ? "bg-accent text-accentContrast border-accentChenar font-semibold" : "border-chenarPuternic"}`}>
+                      {n}
+                    </Link>
+                  ))}
+                {pagina < ultimaPagina && (
+                  <Link href={adresaPaginii(searchParams, pagina + 1)} rel="next"
+                    className="rounded-lg border border-chenarPuternic px-3 min-h-[44px] inline-flex items-center text-sm">
+                    Înainte →
+                  </Link>
+                )}
+              </nav>
+            </>
           )}
           {/* Mesajul de vacanță ține locul stării goale obișnuite: aceea ar fi
               spus „încearcă să elimini marca", trimițând omul să caute degeaba. */}

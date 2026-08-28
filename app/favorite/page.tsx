@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useFavorites } from "@/components/FavoritesContext";
-import { sbBrowser } from "@/lib/supabase";
+import { sbBrowser, citesteDupaIduri } from "@/lib/supabase";
 import ProductCard from "@/components/ProductCard";
 import StareGoala from "@/components/StareGoala";
 import { ScheletGrilaProduse } from "@/components/ScheletCarduri";
@@ -26,9 +26,14 @@ export default function Favorite() {
     const sb = sbBrowser(); if (!sb) { setGata(true); return; }
     sb.auth.getUser().then(({ data }) => setLogat(!!data.user));
     if (ids.length === 0) { setProduse([]); setGata(true); return; }
-    sb.from("products").select("*").in("id", ids).then(({ data }) => {
-      setProduse((data ?? []) as Product[]); setGata(true);
-    });
+    // În loturi: id-urile vin din localStorage și intră toate în URL. O listă
+    // lungă de favorite ar depăși lungimea acceptată de server, iar peste 1.000
+    // s-ar tăia oricum — omul și-ar vedea jumătate din favorite fără nicio eroare.
+    citesteDupaIduri<Product>(ids,
+      (lot) => sb.from("products").select("*", { count: "exact" }).in("id", lot).order("id"),
+      { eticheta: "favoritele" })
+      .then((data) => { setProduse(data); setGata(true); })
+      .catch(() => setGata(true));
   }, [ids]);
 
   return (

@@ -15,7 +15,7 @@
 // `recalc_piese_vehicul`), dar e o valoare memorată: dacă vreodată se desincronizează,
 // aici s-ar vedea ca „0 piese" pe o mașină plină.
 // ============================================================
-import { sbServer } from "@/lib/supabase";
+import { sbServer, citesteTot } from "@/lib/supabase";
 import type { Vehicle } from "@/lib/types";
 import MasinaArt from "@/components/MasinaArt";
 import Breadcrumbs from "@/components/Breadcrumbs";
@@ -56,17 +56,17 @@ function CardMasina({ v, cate }: { v: Vehicle; cate: number }) {
 export default async function Masini() {
   const sb = sbServer();
   const masini: Vehicle[] = sb
-    ? (((await sb.from("vehicles").select("*").eq("publicat", true)
-        .order("intrare", { ascending: false })).data ?? []) as Vehicle[])
+    ? await citesteTot<Vehicle>(() => sb.from("vehicles").select("*", { count: "exact" })
+        .eq("publicat", true).order("intrare", { ascending: false }).order("id"), { eticheta: "mașinile" })
     : [];
 
-  // O singură interogare pentru toate numărătorile, apoi se numără în memorie.
+  // Numărătorile vin din view: un rând pe mașină. Varianta veche aducea un rând
+  // pe piesă legată și se oprea tăcut la 1.000 — vezi supabase/numar-piese-pe-model.sql.
   const randuri = sb
-    ? (((await sb.from("products").select("vehicul_id")
-        .eq("publicat", true).gt("stoc", 0).not("vehicul_id", "is", null)).data ?? []) as { vehicul_id: number }[])
+    ? (((await sb.from("numar_piese_pe_masina").select("*")).data ?? []) as { vehicul_id: number; nr_piese: number }[])
     : [];
   const cate: Record<number, number> = {};
-  for (const r of randuri) cate[r.vehicul_id] = (cate[r.vehicul_id] ?? 0) + 1;
+  for (const r of randuri) cate[r.vehicul_id] = r.nr_piese;
 
   const cuPiese = masini.filter((v) => (cate[v.id] ?? 0) > 0);
   const faraPiese = masini.filter((v) => (cate[v.id] ?? 0) === 0);

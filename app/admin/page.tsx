@@ -2,7 +2,7 @@
 // DASHBOARD — răspunde la întrebarea „ce am de făcut ACUM?", cu date reale din Supabase.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { sbBrowser } from "@/lib/supabase";
+import { sbBrowser, citesteTot } from "@/lib/supabase";
 import { lei } from "@/lib/format";
 
 type Kpi = { azi: number; aziNr: number; luna: number; lunaNr: number; noi: number; deExpediat: number };
@@ -26,31 +26,38 @@ export default function Dashboard() {
       const z7 = new Date(azi0); z7.setDate(z7.getDate() - 6);
 
       const [oAzi, oLuna, o7, oNoi, oExp, oRec, itemsLuna, catAll] = await Promise.all([
-        sb.from("orders").select("total").neq("status", "anulata").gte("created_at", azi0.toISOString()),
-        sb.from("orders").select("total").neq("status", "anulata").gte("created_at", luna0.toISOString()),
-        sb.from("orders").select("total,created_at").neq("status", "anulata").gte("created_at", z7.toISOString()),
+        citesteTot<any>(() => sb.from("orders").select("total", { count: "exact" })
+        .neq("status", "anulata").gte("created_at", azi0.toISOString()).order("id"), { eticheta: "comenzile de azi" }),
+        citesteTot<any>(() => sb.from("orders").select("total", { count: "exact" })
+        .neq("status", "anulata").gte("created_at", luna0.toISOString()).order("id"), { eticheta: "comenzile lunii" }),
+        citesteTot<any>(() => sb.from("orders").select("total,created_at", { count: "exact" })
+        .neq("status", "anulata").gte("created_at", z7.toISOString()).order("id"), { eticheta: "comenzile săptămânii" }),
         sb.from("orders").select("id", { count: "exact", head: true }).eq("status", "noua"),
         sb.from("orders").select("id", { count: "exact", head: true }).eq("status", "confirmata"),
         sb.from("orders").select("id,numar,nume,oras,total,status,created_at").order("created_at", { ascending: false }).limit(6),
-        sb.from("order_items").select("pret,cantitate,orders!inner(created_at,status),products(categorie_id)").gte("orders.created_at", luna0.toISOString()),
-        sb.from("categories").select("id,nume"),
+        // PAGINAT: peste 1.000 de linii într-o lună, graficul pe categorii ar
+      // arăta doar o parte din vânzări, fără să spună nimic.
+      citesteTot<any>(() => sb.from("order_items")
+        .select("pret,cantitate,orders!inner(created_at,status),products(categorie_id)", { count: "exact" })
+        .gte("orders.created_at", luna0.toISOString()).order("id"), { eticheta: "liniile lunii" }),
+        citesteTot<any>(() => sb.from("categories").select("id,nume", { count: "exact" }).order("id"), { eticheta: "categoriile" }),
       ]);
 
       const suma = (rows: any[] | null) => (rows ?? []).reduce((s, r) => s + Number(r.total), 0);
-      setKpi({ azi: suma(oAzi.data), aziNr: (oAzi.data ?? []).length, luna: suma(oLuna.data), lunaNr: (oLuna.data ?? []).length,
+      setKpi({ azi: suma(oAzi), aziNr: oAzi.length, luna: suma(oLuna), lunaNr: oLuna.length,
         noi: oNoi.count ?? 0, deExpediat: oExp.count ?? 0 });
 
       const perZi = new Map<string, number>();
       for (let i = 0; i < 7; i++) { const d = new Date(z7); d.setDate(z7.getDate() + i); perZi.set(d.toDateString(), 0); }
-      (o7.data ?? []).forEach((r: any) => { const k = new Date(r.created_at).toDateString(); if (perZi.has(k)) perZi.set(k, perZi.get(k)! + Number(r.total)); });
+      o7.forEach((r: any) => { const k = new Date(r.created_at).toDateString(); if (perZi.has(k)) perZi.set(k, perZi.get(k)! + Number(r.total)); });
       const nume = ["Dum", "Lun", "Mar", "Mie", "Joi", "Vin", "Sâm"];
       setZile(Array.from(perZi.entries()).map(([k, v]) => ({ eticheta: nume[new Date(k).getDay()], suma: v })));
 
       setRecente((oRec.data ?? []) as Recenta[]);
 
-      const numeCat = new Map<number, string>(((catAll.data ?? []) as any[]).map((c) => [c.id, c.nume]));
+      const numeCat = new Map<number, string>((catAll as any[]).map((c) => [c.id, c.nume]));
       const perCat = new Map<string, number>();
-      ((itemsLuna.data ?? []) as any[]).forEach((i) => {
+      (itemsLuna as any[]).forEach((i) => {
         if (i.orders?.status === "anulata") return;
         const n = numeCat.get(i.products?.categorie_id) ?? "Altele";
         perCat.set(n, (perCat.get(n) ?? 0) + Number(i.pret) * i.cantitate);

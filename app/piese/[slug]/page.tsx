@@ -1,4 +1,4 @@
-import { sbServer } from "@/lib/supabase";
+import { sbServer, citesteTot } from "@/lib/supabase";
 import type { Product, Category, Brand, Model } from "@/lib/types";
 import AddToCart from "@/components/AddToCart";
 import ProductCard from "@/components/ProductCard";
@@ -41,8 +41,8 @@ export default async function Produs({ params }: { params: { slug: string } }) {
   const { firma } = await getSetariServer();
   await sb.rpc("vazut_produs", { p_id: prod.id });
 
-  const models = ((await sb.from("models").select("*")).data ?? []) as Model[];
-  const brands = ((await sb.from("brands").select("*")).data ?? []) as Brand[];
+  const models = await citesteTot<Model>(() => sb.from("models").select("*", { count: "exact" }).order("id"), { eticheta: "modelele" });
+  const brands = await citesteTot<Brand>(() => sb.from("brands").select("*", { count: "exact" }).order("id"), { eticheta: "mărcile" });
   const modeleProd = models.filter((m) => (prod.model_ids ?? []).includes(m.id));
   const marcaProd = brands.find((b) => modeleProd.some((m) => m.brand_id === b.id));
   const subcat = prod.subcategorie_id

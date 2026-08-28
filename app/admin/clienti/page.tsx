@@ -2,7 +2,7 @@
 // CLIENȚI — agregați automat din comenzi (fără tabelă separată): cine cumpără, cât, când.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { sbBrowser } from "@/lib/supabase";
+import { sbBrowser, citesteTot } from "@/lib/supabase";
 import { lei } from "@/lib/format";
 
 type Client = { email: string; nume: string; telefon: string; oras: string; tip: string; cui: string | null;
@@ -17,10 +17,15 @@ export default function Clienti() {
   useEffect(() => {
     const sb = sbBrowser(); if (!sb) return;
     (async () => {
-      const { data } = await sb.from("orders").select("id,numar,nume,email,telefon,oras,tip_client,cui,firma,total,status,created_at")
-        .neq("status", "anulata").order("created_at", { ascending: false });
+      // PAGINAT: fișele de client se construiesc agregând TOATE comenzile. Cu
+      // 1.000 din ele, un client vechi ar apărea cu jumătate din cumpărături.
+      const data = await citesteTot<any>(
+        () => sb.from("orders")
+          .select("id,numar,nume,email,telefon,oras,tip_client,cui,firma,total,status,created_at", { count: "exact" })
+          .neq("status", "anulata").order("id"),
+        { eticheta: "comenzile" });
       const m = new Map<string, Client>();
-      ((data ?? []) as any[]).forEach((o) => {
+      data.forEach((o) => {
         const k = (o.email || "").toLowerCase();
         const c: Client = m.get(k) ?? { email: o.email, nume: o.firma ?? o.nume, telefon: o.telefon, oras: o.oras,
           tip: o.tip_client, cui: o.cui, comenzi: 0, valoare: 0, ultima: o.created_at, ids: [] as Client["ids"] };

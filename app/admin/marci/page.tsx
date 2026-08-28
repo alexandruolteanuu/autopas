@@ -1,7 +1,7 @@
 "use client";
 // MĂRCI ȘI MODELE — administrate din interfață (până acum se puteau schimba doar din SQL).
 import { useEffect, useState, useCallback } from "react";
-import { sbBrowser, scrieVerificat } from "@/lib/supabase";
+import { sbBrowser, scrieVerificat, citesteTot } from "@/lib/supabase";
 import type { Brand, Model } from "@/lib/types";
 
 const slugify = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
@@ -19,13 +19,15 @@ export default function Marci() {
   const incarca = useCallback(async () => {
     const sb = sbBrowser(); if (!sb) return;
     const [b, m, p] = await Promise.all([
-      sb.from("brands").select("*").order("ordine"),
-      sb.from("models").select("*").order("nume"),
-      sb.from("products").select("model_ids").eq("publicat", true),
+      citesteTot<Brand>(() => sb.from("brands").select("*", { count: "exact" }).order("ordine").order("id"), { eticheta: "mărcile" }),
+      citesteTot<Model>(() => sb.from("models").select("*", { count: "exact" }).order("nume").order("id"), { eticheta: "modelele" }),
+      // Din view, nu din `products`: numărătoarea pe 8.754 de rânduri se oprea
+      // tăcut la 1.000, deci ecranul arăta contoare calculate pe 11% din catalog.
+      sb.from("numar_piese_pe_model").select("*"),
     ]);
-    setBrands((b.data ?? []) as Brand[]); setModels((m.data ?? []) as Model[]);
+    setBrands(b); setModels(m);
     const c: Record<number, number> = {};
-    ((p.data ?? []) as any[]).forEach((x) => (x.model_ids ?? []).forEach((id: number) => { c[id] = (c[id] ?? 0) + 1; }));
+    ((p.data ?? []) as any[]).forEach((x) => { c[x.model_id] = x.nr_piese; });
     setNrPiese(c);
   }, []);
   useEffect(() => { incarca(); }, [incarca]);

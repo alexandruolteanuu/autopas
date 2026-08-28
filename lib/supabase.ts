@@ -28,6 +28,120 @@ export function sbAdmin(): SupabaseClient | null {
 }
 
 // ============================================================
+// CITIRE COMPLETĂ, PAGINĂ CU PAGINĂ
+//
+// DE CE EXISTĂ (defect găsit la 28 august 2026, pe tot site-ul)
+// Capcana era deja cunoscută și scrisă, într-un singur modul. Comentariul din
+// `lib/import/depozit.mjs` o descria perfect, cu luni în urmă:
+//
+//   „Citește tot dintr-o tabelă, pagină cu pagină. Peste 1.000 de rânduri
+//    PostgREST taie tăcut, iar un import care crede că are 1.000 de piese în bază
+//    când are 8.000 ar depublica 7.000 de rânduri bune."
+//
+// Cunoștința n-a ieșit niciodată din modulul acela. În restul proiectului, 9
+// locuri citeau `products` fără paginare și tratau rezultatul drept complet:
+// `/piese` arăta 1.000 de piese din 8.754, filtrul arăta 16 mărci din 38 (Dacia,
+// Toyota și Volvo lipseau cu totul), iar `curata-orfani.mjs --sterge` ar fi
+// considerat orfane pozele celor 7.754 de piese pe care nu le-a văzut.
+//
+// `.limit(5000)` NU ajută: plafonul e al serverului, iar `limit` îl poate doar
+// coborî. Serverul spune adevărul de fiecare dată, în antet —
+// `content-range: 0-999/8754` — dar nimeni nu-l citea. Un array de 1.000 arată
+// exact ca un array complet.
+//
+// CUM SE FOLOSEȘTE
+//   const piese = await citesteTot<{ model_ids: number[] }>(
+//     () => sb.from("products").select("model_ids", { count: "exact" })
+//             .eq("publicat", true).order("id"));
+//
+// `count: "exact"` e OBLIGATORIU: din el vine totalul pe care îl citește
+// `supabase-js` din `content-range`. Fără el `count` iese `null`, iar funcția
+// ARUNCĂ EROARE în loc să presupună că răspunsul e complet — cerința care
+// desparte funcția asta de cea pe care o înlocuiește.
+//
+// `.order()` pe o coloană UNICĂ (de regulă `id`) e la fel de obligatoriu:
+// paginarea fără ordine stabilă poate întoarce același rând de două ori și sări
+// peste altul, fiindcă între pagini Postgres n-are nicio obligație să păstreze
+// ordinea.
+//
+// Funcția primește o FABRICĂ, nu o cerere gata făcută: o cerere `supabase-js` se
+// consumă la prima așteptare, deci pentru fiecare pagină trebuie una nouă.
+// ============================================================
+
+/** Cât cere o pagină. Egal cu plafonul PostgREST: mai mult n-are efect. */
+export const PAGINA = 1000;
+
+type CerereListare<T> = {
+  range: (de: number, pana: number) => PromiseLike<{
+    data: T[] | null;
+    error: { message: string } | null;
+    count: number | null;
+  }>;
+};
+
+export async function citesteTot<T>(
+  fabrica: () => CerereListare<T>,
+  optiuni: { plafon?: number; eticheta?: string } = {},
+): Promise<T[]> {
+  // Plafonul de siguranță ARUNCĂ, nu taie. O tabelă care a crescut peste ce
+  // așteptam trebuie să oprească pagina cu o eroare vizibilă, nu s-o umple cu
+  // jumătate de adevăr — adică exact greșeala pe care funcția asta o repară.
+  const plafon = optiuni.plafon ?? 50_000;
+  const ce = optiuni.eticheta ?? "citirea";
+  const out: T[] = [];
+
+  for (let de = 0; ; de += PAGINA) {
+    const { data, error, count } = await fabrica().range(de, de + PAGINA - 1);
+    if (error) throw new Error(`${ce}: ${error.message}`);
+    if (count === null || count === undefined)
+      throw new Error(
+        `${ce}: răspunsul n-are content-range, deci nu pot ști dacă e complet. ` +
+        `Adaugă { count: "exact" } la .select().`,
+      );
+    if (count > plafon)
+      throw new Error(
+        `${ce}: ${count} rânduri, peste plafonul de siguranță de ${plafon}. ` +
+        `Ridică plafonul conștient sau filtrează mai strâns — nu tai tăcut.`,
+      );
+
+    const lot = data ?? [];
+    out.push(...lot);
+    // Două condiții de oprire, fiindcă fiecare singură are o gaură: `out >= count`
+    // ratează cazul în care rândurile se șterg în timpul citirii, iar lotul scurt
+    // singur ar putea opri prea devreme dacă serverul întoarce mai puțin decât am
+    // cerut. Împreună, bucla se termină întotdeauna.
+    if (out.length >= count || lot.length < PAGINA) return out;
+  }
+}
+
+/**
+ * Citește rânduri după o listă de id-uri, în loturi.
+ *
+ * A DOUA limită, independentă de plafonul de 1.000 și la fel de tăcută:
+ * `.in("order_id", ids)` pune fiecare id în URL. La câteva mii de comenzi, adresa
+ * trece de ce acceptă serverul și cererea pică cu 414 — sau, mai rău, e tăiată de
+ * un proxy pe drum. Codul vede o listă scurtă și merge mai departe.
+ *
+ * Loturile de 200 țin URL-ul sub ~2 KB chiar și cu id-uri lungi. Fiecare lot
+ * trece prin `citesteTot`, deci și plafonul de rânduri e acoperit: un lot de 200
+ * de comenzi poate avea peste 1.000 de linii.
+ */
+export async function citesteDupaIduri<T>(
+  ids: (number | string)[],
+  fabrica: (lot: (number | string)[]) => CerereListare<T>,
+  optiuni: { plafon?: number; eticheta?: string } = {},
+): Promise<T[]> {
+  const LOT = 200;
+  const out: T[] = [];
+  for (let i = 0; i < ids.length; i += LOT) {
+    const lot = ids.slice(i, i + LOT);
+    if (lot.length === 0) continue;
+    out.push(...(await citesteTot<T>(() => fabrica(lot), optiuni)));
+  }
+  return out;
+}
+
+// ============================================================
 // SCRIERE VERIFICATĂ
 //
 // DE CE EXISTĂ (defect găsit la 25 august 2026, în Admin → Setări)

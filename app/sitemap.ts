@@ -9,7 +9,7 @@
 // Se reface la fiecare oră, ca piesele noi să apară fără un redeploy.
 // ============================================================
 import type { MetadataRoute } from "next";
-import { sbServer } from "@/lib/supabase";
+import { sbServer, citesteTot } from "@/lib/supabase";
 import { LEGAL_SLUGS } from "@/lib/legal";
 import { SITE_URL } from "@/lib/config";
 
@@ -52,13 +52,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // valid, doar fără produse — nu vrem să pice build-ul din cauza asta.
   const sb = sbServer();
   if (sb) {
-    const { data } = await sb
-      .from("products")
-      .select("slug, created_at")
-      .eq("publicat", true)
-      .gt("stoc", 0)
-      .order("created_at", { ascending: false })
-      .limit(5000);
+    // PAGINAT. Varianta veche cerea `.limit(5000)` și primea 1.000: `limit` poate
+    // doar COBORÎ plafonul serverului, niciodată să-l ridice. Sitemap-ul avea deci
+    // 1.000 din 8.754 de piese, iar restul de 7.754 nu erau niciodată trimise
+    // către Google — pagini bune, invizibile.
+    // Ordinea e după `id`, nu după `created_at`: importul scrie sute de piese în
+    // aceeași secundă, iar o ordine neunică poate repeta un rând între pagini și
+    // sări peste altul.
+    const data = await citesteTot<{ slug: string; created_at: string }>(
+      () => sb.from("products")
+        .select("slug, created_at", { count: "exact" })
+        .eq("publicat", true).gt("stoc", 0).order("id"),
+      { eticheta: "piesele pentru sitemap" },
+    );
 
     for (const p of data ?? []) {
       intrari.push({
@@ -74,12 +80,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Intră și mașinile fără piese listate încă: pagina lor nu e goală (are
     // specificațiile și formularul de cerere), iar o pagină scoasă din sitemap
     // și reintrodusă mai târziu își pierde poziția câștigată.
-    const { data: masini } = await sb
-      .from("vehicles")
-      .select("slug, intrare")
-      .eq("publicat", true)
-      .order("intrare", { ascending: false })
-      .limit(1000);
+    const masini = await citesteTot<{ slug: string; intrare: string }>(
+      () => sb.from("vehicles").select("slug, intrare", { count: "exact" })
+        .eq("publicat", true).order("id"),
+      { eticheta: "mașinile pentru sitemap" },
+    );
 
     for (const v of masini ?? []) {
       intrari.push({

@@ -1,7 +1,7 @@
 "use client";
 // Contul clientului: comenzile lui (RLS le filtrează după e-mailul autentificat).
 import { useEffect, useState } from "react";
-import { sbBrowser } from "@/lib/supabase";
+import { sbBrowser, citesteTot } from "@/lib/supabase";
 import { lei } from "@/lib/format";
 import Link from "next/link";
 
@@ -22,8 +22,12 @@ export default function Cont() {
       const em = data.user?.email ?? null;
       setEmail(em);
       if (em) {
-        const { data: o } = await sb.from("orders").select("id,numar,created_at,total,status,plata").order("created_at", { ascending: false });
-        setOrders((o ?? []) as Ord[]);
+        // Paginat: un client fidel poate depăși 1.000 de comenzi, iar atunci
+        // istoricul lui s-ar opri tăcut la mijloc.
+        const o = await citesteTot<Ord>(() => sb.from("orders")
+          .select("id,numar,created_at,total,status,plata", { count: "exact" })
+          .order("created_at", { ascending: false }).order("id"), { eticheta: "comenzile tale" });
+        setOrders(o);
       }
       setGata(true);
     });

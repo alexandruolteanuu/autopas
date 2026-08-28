@@ -16,7 +16,7 @@
 // Deci o mașină fără piese legate NU e un defect, ci starea normală până la
 // prima mașină dezmembrată de noi. Pagina ei arată o invitație, nu un gol.
 // ============================================================
-import { sbServer } from "@/lib/supabase";
+import { sbServer, citesteTot } from "@/lib/supabase";
 import type { Product, Vehicle, Brand, Model, Category } from "@/lib/types";
 import ProductCard from "@/components/ProductCard";
 import ProductGallery from "@/components/ProductGallery";
@@ -96,10 +96,10 @@ export default async function PaginaMasina(
   const vacanta = await getVacanta();
 
   // ---- piesele acestei mașini ----
-  const piese = ((await sb.from("products")
-    .select("*, categories!products_categorie_id_fkey(*)")
+  const piese = await citesteTot<Product>(() => sb.from("products")
+    .select("*, categories!products_categorie_id_fkey(*)", { count: "exact" })
     .eq("vehicul_id", v.id).eq("publicat", true).gt("stoc", 0)
-    .order("created_at", { ascending: false })).data ?? []) as Product[];
+    .order("created_at", { ascending: false }).order("id"), { eticheta: "piesele mașinii" });
 
   // Filtrul pe categorie apare doar când chiar ajută: sub 12 piese, sau cu o
   // singură categorie, ar fi un rând de butoane care nu filtrează nimic.
@@ -120,15 +120,15 @@ export default async function PaginaMasina(
   //   4. aceeași marcă, alt model
   // Nivelul 3 (platformă comună: Touran pe platforma lui Passat B6) NU e
   // implementat: ar cere un tabel de platforme pe care nu-l avem. Vezi raportul.
-  const marci = ((await sb.from("brands").select("*")).data ?? []) as Brand[];
-  const modele = ((await sb.from("models").select("*")).data ?? []) as Model[];
+  const marci = await citesteTot<Brand>(() => sb.from("brands").select("*", { count: "exact" }).order("id"), { eticheta: "mărcile" });
+  const modele = await citesteTot<Model>(() => sb.from("models").select("*", { count: "exact" }).order("id"), { eticheta: "modelele" });
   const modelAcestei = modele.find((m) => m.id === v.model_id);
   const marcaAcestei = marci.find((b) => b.id === v.marca_id);
 
   let compatibile: { p: Product; masina: Vehicle }[] = [];
   if (v.marca_id || v.model_id) {
-    const altele = ((await sb.from("vehicles").select("*")
-      .neq("id", v.id).eq("publicat", true)).data ?? []) as Vehicle[];
+    const altele = await citesteTot<Vehicle>(() => sb.from("vehicles").select("*", { count: "exact" })
+      .neq("id", v.id).eq("publicat", true).order("id"), { eticheta: "mașinile" });
 
     const nivel = (alt: Vehicle): number => {
       if (v.model_id && alt.model_id === v.model_id) return 1;

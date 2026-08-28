@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { sbBrowser, scrieVerificat } from "@/lib/supabase";
+import { sbBrowser, scrieVerificat, citesteTot } from "@/lib/supabase";
 import { lei } from "@/lib/format";
 
 type Prod = { id: number; nume: string; oem: string | null; cod_intern: string | null; poze: string[] | null; pret_lei: number; stoc: number; publicat: boolean; slug: string;
@@ -29,8 +29,8 @@ function ProduseInner() {
   const PE_PAGINA = 50;
   useEffect(() => {
     const sb = sbBrowser(); if (!sb) return;
-    sb.from("categories").select("id,slug,nume,parent_id").order("ordine")
-      .then(({ data }) => setCats((data ?? []) as any[]));
+    citesteTot<any>(() => sb.from("categories").select("id,slug,nume,parent_id", { count: "exact" }).order("ordine").order("id"), { eticheta: "categoriile" })
+      .then((data) => setCats(data));
   }, []);
 
 

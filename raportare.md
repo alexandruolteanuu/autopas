@@ -312,3 +312,111 @@ pagini utile. Nu am făcut-o: nu e în sarcină. Spune dacă o vrei.
 
 `npm run build` — trece.
 `node scripts/verifica-import.mjs` — 110 verificări trec (neatins de Partea B).
+
+---
+---
+
+# RAPORT — 28 august 2026 · PLAFONUL DE 1.000 DE RÂNDURI
+
+Un singur defect, în 20 de locuri. În producție de trei zile, de când importul a trecut de
+1.000 de piese.
+
+---
+
+## Cauza
+
+PostgREST plafonează orice răspuns la 1.000 de rânduri. `.limit(5000)` nu ajută: plafonul e al
+serverului, iar `limit` îl poate doar coborî. Serverul spune adevărul de fiecare dată —
+`content-range: 0-999/8754` — dar nimeni nu citea antetul, iar un array de 1.000 arată exact ca
+unul complet.
+
+Capcana era **deja cunoscută și scrisă**, din luni, în `lib/import/depozit.mjs`:
+
+> „Peste 1.000 de rânduri PostgREST taie tăcut, iar un import care crede că are 1.000 de piese
+> în bază când are 8.000 ar depublica 7.000 de rânduri bune."
+
+N-a ieșit niciodată din modulul acela. Motorul de import a fost singurul cod corect din proiect.
+
+---
+
+## Ce se vedea
+
+| Loc | Arăta | Adevărul |
+|---|---|---|
+| `/piese` | 1.000 de piese, fără nicio paginare | 8.754 |
+| filtrul de mărci | 16 mărci | 38 |
+| Volkswagen | 513 piese | 3.085 |
+| `sitemap.xml` | 1.000 de URL-uri | 8.754 |
+| Admin → Piese de completat | „De completat: 500" | 8.625 |
+| Admin → Mărci, Mașini, Rapoarte | contoare pe 11% din catalog | — |
+
+Din filtru lipseau complet 22 de mărci, printre care **Dacia** (343 de piese), **Toyota** (471)
+și **Volvo** (238). Într-un magazin de dezmembrări din Neamț.
+
+**Cel mai grav era însă un script.** `curata-orfani.mjs` citea 1.000 de piese din 8.754, deci
+pozele celorlalte 7.754 nu erau „folosite" de nimeni. Rulat cu `--sterge`, ar fi șters
+**18.776 din 20.157 de fișiere — 93% din bucket, ~1,6 GB** — și ar fi raportat succes.
+Măsurat, nu presupus: am reintrodus defectul pe o copie, cu ștergerea neutralizată.
+
+---
+
+## Ce s-a construit, în ordinea cerută
+
+**Întâi unealta, apoi reparațiile.** Motivul e al proprietarului și e corect: 20 de reparații
+scrise de mână înseamnă 20 de șanse de a greși una, plus toate locurile viitoare.
+
+`citesteTot()` în `lib/supabase.ts`, cu geamănul `citesteTotRest()` în `lib/rest.mjs` pentru
+scripturi, care nu folosesc `supabase-js`. Amândouă:
+- citesc `content-range` și continuă până se termină, nu până la o limită fixă;
+- **aruncă eroare dacă antetul lipsește**, în loc să presupună că răspunsul e complet;
+- au un plafon de siguranță care **aruncă** la depășire, nu taie tăcut;
+- poartă, în comentariu, exact fraza din `depozit.mjs`.
+
+Plus `citesteDupaIduri()`, pentru a doua limită, independentă: `.in("order_id", ids)` pune
+fiecare id în URL și crapă la câteva mii de comenzi. Sparge în loturi de 200.
+
+**O regulă care nu era evidentă:** paginarea cere `.order()` pe o coloană UNICĂ. `created_at` nu
+e unic — importul scrie sute de rânduri în aceeași secundă — iar fără departajator aceeași piesă
+poate apărea pe două pagini și alta pe niciuna. Toate paginările adaugă `.order("id")`.
+
+### Reparațiile
+
+1. **Contoarele** — nu se mai calculează în Node deloc. Migrarea 29 aduce
+   `numar_piese_pe_model` (538 de rânduri) și `numar_piese_pe_masina` (22). Corecte prin
+   construcție: nu există mărime a catalogului care să le poată depăși. Ca să afli 538 de numere
+   nu aduci 8.754 de rânduri prin rețea.
+2. **`/piese`** — paginare clasică, 24 pe pagină, `?pagina=N`, `rel=prev/next` ca elemente
+   `<link>` adevărate, canonical pe fiecare pagină, contorul din `count`.
+3. **`sitemap.xml`** — în bucle, până se termină.
+4. **Cele două scripturi**, cu prioritate — plus plasa de siguranță de 5% la ștergere.
+5. **Adminul** — mărci, mașini, rapoarte, piese de completat, comenzi, clienți, facturi,
+   expedieri, dashboard.
+6. **Bombele cu ceas** — toate, nu doar cele care trecuseră pragul. Exportul CSV pentru Saga era
+   cel mai grav: la a 1.001-a comandă ar fi scris un fișier incomplet care arată perfect valid.
+
+`rel=prev/next` NU se pun prin `metadata.other` — acela emite `<meta name="link:prev">`, care nu
+înseamnă nimic pentru Google.
+
+---
+
+## Verificat în browser, pe build de producție
+
+| Verificare | Rezultat |
+|---|---|
+| `/piese`, contorul | **8.739 piese găsite · pagina 1 din 365** |
+| carduri pe pagină | 24 |
+| `?pagina=3` | canonical `/piese?pagina=3`, `rel=prev` → 2, `rel=next` → 4 |
+| filtrul de mărci | **38** |
+| Dacia · Toyota · Volkswagen | 344 · 470 · 3.081 |
+| `sitemap.xml` | **8.739** piese + 22 mașini = 8.779 URL-uri |
+| `scan-responsive`, 13 lățimi × 2 teme | 0 scroll orizontal · 0 ținte sub 44px · 0 text sub 12px |
+| `curata-orfani.mjs` | 17 orfani reali (înainte: ar fi raportat 18.776) |
+| plasa de 5% | oprește ștergerea și cere confirmare explicită |
+
+**8.739, nu 8.754**, fiindcă între audit și verificare a rulat importul zilnic (azi 09:14: 29
+piese noi, 2 actualizate, 44 depublicate). Pagina arată exact ce e în bază — asta era ideea.
+
+## Verificări
+
+`npm run build` — trece.
+`node scripts/verifica-import.mjs` — 110 verificări trec.

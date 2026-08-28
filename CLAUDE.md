@@ -65,10 +65,10 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 18. `taxonomie-import.sql` -> 19. `greutate-estimata.sql` -> 20. `import-index-fix.sql` ->
 21. `publicare-cu-poze.sql` -> 22. `import-din-admin.sql` -> 23. `rls-citire-echipa.sql` ->
 24. `ani-generatie.sql` -> 25. `marci-lipsa.sql` -> 26. `generatii-si-denumiri.sql` ->
-27. `mod-vacanta.sql` -> 28. `pagini-masini.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9–28.
+27. `mod-vacanta.sql` -> 28. `pagini-masini.sql` -> 29. `numar-piese-pe-model.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9–29.
 NU sunt încă idempotente: 1–5, 8.
-**Aplicate pe producție: toate, 1–28** (23, 27 și 28 pe 28 august 2026, prin conectorul Supabase).
+**Aplicate pe producție: toate, 1–29** (23, 27, 28 și 29 pe 28 august 2026, prin conectorul Supabase).
 27 înlocuiește `plaseaza_comanda`, copiată integral din 12 cu o gardă adăugată la început;
 dacă modifici vreodată funcția în 12, o modifici și acolo. Înainte de a o rula s-a comparat
 mecanic funcția din 12 cu cea din 27: identice, în afară de cele 7 linii ale gărzii. Fă la fel
@@ -309,6 +309,30 @@ sunt sarcini ale utilizatorului. Consemnate la 24 august 2026.
   `PhotoUploader`. De aceea `scripts/curata-orfani.mjs` citește ȘI `vehicles.poze`: fără asta ar
   raporta fiecare poză de mașină drept orfană, iar `--sterge` le-ar șterge pe toate. Orice tabelă
   nouă cu coloană `poze` se adaugă acolo, în același loc.
+- **PostgREST taie tăcut la 1.000 de rânduri. Nicio interogare nu are voie să presupună
+  că a primit tot** (defect găsit la 28 august 2026, în producție de trei zile).
+  · `.limit(5000)` NU ajută: plafonul e al serverului, iar `limit` îl poate doar coborî.
+    Serverul spune adevărul în antetul `content-range: 0-999/8754`, dar nimeni nu-l citea, iar
+    un array de 1.000 arată exact ca unul complet.
+  · Ce s-a văzut: `/piese` arăta 1.000 de piese din 8.754 și n-avea nicio paginare; filtrul
+    arăta 16 mărci din 38 (fără Dacia, Toyota, Volvo — `marciCuPiese` judeca după același
+    eșantion); `sitemap.xml` avea 1.000 de URL-uri; contoarele din admin se calculau pe 11% din
+    catalog; iar `curata-orfani.mjs --sterge` ar fi șters **18.776 din 20.157 de fișiere (93%)**,
+    raportând succes.
+  · **Unealta e `citesteTot()` din `lib/supabase.ts`** (geamăn pentru scripturi: `citesteTotRest`
+    din `lib/rest.mjs`). Cere `{ count: "exact" }` în `.select()` — de acolo vine totalul din
+    `content-range` — și ARUNCĂ eroare dacă lipsește, în loc să presupună. Plafonul de siguranță
+    ARUNCĂ la depășire, nu taie.
+  · **`.order()` pe o coloană UNICĂ (de regulă `id`) e obligatoriu la orice paginare.** Fără
+    ordine stabilă, aceeași piesă poate apărea pe două pagini iar alta pe niciuna. `created_at`
+    NU e unic: importul scrie sute de rânduri în aceeași secundă.
+  · A doua limită, independentă: `.in("id", ids)` pune fiecare id în URL și crapă la câteva mii.
+    Pentru asta există `citesteDupaIduri()`, care sparge în loturi de 200.
+  · Contoarele NU se calculează în Node. `numar_piese_pe_model` și `numar_piese_pe_masina`
+    (migrarea 29) întorc câte un rând pe model/mașină — corecte prin construcție, indiferent cât
+    crește catalogul. Ca să afli 538 de numere nu aduci 8.754 de rânduri prin rețea.
+  · Capcana era deja scrisă, din luni, în `lib/import/depozit.mjs` (helperul `tot()`), și n-a
+    ieșit niciodată din modulul acela. Motorul de import a fost singurul cod corect.
 - Roluri: `client`, `operator`, `contabil`, `admin` (coloana `role` în `profiles`, controlată prin RLS).
 
 ## Cele 16 module de admin
@@ -411,7 +435,7 @@ Niciuna nu e dependință a site-ului și niciuna nu rulează la build. Se cheam
 | `verifica-import.mjs` | după orice modificare în `lib/import/`. 78 de verificări pe regulile importului — protecția de 20%, reluarea din poziția salvată, canarul, ce are voie să atingă un re-import. Fără rețea și fără bază de date: sursa și depozitul sunt false, deci se poate rula oricând |
 | `scan-responsive.mjs` | după modificări de așezare. 19 pagini × 13 lățimi; `TEMA=luminos` schimbă tema. Cere `playwright-core` legat în `node_modules` — vezi antetul fișierului |
 | `reconverteste-poze.mjs` | **rar, la nevoie.** Trece în WebP pozele rămase JPEG în bucket. A fost scris fiindcă primele piese importate au ajuns JPEG, când `sharp` nu era încă instalat, iar `lib/import/imagini.mjs` urcă originalul dacă lipsește codecul. Dacă apar iar JPEG-uri în bucket, ori a picat `sharp`, ori conversia a preferat originalul (poză deja bine comprimată) — scriptul spune care din două. Idempotent, cu `--uscat` |
-| `curata-orfani.mjs` | **periodic**, mai ales după sesiuni lungi de lucru pe produse. Găsește fișierele din `poze-piese` spre care nu mai arată niciun rând din `products` SAU din `vehicles`. Implicit doar raportează; șterge numai cu `--sterge` și numai fișiere mai vechi de 24h (`--ore=N`). Raportează și cazul invers, mai grav: adrese din bază fără fișier în stocare |
+| `curata-orfani.mjs` | **periodic**, mai ales după sesiuni lungi de lucru pe produse. Găsește fișierele din `poze-piese` spre care nu mai arată niciun rând din `products` SAU din `vehicles`. Implicit doar raportează; șterge numai cu `--sterge` și numai fișiere mai vechi de 24h (`--ore=N`). Peste 5% orfani refuză să șteargă și cere `--confirm-stergere-mare`: atâția deodată înseamnă de obicei o citire incompletă, nu formulare abandonate. Raportează și cazul invers, mai grav: adrese din bază fără fișier în stocare |
 
 **De ce apar orfani** (tipar structural, găsit la 25 august 2026): `components/admin/PhotoUploader.tsx`
 urcă poza în Storage **imediat** ce e aleasă, dar adresa ei intră doar în starea formularului —

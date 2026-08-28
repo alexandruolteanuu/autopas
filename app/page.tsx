@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { sbServer } from "@/lib/supabase";
+import { sbServer, citesteTot } from "@/lib/supabase";
 import type { Category, Product, Vehicle, Brand, Model } from "@/lib/types";
 import ProductCard from "@/components/ProductCard";
 import PartArt from "@/components/PartArt";
@@ -9,7 +9,7 @@ import TrustBar from "@/components/TrustBar";
 import RecycleIcon from "@/components/RecycleIcon";
 import StareGoala from "@/components/StareGoala";
 import { IconLupa } from "@/components/Icoane";
-import { fitmentCounts, marciCuPiese, nrPiese } from "@/lib/format";
+import { counturiPeModel, marciCuPiese, nrPiese } from "@/lib/format";
 import { getVacanta } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
@@ -31,25 +31,29 @@ async function getData() {
     // fiindcă filtrul „are cel puțin o piesă" se aplică abia mai jos — un
     // `limit(4)` acum ar putea întoarce fix patru mașini fără piese, iar
     // secțiunea ar rămâne goală deși există altele cu piese.
-    sb.from("vehicles").select("*").eq("publicat", true).order("intrare", { ascending: false }),
-    sb.from("brands").select("*").order("ordine"),
-    sb.from("models").select("*").order("nume"),
-    sb.from("products").select("model_ids").eq("publicat", true),
-    // Numărul real de piese pe fiecare mașină. Se calculează live, nu se ia din
-    // `vehicles.piese_listate`: coloana aia e corectă (o ține triggerul
-    // `recalc_piese_vehicul`), dar e o valoare memorată, iar hero-ul e primul
-    // loc unde o desincronizare s-ar vedea ca „0 piese" pe o mașină plină.
-    sb.from("products").select("vehicul_id").eq("publicat", true).gt("stoc", 0).not("vehicul_id", "is", null),
+    citesteTot<Vehicle>(() => sb.from("vehicles").select("*", { count: "exact" }).eq("publicat", true)
+      .order("intrare", { ascending: false }).order("id"), { eticheta: "mașinile" }),
+    citesteTot<Brand>(() => sb.from("brands").select("*", { count: "exact" }).order("ordine").order("id"), { eticheta: "mărcile" }),
+    citesteTot<Model>(() => sb.from("models").select("*", { count: "exact" }).order("nume").order("id"), { eticheta: "modelele" }),
+    // Contoarele pentru filtru vin din view, nu din `products`: 537 de rânduri
+    // în loc de 8.754, și corecte prin construcție. Vezi supabase/numar-piese-pe-model.sql.
+    sb.from("numar_piese_pe_model").select("*"),
+    // Numărul real de piese pe fiecare mașină, din view: un rând pe mașină.
+    // Varianta veche aducea un rând pe PIESĂ legată — până la 8.754 — ca să afle
+    // 22 de numere, și se lovea de plafonul de 1.000. Nu se ia din
+    // `vehicles.piese_listate`, care e o valoare memorată: o desincronizare
+    // s-ar vedea exact ca defectul „0 piese" reparat aici.
+    sb.from("numar_piese_pe_masina").select("*"),
   ]);
-  const models = (m.data ?? []) as Model[];
-  const counts = fitmentCounts((fit.data ?? []) as { model_ids: number[] }[], models);
+  const models = m;
+  const counts = counturiPeModel((fit.data ?? []) as any[], models);
 
   const pePiese: Record<number, number> = {};
-  for (const r of ((pv.data ?? []) as { vehicul_id: number }[])) pePiese[r.vehicul_id] = (pePiese[r.vehicul_id] ?? 0) + 1;
+  for (const r of ((pv.data ?? []) as { vehicul_id: number; nr_piese: number }[])) pePiese[r.vehicul_id] = r.nr_piese;
   // „Afișează doar mașinile cu cel puțin o piesă publicată" (B.5). O mașină fără
   // piese nu e o eroare — e o mașină abia intrată — dar în hero ar arăta ca o
   // promisiune neacoperită. Ea rămâne vizibilă în /masini, la „În dezmembrare acum".
-  const cars = ((v.data ?? []) as Vehicle[])
+  const cars = v
     .map((x) => ({ ...x, piese_listate: pePiese[x.id] ?? 0 }))
     .filter((x) => x.piese_listate > 0)
     .slice(0, 4);
@@ -58,7 +62,7 @@ async function getData() {
     cats: (c.data ?? []) as Category[], products: (p.data ?? []) as Product[], cars,
     // Doar mărcile care au măcar o piesă publicată ajung în filtru și în secțiunea
     // „Mărci auto". Tabela rămâne completă; vezi `marciCuPiese` din lib/format.ts.
-    brands: marciCuPiese((b.data ?? []) as Brand[], counts), models, counts,
+    brands: marciCuPiese(b, counts), models, counts,
   };
 }
 

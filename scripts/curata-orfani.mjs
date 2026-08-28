@@ -28,8 +28,14 @@
 //   node scripts/curata-orfani.mjs --sterge --ore=72
 // ============================================================
 import { readFileSync, existsSync } from "node:fs";
+import { citesteTotRest } from "../lib/rest.mjs";
 
 const STERGE = process.argv.includes("--sterge");
+const CONFIRM = process.argv.includes("--confirm-stergere-mare");
+/** Peste atâta din bucket, o „curățenie" nu mai e curățenie: e o pierdere de
+ *  date. Aceeași plasă ca protecția de 20% din import, și din același motiv —
+ *  o citire incompletă arată exact ca un depozit gol. */
+const PRAG_ALARMA = 0.05;
 const ORE = Number(process.argv.find((a) => a.startsWith("--ore="))?.slice(6) ?? 24);
 
 function citesteEnv() {
@@ -69,13 +75,19 @@ async function listeaza(prefix = "") {
 }
 
 const fisiere = await listeaza();
-const piese = await (await fetch(`${URL_BAZA}/rest/v1/products?select=id,nume,poze,poze_sursa`, { headers: h })).json();
+// PAGINAT. Varianta veche cerea `products?select=…` fără paginare și primea
+// 1.000 de rânduri din 8.754 — PostgREST taie tăcut peste atât. Pozele celorlalte
+// 7.754 de piese apăreau atunci drept orfane, iar `--sterge` le-ar fi șters pe
+// toate, raportând succes. Vezi `lib/rest.mjs`.
+const piese = await citesteTotRest(URL_BAZA, h, "products?select=id,nume,poze,poze_sursa&order=id",
+  { eticheta: "piesele" });
 // ATENȚIE: în bucketul `poze-piese` nu stau doar poze de PIESE. Din 28 august
 // 2026, `PhotoUploader` urcă acolo și pozele mașinilor dezmembrate
 // (`vehicles.poze`), fiindcă e aceeași componentă și același bucket. Fără
 // rândul de mai jos, fiecare poză de mașină ar fi raportată drept orfană, iar
 // `--sterge` le-ar șterge pe toate. Orice tabelă nouă cu `poze` se adaugă aici.
-const masini = await (await fetch(`${URL_BAZA}/rest/v1/vehicles?select=id,nume,poze`, { headers: h })).json();
+const masini = await citesteTotRest(URL_BAZA, h, "vehicles?select=id,nume,poze&order=id",
+  { eticheta: "mașinile" });
 
 // Se numără ȘI `poze_sursa`: acolo stau de obicei adrese de pe pieseauto.ro, dar
 // dacă vreodată ajunge acolo o adresă din bucketul nostru, fișierul nu e orfan.
@@ -118,6 +130,23 @@ if (orfani.length) {
 if (!STERGE) {
   if (orfani.length) console.log(`\nNimic nu s-a șters. Adaugă --sterge dacă lista de mai sus e în regulă.`);
   process.exit(0);
+}
+
+// ---- PLASA DE SIGURANȚĂ ----
+// Aceeași idee ca protecția de 20% de la import: o citire incompletă a bazei
+// arată IDENTIC cu un depozit gol, iar diferența dintre cele două e tot
+// catalogul. Înainte de reparație, scriptul citea 1.000 de piese din 8.754 și ar
+// fi declarat orfane pozele celorlalte 7.754 — adică aproape tot bucketul —
+// ștergându-le fără să clipească. Paginarea a reparat cauza; pragul ăsta prinde
+// următoarea cauză, pe care încă n-o cunoaștem.
+const parte = fisiere.length ? orfani.length / fisiere.length : 0;
+if (parte > PRAG_ALARMA && !CONFIRM) {
+  console.error(`\n⛔ OPRIT. ${orfani.length} din ${fisiere.length} de fișiere (${(parte * 100).toFixed(1)}%) ` +
+    `ar fi șterse, peste pragul de ${(PRAG_ALARMA * 100).toFixed(0)}%.`);
+  console.error(`   Atâția orfani deodată înseamnă de obicei că citirea din bază a fost incompletă,`);
+  console.error(`   nu că s-au abandonat atâtea formulare. Verifică întâi lista de mai sus.`);
+  console.error(`   Dacă e într-adevăr corectă: --sterge --confirm-stergere-mare`);
+  process.exit(1);
 }
 
 let sterse = 0;
