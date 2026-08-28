@@ -2,7 +2,7 @@ import Link from "next/link";
 import { sbServer, citesteTot } from "@/lib/supabase";
 import type { Category, Product, Vehicle, Brand, Model } from "@/lib/types";
 import ProductCard from "@/components/ProductCard";
-import PartArt from "@/components/PartArt";
+import CategoriiPrincipale from "@/components/CategoriiPrincipale";
 import PartRequestForm from "@/components/PartRequestForm";
 import VehicleFilter from "@/components/VehicleFilter";
 import TrustBar from "@/components/TrustBar";
@@ -137,20 +137,7 @@ export default async function Home() {
 
       <TrustBar />
 
-      <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-        <div className="dim">Categorii piese auto</div>
-        <h2 className="t-sectiune mt-2 mb-6">Categorii principale</h2>
-        <div className="grid grid-cols-1 min-[420px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-          {cats.map((c) => (
-            <Link key={c.id} href={`/piese?categorie=${c.slug}`}
-              className="card p-4 hover:border-accentChenar transition flex items-center gap-3">
-              <PartArt kind={c.art} className="w-14 h-11 rounded-md shrink-0" />
-              <div><b className="block text-[13px] leading-tight">{c.nume}</b>
-                <span className="text-textSecundar text-xs">{c.nr_piese ?? 0} {c.nr_piese === 1 ? "piesă" : "piese"}</span></div>
-            </Link>
-          ))}
-        </div>
-      </section>
+      <CategoriiPrincipale cats={cats} />
 
       {!vacanta.activ && (
       <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 pb-12">

@@ -267,7 +267,7 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
     <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <Breadcrumbs items={[{ t: "Acasă", href: "/" },
         { t: "Piese auto", ...(catActiva ? { href: "/piese" } : {}) },
-        ...(catActiva?.parent_id ? [{ t: cats.find((c) => c.id === catActiva!.parent_id)?.nume ?? "", href: `/piese?categorie=${cats.find((c) => c.id === catActiva!.parent_id)?.slug}` }] : []),
+        ...(catActiva?.parent_id ? [{ t: cats.find((c) => c.id === catActiva!.parent_id)?.nume ?? "", href: `/piese/categorie/${cats.find((c) => c.id === catActiva!.parent_id)?.slug}` }] : []),
         ...(catActiva ? [{ t: catActiva.nume }] : [])]} />
       <h1 className="t-sectiune mt-2 mb-4">{titlu}</h1>
       <div className="mb-6"><VehicleFilter brands={marciCuPiese(brands, counts)} models={models} cats={principale} counts={counts} compact /></div>

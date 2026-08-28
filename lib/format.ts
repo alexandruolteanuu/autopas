@@ -11,10 +11,17 @@ export function lei(n: number, sufix?: string | null) {
 // sunt 00 sau de la 20 în sus (20 de piese, dar 101 piese). Zero face
 // excepție — se spune „0 piese", nu „0 de piese".
 export function nrPiese(n: number) {
-  if (n === 1) return "1 piesă";
-  if (n === 0) return "0 piese";
+  return `${n} ${cuvantPiese(n)}`;
+}
+
+// Doar cuvântul, fără cifră. Există separat fiindcă pe cardurile de categorie
+// numărul se scrie mare, iar cuvântul mic — două elemente cu stiluri diferite,
+// deci nu poate veni ca un singur șir. Regula de acord stă într-un singur loc.
+export function cuvantPiese(n: number) {
+  if (n === 1) return "piesă";
+  if (n === 0) return "piese";
   const ultimele = n % 100;
-  return `${n}${ultimele === 0 || ultimele >= 20 ? " de" : ""} piese`;
+  return ultimele === 0 || ultimele >= 20 ? "de piese" : "piese";
 }
 
 // Textul de căutare fără diacritice și cu litere mici, ca „turbina" să

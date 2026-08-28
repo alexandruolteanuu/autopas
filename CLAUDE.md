@@ -398,6 +398,31 @@ sunt sarcini ale utilizatorului. Consemnate la 24 august 2026.
   puțin 80% din cele 38 de pagini de marcă apar indexate în Search Console** — până atunci
   n-avem cum ști dacă nivelul al doilea funcționează, iar 538 de pagini neindexate ar dilua
   semnalul în loc să-l întărească.
+- **Secțiunea „Categorii principale" nu mai are ilustrații; ierarhia o dă volumul**
+  (28 august 2026, `components/CategoriiPrincipale.tsx`). `PartArt` are 13 desene, categoriile
+  foloseau 10, iar ce nu se potrivea cădea pe desenul implicit: **8 din 17 categorii arătau
+  același bloc motor** (Motor și anexe pe drept, plus Filtre, Accesorii, Car audio, Tuning,
+  Navigație GPS, Diverse, Scule auto). Un icon care nu distinge nimic e mai rău decât lipsa lui.
+  Se pun la loc doar când există un set complet și distinct — până atunci nu se adaugă unul
+  singur „provizoriu".
+  · `PartArt` rămâne NEATINS pentru piese (`ProductPhoto`, `ProductGallery`, `/cos`).
+  · Trei registre, după numărul de piese: peste 1.000 carduri mari cu numărul scris mare și o
+    bară proporțională; 100–999 carduri obișnuite; sub 100 rânduri compacte de 44px. Azi taie
+    3 / 6 / 8. Registrul mare e ținut la **exact trei**, completat sau tăiat: un rând cu un
+    singur card mare și două goluri ar arăta ca un defect, iar praguri fixe pe un catalog care
+    crește n-au cum să rămână mereu adevărate.
+  · Ordinea e după numărul de piese, nu după `categories.ordine`: dimensiunea cardului
+    ÎNSEAMNĂ volum, deci un card mare sub unul mic s-ar contrazice singur.
+  · Categoriile cu 0 piese nu se afișează — ar duce într-o listare goală. (Azi toate 17 au piese.)
+  · Măsurat pe cele 13 lățimi × 2 teme: zero depășiri orizontale, zero ținte sub 44px, zero text
+    ieșit din card. Coloanele merg 1/2/2 sub 640px, 3/3/2 până la 1024, 3/6/4 peste.
+  · Acordul „piesă / piese / de piese" stă într-un singur loc, `cuvantPiese()` din `lib/format.ts`;
+    `nrPiese()` îl folosește. Cardurile mari au nevoie de cuvânt separat de cifră, fiindcă le scriu
+    la dimensiuni diferite.
+- **Legăturile interne merg direct pe rute, niciodată pe filtrul vechi.** `/piese?categorie=…`
+  ajunge tot la `/piese/categorie/…`, dar printr-o redirecționare 301 din `middleware.ts` — un drum
+  în plus pe fiecare pagină care o conține. Firul Ariadnei de pe pagina de piesă (× 8.754) și cel
+  de pe catalogul filtrat au fost mutate pe rutele proprii.
 - **Un schelet de încărcare pe o listare ANULEAZĂ `loading="lazy"`** (28 august 2026, măsurat
   A/B pe același build). Cu `loading.tsx` pe `/piese`, toate cele 24 de imagini se descărcau la
   prima încărcare: **1.475 KB pe telefon, în loc de 338**. Fără el, 6 imagini.

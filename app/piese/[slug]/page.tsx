@@ -152,8 +152,11 @@ export default async function Produs({ params }: { params: { slug: string } }) {
         <Breadcrumbs items={[
           { t: "Acasă", href: "/" },
           { t: "Piese auto", href: "/piese" },
-          ...(catPrinc ? [{ t: catPrinc.nume, href: `/piese?categorie=${catPrinc.slug}` }] : []),
-          ...(subcat ? [{ t: subcat.nume, href: `/piese?subcategorie=${subcat.slug}` }] : []),
+          // Direct pe ruta proprie, nu pe filtrul vechi: `/piese?categorie=…`
+          // ajunge tot acolo, dar printr-o redirecționare 301 — un drum în plus
+          // pe fiecare dintre cele 8.754 de pagini de piesă.
+          ...(catPrinc ? [{ t: catPrinc.nume, href: `/piese/categorie/${catPrinc.slug}` }] : []),
+          ...(subcat ? [{ t: subcat.nume, href: `/piese/categorie/${subcat.slug}` }] : []),
           { t: prod.nume },
         ]} />
       </div>
