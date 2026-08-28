@@ -1,114 +1,76 @@
-# RAPORT — 28 august 2026 · audit titluri + structura de rute (propuneri)
+# RAPORT — 28 august 2026 · sufixul titlurilor + linkurile către rutele noi
 
-**Nu s-a implementat nimic.** Ambele secțiuni așteaptă aprobare.
-
----
-
-# 1. Auditul titlurilor
-
-**Niciun titlu nu depășește azi 65 de caractere.** Măsurate toate cele 22 de tipuri de
-pagini, pe build local.
-
-Dar tiparul se va repeta, și se vede exact unde:
-
-| Pagină | Total | Titlul propriu | Rezervă |
-|---|---:|---:|---:|
-| `/legal/anpc-si-sol` | **62** | 40 | **3** |
-| `/legal/politica-de-confidentialitate` | 58 | 36 | 7 |
-| `/masini` | 56 | 34 | 9 |
-
-Sufixul `· Autopas Dezmembrări` are **22 de caractere** — o treime din buget. Pragul real
-pentru titlul propriu al unei pagini e **43**, iar cel mai lung de azi are 40. Următoarea
-pagină cu un titlu ceva mai descriptiv îl depășește tăcut.
-
-Doar `/piese/[slug]` și `/masini/[slug]` folosesc `absolute` — și numai fiindcă au fost
-reparate după ce s-au stricat.
-
-## Propunerea structurală
-
-Cauza nu e că cineva a uitat `absolute`. Cauza e că **marca se adaugă în două locuri**:
-șablonul din layout și, la piese și mașini, generatorul din `lib/seo.ts`. Cât timp sunt două,
-se pot ciocni.
-
-**Un singur loc care adaugă marca, și un sufix scurt:**
-
-1. sufixul devine ` | AUTOPAS` — 10 caractere în loc de 22, și e chiar cel folosit deja pe
-   cele 8.739 de pagini de piesă;
-2. `lib/seo.ts` devine sursa unică: exportă sufixul, iar `app/layout.tsx` îl importă pentru
-   șablon;
-3. **pagina de piesă și cea de mașină nu mai adaugă sufixul și renunță la `absolute`** — îl
-   pune șablonul. Devine imposibil să se dubleze;
-4. `scripts/verifica-seo.mjs`, chemat cu mâna ca `verifica-contrast.mjs`: parcurge toate
-   tipurile de pagini și iese cu cod 1 dacă vreun titlu trece de 65, vreo descriere de 165,
-   sau dacă două pagini împart o descriere.
-
-Efectul: bugetul pentru titlul propriu crește de la 43 la **55**. `/legal/anpc-si-sol` coboară
-de la 62 la 50.
-
-**Costul, ca să fie știut:** în rezultatele Google, sufixul devine „| AUTOPAS" în loc de
-„· Autopas Dezmembrări" pe toate paginile. E mai scurt și consecvent cu paginile de piesă, dar
-mai puțin descriptiv pentru cine vede marca prima oară.
-
-**Alternativa:** păstrăm sufixul lung și facem doar punctele 2–4. Atunci bugetul rămâne 43,
-iar scriptul e cel care prinde depășirile.
-
-**Recomandarea:** varianta scurtă — 8.739 din cele ~8.780 de pagini o folosesc deja.
+Punctul 1 (sufixul) e **aplicat și împins** în `5757451`.
+Punctul 2 (rutele) așteaptă o confirmare, mai jos.
 
 ---
 
-# 2. B.4 punctul 1 — structura de rute
+# 1. Sufixul — făcut, toate cele patru puncte
 
-Slug-urile sunt curate: 349 de categorii cu slug-uri distincte, 42 de mărci, **zero coliziuni**
-între cele două spații. Rutele sunt neambigue.
+Marca se adaugă acum **într-un singur loc**: șablonul din layout, care importă sufixul din
+`lib/seo.ts`. Generatoarele nu-l mai pun, iar paginile de piesă și mașină au renunțat la
+`absolute` — le trebuia doar ca să scape de dublare.
 
-## Rutele noi
+Sufixul e ` | AUTOPAS`. Bugetul titlului propriu crește de la 43 la **55** de caractere.
 
-| Rută | Câte | Exemplu |
-|---|---:|---|
-| `/piese/marca/{marca}` | **38** | `/piese/marca/skoda` |
-| `/piese/categorie/{categorie}` | **299** | `/piese/categorie/faruri` |
+## Scriptul de verificare
 
-La categorii intră și cele 17 grupe principale, și cele 282 de subcategorii — un singur spațiu
-de rute, fiindcă stau în aceeași tabelă și slug-urile nu se ciocnesc.
+`scripts/verifica-seo.mjs` cere paginile de la un server care rulează și verifică:
 
-**La mărci nu se pune prag**, consecvent cu regula din `CLAUDE.md`: cine caută Alfa Romeo caută
-exact asta. **La categorii sunt 111 cu sub 5 piese** — pagini subțiri. Propunerea: să existe ca
-rute (sunt legitime și se umplu singure), dar să nu intre în sitemap până nu au cel puțin 3
-piese.
+- titlul ≤ 65 de caractere;
+- descrierea ≤ 165 și prezentă pe fiecare pagină;
+- **marca apare exact o dată în titlu** — regula pentru care există scriptul;
+- două pagini nu împart aceeași descriere;
+- exact un `<link rel="canonical">` per pagină.
 
-**Nu se propune acum** `/piese/marca/{marca}/{model}` — ar fi încă 538 de pagini. „Piese Golf
-5" e o căutare foarte bună, dar merită așteptat să vedem cum se indexează primele două
-niveluri. E o decizie separată.
+**126 de verificări trec, 0 pică.**
 
-## Redirecționările 301
+Verificarea se face pe **pagini reale**, nu pe funcțiile care compun titlurile: un generator
+poate fi corect și pagina tot greșită, dacă altcineva mai adaugă ceva pe drum — exact ce s-a
+întâmplat de două ori.
 
-| De la | Către |
+**Scriptul și-a găsit singur primul caz, la prima rulare:** prima pagină folosește
+`title.default`, care nu trece prin șablon, deci n-are sufix — dar titlul ei conține deja
+„Autopas Dezmembrări". Regula a devenit „marca apare o dată", nu „sufixul literal există". O
+regulă care ar fi cerut sufixul ar fi picat pe o pagină perfect corectă.
+
+Notat în `CLAUDE.md`, la tabelul de unelte, și decizia amânată a rutelor de model cu criteriul
+de reluare: **după ce 80% din paginile de marcă sunt indexate**.
+
+---
+
+# 2. De unde se ajunge la fiecare din cele 337 de rute
+
+Întrebarea a prins exact ce ar fi transformat munca asta în mutarea problemei, nu în
+rezolvarea ei. Am verificat ce linkuri există azi:
+
+| Rută | De unde se ajunge acum |
 |---|---|
-| `/piese?marca=skoda` | `/piese/marca/skoda` |
-| `/piese?categorie=faruri` | `/piese/categorie/faruri` |
-| `/piese?subcategorie=X` | `/piese/categorie/X` |
-| `/piese?vehicul=X` | `/masini/X` |
+| **38 de mărci** | Filtrul `VehicleFilter` de pe prima pagină, `/piese` și `/cauta-dupa-masina` — dar e un `<select>`. **Google nu urmează opțiuni de `<select>`.** Zero linkuri reale. |
+| **299 de categorii** | Sertarul de filtre din `/piese` are linkuri `<a>` adevărate către categorii și subcategorii. Acolo **există** linkuri. |
 
-Toate **301**, permanente. Parametrii rămași se păstrează:
-`/piese?marca=skoda&pagina=2` → `/piese/marca/skoda?pagina=2`.
+Deci mărcile ar rămâne orfane — exact bănuiala din întrebare.
 
-Se fac în `middleware.ts`, nu în `next.config.mjs`: redirecționarea depinde de CE parametri
-există și de CÂȚI sunt, iar `redirects()` din config nu poate decide asta.
+## Propunerea
 
-## Ce rămâne filtru, cu `noindex`
+Ca fiecare rută să aibă cel puțin un link real:
 
-Orice combinație de **două sau mai multe** filtre: `?marca=skoda&categorie=faruri`,
-`?marca=X&model=Y`, orice cu `q=` sau `oem=` (căutare), orice cu `sort=`. Sunt aceleași piese
-rearanjate — exact conținutul duplicat pe care îl evită și sitemap-ul azi.
+1. **Secțiunea „Mărci auto" de pe prima pagină** — există deja ca text (regula din `CLAUDE.md`:
+   nu reproducem logo-uri, secțiunea e doar text). Cele 38 de nume devin linkuri către
+   `/piese/marca/{marca}`. Zero elemente noi, doar text care devine link.
+2. **Sertarul de filtre din `/piese`** — linkurile de categorie duc la
+   `/piese/categorie/{slug}` în loc de `?categorie=`. Acoperă toate cele 299.
+3. **Subsolul** — un rând cu primele 8–10 mărci după numărul de piese. Acesta **chiar adaugă
+   elemente vizibile**, deci e propus separat, nu se face fără acord.
+4. **Legături între pagini** — pe `/piese/marca/skoda`, lista categoriilor care au piese
+   Skoda; pe `/piese/categorie/faruri`, mărcile care au faruri. Se generează din date, nu e
+   text nou.
 
-**O corectură la cerință:** filtrul după **an nu există** în cod. Parametrii de azi sunt
-`q, oem, categorie, subcategorie, vehicul, sort, marca, model, pagina`. Combinația „marcă +
-categorie + an" nu se poate produce. Regula rămâne valabilă pentru celelalte.
+Cu **1, 2 și 4**, fiecare din cele 337 de rute e la maximum **2 clicuri** de prima pagină,
+fără niciun element vizibil nou. Punctul **3** e opțional.
 
 ---
 
 ## Ce aștept
 
-1. aprobarea structurii de rute și a listei de redirecționări;
-2. alegerea sufixului: **scurt** (` | AUTOPAS`, recomandat) sau **lung** (păstrăm
-   `· Autopas Dezmembrări` și facem doar punctele 2–4).
+Confirmarea punctelor **1, 2 și 4** — și dacă vrei și **3**, care adaugă un rând în subsol.
