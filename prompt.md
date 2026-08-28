@@ -1,532 +1,281 @@
-# SARCINĂ: completare automată · mod vacanță · pagini de mașină · Google Analytics · e-mail
+# SARCINĂ: audit și optimizare SEO · local SEO · GEO
 
-Cinci părți, **cu oprire între ele**. Branch `main`. Migrările SQL nu le rulezi tu.
+Site-ul nu apare în Google. Căutarea directă a domeniului întoarce:
+> „No information is available for this page."
 
-**Ordinea recomandată: E, apoi A–D.** Partea E îmbunătățește datele celor ~8.000 de piese
-deja importate, iar Partea B (paginile de mașină) depinde direct de calitatea acelor date.
+Ăsta e mesajul afișat când Google **nu are voie să citească pagina** — blocaj în
+`robots.txt`, nu lipsă de conținut.
 
----
-
-## REGULA DE AUR
-
-Nu se schimbă: prețurile, datele produselor, logica de comenzi, textele legale, paleta
-`.tema-clasica`, motorul de import din `lib/import/`.
-
-Tot ce se adaugă vizual se verifică pe **ambele teme** și la 13 lățimi.
-
-Fiecare scriere în baza de date folosește `scrieVerificat()` din `lib/supabase.ts`.
+Branch `main`. Migrările SQL nu le rulezi tu. Cinci părți, **cu oprire între ele**.
 
 ---
+
+## REGULA DE AUR — ce se poate atinge și ce nu
+
+**Conținutul vizibil al site-ului NU se modifică.** Fără rescrierea textelor de pe pagini,
+fără paragrafe noi, fără schimbarea denumirilor de produse.
+
+**Se pot adăuga și modifica:**
+- metadate: `<title>`, `meta description`, `canonical`, Open Graph
+- date structurate (schema.org)
+- `robots.txt`, `sitemap.xml`, redirecționări
+- atribute `alt` pe imagini, generate din datele existente
+- structura de linkuri interne și paginarea
+- antete HTTP, statusuri, performanță
+
+Dacă o îmbunătățire ar cere text nou vizibil pe pagină, **oprește-te și propune-mi-o
+separat**. Nu o implementa.
+
+Nu se ating: prețurile, logica de comenzi, textele legale, paleta, motorul de import.
+
+---
 ---
 
-# PARTEA A — MOD VACANȚĂ
+# PARTEA 0 — DIAGNOSTIC (nu modifica nimic)
 
-## A.0 Arhitectura — citește asta înainte de orice
+## 0.1 De ce nu indexează Google
 
-**Implementarea evidentă e greșită și ar distruge catalogul.**
+1. **Descarcă `robots.txt` de pe producție** și dă-mi-l integral. Verifică ce condiție îl
+   controlează — proiectul are `INDEXARE_PERMISA` legat de variabila `PERMITE_INDEXARE`.
+   Spune-mi exact ce trebuie setat și unde.
+2. **Verifică `www` vs fără `www`.** Google are indexat `https://www.autopas-dezmembrari.ro/`,
+   iar `SITE_URL` din cod e fără `www`. Testează ce răspund ambele: 200 pe amândouă?
+   redirecționare? care spre care? Ce spune `canonical` pe fiecare?
+3. **`NEXT_PUBLIC_SITE_URL`** — e setată în producție? Verifică ce URL apare efectiv în
+   `canonical`, în `sitemap.xml` și în `robots.txt` pe site-ul live, nu în cod.
+4. Verifică `<meta name="robots">` pe pagini — există vreun `noindex` rămas?
 
-Tentația e: la activare, `update products set publicat = false`; la dezactivare,
-`update products set publicat = true`.
+## 0.2 Starea actuală, măsurată pe producție
 
-**A doua comandă ar republica:**
-- piesele ascunse intenționat de operator
-- piesele cu `stoc = 0`, depublicate automat de triggerul de stoc la vânzare
-- piesele cu `sursa_activ = false`, dispărute din feed-ul pieseauto.ro
-- piesele nepublicate fiindcă le lipsește ceva
-
-Nu există nicio cale de a distinge, după dezactivare, care piesă era ascunsă din vacanță și
-care din alt motiv. Informația s-ar pierde ireversibil.
-
-**Soluția: modul vacanță NU atinge niciodată coloana `publicat`.**
-
-E un comutator global, citit la afișare. Piesele își păstrează starea exactă; site-ul public
-pur și simplu nu le arată cât timp e activ. La dezactivare, totul revine automat la starea
-reală, fără nicio scriere.
-
-## A.1 Structura
-
-În tabela `settings`, cheie nouă `vacanta`:
-
-```json
-{
-  "activ": false,
-  "mesaj": "",
-  "data_activarii": null,
-  "activat_de": null
-}
-```
-
-Mesajul e text liber, scris de proprietar. Exemplu: „În perioada 15–30 august suntem în
-concediu. Comenzile se reiau pe 31 august."
-
-Migrare idempotentă, mi-o dai mie.
-
-## A.2 Unde se aplică — verifică FIECARE punct
-
-Nu e suficient să ascunzi grila de produse. Găsește **toate** locurile care afișează sau
-permit comandarea unui produs și tratează-le pe fiecare:
-
-| Loc | Comportament în vacanță |
+| Ce | Cum verifici |
 |---|---|
-| `/piese` (listare + filtre) | listă goală, cu mesajul de vacanță în locul stării goale obișnuite |
-| homepage — piese recente / recomandate | secțiunea dispare complet, nu rămâne titlu cu gol dedesubt |
-| căutarea din header | zero rezultate + mesaj |
-| `/piese/[slug]` acces direct pe URL | **vezi A.3, e caz special** |
-| `/favorite` | piesele rămân în listă, dar marcate „indisponibil temporar", fără buton de coș |
-| `/cos` | coșul NU se golește. Banner de avertizare, butonul „Continuă" dezactivat |
-| `/checkout` | blocat, cu mesaj clar |
-| `/cauta-dupa-masina` | selectoarele rămân, rezultatele sunt goale + mesaj |
-| paginile de mașină (Partea B) | piesele nu se afișează, mesaj de vacanță |
-| `sitemap.xml` | **nu îl modifica** — vezi A.4 |
-| `/admin` | **funcționează normal**, complet neafectat |
+| câte URL-uri are `sitemap.xml` | descarcă-l și numără |
+| `canonical` pe fiecare tip de pagină | home, `/piese`, produs, categorie, legal |
+| `<title>` și `meta description` | sunt unice? au lungimea potrivită? sunt generate sau fixe? |
+| `H1` | există exact unul per pagină? |
+| atribute `alt` pe imagini | câte imagini au, câte nu |
+| date structurate | ce tipuri există deja, unde |
+| linkuri interne | câte piese sunt accesibile din navigație, câte sunt orfane |
 
-## A.3 Blocarea comenzilor — partea critică
+## 0.3 Performanță
 
-**Ascunderea din interfață NU e suficientă.** Cineva cu pagina de checkout deja deschisă,
-sau cu un URL de produs salvat, poate plasa comandă în continuare.
+Lighthouse pe mobil, pe home, `/piese` și o pagină de produs. Dă-mi cele patru scoruri și
+valorile Core Web Vitals (LCP, CLS, INP).
 
-**Blocarea trebuie să fie pe server, în `plaseaza_comanda`:**
-- funcția citește `settings.vacanta.activ` la începutul execuției
-- dacă e activ, **refuză** cu un mesaj clar, înainte de orice scriere
-- e singura garanție reală; restul e cosmetică
+**Atenție la `/piese`:** are acum paginare și 24 de imagini pe pagină. Verifică `sizes`,
+încărcarea leneșă și dacă prima imagine e prioritizată.
 
-Migrarea trebuie să modifice funcția RPC. Scrie-o idempotent
-(`create or replace function`).
+## 0.4 Raportează și OPREȘTE-TE
 
-**Pagina de produs pe URL direct:** afișează produsul (poze, descriere, preț), dar cu
-butonul „Adaugă în coș" înlocuit de mesajul de vacanță. **Nu întoarce 404** — vezi A.4.
-
-## A.4 SEO — motivul pentru care nu ascundem paginile complet
-
-Dacă paginile de produs întorc 404 sau dispar din sitemap în timpul vacanței, Google le
-scoate din index. La reluare, poziționarea se recâștigă în săptămâni, nu în ore.
-
-**Regula:** paginile de produs rămân accesibile, cu status HTTP 200, doar fără posibilitatea
-de a comanda. Sitemap-ul rămâne neschimbat. Listările sunt goale, dar paginile individuale
-trăiesc.
-
-Asta e practica standard pentru magazinele care intră în pauză, și e diferența dintre o
-vacanță de două săptămâni și o recuperare de două luni.
-
-**Dacă preferi ascunderea totală**, spune-mi — dar vreau să știi ce coste.
-
-## A.5 Mesajul din hello bar
-
-- înlocuiește conținutul obișnuit din hello bar (telefon + program) cât timp e activ
-- fundal de avertizare (galben pe întunecat, sau `--suprafata-2` cu chenar accent), nu
-  fundalul normal
-- pe toate paginile publice, nu doar pe home
-- **respectă plafonul de 52px pe mobil** — dacă mesajul e lung, se taie cu „…" la o linie,
-  nu împinge conținutul în jos
-- limitează câmpul din admin la **120 de caractere**, cu numărător vizibil
-- dacă e activ dar mesajul e gol, afișează un text implicit: „Magazin în pauză temporară."
-- sanitizează textul — e introdus de utilizator și ajunge în HTML
-
-## A.6 Interfața din admin
-
-Secțiune nouă: **Setări → Mod vacanță**
-
-- comutator mare, cu stare vizibilă („ACTIV" / „inactiv")
-- câmp de mesaj, cu previzualizare live a hello bar-ului
-- la activare, **confirmare explicită**: „Toate piesele vor dispărea de pe site și nu se vor
-  putea plasa comenzi. Continui?"
-- afișează de când e activ și cine l-a activat
-
-**Bandă permanentă de avertizare în tot `/admin`**, cât timp e activ:
-> „MOD VACANȚĂ ACTIV — site-ul nu primește comenzi. Dezactivează din Setări."
-
-Motivul e practic: cineva îl activează, pleacă în concediu, se întoarce și uită. O lună fără
-comenzi, fără ca nimeni să înțeleagă de ce. Banda trebuie să fie imposibil de ratat.
-
-## A.7 Verificări obligatorii
-
-1. Activezi → nicio piesă pe site → dezactivezi → **exact aceleași piese revin**, nici una
-   în plus, nici una în minus
-2. Înainte de activare, ascunzi manual o piesă. După ciclu activare/dezactivare, **rămâne
-   ascunsă**
-3. O piesă cu `stoc = 0` **nu reapare** după dezactivare
-4. Cu vacanța activă, un POST direct către `plaseaza_comanda` **e refuzat**
-5. Coșul cu produse supraviețuiește ciclului
-6. Zero scrieri în `products` la activare sau dezactivare — confirmă în DB
-7. Hello bar-ul rămâne sub 52px la 320px cu un mesaj de 120 de caractere
-
-**Oprește-te după Partea A cu raportul.**
+Tabel: ce e în regulă, ce e greșit, ce lipsește. Cu gravitate: **blocant** (împiedică
+indexarea), **important**, **finisaj**.
 
 ---
 ---
 
-# PARTEA B — PAGINI DE MAȘINĂ DEZMEMBRATĂ
+# PARTEA A — DEBLOCAREA INDEXĂRII
 
-## B.0 Verifică întâi ce există
+Nimic altceva nu contează până nu e rezolvată.
 
-Raportează, fără să modifici:
-- structura completă a tabelei `vehicles`
-- **cum sunt legate piesele de mașini** — există `products.vehicle_id`? Câte din cele ~8.000
-  de piese importate au legătura completată?
-- cum funcționează `piese_listate` (triggerul menționat în CLAUDE.md)
-- **de ce toate cele 4 mașini din hero arată „0 piese disponibile"** — problemă de date sau
-  de calcul?
+## A.1 `robots.txt`
 
-Ultimul punct e important: dacă piesele importate din feed nu se leagă de mașini, toată
-Partea B rămâne goală. **Oprește-te și spune-mi ce ai găsit.**
+Trebuie să permită crawlarea site-ului public și să blocheze doar ce nu are ce căuta în
+index: `/admin`, `/cont`, `/cos`, `/checkout`, rutele `/api`, paginile de confirmare comandă.
 
-## B.1 Ruta și structura
+Confirmă-mi exact ce variabilă trebuie setată în Vercel și cu ce valoare. **O setez eu.**
 
-`/masini/[slug]` — slug generat din marcă + model + motorizare + an, ex.
-`vw-passat-b7-2-0-tdi-2012`.
+## A.2 Un singur domeniu canonic
 
-Coloane noi pe `vehicles` (migrare idempotentă, mi-o dai mie):
-```
-slug          text unique
-poze          text[]
-descriere     text
-publicat      boolean default true
-```
-Plus, dacă lipsesc: `motorizare`, `caroserie`, `culoare`, `cutie_viteze`, `km`, `an`.
+Alege **fără `www`** (`https://autopas-dezmembrari.ro`), consecvent cu `SITE_URL` din cod.
 
-## B.2 Conținutul paginii, în ordine
+- versiunea cu `www` trebuie să redirecționeze permanent (301) către cea fără
+- `canonical` pe fiecare pagină arată spre varianta fără `www`
+- `sitemap.xml` și `robots.txt` folosesc aceeași variantă
+- fără lanțuri de redirecționări: `www` → non-`www` direct, nu prin pași intermediari
 
-1. **Galerie foto** — mașina întreagă, aceleași reguli ca la produse (raport fix, WebP,
-   `--imagine-bg`)
-2. **Titlu** — „VW Passat B7 2.0 TDI · 2012"
-3. **Specificații** — marcă, model, an, motorizare, caroserie, cutie, culoare, km
-4. **Descriere** liberă, scrisă de operator
-5. **Piesele acestei mașini** — grilă, aceleași carduri ca în `/piese`, cu filtrare pe
-   categorie dacă sunt multe
-6. **Carusel: piese de la mașini compatibile** — vezi B.3
-7. Buton „Cauți altă piesă de la această mașină? Scrie-ne" → formularul de cerere,
-   precompletat cu mașina
+Partea de DNS și domenii din Vercel o fac eu — spune-mi exact ce trebuie configurat.
 
-## B.3 Logica pieselor compatibile — raționamentul
+## A.3 Consecvență de URL
 
-Ordinea de relevanță, de la cea mai puternică la cea mai slabă:
+- un singur format: cu sau fără `/` la final, nu ambele
+- majuscule/minuscule consecvente
+- fără parametri care creează duplicate indexabile (`?utm_`, `?ref=`)
+- paginarea: `?pagina=2` cu `canonical` propriu pe fiecare pagină, nu spre pagina 1
 
-| Nivel | Criteriu | De ce |
-|---|---|---|
-| 1 | **același model + aceeași generație**, altă mașină | piesele sunt interschimbabile aproape sigur |
-| 2 | **același model, generație diferită** | multe piese trec între generații apropiate |
-| 3 | **aceeași marcă + platformă comună** | vezi mai jos |
-| 4 | aceeași marcă, model diferit | slab, folosește doar dacă nu ai altceva |
+## A.4 Verificare, apoi OPREȘTE-TE
 
-**Nivelul 3 merită atenție specială.** Am descoperit deja, la import, că pieseauto.ro
-grupează piesele pe platformă: o piesă de Touran stă sub `vw/passat-b6`. Asta e o informație
-utilă, nu un defect — mașinile din grupul VAG chiar împart piese.
-
-**Nu implementa nivelul 3 acum.** Cere un tabel de platforme pe care nu-l avem. Propune-mi
-cum l-ai construi, la finalul raportului.
-
-**Reguli pentru carusel:**
-- maximum 12 piese, ordonate după nivelul de relevanță
-- doar piese publicate, cu stoc, de la alte mașini
-- dacă sunt sub 4 rezultate, **ascunde caruselul complet** — o secțiune cu două carduri
-  arată a defect
-- fiecare card arată de la ce mașină provine
-
-## B.4 Administrare
-
-**Mașini la dezmembrat** primește:
-- încărcare poze (refolosește `PhotoUploader`, cu aceeași conversie WebP)
-- câmp de descriere
-- comutator publicat
-- **legarea pieselor de mașină** — cum se face acum? Dacă nu există o cale bună, propune-mi
-  una: căutare de piese + atribuire în masă ar fi cea mai utilă la 8.000 de piese
-
-## B.5 Hero — reparația celor „0 piese"
-
-- afișează doar mașinile **cu cel puțin o piesă publicată**
-- dacă nicio mașină nu are piese, ascunde secțiunea complet
-- contorul arată numărul real de piese publicate, calculat live sau prin trigger corect
-- cardurile duc la `/masini/[slug]`
-
-## B.6 SEO
-
-Paginile de mașină sunt valoroase: cineva caută „dezmembrari passat b7 2012" mult mai des
-decât un cod OEM.
-
-- titlu: „Dezmembrări VW Passat B7 2.0 TDI 2012 — piese disponibile | AUTOPAS"
-- descriere generată din specificații și numărul de piese
-- date structurate corespunzătoare
-- incluse în `sitemap.xml`
-- breadcrumb: Acasă / Mașini dezmembrate / [mașina]
-
-## B.7 Stări limită
-
-- mașină fără poze → imagine de rezervă, nu spațiu gol
-- mașină fără piese publicate → mesaj + buton de cerere piesă, nu pagină goală
-- mașină nepublicată accesată pe URL → 404
-- toate piesele vândute → pagina rămâne (SEO), cu mesaj „Toate piesele au fost vândute" și
-  legătură către mașini similare
-
-**Oprește-te după Partea B cu raportul.**
+1. `robots.txt` de pe producție permite crawlarea
+2. `www` redirecționează 301 spre non-`www`
+3. `canonical` corect pe toate tipurile de pagini
+4. `sitemap.xml` are 8.754+ URL-uri, toate cu domeniul corect
 
 ---
 ---
 
-# PARTEA C — GOOGLE ANALYTICS
+# PARTEA B — METADATE ȘI STRUCTURĂ
 
-## C.1 Implementarea
+## B.1 Șabloane de titlu, pe tip de pagină
 
-Google Analytics 4, prin `gtag.js`, încărcat cu `next/script` și strategia `afterInteractive`.
+Generate din date, nu scrise de mână. Maximum ~60 de caractere.
 
-- ID-ul (`G-XXXXXXXXXX`) se citește din **Admin → Integrări**, unde există deja câmp pentru
-  GA4. Dacă e gol, scriptul **nu se încarcă deloc** — zero cod inutil
-- nu se încarcă în `/admin` (nu vrem traficul intern în statistici)
-- nu se încarcă în dezvoltare
-
-## C.2 Consimțământ — obligatoriu, nu opțional
-
-Există deja banner de cookie-uri în proiect. **Analytics nu are voie să pornească înainte de
-acceptare.** GDPR, și e exact genul de lucru pe care ANPC îl verifică.
-
-- verifică ce face bannerul acum și cum stochează alegerea
-- dacă utilizatorul refuză, GA nu se încarcă
-- dacă nu a ales încă, GA nu se încarcă
-- respectă alegerea la reîncărcare
-- politica de cookie-uri trebuie să menționeze GA — **verifică dacă o face deja**, nu o
-  rescrie fără să-mi spui
-
-Foloseşte modul de consimțământ (`consent mode`) cu `denied` implicit, apoi `update` la
-acceptare.
-
-## C.3 Evenimente de comerț electronic
-
-Implementează evenimentele standard GA4, ca rapoartele din Analytics să funcționeze:
-
-| Eveniment | Când |
+| Tip | Șablon |
 |---|---|
-| `view_item` | pagina de produs |
-| `view_item_list` | listarea `/piese`, rezultatele de căutare |
-| `select_item` | click pe un card de produs |
-| `add_to_cart` / `remove_from_cart` | coș |
-| `view_cart` | `/cos` |
-| `begin_checkout` | `/checkout` |
-| `purchase` | **doar după confirmarea comenzii**, cu `transaction_id` = numărul comenzii |
-| `search` | căutarea din header |
-| `generate_lead` | trimiterea formularelor de cerere piesă și predare mașină |
+| Home | `Piese auto second-hand din dezmembrări — AUTOPAS Neamț` |
+| Produs | `{denumire} — {marcă} {model} {ani} \| AUTOPAS` |
+| Categorie | `{categorie} pentru {marcă} — piese din dezmembrări \| AUTOPAS` |
+| Marcă | `Piese {marcă} din dezmembrări — {n} piese în stoc \| AUTOPAS` |
+| Mașină | `Dezmembrări {marcă} {model} {motorizare} {an} \| AUTOPAS` |
 
-**Atenție la `purchase`:** trebuie trimis o singură dată per comandă. Dacă utilizatorul dă
-refresh pe pagina de mulțumire, evenimentul nu se retrimite — altfel vânzările apar dublate.
-Folosește un marcaj în `sessionStorage`, legat de numărul comenzii.
+**Nu insera cuvinte-cheie forțat.** Titlurile trebuie să descrie exact pagina.
 
-**Nu trimite date personale** în evenimente: fără nume, telefon, e-mail, adresă. Doar ID-uri
-și valori.
+## B.2 Meta descriptions
 
-## C.4 Ce NU face
+Generate din datele existente: denumire, compatibilitate, preț, stare, garanție, livrare.
+~150 de caractere. Fiecare unică — descrieri identice pe 8.754 de pagini sunt mai rele
+decât lipsa lor.
 
-- nu instala librării de analytics
-- nu adăuga alte instrumente de urmărire
-- nu trimite evenimente din `/admin`
+## B.3 Atribute `alt` pe imagini
 
-## C.5 Ghid de configurare
+Generate din denumirea piesei. Pentru mai multe poze la același produs, diferențiază-le
+(`... — imaginea 2`). Bannerele ANPC și logoul primesc `alt` descriptiv.
 
-Scrie `docs/google-analytics.md` cu pașii pe care îi face proprietarul: creare cont și
-proprietate GA4, obținerea ID-ului, unde se lipește în Admin → Integrări, cum verifică în
-raportul „Timp real" că funcționează, unde vede rapoartele de comerț electronic.
+## B.4 Linkuri interne — problema reală la 8.754 de pagini
 
-Scris pentru cineva fără cunoștințe tehnice.
+Google trebuie să poată **ajunge** la fiecare piesă prin linkuri, nu doar prin sitemap.
 
----
----
+Verifică și raportează: câte piese sunt accesibile navigând din pagina principală, în
+maximum 3 clicuri? Câte sunt orfane?
 
-# PARTEA D — E-MAIL (doar verificări de cod)
+Propune-mi structura de legături care le acoperă pe toate — pagini de marcă, de categorie,
+piese similare, paginare. **Nu o implementa înainte să o aprob**, poate cere modificări de
+navigație.
 
-Configurarea DNS și redirecționarea le fac eu. Tu verifici doar partea din site:
+## B.5 Verificare, apoi OPREȘTE-TE
 
-1. `contact@autopas-dezmembrari.ro` apare **peste tot** din `settings`, nu hardcodat.
-   Confirmă și listează locurile
-2. Formularele de contact și de cerere **unde trimit acum**? Scriu doar în baza de date, sau
-   încearcă și un e-mail? Raportează
-3. Adaugă în `CLAUDE.md`, la „De configurat": redirecționarea
-   `contact@autopas-dezmembrari.ro` → `pieseneamt@yahoo.ro`, plus înregistrările SPF și DMARC
-   necesare
-4. **Nu implementa trimitere de e-mail.** Nu e în sarcină
+Titluri și descrieri unice pe toate tipurile de pagini, zero imagini fără `alt`, raportul
+de linkuri interne.
 
 ---
 ---
 
-# PARTEA E — COMPLETARE AUTOMATĂ DIN TITLU ȘI DESCRIERE
+# PARTEA C — DATE STRUCTURATE
 
-## E.0 Situația
+Cea mai mare valoare pentru un catalog de piese. Fără ele, Google vede text; cu ele,
+înțelege că e un produs cu preț, stoc și stare.
 
-Pe pieseauto.ro, unele anunțuri **nu au setate** marca, categoria sau subcategoria. Vânzătorul
-a scris doar un titlu, iar acolo se află toată informația:
+## C.1 Ce se adaugă
 
-```
-"Motoras Etrier Spate Audi A4 B8 2.0 Tdi 2008 2009 2010 2011"
- └─ piesă ────────┘ └─ marcă+model ┘ └─motor┘ └─ ani ──────┘
-```
+| Pagină | Tip |
+|---|---|
+| toate | `Organization` + `AutoPartsStore` (vezi Partea D) |
+| toate | `BreadcrumbList` |
+| produs | `Product` cu `offers`, `priceCurrency`, `price`, `availability`, `itemCondition: UsedCondition`, `brand`, `sku` |
+| produs | `isAccessoryOrSparePartFor` cu mașinile compatibile |
+| listare | `ItemList` |
+| `/faq` | `FAQPage` |
+| mașină | `Vehicle` sau `Product`, în funcție de ce se potrivește |
 
-Când datele structurate lipsesc, se extrag din **titlu**, iar dacă nu ajunge, din
-**descriere**.
+**`itemCondition: UsedCondition` e obligatoriu.** Sunt piese din dezmembrări; declararea
+lor ca noi ar fi informație falsă în rezultatele Google.
 
-**Important: cele ~8.000 de piese sunt deja importate.** Deci nu e doar o regulă pentru
-importurile viitoare — e nevoie și de o trecere retroactivă peste ce e deja în bază.
+`availability` trebuie să reflecte stocul real și starea de publicare.
 
-Titlul (`nume`) și descrierea (`stare_nota`) sunt deja salvate, deci completarea se face
-**fără nicio cerere către pieseauto.ro**. Rulează în secunde, nu în ore.
+## C.2 Reguli
 
-## E.1 Măsoară întâi golurile — nu modifica nimic
+- generate din baza de date, niciodată scrise de mână
+- validate cu testul Google pentru rezultate îmbogățite
+- fără date care nu apar și pe pagină — Google penalizează nepotrivirea
+- fără recenzii sau evaluări inventate
 
-```sql
-select
-  count(*)                                          as total,
-  count(*) filter (where marca_id is null)          as fara_marca,
-  count(*) filter (where model_id is null)          as fara_model,
-  count(*) filter (where categorie_id is null)      as fara_categorie,
-  count(*) filter (where subcategorie_id is null)   as fara_subcategorie,
-  count(*) filter (where an_min is null)            as fara_ani
-from products where sursa = 'pieseauto.ro';
-```
+## C.3 Verificare, apoi OPREȘTE-TE
 
-(adaptează numele coloanelor la schema reală — verific-o, nu presupune)
+Fiecare tip de pagină trece validarea, fără erori și fără avertismente.
 
-**Raportează cifrele și oprește-te.** De ele depinde dacă merită efortul și pe ce ne
-concentrăm.
+---
+---
 
-## E.2 Ordinea surselor — nu se inversează niciodată
+# PARTEA D — LOCAL SEO ȘI GEO
 
-Pentru fiecare câmp, prima sursă disponibilă câștigă. Sursele de mai jos **nu suprascriu**
-niciodată una de deasupra lor.
+Termenul „GEO" are două înțelesuri, ambele relevante aici. Tratează-le pe amândouă.
 
-| Prioritate | Sursă | Observație |
-|---|---|---|
-| 1 | valoarea existentă în bază, dacă `editat_manual = true` | munca operatorului, intangibilă |
-| 2 | date structurate de pe pagină (`q-car-model`, breadcrumb, URL canonic) | ce folosim deja |
-| 3 | **titlul produsului** | noul nivel |
-| 4 | **descrierea** (`stare_nota`) | ultimul nivel |
-| 5 | gol + marcat pentru revizuire | **niciodată ghicit** |
+## D.1 SEO local — cel mai valoros pentru afacerea asta
 
-**Regula absolută: dacă nu se poate determina cu certitudine, câmpul rămâne gol.** O piesă
-fără marcă e o problemă mică; o piesă cu marca greșită e o vânzare pierdută și un client
-nemulțumit. Am învățat asta deja: URL-ul canonic părea o sursă bună și a greșit modelul în
-25 din 25 de cazuri verificate.
+Cine caută „dezmembrări Piatra Neamț" sau „piese auto Neamț" e un client la 40 de km, nu la
+400. Traficul local convertește mult mai bine decât cel național.
 
-## E.3 Extragerea mărcii
+**`AutoPartsStore` cu date complete**, luate din Admin → Setări:
+- denumire legală, adresă completă, telefon, e-mail
+- coordonate geografice
+- program de lucru, în format structurat
+- zona deservită
+- legături către profilurile sociale, dacă există
 
-Potrivire cu tabela `brands`, pe cuvinte întregi, cu:
+**Consecvența NAP** (nume, adresă, telefon) e esențială: exact aceeași formă pe site, în
+datele structurate și în Google Business Profile. Diferențele slăbesc semnalul local.
+Verifică și raportează dacă adresa apare diferit în locuri diferite.
 
-- **normalizare fără diacritice și fără majuscule** — titlurile de pe pieseauto.ro sunt
-  scrise „Vw Golf 5", „SKODA OCTAVIA", inconsecvent
-- **tabel de sinonime**, fiindcă titlurile folosesc prescurtări: `Vw` → Volkswagen,
-  `Mercedes` / `MB` → Mercedes-Benz, `Bmw` → BMW, `Vag` → *nu e marcă, ignoră*
+**Scrie `docs/google-business-profile.md`** — ghid pentru client: cum își revendică
+profilul, ce categorie alege („Auto parts store" / „Auto wrecker"), ce completează, cum
+adaugă poze, cum cere recenzii. Scris pentru cineva fără cunoștințe tehnice.
 
-**Construiește tabelul de sinonime pe date măsurate, nu din memorie.** Extrage primele două
-cuvinte din toate cele 8.000 de titluri, numără frecvențele, și dă-mi lista celor care nu se
-potrivesc cu nicio marcă din `brands`. Aprob eu ce intră în tabel.
+## D.2 Optimizare pentru motoare generative
 
-Nu inventa mărci noi în `brands`. Dacă apare una care lipsește, raporteaz-o.
+Din ce în ce mai mulți oameni întreabă un asistent AI unde găsesc o piesă. Ca să fii citat,
+informația trebuie să fie extractibilă și neambiguă.
 
-## E.4 Extragerea modelului
+- **datele structurate din Partea C fac cea mai mare parte a treburii** — un asistent care
+  citește `Product` cu preț, stare și compatibilitate poate răspunde precis
+- compatibilitatea trebuie să fie explicită în date, nu doar în titlu
+- `/faq` cu `FAQPage` — răspunsuri directe la întrebări reale
+- entități clare: firma, locația, ce vinde, garanția, livrarea
+- verifică dacă `robots.txt` blochează crawlerele asistenților AI. **Nu decide singur** —
+  raportează-mi ce găsești și decid eu ce permitem
 
-Doar **în cadrul mărcii deja găsite**. Fără marcă, nu se caută model.
+**Nu genera conținut pentru AI.** Fără pagini artificiale, fără text scris pentru roboți.
 
-- potrivire cu `models`, normalizat
-- dacă titlul conține ani, folosește-i pentru a alege generația — mecanismul funcționează
-  deja și a rezolvat 14 cazuri la eșantionul de 50
-- **coduri de platformă**: titlurile scriu frecvent „Passat 3c B6", „Golf 1K". Codul e o a
-  doua denumire a aceluiași model
-  - construiește tabelul de coduri **pe date măsurate**: numără ce coduri apar efectiv în
-    cele 8.000 de titluri și în câte
-  - dă-mi lista, o aprob, abia apoi o folosești
-  - la eșantionul de 50, singurul cod „străin" era `3c` pentru Passat B6
+## D.3 Verificare, apoi OPREȘTE-TE
 
-**Ambiguitate — cazul important:** un titlu ca „Far Stanga Bmw Seria 3 E90 E91" menționează
-două generații. Verifică ce permite schema: dacă produsul are un singur `model_id`, alege-l
-pe primul menționat **și marchează pentru revizuire**. Nu alege aleatoriu, nu alege ultimul.
+Datele structurate locale validate, NAP consecvent peste tot, ghidul scris.
 
-Dacă apar două mărci diferite în același titlu, lasă gol și marchează — e mai probabil o
-piesă compatibilă cu mai multe mașini decât o potrivire clară.
+---
+---
 
-## E.5 Extragerea categoriei
+# PARTEA E — CE SE ÎNTÂMPLĂ CÂND O PIESĂ SE VINDE
 
-Denumirea piesei stă aproape întotdeauna **la începutul titlului**, înainte de marcă:
-`Motoras Etrier Spate | Audi A4 B8...`
+**Decizie arhitecturală, nu detaliu. Analizeaz-o și propune-mi o soluție. Nu implementa.**
 
-- taie titlul la primul cuvânt care e o marcă recunoscută; ce rămâne în față e denumirea
-- potrivește cu tabelul de reguli existent (`etriere` → Sistem de frânare / Etriere)
-- **extinde tabelul pe date măsurate**: extrage denumirile din toate cele 8.000 de titluri,
-  grupează-le, numără, și dă-mi lista celor fără potrivire, ordonată descrescător
-- **eu aprob** fiecare regulă nouă, ca la importul inițial
+Când o piesă se vinde pe pieseauto.ro, importul o depublică. La ~30 de vânzări pe zi,
+în doi ani înseamnă peste **20.000 de URL-uri** care au fost indexate și nu mai există.
 
-**Pragul de creare a subcategoriilor:** acum vorbim de volumul final, nu de un eșantion.
-Sub **10 piese**, pui categoria părinte și marchezi; peste, se poate crea subcategorie.
+Ce se întâmplă acum cu URL-ul unei piese depublicate? 404? 200 cu pagină goală? Verifică.
 
-## E.6 Extragerea din descriere — ultimul nivel
+**Analizează opțiunile și recomandă:**
 
-Se folosește **doar** dacă titlul n-a dat nimic pentru un câmp.
+| Opțiune | Consecință |
+|---|---|
+| 404 | corect tehnic, dar mii de erori în Search Console și utilizatori în fundătură |
+| 410 | semnal mai clar de „dispărut definitiv", curăță indexul mai repede |
+| redirecționare 301 spre categorie | păstrează valoarea linkurilor, dar poate fi văzută ca redirecționare irelevantă |
+| pagina rămâne, marcată „vândut", cu piese similare | păstrează traficul și îl transformă în vizite utile |
 
-Descrierea (`stare_nota`) e text liber, deci mai riscantă. Reguli:
-- aceleași tabele de potrivire ca la titlu
-- **doar potriviri neechivoce** — o singură marcă menționată, un singur model
-- dacă descrierea menționează mai multe mașini (frecvent la piese compatibile), **nu extrage
-  nimic** din ea
-- tot ce vine din descriere se marchează pentru revizuire, fără excepție
+**Ține cont că piesele sunt unicat.** Un far de Passat B6 vândut nu se mai întoarce, dar
+altul identic poate apărea mâine, cu alt ID. Asta contează pentru alegere.
 
-## E.7 Marcarea a ce s-a dedus — obligatoriu
-
-Coloană nouă pe `products` (migrare idempotentă, mi-o dai mie):
-
-```
-date_deduse jsonb
-```
-
-Exemplu de conținut: `{"marca":"titlu","model":"titlu","categorie":"regula:etriere"}`
-
-**De ce contează:** peste trei luni, nimeni nu va mai ști ce a fost citit de pe pagină și ce
-a fost dedus dintr-un șir de caractere. Dacă apare o piesă listată greșit, coloana asta spune
-imediat dacă vina e la sursă sau la algoritm. Fără ea, orice corecție e o vânătoare oarbă.
-
-Ecranul „Piese de completat" primește un filtru nou: **„cu date deduse"**, ca operatorul să
-poată verifica prin eșantionare.
-
-## E.8 Rularea retroactivă
-
-Buton nou în admin, lângă import: **„Completează datele lipsă"**
-
-- rulează **doar** pe piesele cu `sursa = 'pieseauto.ro'` și cel puțin un câmp gol
-- **sare peste** piesele cu `editat_manual = true`
-- **nu suprascrie niciodată** un câmp deja completat
-- **nu face nicio cerere de rețea** — folosește doar ce e în bază
-- previzualizare înainte de scriere: câte piese primesc marcă, câte model, câte categorie,
-  plus **primele 30 de exemple cu titlul și ce s-ar extrage** din el
-- confirmare explicită înainte de orice scriere
-- reversibil: `date_deduse` permite anularea completărilor automate cu o singură comandă,
-  dacă rezultatul e prost
-
-## E.9 Integrarea în importul viitor
-
-Aceleași reguli intră în `lib/import/potrivire.mjs`, ca lanț de rezervă, **după** sursele
-structurate. Un singur motor — nu scrie logica de două ori.
-
-Importurile viitoare vor completa automat, la sosire.
-
-## E.10 Verificări
-
-1. Rulare pe un eșantion de **50 de piese cu câmpuri goale**, cu tabelul complet
-   titlu → ce s-a extras, pentru verificare manuală. **Oprire.**
-2. Rulare de două ori: a doua nu schimbă nimic (idempotență)
-3. O piesă cu `editat_manual = true` rămâne neatinsă
-4. Un câmp deja completat nu se suprascrie niciodată
-5. Zero cereri de rețea, confirmat
-6. Cifrele înainte/după pentru fiecare câmp
-
-**Oprește-te după E.10 cu raportul.**
+Ce recomanzi și de ce? Propune-mi și cum se afișează pagina, dacă alegem varianta cu
+păstrare — fără text nou scris de mine.
 
 ---
 ---
 
 # RAPORT FINAL
 
-1. Cifrele de la E.1, înainte și după
-2. Lista sinonimelor de marcă, a codurilor de platformă și a regulilor de categorie —
-   toate pe date măsurate, pentru aprobarea mea
-3. Tabelul de verificare manuală de la E.10, punctul 1
-4. Rezultatele celor 7 verificări de la A.7
-5. Ce ai găsit la B.0 — legătura piese ↔ mașini și cauza celor „0 piese"
-6. Propunerea pentru tabelul de platforme (B.3, nivelul 3)
-7. Propunerea pentru legarea pieselor de mașini în admin (B.4)
-8. Ce face bannerul de cookie-uri acum și cum ai legat GA de el
-9. Locurile unde apare adresa de e-mail
-10. Migrările SQL, de rulat de mine
-11. Capturi pe ambele teme: hello bar în vacanță, pagină de mașină, carusel
-12. Orice problemă găsită și **nereparată**, cu motivul
+1. `robots.txt` de pe producție, integral, și ce variabilă trebuie setată
+2. Situația `www` vs non-`www`, cu ce răspunde fiecare
+3. Tabelul de diagnostic de la 0.2 și 0.4, cu gravitate
+4. Lighthouse înainte / după
+5. Raportul de linkuri interne: câte piese sunt orfane
+6. Propunerea de structură de legături (B.4), pentru aprobare
+7. Rezultatele validării datelor structurate
+8. Ce crawlere de asistenți AI sunt blocate acum
+9. Recomandarea pentru Partea E, cu argumente
+10. Ce ai găsit și **nu** ai reparat, cu motivul

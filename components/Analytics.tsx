@@ -27,7 +27,8 @@
 import Script from "next/script";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { areVoieStatistica, ascultaConsimtamant, citesteConsimtamant, type Consimtamant } from "@/lib/consimtamant";
+import { areVoieStatistica, ascultaConsimtamant, citesteConsimtamant, stergeCookieuriGa,
+         type Consimtamant } from "@/lib/consimtamant";
 import { golesteCoada } from "@/lib/analytics";
 import { sbBrowser } from "@/lib/supabase";
 
@@ -69,12 +70,15 @@ export default function Analytics() {
     && !cale.startsWith("/admin")
     && process.env.NODE_ENV === "production";
 
-  // Retragerea acordului: dacă gtag e deja în pagină, îi spunem explicit să nu
-  // mai stocheze nimic. Fără asta ar continua să scrie cookie-urile `_ga`.
+  // Retragerea acordului, în doi pași. `consent update: denied` oprește scrierea
+  // unor cookie-uri NOI, dar nu le atinge pe cele deja puse — acelea au 2 ani.
+  // De asta le și ștergem: altfel omul ar apăsa „oprește statistica" și ar găsi
+  // cookie-urile în browser peste o lună.
   useEffect(() => {
-    if (!areVoieStatistica(acord) && typeof window !== "undefined" && typeof window.gtag === "function") {
+    if (areVoieStatistica(acord)) return;
+    if (typeof window !== "undefined" && typeof window.gtag === "function")
       window.gtag("consent", "update", { analytics_storage: "denied" });
-    }
+    stergeCookieuriGa();
   }, [acord]);
 
   // Golirea cozii de evenimente NU se poate lega de `onReady` al lui next/script:

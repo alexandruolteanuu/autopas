@@ -57,3 +57,39 @@ export function ascultaConsimtamant(cb: (v: Consimtamant) => void): () => void {
 
 /** Singura întrebare care contează pentru analytics. */
 export const areVoieStatistica = (v: Consimtamant) => v === "toate";
+
+/**
+ * Șterge cookie-urile lăsate de Google Analytics, la retragerea acordului.
+ *
+ * Oprirea măsurării (`consent update: denied`) împiedică scrierea unor cookie-uri
+ * NOI, dar nu le atinge pe cele existente: `_ga` și `_ga_` + codul contului au
+ * durata de 2 ani, deci ar rămâne în browser mult după ce omul s-a răzgândit.
+ * Politica de cookies îi spune cum să le șteargă singur; e mai corect să le
+ * ștergem noi.
+ *
+ * Un cookie se șterge punându-i o dată de expirare din trecut, dar NUMAI dacă
+ * nimerim exact perechea domeniu+cale cu care a fost pus. Google le pune pe
+ * domeniul de bază (`.autopas-dezmembrari.ro`), ca să meargă și pe subdomenii,
+ * așa că încercăm toate variantele plauzibile — o ștergere care nu nimerește
+ * nimic nu strică nimic.
+ */
+export function stergeCookieuriGa() {
+  if (typeof document === "undefined") return;
+
+  const numeGa = document.cookie
+    .split(";")
+    .map((c) => c.split("=")[0].trim())
+    .filter((n) => n === "_ga" || n.startsWith("_ga_") || n === "_gid");
+  if (numeGa.length === 0) return;
+
+  const gazda = location.hostname;
+  const parti = gazda.split(".");
+  const domenii: (string | null)[] = [null, gazda, "." + gazda];
+  // domeniul de bază, pentru cazul cu subdomeniu (www.exemplu.ro -> .exemplu.ro)
+  if (parti.length > 2) domenii.push("." + parti.slice(-2).join("."));
+
+  for (const nume of numeGa)
+    for (const d of domenii)
+      document.cookie =
+        `${nume}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/` + (d ? `; domain=${d}` : "");
+}
