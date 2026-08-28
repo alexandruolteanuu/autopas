@@ -12,6 +12,8 @@ import { counturiPeModel, marciCuPiese, textCautare } from "@/lib/format";
 import { getVacanta } from "@/lib/settings";
 import { VacantaStareGoala } from "@/components/VacantaNota";
 import Link from "next/link";
+import EvenimentGa from "@/components/EvenimentGa";
+import { piesaGa } from "@/lib/analytics";
 
 export const dynamic = "force-dynamic";
 // Datele catalogului se citesc mereu proaspăt. `revalidate = 300` din layout
@@ -264,6 +266,25 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
         </FiltreSertar>
 
         <div className="min-w-0">
+          {/* `search` se trimite de pe pagina de REZULTATE, nu din formularul din
+              header: așa prinde și căutările deschise dintr-un link salvat sau
+              dintr-un rezultat Google, nu doar cele tastate acum. Doar pagina 1,
+              ca răsfoirea paginilor să nu numere aceeași căutare de zece ori. */}
+          {(searchParams.q || searchParams.oem) && pagina === 1 && (
+            <EvenimentGa nume="search" cheie={String(searchParams.q || searchParams.oem)}
+              date={{ search_term: String(searchParams.q || searchParams.oem), rezultate: total }} />
+          )}
+
+          {/* `view_item_list` raportează CE s-a arătat, adică pagina curentă de
+              24, nu tot filtrul: în GA4 „lista" înseamnă ce a văzut omul. */}
+          {!vacanta.activ && products.length > 0 && (
+            <EvenimentGa nume="view_item_list"
+              cheie={`${titlu}|${pagina}`}
+              date={{
+                item_list_name: titlu,
+                items: products.map((p, i) => piesaGa(p, { index: (pagina - 1) * PE_PAGINA + i })),
+              }} />
+          )}
           {!vacanta.activ && (
             <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
               <span className="text-sm text-textSecundar">

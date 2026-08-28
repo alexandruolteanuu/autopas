@@ -2,6 +2,7 @@
 // Formular comun: predare mașină / Programul Rabla — scrie REAL în car_intake_requests.
 import { useState } from "react";
 import { sbBrowser } from "@/lib/supabase";
+import { ev } from "@/lib/analytics";
 import { CONFIG } from "@/lib/config";
 
 export default function IntakeForm({ tip }: { tip: "predare" | "rabla" }) {
@@ -16,6 +17,7 @@ export default function IntakeForm({ tip }: { tip: "predare" | "rabla" }) {
       masina: f.get("masina"), an: f.get("an") || null, vin: f.get("vin") || null, mesaj: f.get("mesaj") || null,
     });
     setStare(error ? "eroare" : "ok");
+    if (!error) ev("generate_lead", { tip: "predare_masina" });
   }
   if (stare === "ok")
     return <div className="card p-8 text-center"><b className="text-ok text-lg">✓ Cererea a fost trimisă</b>

@@ -8,6 +8,8 @@ import FavButton from "@/components/FavButton";
 import BackLink from "@/components/BackLink";
 import { TrustIcon } from "@/components/TrustBar";
 import { lei } from "@/lib/format";
+import EvenimentGa from "@/components/EvenimentGa";
+import { piesaGa, MONEDA } from "@/lib/analytics";
 import { getSetariServer, waLinkCu } from "@/lib/settings";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -92,6 +94,9 @@ export default async function Produs({ params }: { params: { slug: string } }) {
           { t: prod.nume },
         ]} />
       </div>
+
+      <EvenimentGa nume="view_item" cheie={prod.slug}
+        date={{ currency: MONEDA, value: Number(prod.pret_lei), items: [piesaGa(prod)] }} />
 
       <div className="grid lg:grid-cols-2 gap-8">
         <ProductGallery poze={prod.poze ?? []} art={prod.art} nume={prod.nume} />

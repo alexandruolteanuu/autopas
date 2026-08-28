@@ -2,11 +2,15 @@
 // Bannerul de consimțământ cookies — cerut explicit de client ("cmsi cookes").
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { citesteConsimtamant, scrieConsimtamant } from "@/lib/consimtamant";
 
 export default function CookieBanner() {
   const [vizibil, setVizibil] = useState(false);
-  useEffect(() => { if (!localStorage.getItem("autopas_cookies")) setVizibil(true); }, []);
-  const alege = (v: string) => { localStorage.setItem("autopas_cookies", v); setVizibil(false); };
+  useEffect(() => { if (citesteConsimtamant() === "nesetat") setVizibil(true); }, []);
+  // `scrieConsimtamant` anunță și pagina, nu doar `localStorage`: fără asta,
+  // „Accept toate" n-ar porni Google Analytics decât la următoarea reîncărcare,
+  // adică exact vizita pe care voiam s-o măsurăm s-ar pierde.
+  const alege = (v: "necesare" | "toate") => { scrieConsimtamant(v); setVizibil(false); };
   if (!vizibil) return null;
   return (
     <div data-strat-fix className="fixed bottom-0 inset-x-0 z-50 bg-headerBg text-headerText shadow-2xl border-t border-white/10">

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import LinkPiesa from "./LinkPiesa";
 import ProductPhoto from "./ProductPhoto";
 import FavButton from "./FavButton";
 import AddToCart from "./AddToCart";
@@ -14,20 +14,21 @@ export default function ProductCard({ p }: { p: Product }) {
         // Un singur efect la trecerea cu mouse-ul: chenar în accent, umbra de
     // nivel 2 și imaginea mărită cu 3%. Fără umbră în stare normală.
     <div className="group h-full flex flex-col card overflow-hidden transition-[box-shadow,border-color] duration-200 hover:border-accentChenar/40 hover:shadow-[var(--umbra-2)]">
-      <Link href={`/piese/${p.slug}`} className="block overflow-hidden">
+      {/* `LinkPiesa` în loc de `Link`: raportează `select_item` la click. Cardul
+          rămâne componentă de server — doar linkul trece în browser. */}
+      <LinkPiesa p={p} className="block overflow-hidden">
         <ProductPhoto poze={p.poze} art={p.art} alt={p.nume}
           className="w-full aspect-[4/3] transition-transform duration-200 group-hover:scale-[1.03]" />
-      </Link>
+      </LinkPiesa>
 
       <div className="flex-1 flex flex-col p-3.5 gap-1.5">
         <div className="font-disp text-[12px] tracking-wider text-textSecundar uppercase">
           {p.oem ? `Cod OEM ${p.oem}` : p.cod_intern ?? ""}{p.ani ? ` · ${p.ani}` : ""}
         </div>
 
-        <Link href={`/piese/${p.slug}`}
-          className="t-card accentuat-hover line-clamp-2 min-h-[44px]">
+        <LinkPiesa p={p} className="t-card accentuat-hover line-clamp-2 min-h-[44px]">
           {p.nume}
-        </Link>
+        </LinkPiesa>
 
         <div className="t-pret accentuat">
           {lei(Number(p.pret_lei), p.pret_sufix)}

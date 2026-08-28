@@ -1,10 +1,12 @@
 import Link from "next/link";
+import GaPurchase from "@/components/GaPurchase";
 export const metadata = { title: "Comandă plasată" };
 export const dynamic = "force-dynamic";
 
 export default function ComandaPlasata({ searchParams }: { searchParams: { nr?: string; email?: string } }) {
   return (
     <div className="mx-auto max-w-2xl px-4 py-16 text-center">
+      <GaPurchase numar={searchParams.nr} />
       <div className="w-16 h-16 mx-auto rounded-full bg-ok text-white grid place-items-center text-3xl">✓</div>
       <h1 className="font-disp font-bold text-3xl mt-5">Comanda a fost înregistrată</h1>
       <p className="text-textSecundar mt-2">Numărul comenzii tale: <b className="text-text font-disp text-lg">{searchParams.nr ?? "—"}</b></p>

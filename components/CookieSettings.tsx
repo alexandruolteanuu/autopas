@@ -1,11 +1,14 @@
 "use client";
 // Panoul din pagina "Setări cookie-uri" — schimbi alegerea oricând.
 import { useEffect, useState } from "react";
+import { citesteConsimtamant, scrieConsimtamant, type Consimtamant } from "@/lib/consimtamant";
 
 export default function CookieSettings() {
-  const [val, setVal] = useState<string>("");
-  useEffect(() => { setVal(localStorage.getItem("autopas_cookies") ?? "nesetat"); }, []);
-  const set = (v: string) => { localStorage.setItem("autopas_cookies", v); setVal(v); };
+  const [val, setVal] = useState<Consimtamant>("nesetat");
+  useEffect(() => { setVal(citesteConsimtamant()); }, []);
+  // Comutatorul pornește și oprește Google Analytics pe loc, în ambele sensuri:
+  // la oprire pleacă un `consent update: denied`, deci gtag nu mai stochează nimic.
+  const set = (v: "necesare" | "toate") => { scrieConsimtamant(v); setVal(v); };
   return (
     <div className="bg-suprafata border border-chenar rounded-xl p-5 space-y-4">
       <div className="flex items-center justify-between gap-4 pb-3 border-b border-chenar">

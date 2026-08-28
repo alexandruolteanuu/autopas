@@ -3,6 +3,7 @@
 // iar la finalizare comanda se scrie REAL în Supabase.
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import type { CartItem } from "@/lib/types";
+import { ev, MONEDA } from "@/lib/analytics";
 
 type Ctx = {
   items: CartItem[];
@@ -21,8 +22,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem("autopas_cart", JSON.stringify(items)); }, [items]);
 
   const add = (i: Omit<CartItem, "cantitate">) =>
-    setItems((prev) => prev.some((x) => x.id === i.id) ? prev : [...prev, { ...i, cantitate: 1 }]); // piesele sunt unicate
-  const remove = (id: number) => setItems((prev) => prev.filter((x) => x.id !== id));
+    setItems((prev) => {
+      if (prev.some((x) => x.id === i.id)) return prev;   // piesele sunt unicate
+      // Evenimentul pleacă doar la o adăugare REALĂ. Un al doilea click pe
+      // aceeași piesă nu schimbă coșul, deci n-are ce raporta.
+      ev("add_to_cart", { currency: MONEDA, value: i.pret,
+        items: [{ item_id: i.oem || String(i.id), item_name: i.nume, price: i.pret, quantity: 1 }] });
+      return [...prev, { ...i, cantitate: 1 }];
+    });
+  const remove = (id: number) =>
+    setItems((prev) => {
+      const scos = prev.find((x) => x.id === id);
+      if (scos) ev("remove_from_cart", { currency: MONEDA, value: scos.pret * scos.cantitate,
+        items: [{ item_id: scos.oem || String(scos.id), item_name: scos.nume, price: scos.pret, quantity: scos.cantitate }] });
+      return prev.filter((x) => x.id !== id);
+    });
   const clear = () => setItems([]);
   const total = items.reduce((s, i) => s + i.pret * i.cantitate, 0);
 

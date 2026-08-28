@@ -8,6 +8,7 @@ import CookieBanner from "./CookieBanner";
 import type { Firma, Vacanta } from "@/lib/settings";
 import WhatsAppFloat from "./WhatsAppFloat";
 import { VacantaProvider } from "./VacantaContext";
+import Analytics from "./Analytics";
 
 export default function SiteChrome({ children, waPhone, firma, vacanta }:
   { children: React.ReactNode; waPhone: string; firma?: Firma; vacanta?: Vacanta }) {
@@ -20,6 +21,9 @@ export default function SiteChrome({ children, waPhone, firma, vacanta }:
       <Footer firma={firma} />
       <CookieBanner />
       <WhatsAppFloat phone={waPhone} />
+      {/* Montat AICI, nu în layout: `SiteChrome` iese devreme pentru /admin, deci
+          traficul echipei nu ajunge niciodată în statistici. */}
+      <Analytics />
     </VacantaProvider>
   );
 }

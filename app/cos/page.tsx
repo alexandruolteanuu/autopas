@@ -3,7 +3,8 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import { useCart } from "@/components/CartContext";
 import PartArt from "@/components/PartArt";
 import { lei, nrPiese } from "@/lib/format";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { ev, MONEDA } from "@/lib/analytics";
 import DiscountBox, { type Reducere } from "@/components/DiscountBox";
 import Link from "next/link";
 import StareGoala from "@/components/StareGoala";
@@ -17,6 +18,19 @@ export default function Cos() {
   // la reluare. Se blochează doar drumul spre checkout.
   const vacanta = useVacanta();
   const [reducere, setReducere] = useState<Reducere>(null);
+  // Coșul NU e gata la montare: `CartContext` îl citește din `localStorage`
+  // într-un efect, deci la prima randare `items` e gol. Un efect cu lista de
+  // dependențe goală ar rula exact atunci și n-ar trimite nimic — verificat în
+  // browser: la navigarea din interiorul aplicației mergea, la încărcarea
+  // directă a paginii nu. Așteptăm primul coș neg, apoi trimitem O SINGURĂ dată.
+  const trimis = useRef(false);
+  useEffect(() => {
+    if (trimis.current || items.length === 0) return;
+    trimis.current = true;
+    ev("view_cart", { currency: MONEDA, value: total,
+      items: items.map((i) => ({ item_id: i.oem || String(i.id), item_name: i.nume, price: i.pret, quantity: i.cantitate })) });
+  }, [items, total]);
+
   useEffect(() => { // păstrăm reducerea pentru checkout
     if (reducere) sessionStorage.setItem("autopas_reducere", JSON.stringify(reducere));
     else sessionStorage.removeItem("autopas_reducere");

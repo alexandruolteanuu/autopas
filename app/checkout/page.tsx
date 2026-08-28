@@ -3,11 +3,12 @@
 // Browserul trimite DOAR ce vrea să cumpere (id-urile pieselor) și datele de
 // livrare. Prețurile, costul livrării, reducerea și totalul le calculează
 // serverul, din bază — ca să nu poată fi modificate din consola browserului.
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/CartContext";
 import { sbBrowser } from "@/lib/supabase";
 import { lei } from "@/lib/format";
+import { ev, MONEDA } from "@/lib/analytics";
 import DiscountBox, { type Reducere } from "@/components/DiscountBox";
 import { getSetariBrowser, CURIERI_IMPLICITI, type Curier } from "@/lib/settings";
 import Link from "next/link";
@@ -20,6 +21,18 @@ export default function Checkout() {
   const router = useRouter();
   const vacanta = useVacanta();
   const [tip, setTip] = useState<"pf" | "firma">("pf");
+  // Coșul NU e gata la montare: `CartContext` îl citește din `localStorage`
+  // într-un efect, deci la prima randare `items` e gol. Un efect cu lista de
+  // dependențe goală ar rula exact atunci și n-ar trimite nimic — verificat în
+  // browser: la navigarea din interiorul aplicației mergea, la încărcarea
+  // directă a paginii nu. Așteptăm primul coș neg, apoi trimitem O SINGURĂ dată.
+  const trimis = useRef(false);
+  useEffect(() => {
+    if (trimis.current || items.length === 0) return;
+    trimis.current = true;
+    ev("begin_checkout", { currency: MONEDA, value: total,
+      items: items.map((i) => ({ item_id: i.oem || String(i.id), item_name: i.nume, price: i.pret, quantity: i.cantitate })) });
+  }, [items, total]);
   const [curier, setCurier] = useState("fan");
   const [plata, setPlata] = useState("ramburs");
   const [stare, setStare] = useState<"idle" | "trimit" | "eroare">("idle");
@@ -72,6 +85,16 @@ export default function Checkout() {
       return;
     }
     sessionStorage.removeItem("autopas_reducere");
+    // Conținutul comenzii, pentru `purchase` de pe pagina de mulțumire. Se pune
+    // ÎNAINTE de `clear()`, fiindcă după golirea coșului piesele nu mai există
+    // nicăieri în browser. Valoarea e cea întoarsă de SERVER, nu cea din coș.
+    try {
+      sessionStorage.setItem("autopas_purchase", JSON.stringify({
+        numar: r.numar,
+        valoare: Number((r as { total?: number }).total ?? total - reducereVal),
+        items: items.map((i) => ({ item_id: i.oem || String(i.id), item_name: i.nume, price: i.pret, quantity: i.cantitate })),
+      }));
+    } catch { /* stocare blocată: comanda merge mai departe, statistica nu */ }
     clear();
     router.push(`/comanda-plasata?nr=${r.numar}&email=${encodeURIComponent(String(f.get("email")))}`);
   }

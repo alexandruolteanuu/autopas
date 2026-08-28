@@ -2,6 +2,7 @@
 // INTEGRĂRI — starea reală a fiecărei conexiuni + ce trebuie făcut ca s-o activezi.
 import { useEffect, useState, useCallback } from "react";
 import { sbBrowser, scrieVerificat } from "@/lib/supabase";
+import { golesteCachePublic } from "@/lib/settings";
 
 type Stare = { nume: string; grup: string; stare: "activ" | "pregatit" | "viitor"; desc: string; pasi: string[] };
 
@@ -22,9 +23,9 @@ const INTEGRARI: Stare[] = [
   { nume: "e-Factura ANAF (SPV)", grup: "Facturare", stare: "viitor",
     desc: "Transmiterea în SPV se face din Saga, care are modulul e-Factura inclus. Nu dublăm funcția — evităm facturi transmise de două ori.",
     pasi: ["Se folosește modulul e-Factura din Saga", "Certificat digital pe firmă", "Statusul se notează în comandă"] },
-  { nume: "Google Analytics 4", grup: "Analiză", stare: "viitor",
-    desc: "Măsurarea traficului și a conversiilor. Se activează după acceptul pentru cookie-uri de statistică (bannerul e deja funcțional).",
-    pasi: ["Cont GA4 → ID de măsurare (G-XXXXXXX)", "Îl adaugi în Vercel ca NEXT_PUBLIC_GA_ID", "Ne anunți — legăm evenimentele de e-commerce"] },
+  { nume: "Google Analytics 4", grup: "Analiză", stare: "pregatit",
+    desc: "Codul e scris și așteaptă doar ID-ul. Cât timp câmpul de mai jos e gol, în site NU se încarcă niciun script și nu pleacă nicio cerere către Google. Evenimentele de comerț (vizualizare piesă, adăugare în coș, comandă) sunt deja legate. Măsurarea pornește doar pentru vizitatorii care apasă „Accept toate” în bannerul de cookie-uri; traficul din /admin nu se numără niciodată.",
+    pasi: ["Cont GA4 → ID de măsurare (G-XXXXXXX)", "Îl lipești în câmpul de mai jos și salvezi — atât", "Verifici în GA4 → Rapoarte → Timp real că apari", "⚠ Înainte de a-l activa: Politica de cookies trebuie actualizată (vezi docs/google-analytics.md)"] },
 ];
 
 const CULORI = { activ: ["bg-ok/10 text-ok border-ok/30", "Activ ✓"], pregatit: ["bg-yellow-50 text-yellow-700 border-yellow-200", "Pregătit — așteaptă cont"], viitor: ["bg-paper text-mut border-line", "Fază următoare"] } as const;
@@ -64,6 +65,11 @@ export default function Integrari() {
     const r = await scrieVerificat(sb.from("settings").update({ valoare: nou }).eq("cheie", "integrari"));
     setSalvez(null);
     if (!r.ok) { setMsg(`Nu s-a salvat: ${r.eroare}`); return; }
+    // Aceeași regulă ca la Setări și la modul vacanță: după o salvare confirmată
+    // se golește cache-ul paginilor publice. Google Analytics nu depinde de el —
+    // își cere id-ul din browser, tocmai ca să nu rămână prins în HTML-ul static —
+    // dar orice altă valoare de aici care ar ajunge vreodată pe site are nevoie.
+    await golesteCachePublic();
     setConf(nou);
     setMsg("✓ Salvat.");
     incarca();

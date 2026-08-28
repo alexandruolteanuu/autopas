@@ -420,3 +420,120 @@ piese noi, 2 actualizate, 44 depublicate). Pagina arată exact ce e în bază �
 
 `npm run build` — trece.
 `node scripts/verifica-import.mjs` — 110 verificări trec.
+
+---
+---
+
+# RAPORT — 28 august 2026 · PARTEA C, încheiată
+
+Google Analytics 4 e implementat și verificat. Migrarea 30 rulată. **Nu e pornit** — și nici
+n-ar trebui pornit până nu se rezolvă un lucru din Partea legală, mai jos.
+
+---
+
+## Ce am verificat înainte să scriu (C.2 cere asta)
+
+**Bannerul de cookie-uri exista și era funcțional.** Salvează în `localStorage`, cheia
+`autopas_cookies`, cu trei stări: lipsă / `necesare` / `toate`. Există și o pagină „Setări
+cookie-uri" unde alegerea se poate schimba oricând. N-am rescris nimic din ele; le-am legat
+la un modul comun (`lib/consimtamant.ts`), fiindcă `localStorage` nu anunță pe nimeni când se
+schimbă în aceeași filă — fără asta, „Accept toate" n-ar fi pornit măsurarea decât la
+următoarea reîncărcare, adică exact vizita pe care voiai s-o măsori s-ar fi pierdut.
+
+---
+
+## Cele patru condiții
+
+Analytics-ul se încarcă **doar** dacă toate sunt adevărate. Măsurat în browser:
+
+| Situație | Script | Cereri către Google |
+|---|---|---|
+| fără ID configurat, chiar cu acord | 0 | **0** |
+| cu ID, vizitatorul n-a ales încă | 0 | **0** |
+| cu ID, a apăsat „Doar necesare" | 0 | **0** |
+| cu ID, a apăsat „Accept toate" | 1 | 2 |
+| `/admin`, cu acord | 0 | **0** |
+
+ID-ul vine prin `ga4_public()` (migrarea 30), o funcție care întoarce **exclusiv** id-ul.
+Rândul `settings.integrari` nu e citibil public și trebuie să rămână așa: în el stau parola
+FAN Courier și cheia privată Netopia.
+
+---
+
+## Trei defecte găsite la verificare, nu la citirea codului
+
+Toate trei aveau același simptom: analytics-ul „mergea", dar pierdea tăcut evenimente.
+
+**1. Evenimentele primei încărcări se pierdeau.** `gtag` apare după hidratare, iar efectele
+React rulează înaintea lui. La navigarea din interiorul aplicației totul mergea; la
+deschiderea directă a unei adrese, nimic. Cel mai grav era `purchase`: se marca drept trimis
+fără să fi plecat, deci vânzarea se pierdea definitiv. Rezolvat cu o coadă golită când `gtag`
+apare — **nu** prin `onReady` al lui next/script, care pentru un script inline se declanșează
+la montare, înainte ca scriptul să fi rulat.
+
+**2. `/cos` și `/checkout` nu măsurau deloc.** Sunt pagini STATICE, iar ID-ul primit pe props
+de la layout rămânea prins în HTML-ul generat la build. Analytics-ul pornea pe paginile
+dinamice și tăcea exact pe cele unde se întâmplă vânzarea. Rezolvat radical: componenta își
+cere singură id-ul din browser, după acceptare. Nu mai există cache de golit.
+
+**3. `view_cart` și `begin_checkout` plecau cu coșul gol.** `CartContext` citește
+`localStorage` într-un efect, deci la prima randare coșul e gol, iar un efect cu dependențe
+goale rula exact atunci. Legate acum de apariția coșului, o singură dată.
+
+---
+
+## Evenimentele, verificate în browser
+
+| Eveniment | Rezultat |
+|---|---|
+| `search` | ✓ `search_term: turbina`, 131 rezultate |
+| `view_item_list` | ✓ 24 de piese, cu numele listei |
+| `select_item` | ✓ la click pe card |
+| `view_item` | ✓ valoare 3000, `item_id: AP-008784` |
+| `add_to_cart` / `remove_from_cart` | ✓ |
+| `view_cart`, `begin_checkout` | ✓ și la încărcare directă |
+| `purchase` | ✓ o dată; **0 la reîncărcare** |
+| `generate_lead` | ✓ pe ambele formulare |
+
+`select_item` a cerut o componentă nouă, `LinkPiesa`: `ProductCard` e componentă de SERVER și
+nu poate avea `onClick`. În loc să trecem tot cardul în client — ceea ce ar trimite în browser
+codul de randare al fiecărei piese din listă — am trecut doar linkul.
+
+**Zero date personale.** Am căutat în `dataLayer` după „telefon", „email", „adresa" și „@":
+niciun rezultat.
+
+---
+
+## ⚠ Ce blochează pornirea — decizia e a ta
+
+**Politica de cookies spune acum, negru pe alb, că NU folosim Google Analytics:**
+
+> „Site-ul acesta nu te urmărește. Nu folosim Google Analytics, nu avem pixel de Facebook, nu
+> afișăm reclame și nu facem profilare."
+
+Nu e o scăpare: pagina e scrisă onest, pe baza a ce făcea codul, și spune același lucru în
+**cinci locuri**. Mai mult, comentariul din `lib/legal.ts` avertiza exact pentru ziua asta:
+„Dacă se adaugă vreodată un instrument de statistică, tabelul de mai jos și secțiunea «Ce nu
+folosim» trebuie actualizate."
+
+Ce devine fals în clipa în care lipești ID-ul:
+
+1. **„Pe scurt"** — „nu te urmărește", „nu folosim Google Analytics".
+2. **„Ce sunt cookie-urile"** — „nu punem niciun cookie propriu". GA pune `_ga` și
+   `_ga_XXXXXXXX`, care sunt cookie-uri proprii, valabile 2 ani.
+3. **Tabelul „Lista completă"** — îi lipsesc cele două rânduri.
+4. **„Ce nu folosim"** — primul punct e chiar „instrumente de analiză a traficului (Google
+   Analytics…)".
+5. **„Despre bannerul de cookie-uri"** — scrie că „Doar necesare" și „Accept toate" fac același
+   lucru. De acum chiar diferă.
+
+Sarcina spune explicit „nu o rescrie fără să-mi spui", așa că **n-am atins `lib/legal.ts`**.
+Codul e inert până lipești ID-ul, deci se poate trimite pe live în siguranță așa cum e.
+
+Avertismentul e scris și în `docs/google-analytics.md`, și în pașii cartonașului GA4 din
+Admin → Integrări, ca să nu poată fi ratat.
+
+## Verificări
+
+`npm run build` — trece.
+ID-ul de test a fost șters din bază: `ga4: { id: "", activ: false }`.

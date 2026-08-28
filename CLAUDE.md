@@ -65,10 +65,11 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 18. `taxonomie-import.sql` -> 19. `greutate-estimata.sql` -> 20. `import-index-fix.sql` ->
 21. `publicare-cu-poze.sql` -> 22. `import-din-admin.sql` -> 23. `rls-citire-echipa.sql` ->
 24. `ani-generatie.sql` -> 25. `marci-lipsa.sql` -> 26. `generatii-si-denumiri.sql` ->
-27. `mod-vacanta.sql` -> 28. `pagini-masini.sql` -> 29. `numar-piese-pe-model.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9–29.
+27. `mod-vacanta.sql` -> 28. `pagini-masini.sql` -> 29. `numar-piese-pe-model.sql` ->
+30. `ga4-public.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9–30.
 NU sunt încă idempotente: 1–5, 8.
-**Aplicate pe producție: toate, 1–29** (23, 27, 28 și 29 pe 28 august 2026, prin conectorul Supabase).
+**Aplicate pe producție: toate, 1–30** (23, 27, 28, 29 și 30 pe 28 august 2026, prin conectorul Supabase).
 27 înlocuiește `plaseaza_comanda`, copiată integral din 12 cu o gardă adăugată la început;
 dacă modifici vreodată funcția în 12, o modifici și acolo. Înainte de a o rula s-a comparat
 mecanic funcția din 12 cu cea din 27: identice, în afară de cele 7 linii ale gărzii. Fă la fel
@@ -333,6 +334,32 @@ sunt sarcini ale utilizatorului. Consemnate la 24 august 2026.
     crește catalogul. Ca să afli 538 de numere nu aduci 8.754 de rânduri prin rețea.
   · Capcana era deja scrisă, din luni, în `lib/import/depozit.mjs` (helperul `tot()`), și n-a
     ieșit niciodată din modulul acela. Motorul de import a fost singurul cod corect.
+- **Google Analytics 4 se încarcă doar dacă patru condiții sunt adevărate deodată**
+  (28 august 2026): există un ID în Admin → Integrări, vizitatorul a apăsat „Accept toate",
+  nu suntem în `/admin`, nu suntem în dezvoltare. Dacă una cade, în pagină nu ajunge niciun
+  script și nu pleacă nicio cerere către Google. „Încă n-a ales" se tratează ca refuz.
+  · ID-ul vine prin `ga4_public()` (migrarea 30), nu dintr-o citire a rândului `integrari`:
+    acolo stau parola FAN Courier și cheia privată Netopia.
+  · **`Analytics` își cere singur ID-ul, din browser, nu îl primește pe props.** Motivul e
+    măsurat: `/cos`, `/checkout` și `/favorite` sunt pagini STATICE, iar orice valoare pe care
+    layout-ul o randează pentru ele rămâne prinsă în HTML-ul de la build. Analytics-ul pornea
+    pe paginile dinamice și tăcea exact pe cele unde se întâmplă vânzarea. Cererea pleacă doar
+    după acceptare.
+  · **Evenimentele trec printr-o coadă** (`ev()` din `lib/analytics.ts`). `gtag` apare după
+    hidratare, iar efectele React rulează înaintea lui: fără coadă se pierdea tăcut fiecare
+    eveniment de la PRIMA încărcare a unei pagini, inclusiv `purchase`. Coada se golește când
+    `gtag` apare — NU prin `onReady` al lui next/script, care pentru un script inline se
+    declanșează la montare, înainte ca scriptul să fi rulat.
+  · **Evenimentele care depind de coș se leagă de `items`, nu de montare.** `CartContext`
+    citește `localStorage` într-un efect, deci la prima randare coșul e gol; un efect cu
+    dependențe goale trimitea `view_cart` cu zero piese, adică deloc.
+  · `purchase` pleacă o singură dată: checkout-ul lasă conținutul comenzii în `sessionStorage`
+    (valoarea calculată de SERVER), iar pagina de mulțumire îl trimite și lasă un semn legat de
+    numărul comenzii. Reîncărcarea nu îl retrimite.
+  · **Niciun dat personal în evenimente.** Fără nume, telefon, e-mail, adresă.
+  · ⚠ **Politica de cookies spune încă explicit că NU folosim Google Analytics** — în cinci
+    locuri, plus tabelul cu lista completă. Textul trebuie actualizat ÎNAINTE ca proprietarul
+    să lipească ID-ul, altfel pagina devine falsă. Vezi `docs/google-analytics.md`.
 - Roluri: `client`, `operator`, `contabil`, `admin` (coloana `role` în `profiles`, controlată prin RLS).
 
 ## Cele 16 module de admin

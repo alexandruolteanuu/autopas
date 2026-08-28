@@ -2,6 +2,7 @@
 // Formularul „Caut o piesă" — scrie REAL în tabela part_requests din Supabase.
 import { useState } from "react";
 import { sbBrowser } from "@/lib/supabase";
+import { ev } from "@/lib/analytics";
 
 // `masinaImplicita` precompletează câmpul „Mașina" — pe pagina unei mașini
 // dezmembrate știm deja despre ce e vorba, iar omul care cere o piesă de acolo
@@ -20,6 +21,8 @@ export default function PartRequestForm({ sursa, dark = false, masinaImplicita }
       masina: f.get("masina"), piesa: f.get("piesa"), mesaj: f.get("mesaj") || null, sursa,
     });
     setStare(error ? "eroare" : "ok");
+    // Fără date personale: doar de unde a venit cererea.
+    if (!error) ev("generate_lead", { tip: "cerere_piesa", sursa });
     if (!error) (e.target as HTMLFormElement).reset();
   }
   if (stare === "ok")
