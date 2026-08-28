@@ -9,6 +9,7 @@ import type { Firma, Vacanta } from "@/lib/settings";
 import WhatsAppFloat from "./WhatsAppFloat";
 import { VacantaProvider } from "./VacantaContext";
 import Analytics from "./Analytics";
+import BaraProgres from "./BaraProgres";
 
 export default function SiteChrome({ children, waPhone, firma, vacanta, marciTop }:
   { children: React.ReactNode; waPhone: string; firma?: Firma; vacanta?: Vacanta;
@@ -17,6 +18,8 @@ export default function SiteChrome({ children, waPhone, firma, vacanta, marciTop
   if (path.startsWith("/admin")) return <>{children}</>;
   return (
     <VacantaProvider vacanta={vacanta}>
+      {/* Prima în arbore: trebuie să poată apărea peste orice altceva. */}
+      <BaraProgres />
       <Header vacanta={vacanta} />
       <main className="min-h-[60vh]">{children}</main>
       <Footer firma={firma} marciTop={marciTop} />

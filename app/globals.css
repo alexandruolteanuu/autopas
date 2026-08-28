@@ -490,3 +490,15 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 
 /* Rândul de text nu trece de 65 de caractere în paginile cu text lung */
 .text-lung p, .text-lung li { max-width: 65ch; }
+
+/* ============================================================
+   BARA DE PROGRES LA NAVIGARE (components/BaraProgres.tsx)
+   Nu arată progres real — nu-l putem ști — ci doar că se lucrează.
+   `prefers-reduced-motion` de mai sus o reduce la nimic, iar atunci rămâne
+   banda statică, care spune același lucru fără mișcare.
+   ============================================================ */
+@keyframes bara-progres {
+  0%   { transform: scaleX(0);   opacity: 1; }
+  70%  { transform: scaleX(0.8); opacity: 1; }
+  100% { transform: scaleX(1);   opacity: .6; }
+}

@@ -398,6 +398,18 @@ sunt sarcini ale utilizatorului. Consemnate la 24 august 2026.
   puțin 80% din cele 38 de pagini de marcă apar indexate în Search Console** — până atunci
   n-avem cum ști dacă nivelul al doilea funcționează, iar 538 de pagini neindexate ar dilua
   semnalul în loc să-l întărească.
+- **Un schelet de încărcare pe o listare ANULEAZĂ `loading="lazy"`** (28 august 2026, măsurat
+  A/B pe același build). Cu `loading.tsx` pe `/piese`, toate cele 24 de imagini se descărcau la
+  prima încărcare: **1.475 KB pe telefon, în loc de 338**. Fără el, 6 imagini.
+  · Cauza pare a fi momentul înlocuirii: cele 24 de elemente intră în pagină deodată și ajung
+    toate în zona pe care browserul o consideră vizibilă înainte de așezarea finală.
+    Dimensiunile explicite (`width`/`height`) NU repară — încercat și măsurat.
+  · E un efect contraintuitiv: scheletul rezervă spațiu tocmai ca să nu sară pagina, dar exact
+    asta îl face să pară că totul e pe ecran. Cine adaugă la loc un `loading.tsx` pe o listare
+    trebuie să măsoare câte imagini se descarcă, nu doar cum arată.
+  · Scheletele RĂMÂN pe paginile cu puține imagini — piesă, mașină, `/masini` — unde verificarea
+    arată zero efect. Pe listări, răspunsul la click îl dă `components/BaraProgres.tsx`: e
+    `fixed`, nu ocupă spațiu în flux, deci nu poate muta niciun card.
 - Roluri: `client`, `operator`, `contabil`, `admin` (coloana `role` în `profiles`, controlată prin RLS).
 
 ## Cele 16 module de admin
