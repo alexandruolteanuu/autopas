@@ -1,59 +1,72 @@
-# MIGRAREA 31 — numărătoarea pe categorii
+# RAPORT — 28 august 2026 · măsurare după migrarea 31
 
-Scrisă și împinsă: **`supabase/categorii-numar-rapid.sql`**. Doar `create or replace view`,
-nedistructivă. **O rulează utilizatorul.**
+## Cifrele — și o problemă
 
-## 1. Confirmarea pe planul nou, pe date reale
+TTFB pe producție, 4 rulări:
 
-Prima măsurătoare a ieșit greșit și merită spus de ce: am cronometrat cu `count(*)`, iar
-planificatorul a eliminat exact subinterogarea pe care voiam s-o măsor — nu avea nevoie de
-coloana calculată. Refăcută cu `sum(nr_piese)`, care forțează calculul:
+| Pagină | TTFB |
+|---|---|
+| `/` | 1,19 · 0,78 · 0,64 · 0,80 s |
+| **`/piese`** | **2,90 · 2,73 · 3,59 · 2,67 s** |
+| `/piese?pagina=7` | 2,69 · 2,72 · 3,15 · 2,81 s |
+| `/piese?marca=skoda` | 2,79 · 2,77 · 2,69 · 2,82 s |
+| `/masini` | 0,23 · 0,43 · 0,23 · 0,21 s |
 
-| | rulările | medie |
-|---|---|---|
-| **vechi** | 1452 · 1398 · 1571 ms | **1474 ms** |
-| **nou** | 21,8 · 18,7 · 18,5 ms | **19,7 ms** |
+**Neschimbat.** Cauza nu e estimarea:
 
-Aceeași sumă în ambele: **17.478**. De ~75 de ori mai rapid.
+```
+e_versiunea_noua:      false
+mai_are_subinterogare: true
+```
 
-Rescrierea folosește `union all` peste cele două coloane de categorie și o singură grupare, cu
-`count(distinct pid)` — nu `count(*)` — ca o piesă care ar avea aceeași categorie în ambele
-coloane să fie numărată o dată, exact ca vechiul `OR`.
+**Migrarea 31 nu e în bază.** View-ul `categorii_cu_numar` e tot cel vechi, cu subinterogarea
+corelată.
 
-## 2. Căutarea aceluiași tipar în tot proiectul
+Nu e vina SQL-ului: am creat aceeași definiție sub alt nume (`zz_test_categorii`), a mers din
+prima și a dat exact 349 de rânduri, sumă 17.478 — apoi am șters view-ul de test. În bază sunt
+tot cele trei de dinainte.
 
-Sunt trei view-uri în bază. Măsurate toate:
+Deci fie rularea a dat o eroare care a trecut neobservată în SQL Editor, fie s-a rulat altceva
+decât conținutul fișierului. Nu se poate ști din afară care din două.
 
-| View | Timp | Verdict |
-|---|---|---|
-| `categorii_cu_numar` | **1474 ms** | 🔴 vinovatul — 349 de scanări complete |
-| `numar_piese_pe_masina` | 0,9 ms | 🟡 aceeași formă, dar nevinovat |
-| `numar_piese_pe_model` | 25 ms | ✅ agregă o singură dată |
+**Întrebare deschisă:** o aplic eu, prin conector? E `create or replace view`, nedistructivă,
+cu echivalența deja verificată. Zece secunde, plus TTFB-ul de după.
 
-`numar_piese_pe_masina` merită explicat, fiindcă are **exact același tipar** — subinterogare
-corelată, una per mașină. Nu doare fiindcă merge pe indexul `products_vehicul_idx`: face 23 de
-*căutări în index*, nu 23 de *scanări de tabelă*. Diferența e structurală, nu de mărime — la
-`categorii_cu_numar`, condiția `(categorie_id = c.id) OR (subcategorie_id = c.id)` nu poate
-folosi niciun index tocmai din cauza lui `OR`. Notat în `CLAUDE.md`: dacă indexul acela dispare
-vreodată, view-ul mașinilor devine aceeași problemă.
+---
 
-**Trei locuri care numără în stratul greșit**, din aceeași familie:
+## Verificarea dependențelor, cerută înainte de paralelizare
 
-- **`/piese` face cele 5 interogări secvențial**, fiecare un drum separat Frankfurt→Irlanda.
-  Interogarea principală de listare ia doar 21 ms; drumurile sunt cele care se adună.
-- **`/admin/masini`** aduce toate cele 8.783 de produse (9 cereri paginate) doar ca să numere
-  piesele pe mașină — deși `numar_piese_pe_masina` dă exact asta în 0,9 ms.
-- **`/admin/rapoarte`** aduce tot catalogul ca să traducă `product_id` în categorie și mașină.
-  Azi e necesar, dar la 30 de vânzări pe zi ar trebui mutat într-un `join` în bază.
+Bine că a fost cerută — **există o dependență reală**, care ar fi fost ruptă.
 
-Niciunul nu e blocant acum — sunt ecrane interne, nu pagini publice.
+Interogarea principală de listare traduce slug-urile din URL în id-uri folosind rezultatele
+celorlalte: `cats.find(...)` pentru categorie, `models.find(...)` pentru model,
+`brands.find(...)` pentru marcă. Deci nu poate porni în același val cu ele.
 
-## 3. Ce urmează
+Structura corectă e în **două valuri**, nu într-unul:
 
-După rularea migrării: măsurare TTFB pe `/piese` și pe prima pagină.
+- **valul 1**, în paralel: `categorii_cu_numar`, `brands`, `models`, `numar_piese_pe_model` și
+  căutarea mașinii (când e `?vehicul=`) — toate cinci independente între ele;
+- **valul 2**: interogarea de piese, care le folosește pe primele trei.
 
-**Estimare: ~1,2 s** din cei 2,6 s de acum. Restul ar fi cele 5 drumuri secvențiale către
-Supabase. Dacă se confirmă, paralelizarea lor e următoarea reparație ieftină — și abia după ea
-Treapta 2 la imagini va conta cu adevărat.
+5 drumuri secvențiale → 2 valuri. Se face imediat ce migrarea e în bază, ca să se poată atribui
+corect câștigul fiecăreia.
 
-Apoi **Partea B** — `generateMetadata` pe pagina de produs.
+---
+
+## Datoria tehnică — notată în `CLAUDE.md` (`fdf5017`)
+
+- `/admin/masini` aduce toate cele 8.783 de produse (9 cereri paginate) doar ca să numere
+  piesele pe mașină — `numar_piese_pe_masina` dă aceleași cifre în 0,9 ms.
+- `/admin/rapoarte` aduce tot catalogul ca să traducă `product_id` în categorie și mașină. Azi
+  e singura cale; la 30 de vânzări pe zi ar trebui mutat într-un `join` în bază.
+
+Niciuna blocantă: sunt ecrane interne, nu pagini publice. Devin dureroase când catalogul se
+dublează — exact ca plafonul de 1.000 de rânduri, care n-a durut până la a 1.001-a piesă.
+
+---
+
+## Ce urmează
+
+1. migrarea 31 în bază (tu sau eu), apoi măsurare TTFB;
+2. paralelizarea în două valuri, apoi măsurare din nou;
+3. **Partea B** — `generateMetadata` pe pagina de produs.
