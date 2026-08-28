@@ -62,10 +62,12 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 15. `cautare-fara-diacritice.sql` -> 16. `email-unic.sql` -> 17. `import-pieseauto.sql` ->
 18. `taxonomie-import.sql` -> 19. `greutate-estimata.sql` -> 20. `import-index-fix.sql` ->
 21. `publicare-cu-poze.sql` -> 22. `import-din-admin.sql` -> 23. `rls-citire-echipa.sql` ->
-24. `ani-generatie.sql` -> 25. `marci-lipsa.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25.
+24. `ani-generatie.sql` -> 25. `marci-lipsa.sql` -> 26. `generatii-si-denumiri.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26.
 NU sunt încă idempotente: 1–5, 8.
-Aplicate pe producție: 1–22 (august 2026). **23, 24 și 25 NU sunt încă rulate** — le rulează utilizatorul.
+Aplicate pe producție: 1–22, 24 și 25 (august 2026). **23 și 26 NU sunt încă rulate** — le rulează utilizatorul.
+26 conține DOUĂ ȘTERGERI de rânduri din `models` (unificări de duplicate, cu piesele mutate
+înainte); e explicat în fișier, la partea 4.
 Fără 23, `operator` scrie în piese și în cereri, dar nu le poate CITI, iar verificarea
 `scrieVerificat()` (care cere înapoi rândul atins) ar raporta eșec la o scriere reușită.
 24 adaugă coloanele de ani pe `models` și mută două modele așezate greșit („MG 3" și „XC 40"

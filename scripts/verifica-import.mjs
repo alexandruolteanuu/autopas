@@ -645,8 +645,13 @@ sectiune("15. Majuscula inițială la modelele noi");
 {
   cer("„jumpy” devine „Jumpy”", numeModelNou("jumpy") === "Jumpy");
   cer("„CX-5” rămâne neatins", numeModelNou("CX-5") === "CX-5");
-  cer("restul scrierii nu se atinge", numeModelNou("ix35") === "Ix35");
   cer("spațiile din capete se taie", numeModelNou("  s-cross ") === "S-cross");
+  // Denumirea producătorului bate consecvența noastră: seria „i" a lui Hyundai,
+  // „bZ4X" al lui Toyota, „e-208" al lui Peugeot se scriu cu literă mică.
+  cer("„i20” rămâne „i20”", numeModelNou("i20") === "i20");
+  cer("„ix35” rămâne „ix35”", numeModelNou("ix35") === "ix35");
+  cer("„bz4x” rămâne neatins", numeModelNou("bz4x") === "bz4x");
+  cer("„e-208” rămâne neatins", numeModelNou("e-208") === "e-208");
 }
 
 // ============================================================
