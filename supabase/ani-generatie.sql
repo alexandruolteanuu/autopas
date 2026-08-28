@@ -71,6 +71,21 @@ where slug = 'vw-mg-3' and exists (select 1 from brands where slug = 'mg');
 update models set brand_id = (select id from brands where slug = 'volvo'), slug = 'volvo-xc-40-2017'
 where slug = 'vw-xc-40-2017' and exists (select 1 from brands where slug = 'volvo');
 
+-- ---------- numele scrise cu spațiu, acolo unde sursa scrie fără ----------
+-- Modelele noastre Volvo și MG au numele scris cu spațiu („XC 60", „MG 4"), iar
+-- pieseauto.ro le scrie lipit („XC60", „MG4") — la fel ca Volvo și MG în comunicarea
+-- lor oficială. Normalizarea nu poate împăca cele două forme fără să devină
+-- ghicitoare, deci potrivirea cădea și importul ar fi CREAT un „XC60" nou lângă
+-- „XC 60" existent: 126 de piese ar fi ajuns pe modele duplicate.
+-- Toate cele 5 rânduri au ZERO piese legate, deci redenumirea e fără risc.
+-- `where` pe numele vechi face operația idempotentă.
+update models set nume = 'XC60 (2012 - 2016)' where nume = 'XC 60 (2012 - 2016)';
+update models set nume = 'XC60 (2017 - 2024)' where nume = 'XC 60 (2017 -2024)';
+update models set nume = 'XC90 (2015 - 2024)' where nume = 'XC 90 (2015 - 2024)';
+update models set nume = 'XC40 (2017 +)'      where nume = 'XC 40 (2017 +)';
+update models set nume = 'MG4'                where nume = 'MG 4';
+update models set nume = 'MG3'                where nume = 'MG 3';
+
 -- ---------- ce a ieșit ----------
 select count(*) as modele,
        count(an_start) as cu_an_start,

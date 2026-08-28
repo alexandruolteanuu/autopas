@@ -564,6 +564,25 @@ sectiune("12. Generația se alege după an_start / an_final");
                           an_min: 2020, an_max: 2021, erori: [] }, taxC);
   cer("anii scriși în nume fără paranteze rămân o plasă valabilă", cr.model_id === 51, JSON.stringify(cr.note));
 
+  // Două generații cu ACELAȘI nume de bază, deosebite doar prin ani.
+  const taxE = {
+    brands: [{ id: 1, nume: "Volvo", slug: "volvo" }],
+    models: [{ id: 80, nume: "XC60 (2012 - 2016)", brand_id: 1, an_start: 2012, an_final: 2016 },
+             { id: 81, nume: "XC60 (2017 - 2024)", brand_id: 1, an_start: 2017, an_final: 2024 }],
+  };
+  const xc60 = potriveste({ titlu: "Aripa dreapta fata Volvo Xc60 2019 2020", compat: ["Volvo XC60"],
+                            an_min: 2019, an_max: 2020, erori: [] }, taxE);
+  cer("nume de bază identic: generația se alege tot din ani", xc60.model_id === 81, JSON.stringify(xc60.note));
+
+  const xcVechi = potriveste({ titlu: "Aripa dreapta fata Volvo Xc60 2013 2014", compat: ["Volvo XC60"],
+                               an_min: 2013, an_max: 2014, erori: [] }, taxE);
+  cer("și generația veche, cu aceleași nume", xcVechi.model_id === 80, JSON.stringify(xcVechi.note));
+
+  const xcFaraAni = potriveste({ titlu: "Aripa dreapta fata Volvo Xc60", compat: ["Volvo XC60"],
+                                 an_min: null, an_max: null, erori: [] }, taxE);
+  cer("fără ani în titlu rămâne ambiguu, nu se ghicește", xcFaraAni.model_id === null, JSON.stringify(xcFaraAni.note));
+  cer("și nu se creează un al treilea „XC60” generic", (xcFaraAni.de_creat_modele ?? []).length === 0);
+
   // Peugeot: „2008" e nume de model, nu an. Nu are voie să devină interval.
   const taxD = {
     brands: [{ id: 1, nume: "Peugeot", slug: "peugeot" }],
