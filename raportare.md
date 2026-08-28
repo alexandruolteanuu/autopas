@@ -1,98 +1,65 @@
-# RAPORT — 28 august 2026 · Partea B, punctul 1 (propunere)
+# RAPORT — 28 august 2026 · Partea B, punctul 1 (aplicat)
 
-Generatorul de titlu și descriere e gata și rulat pe tot catalogul.
-**NU e aplicat în cod** — exemplele de mai jos sunt pentru aprobare.
+Aplicat și împins în `37ebcb7`.
 
----
+## Cifra cerută: TTFB pe pagina de produs
 
-## Exemple pe piese reale
+Local, aceeași mașină, 6–8 rulări:
 
-**Piesă obișnuită**
-
-```
-nume (57): Motoraș etrier spate Audi A4 B8 2.0 TDI — testat pe stand
-TITLU (51): Motoraș etrier spate Audi A4 B8 2008–2011 | AUTOPAS
-DESCR (157): Motoraș etrier spate Audi A4 B8 2.0 TDI — testat. Cod intern AP-000011.
-             Piesă din dezmembrări, testată — 350 lei. Garanție 90 de zile, livrare în toată țara.
-```
-
-**Titlu foarte lung — 110 caractere, 5 modele compatibile**
-
-```
-nume (110): Supapa electromagnetica Skoda Karoq / Superb / Octavia / VW Tiguan / T-Roc / Tiguan 1.5 TSI DXD 2020 2021 2022
-TITLU  (64): Supapa electromagnetica Skoda Karoq / Superb / Octavia | AUTOPAS
-```
-
-**Fără model în bază**
-
-```
-nume (78): Ecu Calculator diferential cutie viteze Vw Touareg 3.0 tdi 2006 2007 2008 2009
-TITLU (64): Ecu Calculator diferential cutie viteze Vw Touareg 3.0 | AUTOPAS
-```
-
-**Fără ani**
-
-```
-nume (29): Bara fata BMW Z4 E89 Facelift
-TITLU (39): Bara fata BMW Z4 E89 Facelift | AUTOPAS
-```
-
-**Fără ani, 17 modele compatibile**
-
-```
-nume (46): Balast xenon AUDI 8K0941597C Q7 A3 A4 A5 A6 A8
-TITLU (56): Balast xenon AUDI 8K0941597C Q7 A3 A4 A5 A6 A8 | AUTOPAS
-```
-
----
-
-## Regulile la care s-a ajuns, toate din date
-
-**Șablonul din specificație nu se poate aplica literal.** `{denumire} — {marcă} {model} {ani}`
-ar da „Motoraș etrier spate Audi A4 B8 2.0 TDI — Audi A4 B8 2008–2015": numele conțin deja
-marca, modelul și anii. Regula devine: **se reconstruiește doar când numele nu încape**. La
-„Bara fata BMW Z4 E89 Facelift" numele intră întreg, deci se păstrează „Facelift", pe care
-reconstrucția l-ar fi pierdut.
-
-**Anii enumerați se strâng.** „2008 2009 2010 2011" din nume devine „2008–2011" din coloana
-`ani` — aceeași informație, de patru ori mai scurtă.
-
-**Piesele cu multe potriviri păstrează lista din nume.** La „Balast xenon Q7 A3 A4 A5 A6 A8",
-alegerea unui singur model ar fi arbitrară, iar enumerarea prinde mai multe căutări reale.
-
-## Trei defecte găsite doar rulând pe date reale
-
-1. **„Škoda" nu se potrivea cu „Skoda".** Marca are diacritic în tabelă, numele piesei nu.
-   Potrivirea brută o rata mereu, iar titlurile Skoda ieșeau trunchiate greșit.
-2. **Trunchierea tăia exact partea utilă.** Prima variantă dădea „Ecu Calculator diferential
-   cutie viteze Vw | AUTOPAS" — se oprea fix înainte de „Touareg".
-3. **Prepoziții agățate:** „… — testat pe." Acum se elimină cuvintele de 1–2 litere rămase la
-   coadă.
-
-## Cifrele pe tot catalogul
-
-| | rezultat |
+| | mediană |
 |---|---|
-| descrieri distincte | **8.739 din 8.739** |
-| titluri distincte | 8.165 (1.023 împart un titlu) |
-| titluri peste 65 caractere | **0** |
-| descrieri peste 160 | **0** |
+| înainte | **0,311 s** |
+| după | **0,216 s** |
 
-Unicitatea descrierilor vine din `cod_intern` — completat și unic pe toate cele 8.739,
-**afișat deja pe pagină**, deci nu e text inventat pentru Google. E și util: clientul îl poate
-cita la telefon.
+**A scăzut**, nu a crescut. `cache()` din React face ce trebuie — `generateMetadata` și pagina
+împart aceleași citiri, deci zero interogări în plus. Câștigul de 95 ms vine în plus: cele
+două citiri secvențiale de modele și mărci au ajuns, cu ocazia asta, în același `Promise.all`.
 
-**Titlurile duplicate sunt oneste:** sunt șapte „Bara fata Skoda Octavia 4" în catalog — piese
-fizic diferite, cu același nume și același preț. Ar putea fi diferențiate tot cu codul intern,
-dar în rezultatele Google ar arăta a spam. Propunerea e să rămână așa.
+## Al patrulea defect, prins la verificarea în browser
 
-**Constatare colaterală:** `oem` e **null pe toate cele 8.739 de piese importate**. Ramura „Cod
-OEM" din descriere nu se declanșează niciodată azi — rămâne pentru piesele adăugate manual.
+Titlul ieșea așa:
+
+```
+Motoraș etrier spate Audi A4 B8 2008–2011 | AUTOPAS · Autopas Dezmembrări
+```
+
+74 de caractere, cu marca de două ori — șablonul `%s · Autopas Dezmembrări` din layout se
+adăuga peste al nostru. Ocolit cu `title: { absolute }`. Nu se vedea în generator, doar în
+HTML-ul real.
+
+Titlurile finale, citite din pagini:
+
+```
+(51) Motoraș etrier spate Audi A4 B8 2008–2011 | AUTOPAS
+(64) Supapa electromagnetica Skoda Karoq / Superb / Octavia | AUTOPAS
+(39) Bara fata BMW Z4 E89 Facelift | AUTOPAS
+(56) Balast xenon AUDI 8K0941597C Q7 A3 A4 A5 A6 A8 | AUTOPAS
+```
+
+Pagina de produs primește și `og:image` cu poza reală a piesei, nu imaginea generică de
+partajare a site-ului.
+
+## Ce s-a livrat
+
+- `lib/seo.ts` — generatorul, cu regulile explicate în comentarii;
+- `generateMetadata` pe pagina de produs: titlu, descriere, canonical, Open Graph;
+- citirile împărțite prin `cache()`, cu motivul scris în cod.
+
+Verificat pe tot catalogul înainte de aplicare: **8.739 de descrieri distincte din 8.739**,
+zero titluri peste 65 de caractere, zero descrieri peste 160.
 
 ---
 
-## Întrebarea deschisă
+## Ce urmează — și o decizie de luat
 
-Se aplică? Intră în `generateMetadata`, împărțind produsul și tabelele de modele/mărci cu
-pagina prin `cache()` — **zero interogări în plus** față de acum, cerința explicită de la
-punctul 1.
+Restul șabloanelor: categorie, marcă, mașină, paginile legale, `/faq`, `/contact`.
+
+Cerința ta pentru listări — **descrierea să conțină numărul de piese disponibile** — e reținută,
+dar numărul acela e per marcă/categorie, iar acum nu există rute proprii pentru ele: sunt
+filtre `?marca=skoda`. Descrierile de tipul „Piese Skoda — 124 în stoc" își găsesc locul abia
+la **B.4 punctul 1**, când marca și categoria devin pagini adevărate.
+
+**Propunerea:** se fac acum șabloanele care nu depind de asta (mașină, legal, `/faq`,
+`/contact`, `/masini`), apoi B.4 punctul 1, iar descrierile de listare vin odată cu rutele noi.
+
+Alternativa: toate după rute.
