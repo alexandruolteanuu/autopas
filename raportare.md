@@ -537,3 +537,31 @@ Admin → Integrări, ca să nu poată fi ratat.
 
 `npm run build` — trece.
 ID-ul de test a fost șters din bază: `ga4: { id: "", activ: false }`.
+
+---
+
+## Activare — 28 august 2026, seara
+
+**Google Analytics e pornit.** ID-ul `G-W4HEYW56VK` e lipit în `settings.integrari.ga4`, iar
+`ga4_public()` îl întoarce. Nicio modificare de cod n-a fost necesară pentru asta — exact cum
+era gândit.
+
+**Fragmentul `gtag.js` primit NU a fost lipit în cod**, și e important de spus de ce: el
+încarcă Google Analytics pentru toată lumea, din prima secundă, fără să întrebe pe nimeni.
+Ar fi anulat tot mecanismul de consimțământ și ar fi transformat pagina legală, actualizată
+cu o oră înainte, într-o minciună. Codul din site face același lucru — aceleași două scripturi,
+același `config` — dar abia după „Accept toate".
+
+Verificat cu ID-ul real:
+
+| Vizitator | Script încărcat | Cereri către Google |
+|---|---|---|
+| n-a ales încă | — | **0** |
+| a apăsat „Doar necesare" | — | **0** |
+| a apăsat „Accept toate" | `G-W4HEYW56VK` | 2, plus `view_item_list` |
+
+**Search Console:** tokenul intră prin `metadata.verification` din `app/layout.tsx`, deci apare
+pe toate paginile — verificat pe `/`, `/piese`, `/cos` și pe o pagină legală, inclusiv pe cele
+statice. Verificarea în Search Console merge chiar dacă indexarea e oprită; dar **site-ul tot
+nu va fi indexat** până la `PERMITE_INDEXARE=da` în Vercel. Sunt două lucruri diferite:
+verificarea dovedește că domeniul e al tău, indexarea e ce urmează după.
