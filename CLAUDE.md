@@ -66,10 +66,10 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 21. `publicare-cu-poze.sql` -> 22. `import-din-admin.sql` -> 23. `rls-citire-echipa.sql` ->
 24. `ani-generatie.sql` -> 25. `marci-lipsa.sql` -> 26. `generatii-si-denumiri.sql` ->
 27. `mod-vacanta.sql` -> 28. `pagini-masini.sql` -> 29. `numar-piese-pe-model.sql` ->
-30. `ga4-public.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9–30.
+30. `ga4-public.sql` -> 31. `categorii-numar-rapid.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9–31.
 NU sunt încă idempotente: 1–5, 8.
-**Aplicate pe producție: toate, 1–30** (23, 27, 28, 29 și 30 pe 28 august 2026, prin conectorul Supabase).
+**Aplicate pe producție: 1–30.** 31 e scrisă și **o rulează utilizatorul**.
 27 înlocuiește `plaseaza_comanda`, copiată integral din 12 cu o gardă adăugată la început;
 dacă modifici vreodată funcția în 12, o modifici și acolo. Înainte de a o rula s-a comparat
 mecanic funcția din 12 cu cea din 27: identice, în afară de cele 7 linii ale gărzii. Fă la fel
@@ -363,6 +363,17 @@ sunt sarcini ale utilizatorului. Consemnate la 24 august 2026.
     în lista destinatarilor din politica de confidențialitate. Dacă se schimbă vreodată ceva
     la măsurare — alt instrument, alt cookie, altă durată — se actualizează ÎNTÂI acolo, în
     ambele tabele, și abia apoi se pune în funcțiune.
+- **Nu număra cu subinterogare corelată peste o tabelă mare** (28 august 2026). `categorii_cu_numar`
+  calcula `nr_piese` cu un `select count(*) from products where … = c.id` pe FIECARE categorie:
+  349 de scanări complete peste 8.783 de produse, **1,47 s**, plătiți la fiecare afișare a lui
+  `/piese` și a primei pagini. Migrarea 31 le adună dintr-o singură trecere: **19,7 ms**, aceleași
+  cifre. Tiparul e din aceeași familie ca plafonul de 1.000 de rânduri: nu se vede la 50 de piese
+  și doare la 8.783.
+  · `numar_piese_pe_masina` are aceeași FORMĂ, dar e nevinovat: merge pe indexul
+    `products_vehicul_idx`, deci face 23 de căutări în index, nu 23 de scanări — 0,9 ms. Dacă
+    indexul acela dispare vreodată, devine exact aceeași problemă.
+  · Contoarele nu se calculează nici în Node, nici cu o subinterogare pe rând. Se calculează o
+    dată, în bază, într-un view (vezi și `numar_piese_pe_model`).
 - Roluri: `client`, `operator`, `contabil`, `admin` (coloana `role` în `profiles`, controlată prin RLS).
 
 ## Cele 16 module de admin
