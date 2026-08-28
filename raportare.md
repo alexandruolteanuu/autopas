@@ -1,8 +1,3 @@
-
-
----
----
-
 # MIGRAREA 31 — numărătoarea pe categorii
 
 Scrisă și împinsă: **`supabase/categorii-numar-rapid.sql`**. Doar `create or replace view`,
