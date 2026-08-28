@@ -68,6 +68,29 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.8,
       });
     }
+
+    // Mașinile dezmembrate publicate. Prioritate mare, fiindcă „dezmembrari
+    // passat b7 2012" e o căutare mult mai frecventă decât un cod OEM.
+    // Intră și mașinile fără piese listate încă: pagina lor nu e goală (are
+    // specificațiile și formularul de cerere), iar o pagină scoasă din sitemap
+    // și reintrodusă mai târziu își pierde poziția câștigată.
+    const { data: masini } = await sb
+      .from("vehicles")
+      .select("slug, intrare")
+      .eq("publicat", true)
+      .order("intrare", { ascending: false })
+      .limit(1000);
+
+    for (const v of masini ?? []) {
+      intrari.push({
+        url: `${SITE_URL}/masini/${v.slug}`,
+        lastModified: v.intrare ? new Date(v.intrare) : acum,
+        changeFrequency: "weekly",
+        priority: 0.7,
+      });
+    }
+
+    intrari.push({ url: `${SITE_URL}/masini`, lastModified: acum, changeFrequency: "weekly", priority: 0.8 });
   }
 
   return intrari;

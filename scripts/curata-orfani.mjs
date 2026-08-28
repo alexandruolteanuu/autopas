@@ -70,15 +70,22 @@ async function listeaza(prefix = "") {
 
 const fisiere = await listeaza();
 const piese = await (await fetch(`${URL_BAZA}/rest/v1/products?select=id,nume,poze,poze_sursa`, { headers: h })).json();
+// ATENȚIE: în bucketul `poze-piese` nu stau doar poze de PIESE. Din 28 august
+// 2026, `PhotoUploader` urcă acolo și pozele mașinilor dezmembrate
+// (`vehicles.poze`), fiindcă e aceeași componentă și același bucket. Fără
+// rândul de mai jos, fiecare poză de mașină ar fi raportată drept orfană, iar
+// `--sterge` le-ar șterge pe toate. Orice tabelă nouă cu `poze` se adaugă aici.
+const masini = await (await fetch(`${URL_BAZA}/rest/v1/vehicles?select=id,nume,poze`, { headers: h })).json();
 
 // Se numără ȘI `poze_sursa`: acolo stau de obicei adrese de pe pieseauto.ro, dar
 // dacă vreodată ajunge acolo o adresă din bucketul nostru, fișierul nu e orfan.
 const folosite = new Set();
-for (const p of piese)
-  for (const u of [...(p.poze ?? []), ...(p.poze_sursa ?? [])]) {
-    const m = String(u).match(/\/poze-piese\/(.+)$/);
-    if (m) folosite.add(decodeURIComponent(m[1]));
-  }
+const adauga = (u) => {
+  const m = String(u).match(/\/poze-piese\/(.+)$/);
+  if (m) folosite.add(decodeURIComponent(m[1]));
+};
+for (const p of piese) for (const u of [...(p.poze ?? []), ...(p.poze_sursa ?? [])]) adauga(u);
+for (const v of masini) for (const u of (v.poze ?? [])) adauga(u);
 
 const acum = Date.now();
 const oreVechi = (f) => (acum - new Date(f.creat).getTime()) / 36e5;

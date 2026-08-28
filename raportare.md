@@ -171,3 +171,144 @@ Comenzi: 0 — sonda care testează garda folosește coșul gol, deci n-a creat 
 nicio piesă unicat din stoc.
 
 `npm run build` — trece.
+
+---
+---
+
+# RAPORT — 28 august 2026 · PARTEA B, încheiată
+
+Migrarea 28 rulată. Paginile de mașină există și funcționează. Nivelul 3 din B.3 nu e
+implementat, cum cere sarcina — propunerea e la final.
+
+---
+
+## B.0 — inventarul, și de ce a schimbat toată partea
+
+**Cauza celor „0 piese disponibile" e curat de date. Calculul era corect.**
+
+`products.vehicul_id` există din `schema.sql`, are index, iar triggerul `recalc_piese_vehicul`
+numără corect `publicat and stoc > 0`. Era completat pe **0 din 8.754 de piese**. Cu zero
+legături, 0 e răspunsul onest.
+
+Coloana se numește `vehicul_id`, nu `vehicle_id` — prima mea căutare n-a găsit-o și era să
+raportez că legătura nu există deloc.
+
+**Mecanismul era construit în întregime, doar nefolosit:** `ProductForm` are de mult câmpul
+„Mașina-sursă", `/piese?vehicul=` filtrează, pagina de produs are „alte piese de la aceeași
+mașină", iar `/admin/masini` calculează profit și amortizare pe mașină. Tot lanțul aștepta o
+coloană pe care nimeni n-a completat-o.
+
+Cele 22 de mașini: 4 din `seed.sql` (iulie), 18 introduse de mână pe 26 august. Motorul de
+import nu atinge niciodată `vehicles`.
+
+### Legătura nu se poate deduce din titlu — măsurat, nu presupus
+
+Am încercat de trei ori și am greșit de trei ori, ceea ce e chiar rezultatul:
+
+| încercare | rezultat |
+|---|---|
+| potrivire pe subșir | „6" din „Golf 6" prinde în „201**6**" |
+| potrivire pe cuvânt întreg | „6" prinde în „1.**6**" — **36 din 67** de „potriviri" la Golf 6 erau piese de **Golf 7** |
+| plafon optimist | 246 de piese, **2,8%** din catalog, și acelea contaminate |
+
+Cauza de fond: feed-ul nu spune NICIODATĂ de pe ce mașină s-a demontat piesa. CSV-ul are ID,
+URL, Titlu, Monedă, Preț; pagina scrie „compatibilă cu", adică potrivire, nu proveniență. Iar
+două Passat B6 din curte (BMP și BMR) ar fi oricum indistingibile din titlu.
+
+**Decizia ta:** piesele importate rămân nelegate; paginile se umplu de la prima mașină
+dezmembrată de noi. Marca și modelul intră ca date separate, legate de `brands`/`models`.
+
+---
+
+## Ce s-a construit
+
+**Migrarea 28, `pagini-masini.sql`** — `vehicles` trece de la 9 la 19 coloane: `poze`,
+`descriere`, `publicat`, `motorizare`, `caroserie`, `culoare`, `cutie_viteze`, `km`,
+`marca_id`, `model_id`. Citirea publică trece din `using (true)` în
+`publicat = true or is_staff()`, ca o mașină nepublicată să dea 404 **și prin REST**, nu doar
+în cod.
+
+**`/masini/[slug]`** — galerie, titlu, specificații, descriere, piesele mașinii (cu filtru pe
+categorie de la 12 piese în sus), caruselul de compatibile, formular de cerere precompletat cu
+mașina. Metadate, JSON-LD (`Vehicle` + `BreadcrumbList`), breadcrumb, intrare în `sitemap.xml`.
+
+**`/masini`** — lista, împărțită intenționat în două: „Cu piese pe site" și „În dezmembrare
+acum". A doua grupă nu e umplutură: clientul care caută o portieră de Passat B6 vrea exact
+informația „au mașina, întreabă-i".
+
+**Admin → Mașini la dezmembrat** — poze (`PhotoUploader`, aceeași conversie WebP), descriere,
+comutator de publicare, marcă/model, cele cinci specificații, link „vezi pagina ↗" și
+marcaje „⚠ fără marcă" / „⚠ fără model", ca la modelele fără ani.
+
+**Hero (B.5)** — arată doar mașinile cu cel puțin o piesă și **dispare complet** dacă nu există
+niciuna. Grila trece atunci pe o coloană; altfel titlul ar fi rămas strâns pe 1.2fr cu un gol
+de 0.8fr lângă el. Numărul se calculează live, nu din `piese_listate`.
+
+---
+
+## Verificat în browser, pe build de producție
+
+Ca să pot verifica și cazul „mașină cu piese", am legat **temporar** 14 piese de două mașini,
+am verificat, apoi am desfăcut tot. Amprenta `md5` a coloanei `vehicul_id` pe toate cele 8.754
+de rânduri e **identică** înainte și după: `fa03cbe2…`. Zero date de test rămase în bază.
+
+| Verificare | Rezultat |
+|---|---|
+| mașină cu piese | 200 · 8 piese · carusel vizibil cu 6 carduri, fiecare cu „de pe …" |
+| mașină fără piese | 200 · mesaj + formular de cerere, nu pagină goală |
+| mașină inexistentă | **404** |
+| `/masini` | ambele grupe, 22 de mașini |
+| hero, starea reală | secțiunea ascunsă, zero apariții „0 piese disponibile" |
+| responsive | 4 lățimi × 2 teme, fără scroll orizontal |
+| `sitemap.xml` | 22 de mașini + `/masini` |
+| erori de consolă / cereri căzute | niciuna |
+
+Un defect prins la verificare: titlul ieșea „Passat B6 2.0 TDI BMP **2.0 TDI 140 CP**" —
+comparam motorizarea ca text întreg cu numele. Cilindreea („2.0") e partea care se repetă
+mereu, deci ea e testul bun.
+
+---
+
+## Două lucruri reparate pe lângă sarcină, și de ce
+
+**`/cauta-dupa-masina` avea exact același defect ca hero-ul**: 22 de mașini cu „0 piese
+listate", fiecare ducând la `/piese?vehicul=…`, adică la o listă goală. Era o cale ruptă chiar
+lângă cea nouă, așa că am tratat-o la fel: „piese pe cerere" și link către pagina mașinii.
+
+**`scripts/curata-orfani.mjs` ar fi șters toate pozele de mașini.** Compară fișierele din
+bucketul `poze-piese` doar cu `products.poze`, iar `PhotoUploader` urcă pozele mașinilor în
+același bucket. Cu `--sterge`, fiecare poză de mașină ar fi fost ștearsă ca orfană. Acum
+citește și `vehicles.poze`.
+
+---
+
+## Rămase de făcut
+
+**Nivelul 3 din B.3 — platforma comună. Cum l-aș construi.**
+
+Un tabel `platforme (id, nume)` plus `models.platforma_id`, completat o singură dată, de om,
+pentru modelele care contează. Nu se poate deduce automat: numele platformei nu apare nicăieri
+în datele noastre. Sursa cea mai bună e chiar pieseauto.ro — la import s-a observat că o piesă
+de Touran stă sub `vw/passat-b6`, deci **ei grupează deja pe platformă**, iar acea informație
+se poate extrage din URL-urile de categorie pe care le aducem oricum. Aș măsura întâi câte
+modele distincte apar sub un URL „străin" (Touran sub Passat B6), fiindcă frecvența spune dacă
+merită tabelul. Recomand să aștepte: fără piese legate de mașini, nivelul 3 n-ar avea ce
+ordona.
+
+**Sitemap-ul conține doar 1.000 de piese din 8.754.** Interogarea cere `.limit(5000)`, dar
+Supabase plafonează un răspuns REST la 1.000 de rânduri, tăcut. Deci **7.754 de piese nu sunt
+în sitemap**. E un defect vechi, dinaintea Părții B, și se repară cu paginare. N-am atins-o:
+e în afara sarcinii. Spune dacă vrei s-o rezolv.
+
+**Paginile de mașină sunt goale până la prima mașină dezmembrată de noi.** Asta e consecința
+directă a deciziei de a lăsa piesele importate nelegate, și e în regulă — dar există o cale de
+a le umple imediat, fără nicio ghicitoare: o secțiune „piese care se potrivesc pe această
+mașină", construită din `vehicles.model_id` față de `products.model_ids`. Legătura aia e deja
+în bază, verificată în Partea E, și e despre compatibilitate — exact ce înseamnă `model_ids` —
+nu despre proveniență, deci nu minte pe nimeni. Ar transforma 22 de pagini goale în 22 de
+pagini utile. Nu am făcut-o: nu e în sarcină. Spune dacă o vrei.
+
+## Verificări
+
+`npm run build` — trece.
+`node scripts/verifica-import.mjs` — 110 verificări trec (neatins de Partea B).

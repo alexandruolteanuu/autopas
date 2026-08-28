@@ -1,6 +1,16 @@
 export type Category = { id: number; slug: string; nume: string; display_count: number; art: string; ordine: number;
   parent_id?: number | null; descriere?: string | null; nr_piese?: number };
-export type Vehicle  = { id: number; slug: string; nume: string; an: number | null; vin_masca: string | null; piese_listate: number; intrare: string };
+// Mașina la dezmembrat. Coloanele de la `poze` în jos sunt din
+// supabase/pagini-masini.sql, adăugate ca să existe o pagină publică.
+// `marca_id`/`model_id` sunt marca și modelul ca DATE, nu ca text în `nume`:
+// fără ele nu se poate afla ce mașini sunt înrudite. Rămân null pe mașinile
+// înregistrate înainte de migrare; se completează din Admin → Mașini.
+export type Vehicle  = { id: number; slug: string; nume: string; an: number | null; vin_masca: string | null;
+  piese_listate: number; intrare: string;
+  poze?: string[] | null; descriere?: string | null; publicat?: boolean;
+  motorizare?: string | null; caroserie?: string | null; culoare?: string | null;
+  cutie_viteze?: string | null; km?: number | null;
+  marca_id?: number | null; model_id?: number | null };
 export type Product  = {
   id: number; slug: string; nume: string; oem: string | null; stare: "A" | "B" | "C" | null;
   stare_nota: string | null; pret_lei: number; pret_sufix: string | null; ani: string | null;
@@ -30,4 +40,8 @@ export type OrderFull = { id: number; numar: string; tip_client: string; nume: s
 export type Discount = { id: number; cod: string; tip: "procent" | "fix"; valoare: number;
   minim_comanda: number; expira_la: string | null; activ: boolean; folosiri: number };
 export type VehiculAdmin = { id: number; slug: string; nume: string; an: number | null; vin_masca: string | null;
-  piese_listate: number; intrare: string; cost_achizitie: number | null; status: string };
+  piese_listate: number; intrare: string; cost_achizitie: number | null; status: string;
+  poze?: string[] | null; descriere?: string | null; publicat?: boolean;
+  motorizare?: string | null; caroserie?: string | null; culoare?: string | null;
+  cutie_viteze?: string | null; km?: number | null;
+  marca_id?: number | null; model_id?: number | null };

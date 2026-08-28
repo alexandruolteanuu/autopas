@@ -5,7 +5,8 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { sbBrowser, scrieVerificat } from "@/lib/supabase";
 import { lei } from "@/lib/format";
-import type { VehiculAdmin } from "@/lib/types";
+import PhotoUploader from "@/components/admin/PhotoUploader";
+import type { VehiculAdmin, Brand, Model } from "@/lib/types";
 
 type Randament = { listate: number; vandute: number; incasat: number };
 
@@ -15,15 +16,25 @@ export default function Masini() {
   const [edit, setEdit] = useState<VehiculAdmin | null>(null);
   const [form, setForm] = useState(false);
   const [msg, setMsg] = useState("");
+  const [marci, setMarci] = useState<Brand[]>([]);
+  const [modele, setModele] = useState<Model[]>([]);
+  // Pozele și marca nu pot fi lăsate pe seama lui `FormData`: pozele se urcă în
+  // Storage înainte de salvare, iar lista de modele depinde de marca aleasă.
+  const [poze, setPoze] = useState<string[]>([]);
+  const [marcaSel, setMarcaSel] = useState<number | "">("");
 
   const incarca = useCallback(async () => {
     const sb = sbBrowser(); if (!sb) return;
-    const [v, p, it] = await Promise.all([
+    const [v, p, it, b, m] = await Promise.all([
       sb.from("vehicles").select("*").order("intrare", { ascending: false }),
       sb.from("products").select("id,vehicul_id,stoc,pret_lei"),
       sb.from("order_items").select("pret,cantitate,product_id,orders!inner(status)").neq("orders.status", "anulata"),
+      sb.from("brands").select("*").order("nume"),
+      sb.from("models").select("*").order("nume"),
     ]);
     setCars((v.data ?? []) as VehiculAdmin[]);
+    setMarci((b.data ?? []) as Brand[]);
+    setModele((m.data ?? []) as Model[]);
     const pieseDupaId = new Map<number, any>(((p.data ?? []) as any[]).map((x) => [x.id, x]));
     const r: Record<number, Randament> = {};
     ((p.data ?? []) as any[]).forEach((x) => {
@@ -45,10 +56,18 @@ export default function Masini() {
     e.preventDefault(); setMsg("");
     const f = new FormData(e.currentTarget); const sb = sbBrowser()!;
     const nume = String(f.get("nume"));
+    const text = (k: string) => { const s = String(f.get(k) ?? "").trim(); return s === "" ? null : s; };
     const date = {
       nume, an: Number(f.get("an")) || null, vin_masca: f.get("vin") || null,
       cost_achizitie: Number(f.get("cost")) || null, status: String(f.get("status")),
       intrare: String(f.get("intrare") || new Date().toISOString().slice(0, 10)),
+      // Coloanele adăugate de supabase/pagini-masini.sql, pentru pagina publică.
+      poze, descriere: text("descriere"), publicat: f.get("publicat") === "on",
+      motorizare: text("motorizare"), caroserie: text("caroserie"),
+      culoare: text("culoare"), cutie_viteze: text("cutie"),
+      km: Number(f.get("km")) || null,
+      marca_id: Number(f.get("marca")) || null,
+      model_id: Number(f.get("model")) || null,
     };
     let eroare: string | undefined;
     if (edit) {
@@ -63,6 +82,21 @@ export default function Masini() {
     setMsg(eroare ? "Nu s-a salvat: " + eroare
       : edit ? "✓ Mașina a fost actualizată." : "✓ Mașina a fost adăugată — o poți alege acum la piese.");
     if (!eroare) { setEdit(null); setForm(false); incarca(); }
+  }
+
+  /** Deschide formularul pe o mașină existentă. Pozele și marca ies din
+   *  `FormData` (una se urcă înainte de salvare, cealaltă filtrează modelele),
+   *  deci trebuie duse explicit în stare la fiecare deschidere — altfel ar
+   *  rămâne cele ale mașinii editate anterior. */
+  function deschideEdit(v: VehiculAdmin) {
+    setEdit(v); setForm(false); setMsg("");
+    setPoze(v.poze ?? []); setMarcaSel(v.marca_id ?? "");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  function deschideNou() {
+    const deschis = !form;
+    setEdit(null); setForm(deschis); setMsg("");
+    setPoze([]); setMarcaSel("");
   }
 
   async function sterge(v: VehiculAdmin) {
@@ -81,7 +115,7 @@ export default function Masini() {
       <div className="flex items-end justify-between flex-wrap gap-3">
         <div><div className="dim">Administrare</div><h1 className="font-disp font-bold text-2xl mt-1">Mașini la dezmembrat</h1>
           <p className="text-sm text-mut mt-1">Metrica-cheie a afacerii: cât a costat mașina vs. cât ai încasat din piesele ei.</p></div>
-        <button onClick={() => { setEdit(null); setForm(!form); }} className="btn-acc !py-2 !px-4 text-sm">{form ? "Închide" : "+ Înregistrează vehicul"}</button>
+        <button onClick={deschideNou} className="btn-acc !py-2 !px-4 text-sm">{form ? "Închide" : "+ Înregistrează vehicul"}</button>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -110,7 +144,44 @@ export default function Masini() {
               <option value="amortizata">Amortizată</option>
               <option value="finalizata">Finalizată</option>
             </select></div>
-          <div className="flex gap-2 items-end">
+          <label className="flex items-center gap-2 text-sm self-end pb-2">
+            <input type="checkbox" name="publicat" defaultChecked={edit?.publicat ?? true} />
+            Publicată pe site
+          </label>
+
+          {/* ---- pagina publică: /masini/[slug] ---- */}
+          <b className="font-disp font-semibold text-[13px] sm:col-span-3 pt-2 border-t border-line">
+            Pagina publică
+            {edit && <Link href={`/masini/${edit.slug}`} target="_blank" className="ml-2 font-normal text-acc">vezi pagina ↗</Link>}
+          </b>
+
+          {/* Marca și modelul ca DATE, nu ca text în denumire: fără ele pagina
+              mașinii n-are cum să afle ce alte mașini sunt înrudite. */}
+          <div className="fld"><label>Marca</label>
+            <select name="marca" value={marcaSel} onChange={(e) => setMarcaSel(Number(e.target.value) || "")}>
+              <option value="">— alege —</option>
+              {marci.map((b) => <option key={b.id} value={b.id}>{b.nume}</option>)}
+            </select></div>
+          <div className="fld"><label>Modelul <span className="font-normal text-mut">(generația)</span></label>
+            <select name="model" defaultValue={edit?.model_id ?? ""} key={`mod-${marcaSel}-${edit?.id ?? "nou"}`}>
+              <option value="">— alege —</option>
+              {modele.filter((m) => m.brand_id === marcaSel).map((m) => <option key={m.id} value={m.id}>{m.nume}</option>)}
+            </select></div>
+          <div className="fld"><label>Motorizare</label><input name="motorizare" defaultValue={edit?.motorizare ?? ""} placeholder="2.0 TDI 140 CP" /></div>
+          <div className="fld"><label>Caroserie</label><input name="caroserie" defaultValue={edit?.caroserie ?? ""} placeholder="break / berlină / hatchback" /></div>
+          <div className="fld"><label>Cutie de viteze</label><input name="cutie" defaultValue={edit?.cutie_viteze ?? ""} placeholder="manuală 6 trepte" /></div>
+          <div className="fld"><label>Culoare</label><input name="culoare" defaultValue={edit?.culoare ?? ""} placeholder="negru metalizat" /></div>
+          <div className="fld"><label>Kilometri</label><input name="km" type="number" defaultValue={edit?.km ?? ""} placeholder="248000" /></div>
+          <div className="fld sm:col-span-3"><label>Descriere <span className="font-normal text-mut">(apare pe pagina mașinii)</span></label>
+            <textarea name="descriere" rows={3} defaultValue={edit?.descriere ?? ""}
+              placeholder="Mașină adusă din Germania, fără accidente în față. Motorul și cutia sunt funcționale și testate." /></div>
+
+          <div className="sm:col-span-3">
+            <label className="text-sm font-semibold block mb-2">Poze cu mașina</label>
+            <PhotoUploader poze={poze} setPoze={setPoze} />
+          </div>
+
+          <div className="flex gap-2 items-end sm:col-span-3">
             <button className="btn-acc flex-1">{edit ? "Salvează" : "Adaugă"}</button>
             {edit && <button type="button" onClick={() => setEdit(null)} className="rounded-xl border-2 border-line px-4">Renunț</button>}
           </div>
@@ -133,7 +204,16 @@ export default function Masini() {
               return (
                 <tr key={v.id} className="hover:bg-paper">
                   <td data-eticheta="Mașina" className="px-4 py-3"><b>{v.nume}</b>{v.an ? ` · ${v.an}` : ""}
-                    <div className="text-[11px] text-mut">{v.vin_masca ?? ""}</div></td>
+                    <div className="text-[11px] text-mut">{v.vin_masca ?? ""}</div>
+                    {/* Semnalăm ce lipsește pentru pagina publică, la fel ca „⚠ fără ani"
+                        din Mărci și modele: fără marcă și model, mașina n-are cum să
+                        arate piese de la mașini compatibile. */}
+                    <div className="text-[11px] mt-0.5 flex gap-2 flex-wrap">
+                      {!v.publicat && <span className="text-mut">nepublicată</span>}
+                      {!v.marca_id && <span className="text-red-600">⚠ fără marcă</span>}
+                      {v.marca_id && !v.model_id && <span className="text-red-600">⚠ fără model</span>}
+                      {(v.poze?.length ?? 0) === 0 && <span className="text-mut">fără poze</span>}
+                    </div></td>
                   <td data-eticheta="Intrare" className="px-4 py-3 text-mut">{new Date(v.intrare).toLocaleDateString("ro-RO")}</td>
                   <td data-eticheta="Piese listate" className="px-4 py-3"><Link href={`/piese?vehicul=${v.slug}`} className="text-acc font-semibold">{r.listate} listate</Link>
                     <div className="text-[11px] text-mut">{r.vandute} vândute</div></td>
@@ -143,7 +223,7 @@ export default function Masini() {
                   <td data-eticheta="Amortizare" className="px-4 py-3 text-xs">{cost ? (r.incasat >= cost ? <span className="text-ok font-semibold">amortizată în {zile} zile</span> : <span className="text-mut">în curs · {zile} zile</span>) : "—"}</td>
                   <td data-eticheta="Status" className="px-4 py-3 text-xs">{v.status.replace("_", " ")}</td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    <button onClick={() => { setEdit(v); setForm(false); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="text-acc font-semibold mr-3">Editează</button>
+                    <button onClick={() => deschideEdit(v)} className="text-acc font-semibold mr-3">Editează</button>
                     <button onClick={() => sterge(v)} className="text-mut hover:text-red-600">Șterge</button></td>
                 </tr>
               );

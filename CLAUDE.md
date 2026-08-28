@@ -8,8 +8,9 @@ Magazin online de piese auto second-hand din dezmembrări. Depozitul e pe Str. P
 pe DN 15 între Piatra-Neamț și Bicaz (sat Bistrița, com. Alexandru cel Bun, jud. Neamț) — aceeași
 adresă cu sediul social. Site public + cont client + panou de administrare complet.
 
-**Stare la 7 august 2026: încă nelansat.** Nu are clienți, nu are comenzi reale. Cele 8 produse și
-5 mașini din bază sunt exemple de lucru, nu marfă — trebuie înlocuite înainte de lansare.
+**Stare la 28 august 2026: încă nelansat.** Nu are clienți, nu are comenzi reale (`orders` e goală).
+În bază sunt **8.754 de piese**, importate din pieseauto.ro — sunt anunțurile reale ale firmei, nu
+exemple — și **22 de mașini** la dezmembrat, introduse de mână.
 Codul nu trebuie să conțină date inventate; datele din bază sunt provizorii și e în regulă.
 
 ## Stack
@@ -48,6 +49,7 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 
 ## Structura
 - `app/` — paginile (App Router). `app/admin/` = panoul de administrare (16 module).
+  `app/masini/` = paginile publice ale mașinilor dezmembrate.
 - `components/` — componente refolosibile; `components/admin/` = specifice adminului.
 - `lib/` — `supabase.ts` (clienți: server, browser, admin cu service key), `settings.ts`
   (firmă/curieri/integrări din DB), `types.ts`, `format.ts`, `couriers.ts`, `config.ts`, `legal.ts`,
@@ -63,11 +65,10 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 18. `taxonomie-import.sql` -> 19. `greutate-estimata.sql` -> 20. `import-index-fix.sql` ->
 21. `publicare-cu-poze.sql` -> 22. `import-din-admin.sql` -> 23. `rls-citire-echipa.sql` ->
 24. `ani-generatie.sql` -> 25. `marci-lipsa.sql` -> 26. `generatii-si-denumiri.sql` ->
-27. `mod-vacanta.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9–27.
+27. `mod-vacanta.sql` -> 28. `pagini-masini.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9–28.
 NU sunt încă idempotente: 1–5, 8.
-**Aplicate pe producție: toate, 1–27** (ultimele două, 23 și 27, pe 28 august 2026, prin
-conectorul Supabase).
+**Aplicate pe producție: toate, 1–28** (23, 27 și 28 pe 28 august 2026, prin conectorul Supabase).
 27 înlocuiește `plaseaza_comanda`, copiată integral din 12 cu o gardă adăugată la început;
 dacă modifici vreodată funcția în 12, o modifici și acolo. Înainte de a o rula s-a comparat
 mecanic funcția din 12 cu cea din 27: identice, în afară de cele 7 linii ale gărzii. Fă la fel
@@ -76,6 +77,10 @@ făcută între timp direct în bază.
 23 dă rolului `operator` dreptul de CITIRE pe piese și pe cele patru tabele de cereri — fără el
 scria fără să poată citi, iar `scrieVerificat()` (care cere înapoi rândul atins) ar fi raportat
 eșec la o scriere reușită.
+28 face din `vehicles` o pagină publică: adaugă `poze`, `descriere`, `publicat`, `motorizare`,
+`caroserie`, `culoare`, `cutie_viteze`, `km`, plus `marca_id`/`model_id` (marca și modelul ca DATE,
+nu ca text în `nume`), și schimbă citirea publică din `using (true)` în `publicat = true or is_staff()`,
+ca o mașină nepublicată să dea 404 și prin REST, nu doar în cod.
 24 adaugă coloanele de ani pe `models` și mută două modele așezate greșit („MG 3" și „XC 40"
 stăteau sub Volkswagen); 25 adaugă mărcile lipsă și redenumește „KGM Ssangyong" în „SsangYong".
 Sunt independente între ele, dar codul din `lib/import/` le presupune pe amândouă rulate.
@@ -276,6 +281,34 @@ sunt sarcini ale utilizatorului. Consemnate la 24 august 2026.
   · Ascunderea butonului de coș stă în `AddToCart`, nu în `ProductCard`: e singurul loc prin care
     o piesă ajunge în coș, deci acoperă dintr-o dată și favoritele, și piesele similare, și orice
     listă adăugată pe viitor. (`ProductCard` e componentă de server, n-are acces la context.)
+- **Paginile de mașină dezmembrată** (`/masini`, `/masini/[slug]`, 28 august 2026). Se umplu din
+  `products.vehicul_id`, adică din câmpul „Mașina-sursă" al editorului de produs. Legătura o pune
+  OMUL, la listare.
+  · **Cele 8.754 de piese importate rămân NELEGATE**, prin decizie a proprietarului. Feed-ul
+    pieseauto.ro nu spune niciodată de pe ce mașină s-a demontat piesa: CSV-ul are ID, URL, Titlu,
+    Monedă, Preț, iar pagina scrie „compatibilă cu", adică potrivire, nu proveniență.
+  · **Nu încerca să deduci legătura din titlu.** S-a măsurat pe 28 august 2026 și e greșită: la
+    „VW Golf 6 1.6 TDI", 36 din 67 de potriviri erau piese de Golf 7, fiindcă „6" se regăsește în
+    „1.6". Cu potrivire pe subșir era și mai rău („6" prinde în „2016"). Plafonul optimist era 246
+    de piese, 2,8% din catalog, și acelea contaminate. Două Passat B6 din curte (BMP și BMR) ar fi
+    oricum indistingibile din titlu.
+  · Deci o mașină fără piese NU e un defect, ci starea normală până la prima mașină dezmembrată de
+    noi. Pagina ei rămâne la HTTP 200, cu specificațiile și formularul de cerere precompletat.
+  · **Nicăieri nu se mai scrie „0 piese".** Hero-ul arată doar mașinile cu cel puțin o piesă și
+    dispare complet dacă nu există niciuna (grila trece atunci pe o coloană); `/masini` le împarte în
+    „Cu piese pe site" și „În dezmembrare acum"; `/cauta-dupa-masina` scrie „piese pe cerere" și duce
+    la pagina mașinii, nu la `/piese?vehicul=…`, care pentru o mașină nelegată e drum înfundat.
+  · Numărul de piese se calculează **live**, nu se ia din `vehicles.piese_listate`. Coloana e corectă
+    (o ține triggerul `recalc_piese_vehicul`), dar e o valoare memorată, iar o desincronizare s-ar
+    vedea exact ca defectul pe care tocmai l-am reparat.
+  · Caruselul „piese de la mașini compatibile" are 3 niveluri din cele 4 din sarcină: același model,
+    același model altă generație (prin `bazaModel` din `lib/format.ts`), aceeași marcă. **Nivelul 3,
+    platforma comună, NU e implementat** — cere un tabel de platforme pe care nu-l avem. Sub 4
+    rezultate caruselul se ascunde complet.
+- **Pozele mașinilor stau în același bucket ca ale pieselor** (`poze-piese`) — e aceeași componentă,
+  `PhotoUploader`. De aceea `scripts/curata-orfani.mjs` citește ȘI `vehicles.poze`: fără asta ar
+  raporta fiecare poză de mașină drept orfană, iar `--sterge` le-ar șterge pe toate. Orice tabelă
+  nouă cu coloană `poze` se adaugă acolo, în același loc.
 - Roluri: `client`, `operator`, `contabil`, `admin` (coloana `role` în `profiles`, controlată prin RLS).
 
 ## Cele 16 module de admin
@@ -284,6 +317,9 @@ Cereri (inbox 4 taburi) · Produse (pagină de editare cu poze reale) · Piese d
 Import pieseauto.ro · Categorii (+subcategorii) · Mărci și modele · Mașini la dezmembrat
 (profit/amortizare) · Expedieri (AWB) · Clienți · Facturi (export Saga) · Rapoarte ·
 Marketing (coduri reducere) · Setări (firmă, curier, roluri) · Integrări.
+„Mașini la dezmembrat" ține și pagina publică a fiecărei mașini: poze, descriere, comutator de
+publicare, marcă/model și specificații. Mașinile cărora le lipsește ceva sunt marcate acolo cu
+„⚠ fără marcă" / „⚠ fără model", ca la modelele fără ani.
 Meniul și drepturile pe rol sunt definite în `app/admin/layout.tsx` (constanta `MENIU`).
 
 ## Baza de date — tabele cheie
@@ -375,7 +411,7 @@ Niciuna nu e dependință a site-ului și niciuna nu rulează la build. Se cheam
 | `verifica-import.mjs` | după orice modificare în `lib/import/`. 78 de verificări pe regulile importului — protecția de 20%, reluarea din poziția salvată, canarul, ce are voie să atingă un re-import. Fără rețea și fără bază de date: sursa și depozitul sunt false, deci se poate rula oricând |
 | `scan-responsive.mjs` | după modificări de așezare. 19 pagini × 13 lățimi; `TEMA=luminos` schimbă tema. Cere `playwright-core` legat în `node_modules` — vezi antetul fișierului |
 | `reconverteste-poze.mjs` | **rar, la nevoie.** Trece în WebP pozele rămase JPEG în bucket. A fost scris fiindcă primele piese importate au ajuns JPEG, când `sharp` nu era încă instalat, iar `lib/import/imagini.mjs` urcă originalul dacă lipsește codecul. Dacă apar iar JPEG-uri în bucket, ori a picat `sharp`, ori conversia a preferat originalul (poză deja bine comprimată) — scriptul spune care din două. Idempotent, cu `--uscat` |
-| `curata-orfani.mjs` | **periodic**, mai ales după sesiuni lungi de lucru pe produse. Găsește fișierele din `poze-piese` spre care nu mai arată niciun rând din `products`. Implicit doar raportează; șterge numai cu `--sterge` și numai fișiere mai vechi de 24h (`--ore=N`). Raportează și cazul invers, mai grav: adrese din bază fără fișier în stocare |
+| `curata-orfani.mjs` | **periodic**, mai ales după sesiuni lungi de lucru pe produse. Găsește fișierele din `poze-piese` spre care nu mai arată niciun rând din `products` SAU din `vehicles`. Implicit doar raportează; șterge numai cu `--sterge` și numai fișiere mai vechi de 24h (`--ore=N`). Raportează și cazul invers, mai grav: adrese din bază fără fișier în stocare |
 
 **De ce apar orfani** (tipar structural, găsit la 25 august 2026): `components/admin/PhotoUploader.tsx`
 urcă poza în Storage **imediat** ce e aleasă, dar adresa ei intră doar în starea formularului —

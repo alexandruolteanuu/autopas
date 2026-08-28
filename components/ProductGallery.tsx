@@ -1,14 +1,19 @@
 "use client";
 // Galeria piesei: pozele reale încărcate din admin; dacă nu există, ilustrația desenată.
-import { useState } from "react";
+//
+// Aceeași galerie servește și paginile de mașină dezmembrată (`/masini/[slug]`),
+// care n-au `art` fiindcă nu sunt piese. De aceea ilustrația de rezervă poate fi
+// trimisă din afară, prin `rezerva`; fără ea se desenează `PartArt`, ca înainte.
+import { useState, type ReactNode } from "react";
 import PartArt from "./PartArt";
 
-export default function ProductGallery({ poze, art, nume }: { poze: string[]; art: string; nume: string }) {
+export default function ProductGallery({ poze, art = "engine", nume, rezerva }:
+  { poze: string[]; art?: string; nume: string; rezerva?: ReactNode }) {
   const [activ, setActiv] = useState(0);
   if (!poze || poze.length === 0)
     return (
       <div className="card overflow-hidden">
-        <PartArt kind={art} className="w-full aspect-[100/72]" />
+        {rezerva ?? <PartArt kind={art} className="w-full aspect-[100/72]" />}
       </div>
     );
   return (

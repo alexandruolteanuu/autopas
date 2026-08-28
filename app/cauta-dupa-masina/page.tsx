@@ -20,7 +20,15 @@ export const metadata = { title: "Caută după mașină" };
 
 export default async function CautaDupaMasina() {
   const sb = sbServer();
-  const cars = sb ? (((await sb.from("vehicles").select("*").order("intrare", { ascending: false })).data ?? []) as Vehicle[]) : [];
+  const cars = sb ? (((await sb.from("vehicles").select("*").eq("publicat", true)
+    .order("intrare", { ascending: false })).data ?? []) as Vehicle[]) : [];
+  // Numărul de piese pe mașină, calculat live — la fel ca în hero și în /masini.
+  // `vehicles.piese_listate` e corect (îl ține triggerul), dar e valoare memorată,
+  // iar aici o desincronizare s-ar vedea drept „0 piese listate" pe o mașină plină.
+  const legRows = sb ? (((await sb.from("products").select("vehicul_id")
+    .eq("publicat", true).gt("stoc", 0).not("vehicul_id", "is", null)).data ?? []) as { vehicul_id: number }[]) : [];
+  const catePiese: Record<number, number> = {};
+  for (const r of legRows) catePiese[r.vehicul_id] = (catePiese[r.vehicul_id] ?? 0) + 1;
   const brands = sb ? (((await sb.from("brands").select("*").order("ordine")).data ?? []) as Brand[]) : [];
   const models = sb ? (((await sb.from("models").select("*").order("nume")).data ?? []) as Model[]) : [];
   const cats = sb ? (((await sb.from("categories").select("*").order("ordine")).data ?? []) as Category[]) : [];
@@ -41,16 +49,25 @@ export default async function CautaDupaMasina() {
       {!vacanta.activ && (<>
       <p className="text-textSecundar mt-6 max-w-2xl">Sau alege una dintre mașinile aflate la noi în dezmembrare — vezi doar piesele care ți se potrivesc. Fiecare piesă e legată de mașina din care provine, cu seria de șasiu la vedere.</p>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-7">
-        {cars.map((c) => (
-          <Link key={c.id} href={`/piese?vehicul=${c.slug}`} className="card p-5 hover:border-accentChenar transition">
-            <div className="dim !text-[12px]">VIN {c.vin_masca}</div>
-            <b className="font-disp text-xl uppercase block mt-1">{c.nume} · {c.an}</b>
-            <div className="mt-2 flex items-center justify-between text-sm">
-              <span className="text-textSecundar">{nrPiese(c.piese_listate ?? 0)} {c.piese_listate === 1 ? "listată" : "listate"}</span>
-              <span className="accentuat font-bold">Vezi piesele →</span>
-            </div>
-          </Link>
-        ))}
+        {/* Cardul duce la PAGINA mașinii, nu la `/piese?vehicul=…`. Filtrul acela
+            întoarce o listă goală pentru o mașină fără piese legate, adică pentru
+            toate, deocamdată — un drum înfundat. Pagina mașinii are întotdeauna
+            ceva de arătat: specificațiile și formularul de cerere. */}
+        {cars.map((c) => {
+          const n = catePiese[c.id] ?? 0;
+          return (
+            <Link key={c.id} href={`/masini/${c.slug}`} className="card p-5 hover:border-accentChenar transition">
+              {c.vin_masca && <div className="dim !text-[12px]">VIN {c.vin_masca}</div>}
+              <b className="font-disp text-xl uppercase block mt-1">{c.nume}{c.an ? ` · ${c.an}` : ""}</b>
+              <div className="mt-2 flex items-center justify-between text-sm">
+                {/* „0 piese listate" e o promisiune neacoperită; „piese pe cerere"
+                    e adevărul și, în plus, o invitație. */}
+                <span className="text-textSecundar">{n > 0 ? `${nrPiese(n)} ${n === 1 ? "listată" : "listate"}` : "piese pe cerere"}</span>
+                <span className="accentuat font-bold">{n > 0 ? "Vezi piesele →" : "Vezi mașina →"}</span>
+              </div>
+            </Link>
+          );
+        })}
         {cars.length === 0 && <p className="text-textSecundar">Conectează Supabase (vezi README) pentru lista vehiculelor.</p>}
       </div>
       </>)}

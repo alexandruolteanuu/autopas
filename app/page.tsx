@@ -24,18 +24,38 @@ async function getData() {
   const sb = sbServer();
   if (!sb) return { cats: [] as Category[], products: [] as Product[], cars: [] as Vehicle[],
     brands: [] as Brand[], models: [] as Model[], counts: {} as Record<string, number> };
-  const [c, p, v, b, m, fit] = await Promise.all([
+  const [c, p, v, b, m, fit, pv] = await Promise.all([
     sb.from("categorii_cu_numar").select("*").is("parent_id", null).order("ordine"),
     sb.from("products").select("*").eq("publicat", true).order("created_at", { ascending: false }).limit(8),
-    sb.from("vehicles").select("*").order("intrare", { ascending: false }).limit(4),
+    // Mașinile pentru hero: publicate, cele mai recente. NU se taie la 4 aici,
+    // fiindcă filtrul „are cel puțin o piesă" se aplică abia mai jos — un
+    // `limit(4)` acum ar putea întoarce fix patru mașini fără piese, iar
+    // secțiunea ar rămâne goală deși există altele cu piese.
+    sb.from("vehicles").select("*").eq("publicat", true).order("intrare", { ascending: false }),
     sb.from("brands").select("*").order("ordine"),
     sb.from("models").select("*").order("nume"),
     sb.from("products").select("model_ids").eq("publicat", true),
+    // Numărul real de piese pe fiecare mașină. Se calculează live, nu se ia din
+    // `vehicles.piese_listate`: coloana aia e corectă (o ține triggerul
+    // `recalc_piese_vehicul`), dar e o valoare memorată, iar hero-ul e primul
+    // loc unde o desincronizare s-ar vedea ca „0 piese" pe o mașină plină.
+    sb.from("products").select("vehicul_id").eq("publicat", true).gt("stoc", 0).not("vehicul_id", "is", null),
   ]);
   const models = (m.data ?? []) as Model[];
   const counts = fitmentCounts((fit.data ?? []) as { model_ids: number[] }[], models);
+
+  const pePiese: Record<number, number> = {};
+  for (const r of ((pv.data ?? []) as { vehicul_id: number }[])) pePiese[r.vehicul_id] = (pePiese[r.vehicul_id] ?? 0) + 1;
+  // „Afișează doar mașinile cu cel puțin o piesă publicată" (B.5). O mașină fără
+  // piese nu e o eroare — e o mașină abia intrată — dar în hero ar arăta ca o
+  // promisiune neacoperită. Ea rămâne vizibilă în /masini, la „În dezmembrare acum".
+  const cars = ((v.data ?? []) as Vehicle[])
+    .map((x) => ({ ...x, piese_listate: pePiese[x.id] ?? 0 }))
+    .filter((x) => x.piese_listate > 0)
+    .slice(0, 4);
+
   return {
-    cats: (c.data ?? []) as Category[], products: (p.data ?? []) as Product[], cars: (v.data ?? []) as Vehicle[],
+    cats: (c.data ?? []) as Category[], products: (p.data ?? []) as Product[], cars,
     // Doar mărcile care au măcar o piesă publicată ajung în filtru și în secțiunea
     // „Mărci auto". Tabela rămâne completă; vezi `marciCuPiese` din lib/format.ts.
     brands: marciCuPiese((b.data ?? []) as Brand[], counts), models, counts,
@@ -55,7 +75,10 @@ export default async function Home() {
           de mai jos, chipurile din Despre noi, bannerul de cookie-uri) rămân
           negre pe ambele teme: sunt „zonele negre" care țin identitatea. */}
       <section className="bg-heroBg text-heroText">
-        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-12 lg:py-16 grid items-stretch lg:grid-cols-[minmax(0,1.2fr),minmax(0,0.8fr)] gap-10">
+        {/* A doua coloană (mașinile) există doar dacă vreo mașină are piese; fără
+            ea grila trebuie să rămână pe O coloană, altfel titlul ar sta strâns
+            pe 1.2fr cu un gol de 0.8fr lângă el. */}
+        <div className={`mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-12 lg:py-16 grid items-stretch gap-10 ${cars.length > 0 ? "lg:grid-cols-[minmax(0,1.2fr),minmax(0,0.8fr)]" : ""}`}>
           <div>
             {/* Supratitlul rămâne unde era, doar puțin mai mare și cu simbolul
                 reciclării alături. Titlul mare al paginii e cel de sub el. */}
@@ -76,22 +99,31 @@ export default async function Home() {
               întinderea când coloana stângă e neobișnuit de înaltă: patru carduri de
               200px arată gol, nu echilibrat — atunci `justify-between` le distanțează.
               Sub `lg:` coloanele se stivuiesc, deci egalizarea nu se aplică. */}
-          <div className="flex flex-col lg:h-full">
-            <div className="dim !text-heroText/60">Mașini dezmembrate recent</div>
-            <div className="mt-4 flex flex-col gap-3 lg:flex-1 lg:justify-between">
-              {cars.map((c) => (
-                <Link key={c.id} href={`/piese?vehicul=${c.slug}`}
-                  className="flex items-center justify-between gap-3 rounded-xl bg-suprafata border border-chenar px-4 py-3 hover:border-accentChenar transition lg:flex-1 lg:max-h-[140px]">
-                  <div>
-                    <b className="font-disp text-[15px] tracking-wide">{c.nume}{c.an ? ` · ${c.an}` : ""}</b>
-                    <div className="text-heroText/50 text-xs">{nrPiese(c.piese_listate ?? 0)} {c.piese_listate === 1 ? "disponibilă" : "disponibile"}</div>
-                  </div>
-                  <span className="accentuat font-bold">→</span>
-                </Link>
-              ))}
-              {cars.length === 0 && <p className="text-heroText/50 text-sm">Adaugă vehicule din panoul de administrare.</p>}
+          {/* Coloana apare DOAR dacă există mașini cu piese. Înainte se afișa
+              mereu, iar cu `vehicul_id` necompletat pe tot catalogul arăta patru
+              mașini cu „0 piese disponibile" — adică fix promisiunea pe care
+              n-o putea ține. Fără ea, grila rămâne pe o coloană și titlul
+              ocupă toată lățimea, ceea ce arată intenționat, nu ciuntit. */}
+          {cars.length > 0 && (
+            <div className="flex flex-col lg:h-full">
+              <div className="dim !text-heroText/60">Mașini dezmembrate recent</div>
+              <div className="mt-4 flex flex-col gap-3 lg:flex-1 lg:justify-between">
+                {cars.map((c) => (
+                  <Link key={c.id} href={`/masini/${c.slug}`}
+                    className="flex items-center justify-between gap-3 rounded-xl bg-suprafata border border-chenar px-4 py-3 hover:border-accentChenar transition lg:flex-1 lg:max-h-[140px]">
+                    <div>
+                      <b className="font-disp text-[15px] tracking-wide">{c.nume}{c.an ? ` · ${c.an}` : ""}</b>
+                      <div className="text-heroText/50 text-xs">{nrPiese(c.piese_listate ?? 0)} {c.piese_listate === 1 ? "disponibilă" : "disponibile"}</div>
+                    </div>
+                    <span className="accentuat font-bold">→</span>
+                  </Link>
+                ))}
+              </div>
+              <Link href="/masini" className="mt-3 text-heroText/70 hover:text-heroText text-sm underline">
+                Toate mașinile dezmembrate
+              </Link>
             </div>
-          </div>
+          )}
         </div>
       </section>
 

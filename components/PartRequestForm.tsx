@@ -3,7 +3,11 @@
 import { useState } from "react";
 import { sbBrowser } from "@/lib/supabase";
 
-export default function PartRequestForm({ sursa, dark = false }: { sursa: string; dark?: boolean }) {
+// `masinaImplicita` precompletează câmpul „Mașina" — pe pagina unei mașini
+// dezmembrate știm deja despre ce e vorba, iar omul care cere o piesă de acolo
+// n-are de ce s-o mai scrie o dată. Rămâne editabil: poate cere pentru altceva.
+export default function PartRequestForm({ sursa, dark = false, masinaImplicita }:
+  { sursa: string; dark?: boolean; masinaImplicita?: string }) {
   const [stare, setStare] = useState<"idle" | "trimit" | "ok" | "eroare">("idle");
   async function trimite(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -27,7 +31,8 @@ export default function PartRequestForm({ sursa, dark = false }: { sursa: string
       <div className="fld"><label>Nume *</label><input name="nume" required autoComplete="name" /></div>
       <div className="fld"><label>Telefon *</label><input name="telefon" required type="tel" inputMode="numeric" autoComplete="tel" /></div>
       <div className="fld"><label>E-mail</label><input name="email" type="email" inputMode="email" autoComplete="email" /></div>
-      <div className="fld"><label>Mașina (marcă, model, an, motor) *</label><input name="masina" required placeholder="ex. Dacia Duster 1.5 dCi 2016" /></div>
+      <div className="fld"><label>Mașina (marcă, model, an, motor) *</label>
+        <input name="masina" required defaultValue={masinaImplicita} placeholder="ex. Dacia Duster 1.5 dCi 2016" /></div>
       <div className="fld sm:col-span-2"><label>Piesa căutată *</label><input name="piesa" required placeholder="ex. electromotor / cod OEM" /></div>
       <div className="fld sm:col-span-2"><label>Detalii</label><textarea name="mesaj" rows={2} /></div>
       <button disabled={stare === "trimit"} className="btn-acc sm:col-span-2">{stare === "trimit" ? "Se trimite…" : "Trimite cererea"}</button>

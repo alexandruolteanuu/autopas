@@ -56,3 +56,36 @@ export function fitmentCounts(rows: { model_ids: number[] | null }[], models: Mo
   }
   return counts;
 }
+
+/**
+ * Numele modelului fără codul generației de la final: „Golf 5" -> „Golf",
+ * „A4 B7" -> „A4", „A3 8P (2003–2012)" -> „A3", „Seria 1 E87" -> „Seria 1".
+ *
+ * Folosită de paginile de mașină ca să știe ce generații sunt ale ACELUIAȘI
+ * model (nivelul 2 de relevanță din caruselul de piese compatibile). În proiect,
+ * o generație e un rând separat în `models` — „Golf 5" și „Golf 6" sunt două
+ * modele, nu unul cu două generații — deci fără regula asta n-ar exista nicio
+ * cale de a le lega.
+ *
+ * Codul generației se recunoaște după FORMĂ, nu dintr-o listă: ultimul cuvânt,
+ * de cel mult 3 caractere, care ori conține o cifră („5", „B7", „8P", „9N",
+ * „E87"), ori e numai majuscule („FY", „CR", „III"). Se taie doar dacă mai
+ * rămâne ceva înaintea lui.
+ *
+ * Așa „Seria 1 E87" dă „Seria 1", nu „Seria" — altfel Seria 1, Seria 3 și
+ * Seria 5 ar fi ajuns toate același model. „Land Cruiser" și „A4 B9 Allroad"
+ * rămân întregi: ultimul cuvânt e prea lung ca să fie cod de generație.
+ *
+ * Verificată pe toate cele 540 de modele din bază la 28 august 2026: dă 56 de
+ * grupuri, toate corecte („Caddy III/IV/V", „Logan MCV" lângă „Logan 1/2/3",
+ * „Passat CC" lângă „Passat B5…B9"). Cine schimbă regula reia verificarea aia.
+ */
+export function bazaModel(nume: string) {
+  const fara = nume.replace(/\([^)]*\)/g, "").trim();   // anii dintre paranteze
+  const parti = fara.split(/\s+/).filter(Boolean);
+  if (parti.length < 2) return fara;
+  const ultim = parti[parti.length - 1];
+  if (ultim.length <= 3 && (/\d/.test(ultim) || /^[A-Z]+$/.test(ultim)))
+    return parti.slice(0, -1).join(" ");
+  return fara;
+}
