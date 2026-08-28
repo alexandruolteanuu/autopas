@@ -18,7 +18,7 @@
 // ============================================================
 import { cache } from "react";
 import { sbServer, citesteTot } from "@/lib/supabase";
-import { titluMasinaSeo, descriereMasina } from "@/lib/seo";
+import { titluMasinaSeo, descriereMasina, SUFIX_TITLU } from "@/lib/seo";
 import type { Product, Vehicle, Brand, Model, Category } from "@/lib/types";
 import ProductCard from "@/components/ProductCard";
 import ProductGallery from "@/components/ProductGallery";
@@ -92,14 +92,12 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const titlu = titluMasinaSeo(t);
   const descriere = descriereMasina(t, cate);
   return {
-    // `absolute`, ca la pagina de piesă: șablonul din layout adăuga „· Autopas
-    // Dezmembrări" peste titlu, care ajungea la 85 de caractere cu marca de
-    // două ori. Verificat pe producție.
-    title: { absolute: titlu },
+    // Titlu simplu: sufixul îl adaugă șablonul din layout, o singură dată.
+    title: titlu,
     description: descriere,
     alternates: { canonical: `/masini/${v.slug}` },
     openGraph: {
-      title: titlu,
+      title: titlu + SUFIX_TITLU,
       description: descriere,
       images: v.poze && v.poze.length > 0 ? [v.poze[0]] : undefined,
     },

@@ -384,6 +384,20 @@ sunt sarcini ale utilizatorului. Consemnate la 24 august 2026.
     n-au fost încă trecute prin aceeași verificare.
   Niciuna nu e blocantă: sunt ecrane interne, nu pagini publice. Devin dureroase când catalogul
   crește — exact ca plafonul de 1.000 de rânduri, care n-a durut până la a 1.001-a piesă.
+- **Marca se adaugă titlurilor într-un SINGUR loc** (28 august 2026): șablonul
+  `SABLON_TITLU` din `app/layout.tsx`, care îl importă din `lib/seo.ts`. Generatoarele de
+  titlu NU pun sufixul, iar paginile nu folosesc `absolute`.
+  · Motivul e un defect apărut de două ori în aceeași lună: marca se adăuga și în șablon, și
+    în generator, dând „… | AUTOPAS · Autopas Dezmembrări" — 74 de caractere pe pagina de
+    piesă, 85 pe cea de mașină. De fiecare dată invizibil în generator, vizibil doar în HTML.
+  · Sufixul e ` | AUTOPAS`, forma scurtă: o foloseau deja 8.739 din cele ~8.780 de pagini, iar
+    contextul mărcii vine oricum din domeniul afișat deasupra titlului în rezultate.
+  · `scripts/verifica-seo.mjs` verifică pe pagini reale că marca apare **exact o dată**.
+- **Amânat, cu criteriu de reluare: rutele de model** (`/piese/marca/{marca}/{model}`).
+  Ar fi încă 538 de pagini, iar „piese Golf 5" e o căutare foarte bună. Se reia **după ce cel
+  puțin 80% din cele 38 de pagini de marcă apar indexate în Search Console** — până atunci
+  n-avem cum ști dacă nivelul al doilea funcționează, iar 538 de pagini neindexate ar dilua
+  semnalul în loc să-l întărească.
 - Roluri: `client`, `operator`, `contabil`, `admin` (coloana `role` în `profiles`, controlată prin RLS).
 
 ## Cele 16 module de admin
@@ -483,6 +497,7 @@ Niciuna nu e dependință a site-ului și niciuna nu rulează la build. Se cheam
 | `actualizeaza-taxonomie-sursa.mjs` | când catalogul pieseauto.ro se schimbă. Reface `lib/import/taxonomie-sursa.mjs` din pagina lor `/categorii/`. Are `--uscat`; refuză să scrie dacă extrage sub 300 de categorii (semn că pagina lor s-a schimbat) |
 | `completeaza-taxonomia.mjs` | o singură dată după schimbarea regulilor de taxonomie. Completează categoria și modelul pieselor importate ÎNAINTE de reguli — un re-import nu le repară, fiindcă `patchLaReimport` nu atinge categoria. Doar raportează; scrie cu `--scrie`. Cu `--reciteste` cere din nou pagina fiecărei piese, când extragerea s-a schimbat. Nu atinge piesele cu `editat_manual` |
 | `verifica-vacanta.mjs` | după orice atingere a modului vacanță. **Rulează pe baza reală** și comută vacanța câteva secunde, apoi o lasă dezactivată. Verifică cele 7 puncte din sarcină: amprenta catalogului înainte/după ciclu, refuzul lui `plaseaza_comanda`, ordinea gărzii. Nu creează nicio comandă |
+| `verifica-seo.mjs` | **după orice modificare a metadatelor sau a șabloanelor de titlu.** Cere paginile de la un server care rulează (`BASE=…`) și verifică: titlu ≤ 65, descriere ≤ 165 și prezentă, **marca apare exact o dată în titlu**, descrieri unice, un singur `canonical`. Iese cu cod 1 dacă pică ceva |
 | `verifica-import.mjs` | după orice modificare în `lib/import/`. 78 de verificări pe regulile importului — protecția de 20%, reluarea din poziția salvată, canarul, ce are voie să atingă un re-import. Fără rețea și fără bază de date: sursa și depozitul sunt false, deci se poate rula oricând |
 | `scan-responsive.mjs` | după modificări de așezare. 19 pagini × 13 lățimi; `TEMA=luminos` schimbă tema. Cere `playwright-core` legat în `node_modules` — vezi antetul fișierului |
 | `reconverteste-poze.mjs` | **rar, la nevoie.** Trece în WebP pozele rămase JPEG în bucket. A fost scris fiindcă primele piese importate au ajuns JPEG, când `sharp` nu era încă instalat, iar `lib/import/imagini.mjs` urcă originalul dacă lipsește codecul. Dacă apar iar JPEG-uri în bucket, ori a picat `sharp`, ori conversia a preferat originalul (poză deja bine comprimată) — scriptul spune care din două. Idempotent, cu `--uscat` |

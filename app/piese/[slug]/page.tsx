@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { sbServer, citesteTot } from "@/lib/supabase";
-import { titluPiesa, descrierePiesa } from "@/lib/seo";
+import { titluPiesa, descrierePiesa, SUFIX_TITLU } from "@/lib/seo";
 import type { Product, Category, Brand, Model } from "@/lib/types";
 import AddToCart from "@/components/AddToCart";
 import ProductCard from "@/components/ProductCard";
@@ -77,14 +77,13 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const descriere = descrierePiesa(prod);
   const titlu = titluPiesa(prod, marca, model);
   return {
-    // `absolute` ocolește șablonul „%s · Autopas Dezmembrări" din layout. Fără
-    // el, titlul ieșea „… | AUTOPAS · Autopas Dezmembrări" — marca de două ori
-    // și 74 de caractere, din care Google ar fi arătat vreo 60.
-    title: { absolute: titlu },
+    // Titlu simplu: sufixul de marcă îl adaugă ȘABLONUL din layout, o singură
+    // dată. `absolute` nu mai e necesar de când generatorul nu-l mai pune el.
+    title: titlu,
     description: descriere,
     alternates: { canonical: `/piese/${params.slug}` },
     openGraph: {
-      title: titlu,
+      title: titlu + SUFIX_TITLU,
       description: descriere,
       // Poza reală a piesei, nu imaginea generică de partajare a site-ului.
       images: prod.poze && prod.poze.length > 0 ? [prod.poze[0]] : undefined,

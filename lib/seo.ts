@@ -20,9 +20,29 @@
 // ============================================================
 import type { Product, Brand, Model } from "./types";
 
-const SUFIX = " | AUTOPAS";
-/** ~65 cu sufix cu tot. Google taie vizual pe la 600px, adică în jur de 60 de
- *  caractere; ce trece de acolo tot contează pentru potrivire, dar nu se vede. */
+/**
+ * Sufixul de marcă al fiecărui titlu. **Un singur loc din tot proiectul îl
+ * adaugă** — șablonul din `app/layout.tsx`, care îl importă de aici.
+ *
+ * DE CE (defectul găsit de două ori, la piese și la mașini)
+ * Înainte, marca se adăuga în DOUĂ locuri: șablonul din layout ȘI generatorul
+ * de aici. Rezultatul era „… | AUTOPAS · Autopas Dezmembrări" — marca de două
+ * ori, 74 și respectiv 85 de caractere. De fiecare dată s-a văzut abia în HTML,
+ * nu în generator.
+ *
+ * Deci funcțiile de mai jos NU adaugă sufixul. Îl pune șablonul, o singură dată,
+ * pentru toate paginile. `scripts/verifica-seo.mjs` verifică asta.
+ *
+ * Forma scurtă (10 caractere, nu 22): o foloseau deja 8.739 din cele ~8.780 de
+ * pagini. Contextul mărcii vine oricum din domeniul afișat deasupra titlului în
+ * rezultatele Google, nu din sufix.
+ */
+export const SUFIX_TITLU = " | AUTOPAS";
+/** Șablonul pentru `metadata.title.template` din layout. */
+export const SABLON_TITLU = `%s${SUFIX_TITLU}`;
+/** Bugetul titlului PROPRIU, fără sufix. Cu cele 10 caractere ale sufixului dau
+ *  65 în total. Google taie vizual pe la 600px, adică în jur de 60 de caractere;
+ *  ce trece de acolo tot contează pentru potrivire, dar nu se vede. */
 const MAX_TITLU = 55;
 const MAX_DESCRIERE = 160;
 /** Peste atâtea potriviri, alegerea unui singur model devine arbitrară. */
@@ -89,7 +109,7 @@ export function titluPiesa(p: Product, marca?: Brand | null, model?: Model | nul
     t = [cePiesaE(p.nume, [marca]), marca.nume, faraParanteze(model.nume), p.ani]
       .filter(Boolean).join(" ");
   }
-  return taie(t.replace(/\s+/g, " "), MAX_TITLU) + SUFIX;
+  return taie(t.replace(/\s+/g, " "), MAX_TITLU);
 }
 
 export function descrierePiesa(p: Product) {
@@ -139,7 +159,7 @@ export const taieText = (t: string, max: number) => taie(t, max);
  * Dezmembrări". Se folosește cu `title: { absolute }`.
  */
 export function titluMasinaSeo(numeAfisat: string) {
-  return taie(`Dezmembrări ${numeAfisat}`.replace(/\s+/g, " "), MAX_TITLU + 6) + SUFIX;
+  return taie(`Dezmembrări ${numeAfisat}`.replace(/\s+/g, " "), MAX_TITLU);
 }
 
 /**

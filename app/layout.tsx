@@ -6,6 +6,7 @@ import { CartProvider } from "@/components/CartContext";
 import { FavoritesProvider } from "@/components/FavoritesContext";
 import { CONFIG, SITE_URL } from "@/lib/config";
 import { getSetariServer, getVacanta } from "@/lib/settings";
+import { SABLON_TITLU } from "@/lib/seo";
 
 // Fontul Poppins (local) — un singur font, patru grosimi, diacritice românești garantate.
 const poppins = localFont({
@@ -28,7 +29,7 @@ export const metadata: Metadata = {
   // `metadataBase` transformă căile relative din metadate în adrese absolute
   // (necesar pentru partajarea pe Facebook/WhatsApp) și e folosit de sitemap.
   metadataBase: new URL(SITE_URL),
-  title: { default: "Autopas Dezmembrări — piese auto testate, cu garanție", template: "%s · Autopas Dezmembrări" },
+  title: { default: "Autopas Dezmembrări — piese auto testate, cu garanție", template: SABLON_TITLU },
   description: "Piese auto second-hand din dezmembrări autorizate, județul Neamț. Testate, fotografiate real, garanție 90 de zile, livrare în 1–3 zile lucrătoare în toată România.",
   // AICI NU SE PUNE `alternates.canonical`. (Defect găsit la 28 august 2026.)
   //
