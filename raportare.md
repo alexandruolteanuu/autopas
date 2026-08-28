@@ -565,3 +565,96 @@ pe toate paginile — verificat pe `/`, `/piese`, `/cos` și pe o pagină legal�
 statice. Verificarea în Search Console merge chiar dacă indexarea e oprită; dar **site-ul tot
 nu va fi indexat** până la `PERMITE_INDEXARE=da` în Vercel. Sunt două lucruri diferite:
 verificarea dovedește că domeniul e al tău, indexarea e ce urmează după.
+
+---
+---
+
+# RAPORT — 28 august 2026 · SEO, PARTEA 0 (diagnostic)
+
+Măsurat pe producție, nu în cod. Nicio modificare.
+
+## De ce nu apare în Google
+
+`https://www.autopas-dezmembrari.ro/robots.txt` întoarce, integral:
+
+```
+User-Agent: *
+Disallow: /
+```
+
+Ăsta e răspunsul complet la „No information is available for this page". Site-ul cere
+explicit motoarelor să nu-l citească.
+
+**Ce trebuie setat:** în Vercel → Settings → Environment Variables, pentru mediul
+**Production**: `PERMITE_INDEXARE` = `da` (exact șirul „da", nimic altceva; `lib/config.ts`
+compară cu `=== "da"`). Apoi un redeploy, fiindcă `robots.txt` se generează la build.
+
+## www vs non-www — redirecționarea merge invers
+
+| Adresă | Răspuns |
+|---|---|
+| `https://autopas-dezmembrari.ro/` | **308** → `https://www.autopas-dezmembrari.ro/` |
+| `https://www.autopas-dezmembrari.ro/` | 200 |
+
+Dar `canonical` și `sitemap.xml` spun amândouă `https://autopas-dezmembrari.ro` (fără www).
+Deci îi spunem lui Google „adresa bună e fără www", el o cere, și e trimis înapoi la www.
+`NEXT_PUBLIC_SITE_URL` **este** setată în producție, pe varianta fără www — codul e
+consecvent cu sine, dar în dezacord cu Vercel. Se rezolvă din Vercel → Domains, făcând
+`autopas-dezmembrari.ro` domeniul principal și `www` redirecționare spre el.
+
+## Tabelul de diagnostic
+
+### 🔴 Blocant — împiedică indexarea
+
+| # | Ce | Detaliu |
+|---|---|---|
+| 1 | `robots.txt` blochează tot | `Disallow: /` pe tot site-ul |
+| 2 | **`canonical` arată spre prima pagină de pe aproape toate paginile** | `/piese/{orice-piesă}`, `/contact`, `/faq`, `/despre-noi`, `/cauta-dupa-masina`, `/preda-masina`, toate cele 8 pagini legale — toate declară `https://autopas-dezmembrari.ro`. Cauza: `alternates.canonical: "/"` din `app/layout.tsx` se moștenește de paginile care nu-și pun una proprie. Chiar și după deblocarea din `robots.txt`, cele **8.739 de pagini de piese s-ar declara duplicate ale primei pagini** și n-ar fi indexate |
+| 3 | redirecționare contradictorie | canonical spune non-www, serverul redirecționează spre www |
+
+Doar `/`, `/piese`, `/masini` și `/masini/[slug]` au `canonical` propriu — ultimele trei
+adăugate azi.
+
+### 🟠 Important
+
+| # | Ce | Detaliu |
+|---|---|---|
+| 4 | **toate cele 8.739 de pagini de piese au același `<title>` și aceeași descriere** | „Autopas Dezmembrări — piese auto testate, cu garanție". `app/piese/[slug]/page.tsx` n-are `generateMetadata` deloc |
+| 5 | **8.396 de piese sunt orfane** | crawl real din prima pagină: 8 piese la 1 clic, 113 la 2, **343 la 3 clicuri** din 8.739. Restul există doar în sitemap. Paginarea arată doar prima, ultima și vecinii, deci paginile 3–363 nu sunt accesibile prin linkuri |
+| 6 | date structurate aproape inexistente | doar `/masini/[slug]` are (`Vehicle` + `BreadcrumbList`, puse azi). Zero `Product`, zero `Organization`, zero `BreadcrumbList` pe piese, zero `FAQPage` |
+| 7 | LCP peste prag pe mobil | 3,7 s prima pagină · 4,4 s `/piese` · 5,4 s pagina de produs (pragul „bun" e 2,5 s) |
+| 8 | imaginile nu sunt optimizate | `<img>` simplu, fără `next/image`: **zero `srcset`**, fără `sizes` pe pozele de piese, **zero `fetchpriority`** — prima imagine nu e prioritizată, 25 din 28 sunt `lazy` |
+
+### 🟡 Finisaj
+
+| # | Ce |
+|---|---|
+| 9 | `og:url` lipsește peste tot; pagina de produs n-are imagine Open Graph proprie |
+| 10 | accesibilitate 85–90: contrast insuficient, ordinea titlurilor nu e secvențială, `select`-uri fără `label` |
+| 11 | `?utm_source=…` întoarce 200 — URL-uri duplicate, pe care în mod normal le-ar absorbi `canonical` (care e rupt) |
+| 12 | adresele pozelor au dublă bară: `supabase.co//storage/v1/…` |
+
+### ✅ Ce e deja în regulă
+
+`sitemap.xml` are **8.780 URL-uri** (8.739 piese + 23 mașini + fixe), toate pe domeniul
+corect · exact un `<h1>` pe fiecare pagină · niciun `noindex` rămas · **CLS = 0** pe toate
+cele trei pagini · bara finală și majusculele sunt tratate consecvent (`/piese/` → 308,
+`/Piese` → 404) · toate imaginile au `alt`, generat din denumirea piesei · „Best practices"
+100 pe toate paginile.
+
+## Lighthouse, mobil, producție
+
+| Pagină | Performanță | Accesibilitate | Bune practici | SEO | LCP | CLS | TBT |
+|---|---:|---:|---:|---:|---|---|---|
+| prima pagină | 80 | 85 | 100 | 69 | 3,7 s | 0 | 390 ms |
+| `/piese` | 82 | 90 | 100 | 69 | 4,4 s | 0 | 70 ms |
+| pagina de produs | 80 | 90 | 100 | 69 | 5,4 s | 0 | 60 ms |
+
+Singurul audit SEO care pică e „Page is blocked from indexing" — restul scorului de 69 vine
+de acolo. Odată deblocat, se va vedea ce rămâne.
+
+## Ce urmează
+
+Partea A cere două lucruri pe care le faci **tu**, în Vercel: variabila de indexare și
+domeniul principal. Defectul 2 — `canonical` spre prima pagină — e cod și îl pot repara eu;
+e cel mai grav dintre toate, fiindcă ar face degeaba deblocarea.
