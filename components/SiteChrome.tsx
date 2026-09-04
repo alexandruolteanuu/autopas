@@ -9,6 +9,7 @@ import type { Firma, Vacanta } from "@/lib/settings";
 import WhatsAppFloat from "./WhatsAppFloat";
 import { VacantaProvider } from "./VacantaContext";
 import Analytics from "./Analytics";
+import MetaPixel from "./MetaPixel";
 import BaraProgres from "./BaraProgres";
 
 export default function SiteChrome({ children, waPhone, firma, vacanta, marciTop }:
@@ -28,6 +29,7 @@ export default function SiteChrome({ children, waPhone, firma, vacanta, marciTop
       {/* Montat AICI, nu în layout: `SiteChrome` iese devreme pentru /admin, deci
           traficul echipei nu ajunge niciodată în statistici. */}
       <Analytics />
+      <MetaPixel />
     </VacantaProvider>
   );
 }

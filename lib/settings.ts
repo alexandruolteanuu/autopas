@@ -124,3 +124,28 @@ export async function golesteCachePublic() {
 // link WhatsApp construit din numărul salvat în Setări
 export const waLinkCu = (numar: string, text = "Bună! Am o întrebare despre o piesă.") =>
   `https://wa.me/${(numar || "").replace(/\D/g, "")}?text=${encodeURIComponent(text)}`;
+
+/**
+ * Codul de verificare a domeniului cerut de Meta Business Manager.
+ *
+ * Vine prin `masuratori_publice()` (migrarea 33), nu dintr-o citire a rândului
+ * `integrari`: acolo stau parola FAN Courier și cheia privată Netopia, iar o
+ * politică lărgită „ca să ajungem la codul ăsta" le-ar deschide și pe acelea.
+ *
+ * Se pune în `<head>`-ul site-ului. Fără el, Meta nu acceptă catalogul de
+ * produse legat de domeniu și nu se pot configura evenimentele agregate — adică
+ * exact partea de măsurare de care depind reclamele pe iPhone.
+ *
+ * Dacă apelul cade, întoarce șir gol și eticheta pur și simplu nu apare.
+ */
+export async function verificareMetaServer(): Promise<string> {
+  const sb = sbServer();
+  if (!sb) return "";
+  try {
+    const { data } = await sb.rpc("masuratori_publice");
+    const v = (data as any)?.meta_domeniu;
+    return typeof v === "string" ? v.trim() : "";
+  } catch {
+    return "";
+  }
+}

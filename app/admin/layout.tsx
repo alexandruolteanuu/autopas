@@ -30,6 +30,7 @@ const MENIU = [
   { href: "/admin/clienti", t: "Clienți", ic: "☺", roluri: ["admin", "operator"] },
   { href: "/admin/facturi", t: "Facturi", ic: "▤", roluri: ["admin", "contabil"] },
   { href: "/admin/rapoarte", t: "Rapoarte", ic: "◫", roluri: ["admin"] },
+  { href: "/admin/feed", t: "Feed și export", ic: "⇪", roluri: ["admin", "operator"] },
   { href: "/admin/marketing", t: "Marketing", ic: "✦", roluri: ["admin"] },
   { href: "/admin/setari", t: "Setări", ic: "⚙", roluri: ["admin"] },
   { href: "/admin/integrari", t: "Integrări", ic: "⊞", roluri: ["admin"] },

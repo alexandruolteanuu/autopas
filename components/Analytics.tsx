@@ -1,41 +1,47 @@
 "use client";
 // ============================================================
-// GOOGLE ANALYTICS 4 — încărcat doar când are voie
+// GOOGLE ANALYTICS 4 + GOOGLE ADS — încărcate doar când au voie
 //
-// Patru condiții, toate obligatorii. Dacă vreuna cade, în pagină nu ajunge
-// NICIUN script și nu pleacă nicio cerere către Google:
+// Un singur script (gtag.js) le servește pe amândouă, dar au voie prin
+// consimțăminte DIFERITE:
+//   · Analytics pornește la „Doar statistică" sau „Accept toate";
+//   · Google Ads pornește DOAR la „Accept toate".
+// Deci sunt trei stări reale, nu două: fără nimic, doar măsurare, măsurare +
+// reclame. Cine acceptă statistica fără reclame primește gtag.js configurat
+// numai pentru GA4, cu `ad_storage: denied` — Google nu are voie să pună atunci
+// niciun cookie de publicitate.
 //
-//   1. există un ID de măsurare în Admin → Integrări (`ga4_public()`);
-//   2. vizitatorul a apăsat „Accept toate" — nu „Doar necesare", și nici
-//      starea „încă n-a ales", care se tratează ca refuz;
-//   3. nu suntem în /admin — traficul echipei ar falsifica statisticile;
-//   4. nu suntem în dezvoltare.
+// Condițiile care se adaugă peste consimțământ, aceleași ca înainte:
+//   · există un id configurat în Admin → Integrări (altfel nu se încarcă nimic);
+//   · nu suntem în /admin — traficul echipei ar falsifica statisticile și ar
+//     învăța algoritmul de licitare pe vizite care nu cumpără niciodată;
+//   · nu suntem în dezvoltare.
 //
-// CONSIMȚĂMÂNT
-// Scriptul se încarcă abia după acceptare, deci teoretic n-ar mai fi nevoie de
-// `consent mode`. Îl punem oricând: `default` cu `analytics_storage: denied`
-// rulează ÎNAINTE de `config`, iar `update` imediat după. Așa, dacă Google
-// schimbă vreodată comportamentul implicit al lui gtag.js, semnalul nostru
-// rămâne explicit și verificabil în „DebugView".
+// CONSENT MODE
+// `gtag('consent','default', …)` cu tot pe `denied` rulează ÎNAINTE de `config`,
+// iar `update` imediat după, cu exact ce a acceptat omul. Scripturile se încarcă
+// oricum abia după acceptare, deci semnalul e o a doua plasă — dar e plasa pe
+// care o citește Google, și e verificabilă în „DebugView".
 //
-// La retragerea acordului („Doar necesare" din Setări cookie-uri) trimitem un
-// `update` cu `denied` și oprim trimiterea evenimentelor. Scriptul deja încărcat
-// nu se poate „descărca" dintr-o pagină vie, dar din acel moment nu mai
-// stochează nimic și nu mai primește evenimente; la următoarea încărcare a
+// La retragerea acordului trimitem `update` cu `denied` și ștergem cookie-urile
+// grupului retras. Un script deja încărcat nu se poate „descărca" dintr-o pagină
+// vie, dar din acel moment nu mai stochează nimic; la următoarea încărcare a
 // paginii nu mai apare deloc.
 // ============================================================
 import Script from "next/script";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { areVoieStatistica, ascultaConsimtamant, citesteConsimtamant, stergeCookieuriGa,
-         type Consimtamant } from "@/lib/consimtamant";
-import { golesteCoada } from "@/lib/analytics";
-import { sbBrowser } from "@/lib/supabase";
+import { areVoieStatistica, areVoieMarketing, ascultaConsimtamant, citesteConsimtamant,
+         stergeCookieuriMasurare, type Consimtamant } from "@/lib/consimtamant";
+import { golesteCoada, seteazaConversiaAds } from "@/lib/analytics";
+import { citesteMasuratori, conversieCompleta, type Masuratori } from "@/lib/masuratori";
+
+const GOL: Masuratori = { ga4: "", google_ads: "", ads_conversie: "", meta_pixel: "", meta_domeniu: "" };
 
 export default function Analytics() {
   const cale = usePathname();
   const [acord, setAcord] = useState<Consimtamant>("nesetat");
-  const [id, setId] = useState("");
+  const [m, setM] = useState<Masuratori>(GOL);
 
   // Alegerea se citește după montare (localStorage nu există pe server) și se
   // urmărește în continuare, ca „Accept toate" să pornească măsurarea pe loc,
@@ -45,40 +51,47 @@ export default function Analytics() {
     return ascultaConsimtamant(setAcord);
   }, []);
 
-  // ID-ul se cere din browser, nu prin propsuri de la layout.
-  //
-  // Motivul e măsurat, nu teoretic: `/cos`, `/checkout` și `/favorite` sunt pagini
-  // STATICE, iar tot ce randează layout-ul pentru ele — inclusiv un ID venit pe
-  // props — rămâne prins în HTML-ul generat la build. Rezultatul era că
-  // analytics-ul pornea pe paginile dinamice și tăcea exact pe cele unde se
-  // întâmplă vânzarea. Verificat în browser: `/piese` avea scriptul, `/cos` nu.
-  //
-  // Cererea pleacă DOAR după ce vizitatorul a acceptat statistica, deci pentru cine
-  // refuză nu se întâmplă nimic în plus. `ga4_public()` întoarce exclusiv id-ul.
-  const potCere = areVoieStatistica(acord) && !cale.startsWith("/admin")
-    && process.env.NODE_ENV === "production";
-  useEffect(() => {
-    if (!potCere || id) return;
-    let viu = true;
-    const sb = sbBrowser();
-    if (!sb) return;
-    sb.rpc("ga4_public").then(({ data }) => { if (viu && typeof data === "string") setId(data); });
-    return () => { viu = false; };
-  }, [potCere, id]);
+  const inAdmin = cale.startsWith("/admin");
+  const productie = process.env.NODE_ENV === "production";
+  const potStatistica = areVoieStatistica(acord) && !inAdmin && productie;
+  const potMarketing = areVoieMarketing(acord) && !inAdmin && productie;
 
-  const pornit = Boolean(id) && areVoieStatistica(acord)
-    && !cale.startsWith("/admin")
-    && process.env.NODE_ENV === "production";
+  // Id-urile se cer abia când unul dintre cele două are voie. Pentru cine refuză
+  // tot, nici cererea asta nu pleacă.
+  useEffect(() => {
+    if (!potStatistica && !potMarketing) return;
+    let viu = true;
+    citesteMasuratori().then((x) => { if (viu) setM(x); });
+    return () => { viu = false; };
+  }, [potStatistica, potMarketing]);
+
+  const ga4 = potStatistica ? m.ga4 : "";
+  const ads = potMarketing ? m.google_ads : "";
+  // Id-ul cu care se cere scriptul. gtag.js îl acceptă pe oricare dintre cele
+  // două; restul se adaugă cu `config`. Când avem doar Ads (statistică refuzată,
+  // reclame acceptate — rar, dar posibil), scriptul vine cu id-ul de Ads.
+  const idScript = ga4 || ads;
+  const pornit = Boolean(idScript);
+  const conversie = potMarketing ? conversieCompleta(m) : "";
+
+  // Eticheta de conversie ajunge în `lib/analytics.ts`, singurul loc care
+  // trimite evenimente. Fără ea, `purchase` pleacă la GA4 și la Meta, dar nu și
+  // la Google Ads.
+  useEffect(() => { seteazaConversiaAds(conversie); }, [conversie]);
 
   // Retragerea acordului, în doi pași. `consent update: denied` oprește scrierea
-  // unor cookie-uri NOI, dar nu le atinge pe cele deja puse — acelea au 2 ani.
-  // De asta le și ștergem: altfel omul ar apăsa „oprește statistica" și ar găsi
-  // cookie-urile în browser peste o lună.
+  // unor cookie-uri NOI, dar nu le atinge pe cele deja puse. De asta le și
+  // ștergem — și doar pe cele ale grupului retras.
   useEffect(() => {
-    if (areVoieStatistica(acord)) return;
+    const faraStatistica = !areVoieStatistica(acord);
+    const faraMarketing = !areVoieMarketing(acord);
+    if (!faraStatistica && !faraMarketing) return;
     if (typeof window !== "undefined" && typeof window.gtag === "function")
-      window.gtag("consent", "update", { analytics_storage: "denied" });
-    stergeCookieuriGa();
+      window.gtag("consent", "update", {
+        ...(faraStatistica ? { analytics_storage: "denied" } : {}),
+        ...(faraMarketing ? { ad_storage: "denied", ad_user_data: "denied", ad_personalization: "denied" } : {}),
+      });
+    stergeCookieuriMasurare({ statistica: faraStatistica, marketing: faraMarketing });
   }, [acord]);
 
   // Golirea cozii de evenimente NU se poate lega de `onReady` al lui next/script:
@@ -97,27 +110,40 @@ export default function Analytics() {
     };
     asteapta();
     return () => { oprit = true; };
-  }, [pornit]);
+  }, [pornit, conversie]);
 
   if (!pornit) return null;
 
+  // `ads_data_redaction` cere Google-ului ca, atunci când reclamele NU sunt
+  // acceptate, identificatorii din clickurile de reclamă să fie eliminați din
+  // adresele trimise. Fără el, un vizitator venit dintr-o reclamă ar fi urmărit
+  // prin adresă chiar dacă a refuzat cookie-urile de publicitate.
+  const init = `
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    window.gtag = gtag;
+    gtag('js', new Date());
+    gtag('consent', 'default', {
+      ad_storage: 'denied',
+      ad_user_data: 'denied',
+      ad_personalization: 'denied',
+      analytics_storage: 'denied'
+    });
+    gtag('set', 'ads_data_redaction', ${potMarketing ? "false" : "true"});
+    gtag('consent', 'update', {
+      analytics_storage: '${potStatistica ? "granted" : "denied"}',
+      ad_storage: '${potMarketing ? "granted" : "denied"}',
+      ad_user_data: '${potMarketing ? "granted" : "denied"}',
+      ad_personalization: '${potMarketing ? "granted" : "denied"}'
+    });
+    ${ga4 ? `gtag('config', '${ga4}', { anonymize_ip: true });` : ""}
+    ${ads ? `gtag('config', '${ads}');` : ""}
+  `;
+
   return (
     <>
-      <Script src={`https://www.googletagmanager.com/gtag/js?id=${id}`} strategy="afterInteractive" />
-      <Script id="ga4-init" strategy="afterInteractive">{`
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        window.gtag = gtag;
-        gtag('js', new Date());
-        gtag('consent', 'default', {
-          ad_storage: 'denied',
-          ad_user_data: 'denied',
-          ad_personalization: 'denied',
-          analytics_storage: 'denied'
-        });
-        gtag('consent', 'update', { analytics_storage: 'granted' });
-        gtag('config', '${id}', { anonymize_ip: true });
-      `}</Script>
+      <Script src={`https://www.googletagmanager.com/gtag/js?id=${idScript}`} strategy="afterInteractive" />
+      <Script id="gtag-init" strategy="afterInteractive">{init}</Script>
     </>
   );
 }

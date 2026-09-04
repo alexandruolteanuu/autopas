@@ -26,6 +26,24 @@ const INTEGRARI: Stare[] = [
   { nume: "Google Analytics 4", grup: "Analiză", stare: "pregatit",
     desc: "Codul e scris și așteaptă doar ID-ul. Cât timp câmpul de mai jos e gol, în site NU se încarcă niciun script și nu pleacă nicio cerere către Google. Evenimentele de comerț (vizualizare piesă, adăugare în coș, comandă) sunt deja legate. Măsurarea pornește doar pentru vizitatorii care apasă „Accept toate” în bannerul de cookie-uri; traficul din /admin nu se numără niciodată.",
     pasi: ["Cont GA4 → ID de măsurare (G-XXXXXXX)", "Îl lipești în câmpul de mai jos și salvezi — atât", "Verifici în GA4 → Rapoarte → Timp real că apari", "⚠ Înainte de a-l activa: Politica de cookies trebuie actualizată (vezi docs/google-analytics.md)"] },
+  { nume: "Google Merchant Center", grup: "Reclame", stare: "activ",
+    desc: "Feed-ul de produse există și se reîmprospătează singur la 3 ore: /feed/google.xml. Conține toate piesele publicate, cu poză și preț. Adresa completă și numărul de produse le vezi în Admin → Feed și export.",
+    pasi: ["Cont Merchant Center → revendici domeniul (e deja verificat în Search Console)",
+           "Produse → Feeduri → Adaugă → „Preluare programată” → lipești adresa /feed/google.xml",
+           "Setări → Livrare: pui un tarif fix (costul real se comunică după comandă, deci Google are nevoie de o valoare)",
+           "ID-ul contului îl treci mai jos, doar ca să știm de care e vorba"] },
+  { nume: "Google Ads", grup: "Reclame", stare: "pregatit",
+    desc: "Codul de urmărire e scris și așteaptă ID-ul. Conversia „comandă plasată” pleacă automat cu valoarea calculată de server și cu numărul comenzii, deci nu se poate număra de două ori. Se încarcă DOAR pentru vizitatorii care acceptă cookie-urile de publicitate.",
+    pasi: ["Google Ads → Instrumente → Conversii → creezi acțiunea „Achiziție” (Site web, valoare din cod)",
+           "Copiezi ID-ul contului (AW-XXXXXXXXX) și eticheta conversiei (partea de după bară)",
+           "Le lipești mai jos și salvezi",
+           "Legi Google Ads cu GA4 și cu Merchant Center (din interfața Google Ads), ca să ai audiențe și Shopping"] },
+  { nume: "Meta — Facebook și Instagram", grup: "Reclame", stare: "pregatit",
+    desc: "Pixelul Meta și catalogul de produse. Catalogul se ia singur de la /feed/meta.csv. Pixelul trimite aceleași evenimente ca Analytics (vizualizare, adăugare în coș, checkout, comandă), cu ACELEAȘI id-uri de produs ca feed-ul — condiția fără de care reclamele dinamice nu funcționează.",
+    pasi: ["Business Manager → Evenimente → creezi pixelul, copiezi ID-ul (15 cifre)",
+           "Business Manager → Setări → Domenii → adaugi domeniul și copiezi codul de verificare",
+           "Le lipești pe amândouă mai jos și salvezi (codul de verificare intră singur în pagină)",
+           "Commerce Manager → Catalog → Surse de date → Feed programat → lipești adresa /feed/meta.csv, la 4-6 ore"] },
 ];
 
 const CULORI = { activ: ["bg-ok/10 text-ok border-ok/30", "Activ ✓"], pregatit: ["bg-yellow-50 text-yellow-700 border-yellow-200", "Pregătit — așteaptă cont"], viitor: ["bg-paper text-mut border-line", "Fază următoare"] } as const;
@@ -37,10 +55,21 @@ const CAMPURI: Record<string, { k: string; l: string; tip?: string }[]> = {
   "FAN Courier (SelfAWB)": [{ k: "client_id", l: "Client ID" }, { k: "user", l: "Utilizator" }, { k: "parola", l: "Parolă", tip: "password" }],
   "Plată cu cardul (Netopia / Stripe)": [{ k: "pos_id", l: "POS Signature / ID" }, { k: "signature", l: "Cheie privată", tip: "password" }],
   "Google Analytics 4": [{ k: "id", l: "ID de măsurare (G-XXXXXXX)" }],
+  "Google Merchant Center": [{ k: "id", l: "ID cont Merchant (doar pentru evidență)" }],
+  // Eticheta se ține SEPARAT de id, nu lipită („AW-123/AbC”): așa nu se poate
+  // salva din greșeală o etichetă care aparține altui cont Google Ads, iar
+  // vânzările să fie raportate altcuiva fără niciun semn. Codul le compune.
+  "Google Ads": [{ k: "id", l: "ID cont (AW-XXXXXXXXX)" },
+                 { k: "eticheta_conversie", l: "Eticheta conversiei „comandă” (partea de după bară)" }],
+  "Meta — Facebook și Instagram": [{ k: "pixel_id", l: "ID pixel (15 cifre)" },
+                 { k: "verificare_domeniu", l: "Cod verificare domeniu (facebook-domain-verification)" },
+                 { k: "catalog_id", l: "ID catalog (doar pentru evidență)" }],
 };
 const CHEI: Record<string, string> = {
   "WhatsApp Business": "whatsapp", "Saga — facturare": "saga", "FAN Courier (SelfAWB)": "fancourier",
   "Plată cu cardul (Netopia / Stripe)": "netopia", "Google Analytics 4": "ga4",
+  "Google Merchant Center": "merchant", "Google Ads": "google_ads",
+  "Meta — Facebook și Instagram": "meta",
 };
 
 export default function Integrari() {

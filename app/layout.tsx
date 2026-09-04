@@ -5,7 +5,7 @@ import SiteChrome from "@/components/SiteChrome";
 import { CartProvider } from "@/components/CartContext";
 import { FavoritesProvider } from "@/components/FavoritesContext";
 import { CONFIG, SITE_URL } from "@/lib/config";
-import { getSetariServer, getVacanta } from "@/lib/settings";
+import { getSetariServer, getVacanta, verificareMetaServer } from "@/lib/settings";
 import { SABLON_TITLU } from "@/lib/seo";
 import { sbServer } from "@/lib/supabase";
 
@@ -42,7 +42,24 @@ const poppins = localFont({
 // paginile se regenerează singure. Paginile marcate `force-dynamic` nu sunt afectate.
 export const revalidate = 300;
 
-export const metadata: Metadata = {
+// ============================================================
+// METADATELE SE GENEREAZĂ, nu se declară static — din cauza UNUI singur câmp:
+// codul de verificare a domeniului cerut de Meta Business Manager, fără de care
+// catalogul de produse nu poate fi legat de domeniu și reclamele dinamice nu
+// pornesc. Codul îl lipește proprietarul în Admin → Integrări, deci trebuie
+// citit din bază, nu scris în cod ca cel de la Google (care era deja acolo când
+// s-a făcut proprietatea în Search Console).
+//
+// `revalidate = 300` de mai sus se aplică și aici: după salvarea din admin,
+// `/api/revalideaza` golește cache-ul și eticheta apare imediat.
+//
+// ATENȚIE: paginile STATICE (`/cos`, `/checkout`, `/favorite`) își îngheață
+// metadatele la build, deci acolo eticheta poate lipsi până la următorul deploy.
+// Nu contează: verificarea domeniului se face pe prima pagină, care e dinamică.
+// ============================================================
+export async function generateMetadata(): Promise<Metadata> {
+  const codMeta = await verificareMetaServer();
+  return {
   // `metadataBase` transformă căile relative din metadate în adrese absolute
   // (necesar pentru partajarea pe Facebook/WhatsApp) și e folosit de sitemap.
   metadataBase: new URL(SITE_URL),
@@ -66,6 +83,9 @@ export const metadata: Metadata = {
   // și-a mutat `Analytics` id-ul în browser).
   // Verificarea merge chiar dacă indexarea e oprită din `PERMITE_INDEXARE`.
   verification: { google: "4u7KgciMTRXG3ZTRkQJmE5J9Geb52TMLk7S3WWWfdCo" },
+  // Verificarea domeniului la Meta, dacă a fost completată. Când lipsește, nu se
+  // pune nicio etichetă — nu una goală, care ar arăta ca o configurare stricată.
+  ...(codMeta ? { other: { "facebook-domain-verification": codMeta } } : {}),
   openGraph: {
     type: "website",
     locale: "ro_RO",
@@ -73,7 +93,8 @@ export const metadata: Metadata = {
     title: "Autopas Dezmembrări — piese auto testate, cu garanție",
     description: "Piese auto second-hand din dezmembrări autorizate, județul Neamț. Garanție 90 de zile, livrare în 1–3 zile lucrătoare.",
   },
-};
+  };
+}
 
 // Bara de sus a browserului pe Android se colorează la fel cu headerul, în loc să
 // rămână albă. În Next 14 `themeColor` stă în `viewport`, nu în `metadata` — acolo

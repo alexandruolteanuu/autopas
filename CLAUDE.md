@@ -48,12 +48,15 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
   Bannerele ANPC/SOL sunt fișiere oficiale în `public/`, nu redesenate.
 
 ## Structura
-- `app/` — paginile (App Router). `app/admin/` = panoul de administrare (16 module).
+- `app/` — paginile (App Router). `app/admin/` = panoul de administrare (17 module).
+  `app/feed/` = feed-urile publice de produse (Google Merchant, Meta, generic CSV/XML).
   `app/masini/` = paginile publice ale mașinilor dezmembrate.
 - `components/` — componente refolosibile; `components/admin/` = specifice adminului.
 - `lib/` — `supabase.ts` (clienți: server, browser, admin cu service key), `settings.ts`
   (firmă/curieri/integrări din DB), `types.ts`, `format.ts`, `couriers.ts`, `config.ts`, `legal.ts`,
-  `imagini.ts`. `lib/import/` = motorul de import, în `.mjs`, folosit și de script, și de rută.
+  `imagini.ts`, `feed.ts` + `feed-formate.ts` + `feed-raspuns.ts` (feed-urile de produse),
+  `masuratori.ts` (id-urile de măsurare, citite din browser).
+  `lib/import/` = motorul de import, în `.mjs`, folosit și de script, și de rută.
 - `supabase/` — migrările SQL (vezi ordinea).
 
 ## Ordinea migrărilor SQL (rulare manuală în Supabase, o singură dată fiecare)
@@ -66,10 +69,15 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 21. `publicare-cu-poze.sql` -> 22. `import-din-admin.sql` -> 23. `rls-citire-echipa.sql` ->
 24. `ani-generatie.sql` -> 25. `marci-lipsa.sql` -> 26. `generatii-si-denumiri.sql` ->
 27. `mod-vacanta.sql` -> 28. `pagini-masini.sql` -> 29. `numar-piese-pe-model.sql` ->
-30. `ga4-public.sql` -> 31. `categorii-numar-rapid.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9–31.
+30. `ga4-public.sql` -> 31. `categorii-numar-rapid.sql` -> 32. `piese-marca-categorie.sql` ->
+33. `masuratori-publice.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9–33.
 NU sunt încă idempotente: 1–5, 8.
-**Aplicate pe producție: 1–30.** 31 e scrisă și **o rulează utilizatorul**.
+**Aplicate pe producție: 1–33.**
+33 deschide public, printr-o singură funcție, id-urile de măsurare (GA4, Google Ads +
+eticheta de conversie, Meta Pixel, codul de verificare a domeniului Meta). Același motiv
+ca la 30: rândul `settings.integrari` NU e citibil public, fiindcă acolo stau parola FAN
+Courier și cheia privată Netopia. `ga4_public()` din 30 rămâne, neatinsă.
 27 înlocuiește `plaseaza_comanda`, copiată integral din 12 cu o gardă adăugată la început;
 dacă modifici vreodată funcția în 12, o modifici și acolo. Înainte de a o rula s-a comparat
 mecanic funcția din 12 cu cea din 27: identice, în afară de cele 7 linii ale gărzii. Fă la fel
@@ -435,14 +443,70 @@ sunt sarcini ale utilizatorului. Consemnate la 24 august 2026.
   · Scheletele RĂMÂN pe paginile cu puține imagini — piesă, mașină, `/masini` — unde verificarea
     arată zero efect. Pe listări, răspunsul la click îl dă `components/BaraProgres.tsx`: e
     `fixed`, nu ocupă spațiu în flux, deci nu poate muta niciun card.
+- **Feed-urile de produse sunt un singur motor, patru formate** (4 septembrie 2026,
+  `lib/feed.ts` + `lib/feed-formate.ts`). Catalogul se citește O DATĂ, într-o formă
+  normalizată (`RandFeed`); Google (RSS 2.0), Meta (CSV), generic CSV și generic XML sunt
+  doar moduri de a-l scrie. Orice regulă nouă despre CE conține un produs se pune în
+  `citesteCatalog`, niciodată într-un format.
+  · **Id-ul unei piese e `cod_intern` (AP-000123) peste tot**: în `g:id` din feed-ul
+    Google, în `id` din catalogul Meta ȘI în `item_id` trimis de `piesaGa()` la fiecare
+    eveniment. Dacă cele trei s-ar despărți, reclamele dinamice ar afișa altă piesă decât
+    cea privită — invizibil în cod, scump în bani. `scripts/verifica-feed.mjs` verifică.
+  · **Feed-urile se trimit ÎN FLUX** (`ReadableStream` în `lib/feed-raspuns.ts`). Cel de
+    Google are **25,8 MB** pe catalogul real, iar o funcție Vercel care întoarce un corp
+    construit întreg în memorie are plafon de 4,5 MB și pică cu
+    `FUNCTION_PAYLOAD_TOO_LARGE` — un 500 pe care Merchant Center îl raportează drept
+    „feed inaccesibil". Local, unde plafonul nu există, ar fi arătat perfect.
+  · Formatele au deci două variante: `…Bucati` (vector de bucăți, o bucată per produs,
+    pentru rute) și învelișul care le lipește (pentru descărcarea din panou, unde
+    fișierul trebuie oricum ținut întreg ca să devină `Blob`). NU generatoare: `tsconfig`
+    țintește ES5, unde parcurgerea unui `Iterable` cere `--downlevelIteration`.
+  · Prospețimea o dă antetul `Cache-Control: s-maxage=10800, stale-while-revalidate=600`,
+    scris explicit, nu `revalidate`: rutele sunt `force-dynamic`, iar `revalidate = 300`
+    din `app/layout.tsx` ar fi câștigat oricum (cel mai mic număr din arbore).
+  · **Piesele fără poză sau fără preț NU intră în feed-urile de reclame**
+    (`doarPentruReclame`). Google nu doar că nu le afișează — le trece la erori, iar un
+    cont cu prea multe erori poate fi suspendat. Intră însă în feed-ul generic, ca să se
+    vadă ce lipsește.
+  · **`g:shipping_weight` pleacă doar pentru piesele CÂNTĂRITE** (`greutate_estimata =
+    false`). 8.765 din 8.803 au 1 kg pus automat la import; trimis, Google ar calcula un
+    transport greșit pentru un bloc motor.
+  · Costul de achiziție (`cost_lei`) și celelalte date interne NU ajung niciodată într-un
+    feed public — se cer explicit, doar din panou (`cuDateInterne`).
+- **`/feed/` rămâne accesibil roboților CHIAR ȘI cu indexarea oprită** (`app/robots.ts`).
+  Merchant Center descarcă feed-ul cu Googlebot și respectă `robots.txt`: un `Disallow: /`
+  care ar acoperi și `/feed/` înseamnă „nu am putut prelua feedul" și cont fără produse.
+  Feed-urile tot nu ajung în rezultate, prin antetul `X-Robots-Tag: noindex` — „citește,
+  dar nu publica" e altceva decât „nici măcar nu citi".
+- **Consimțământul are DOUĂ scopuri separate, nu unul** (4 septembrie 2026,
+  `lib/consimtamant.ts`). Cheia `autopas_cookies` are patru valori: `necesare`,
+  `statistica`, `marketing`, `toate`. Statistica (GA4) și publicitatea (Google Ads, Meta
+  Pixel) se acceptă independent; „încă n-a ales" rămâne refuz pentru amândouă. Valorile
+  vechi „necesare" și „toate" înseamnă exact ce însemnau, deci nimeni nu e întrebat din nou.
+  · Bannerul are trei butoane, panoul din „Setări cookie-uri" două comutatoare.
+  · `stergeCookieuriMasurare()` primește GRUPUL retras. O ștergere „pe tot" ar reseta la
+    fiecare pagină exact măsurarea pe care omul tocmai a acceptat-o.
+  · Documentele legale au fost actualizate ÎNAINTE de punerea în funcțiune, cu tabelul
+    celor trei cookie-uri de publicitate (`_gcl_au`, `_fbp`, `_fbc`, 90 de zile) și cu
+    Meta trecută la destinatari. Regula veche rămâne: se schimbă întâi acolo.
+- **Toate evenimentele pleacă printr-un singur `ev()`** (`lib/analytics.ts`), care le
+  traduce singur pentru GA4, pentru Meta (`LA_META`) și pentru conversia Google Ads. Cele
+  8 locuri din care se trimit evenimente n-au voie să știe de `gtag` sau de `fbq`: altfel
+  fiecare eveniment adăugat de aici înainte ar pleca, în practică, doar la unul dintre ele.
+  · Trei cozi separate, fiindcă cele trei scripturi pornesc independent (unul poate fi
+    blocat de un ad-blocker) și au voie prin consimțăminte diferite. Conversia Ads are
+    coadă PROPRIE: pusă în coada GA, s-ar goli mai târziu ca eveniment GA4 cu numele ei —
+    o conversie pierdută și un eveniment inventat în rapoarte.
+  · `view_cart`, `remove_from_cart` și `select_item` NU se trimit la Meta: n-au eveniment
+    standard, iar unul personalizat nu se poate folosi la licitare.
 - Roluri: `client`, `operator`, `contabil`, `admin` (coloana `role` în `profiles`, controlată prin RLS).
 
-## Cele 16 module de admin
+## Cele 17 module de admin
 Dashboard · Comenzi (+detaliu cu jurnal, cost livrare, anulare cu restoc, ștergere) ·
 Cereri (inbox 4 taburi) · Produse (pagină de editare cu poze reale) · Piese de completat ·
 Import pieseauto.ro · Categorii (+subcategorii) · Mărci și modele · Mașini la dezmembrat
 (profit/amortizare) · Expedieri (AWB) · Clienți · Facturi (export Saga) · Rapoarte ·
-Marketing (coduri reducere) · Setări (firmă, curier, roluri) · Integrări.
+Marketing (coduri reducere) · Feed și export · Setări (firmă, curier, roluri) · Integrări.
 „Mașini la dezmembrat" ține și pagina publică a fiecărei mașini: poze, descriere, comutator de
 publicare, marcă/model și specificații. Mașinile cărora le lipsește ceva sunt marcate acolo cu
 „⚠ fără marcă" / „⚠ fără model", ca la modelele fără ani.
@@ -538,6 +602,7 @@ Niciuna nu e dependință a site-ului și niciuna nu rulează la build. Se cheam
 | `verifica-import.mjs` | după orice modificare în `lib/import/`. 78 de verificări pe regulile importului — protecția de 20%, reluarea din poziția salvată, canarul, ce are voie să atingă un re-import. Fără rețea și fără bază de date: sursa și depozitul sunt false, deci se poate rula oricând |
 | `scan-responsive.mjs` | după modificări de așezare. 19 pagini × 13 lățimi; `TEMA=luminos` schimbă tema. Cere `playwright-core` legat în `node_modules` — vezi antetul fișierului |
 | `reconverteste-poze.mjs` | **rar, la nevoie.** Trece în WebP pozele rămase JPEG în bucket. A fost scris fiindcă primele piese importate au ajuns JPEG, când `sharp` nu era încă instalat, iar `lib/import/imagini.mjs` urcă originalul dacă lipsește codecul. Dacă apar iar JPEG-uri în bucket, ori a picat `sharp`, ori conversia a preferat originalul (poză deja bine comprimată) — scriptul spune care din două. Idempotent, cu `--uscat` |
+| `verifica-feed.mjs` | **după orice modificare în `lib/feed.ts` sau `lib/feed-formate.ts`.** Cere feed-urile de la un server care rulează (`BASE=…`) și verifică regulile Google (id ≤ 50 și unic, titlu ≤ 150, descriere ≤ 5.000, link și imagine absolute, preț `123.45 RON`, disponibilitate și stare din listele închise), antetul CSV-ului Meta și — cel mai important — că **cele două feed-uri conțin exact aceleași id-uri**. Iese cu cod 1 dacă pică ceva |
 | `curata-orfani.mjs` | **periodic**, mai ales după sesiuni lungi de lucru pe produse. Găsește fișierele din `poze-piese` spre care nu mai arată niciun rând din `products` SAU din `vehicles`. Implicit doar raportează; șterge numai cu `--sterge` și numai fișiere mai vechi de 24h (`--ore=N`). Peste 5% orfani refuză să șteargă și cere `--confirm-stergere-mare`: atâția deodată înseamnă de obicei o citire incompletă, nu formulare abandonate. Raportează și cazul invers, mai grav: adrese din bază fără fișier în stocare |
 
 **De ce apar orfani** (tipar structural, găsit la 25 august 2026): `components/admin/PhotoUploader.tsx`

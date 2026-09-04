@@ -171,6 +171,7 @@ export function getLegalDocs(firma: Firma = FIRMA_IMPLICITA): LegalDoc[] {
         "FAN Courier — numele, adresa și telefonul, ca să îți poată livra coletul;",
         "furnizorii care găzduiesc site-ul și baza de date, descriși mai jos;",
         "Google, pentru statistica de trafic — dar numai dacă ai acceptat cookie-urile de statistică, și fără numele, telefonul, e-mailul sau adresa ta;",
+        "Google și Meta (Facebook, Instagram), pentru măsurarea reclamelor — numai dacă ai acceptat cookie-urile de publicitate, și tot fără numele, telefonul, e-mailul sau adresa ta;",
         "contabilul firmei, prin exportul facturilor;",
         "autoritățile și instituțiile publice, atunci când legea ne obligă;",
         "instanțele judecătorești, avocații sau executorii, dacă este necesar pentru apărarea unui drept;",
@@ -178,8 +179,8 @@ export function getLegalDocs(firma: Firma = FIRMA_IMPLICITA): LegalDoc[] {
       ]},
       { h: "Unde sunt stocate datele", p: [
         "Baza de date și fotografiile sunt găzduite la Supabase, pe infrastructură aflată în Uniunea Europeană (Irlanda). Site-ul este găzduit de Vercel.",
-        "Dacă ai acceptat cookie-urile de statistică, datele de trafic ajung și la Google, prin Google Analytics. Ce anume se trimite scrie în Politica de cookies.",
-        "Toți trei sunt societăți din Statele Unite. În măsura în care intervine un transfer de date în afara Spațiului Economic European, acesta se face pe baza garanțiilor prevăzute de Regulament — clauzele contractuale standard aprobate de Comisia Europeană și, după caz, Cadrul UE–SUA privind confidențialitatea datelor.",
+        "Dacă ai acceptat cookie-urile de statistică, datele de trafic ajung și la Google, prin Google Analytics. Dacă ai acceptat și cookie-urile de publicitate, ajung date și la Google Ads, și la Meta Platforms Ireland Limited, prin pixelul Facebook. Ce anume se trimite scrie în Politica de cookies.",
+        "Toate aceste societăți au sediul, sau societatea-mamă, în Statele Unite. În măsura în care intervine un transfer de date în afara Spațiului Economic European, acesta se face pe baza garanțiilor prevăzute de Regulament — clauzele contractuale standard aprobate de Comisia Europeană și, după caz, Cadrul UE–SUA privind confidențialitatea datelor.",
       ]},
       { h: "Cât timp păstrăm datele", lista: [
         "datele contului — până când ceri ștergerea contului;",
@@ -232,25 +233,30 @@ export function getLegalDocs(firma: Firma = FIRMA_IMPLICITA): LegalDoc[] {
   // ---------------------------------------------------------------
   // COOKIES — scrisă pe baza a ce face codul în realitate, nu pe un
   // șablon copiat. Ce ține de funcționarea site-ului stă în localStorage /
-  // sessionStorage; singurele cookie-uri sunt cele puse de Google Analytics,
-  // și doar după „Accept toate” (28 august 2026).
+  // sessionStorage; cookie-uri propriu-zise pun doar instrumentele de măsurare,
+  // și doar după acordul explicit pentru grupul lor.
+  // Actualizată la 4 septembrie 2026, când s-au adăugat Google Ads și pixelul
+  // Meta: de atunci sunt TREI tabele (necesare, statistică, publicitate) și
+  // trei răspunsuri posibile în banner, nu două.
   // Dacă se schimbă ceva la măsurare — alt instrument, alt cookie, altă
-  // durată — se actualizează AICI, în ambele tabele, înainte de punerea în
-  // funcțiune. Vezi și docs/google-analytics.md.
+  // durată — se actualizează AICI, în toate tabelele, ÎNAINTE de punerea în
+  // funcțiune, nu după. Vezi și docs/google-analytics.md și
+  // docs/marketing-feeduri.md.
   // ---------------------------------------------------------------
   {
     slug: "politica-de-cookies",
     titlu: "Politica de cookies",
     sectiuni: [
       { h: "Pe scurt", p: [
-        "Măsurăm traficul cu Google Analytics, dar numai dacă apeși „Accept toate” în bannerul de la prima vizită. Dacă alegi „Doar necesare”, sau dacă nu alegi nimic, browserul tău nu trimite nicio cerere către Google.",
-        "În rest, ce salvăm ține de funcționarea site-ului: coșul, favoritele, contul și chiar alegerea ta din banner. Mai jos sunt amândouă listele, fără excepții.",
-        "Nu avem pixel de Facebook, nu afișăm reclame și nu facem profilare.",
+        "Sunt două lucruri pentru care îți cerem acordul, separat: măsurarea traficului (Google Analytics) și publicitatea (Google Ads și Meta — Facebook, Instagram). Le poți accepta pe amândouă, doar pe una, sau pe niciuna.",
+        "Bannerul de la prima vizită are trei butoane: „Doar necesare”, „Doar statistică” și „Accept toate”. Dacă nu alegi nimic, tratăm asta ca pe un refuz și nu se încarcă nimic.",
+        "Fără acordul tău, browserul tău nu trimite nicio cerere către Google sau Meta. Poți verifica singur, în uneltele de dezvoltator.",
+        "În rest, ce salvăm ține de funcționarea site-ului: coșul, favoritele, contul și chiar alegerea ta din banner. Mai jos sunt toate listele, fără excepții.",
       ]},
       { h: "Ce sunt cookie-urile și „tehnologiile similare”", p: [
         "Cookie-urile sunt fișiere mici pe care un site le pune în browserul tău și pe care browserul le trimite înapoi la fiecare vizită.",
         "Există și alte metode prin care un site poate ține minte ceva: localStorage și sessionStorage, două spații de stocare din browser. Diferența practică e că acestea rămân în calculatorul tău și nu sunt trimise automat către server la fiecare cerere.",
-        "Precizarea contează, pentru că tot ce are nevoie site-ul ca să meargă ținem exclusiv în a doua variantă. Singurele cookie-uri propriu-zise de pe site sunt cele puse de Google Analytics, și doar după ce le accepți.",
+        "Precizarea contează, pentru că tot ce are nevoie site-ul ca să meargă ținem exclusiv în a doua variantă. Cookie-uri propriu-zise pun doar instrumentele de măsurare și de publicitate descrise mai jos, și doar după ce le accepți.",
       ]},
       { h: "Ce salvăm ca să funcționeze site-ul", p: [
         "Poți verifica singur: deschide uneltele de dezvoltator din browser (F5 sau F12, secțiunea „Application” sau „Stocare”) și caută-le după nume.",
@@ -272,7 +278,7 @@ export function getLegalDocs(firma: Firma = FIRMA_IMPLICITA): LegalDoc[] {
       ]},
       { h: "Google Analytics — se încarcă doar dacă îl accepți", p: [
         "Folosim Google Analytics 4 ca să vedem câți oameni intră pe site, ce piese caută și dacă găsesc ce le trebuie. Ne ajută să știm ce să dezmembrăm și ce să listăm mai întâi.",
-        "Se încarcă doar dacă apeși „Accept toate”. Până atunci, și dacă alegi „Doar necesare”, scriptul Google nu ajunge în pagină — nu stă adormit și nu așteaptă nimic. Poți verifica singur, în uneltele de dezvoltator, secțiunea „Network”: nu vei vedea nicio cerere către google-analytics.com.",
+        "Se încarcă doar dacă apeși „Doar statistică” sau „Accept toate”. Până atunci, și dacă alegi „Doar necesare”, scriptul Google nu ajunge în pagină — nu stă adormit și nu așteaptă nimic. Poți verifica singur, în uneltele de dezvoltator, secțiunea „Network”: nu vei vedea nicio cerere către google-analytics.com.",
         "Dacă te răzgândești, oprești statistica din pagina Setări cookie-uri. Din clipa aceea nu se mai măsoară nimic, iar la următoarea încărcare a paginii scriptul nu mai apare deloc.",
         "Ce trimitem: paginile pe care intri, piesele pe care le deschizi și le pui în coș, sumele și numărul comenzii. Ce NU trimitem: numele, telefonul, e-mailul sau adresa ta — acestea rămân la noi, în comandă.",
         "Datele ajung la Google, care le prelucrează pentru noi, inclusiv pe servere din afara Uniunii Europene. Adresa ta IP este anonimizată înainte de a fi înregistrată.",
@@ -283,18 +289,37 @@ export function getLegalDocs(firma: Firma = FIRMA_IMPLICITA): LegalDoc[] {
           ["_ga_ urmat de codul contului nostru", "Google", "Ține minte sesiunea curentă de măsurare", "2 ani"],
         ],
       }},
+      { h: "Publicitate — Google Ads și Meta, doar cu „Accept toate”", p: [
+        "Ne facem reclamă în Google (rezultatele căutării și Google Shopping) și pe Facebook și Instagram. Ca să știm care reclamă a adus o comandă și ca să nu plătim pentru afișări către oameni cărora nu le folosesc, folosim două instrumente: eticheta Google Ads și pixelul Meta.",
+        "Se încarcă DOAR dacă apeși „Accept toate”. Cu „Doar statistică” sau „Doar necesare”, niciunul dintre ele nu ajunge în pagină și nu pleacă nicio cerere către Google Ads sau către Facebook.",
+        "Ce trimitem: paginile pe care intri, piesele pe care le deschizi și le pui în coș, valoarea comenzii și numărul ei intern. Ce NU trimitem: numele, telefonul, e-mailul sau adresa ta.",
+        "Ce înseamnă concret: dacă te-ai uitat la un far de Golf 6 și nu ai comandat, e posibil să vezi mai târziu, pe Facebook sau în Google, o reclamă chiar cu piesa aceea. Asta este „remarketing” și pentru asta îți cerem acordul separat.",
+        "Dacă te răzgândești, oprești publicitatea din pagina Setări cookie-uri. Din clipa aceea pixelul nu mai trimite nimic, cookie-urile de mai jos se șterg, iar la următoarea încărcare a paginii scripturile nu mai apar deloc.",
+      ], tabel: {
+        capuri: ["Cookie", "Cine îl pune", "La ce folosește", "Cât rămâne"],
+        randuri: [
+          ["_gcl_au", "Google Ads", "Leagă un click pe reclamă de comanda plasată, ca să știm care reclamă a funcționat", "90 de zile"],
+          ["_fbp", "Meta", "Deosebește browserele între ele, ca să nu îți arătăm de zece ori aceeași reclamă", "90 de zile"],
+          ["_fbc", "Meta", "Se pune doar dacă ai ajuns pe site dintr-o reclamă Facebook sau Instagram; reține din care anume", "90 de zile"],
+        ],
+      }},
+      { h: "Cookie-urile puse de Google și de Meta pe domeniile lor", p: [
+        "Pe lângă cele trei de mai sus, care sunt puse pe domeniul nostru și pe care le putem șterge noi, Google și Meta pot pune cookie-uri pe propriile lor domenii (google.com, doubleclick.net, facebook.com) atunci când scripturile lor se încarcă — adică numai după ce ai apăsat „Accept toate”.",
+        "Pe acelea nu le putem nici citi, nici șterge din site-ul nostru. Ele se gestionează din contul tău Google (myadcenter.google.com) și din setările tale de reclame de pe Facebook, sau ștergând cookie-urile din browser.",
+        "Google Ireland Limited și Meta Platforms Ireland Limited sunt operatori independenți pentru datele pe care le primesc astfel. Politicile lor: policies.google.com/privacy și facebook.com/privacy/policy.",
+      ]},
       { h: "Ce nu folosim", p: [
         "Ca să fie clar prin negație, la data ultimei actualizări a acestei pagini site-ul nu conține:",
       ], lista: [
         "alte instrumente de analiză, în afară de Google Analytics (Matomo, Plausible, Hotjar sau altele);",
-        "pixeli de urmărire ai rețelelor sociale (Meta, TikTok, LinkedIn);",
-        "cookie-uri de publicitate sau de retargetare;",
+        "pixeli ai altor rețele sociale (TikTok, LinkedIn, X);",
         "hărți, videoclipuri sau alte elemente încorporate de la terți care ar putea seta cookie-uri fără știrea ta;",
-        "profilare a vizitatorilor și decizii automate pe baza comportamentului tău.",
+        "decizii automate cu efect juridic asupra ta — reclamele pe care le vezi nu schimbă prețul pe care îl plătești și nu îți refuză nimic.",
       ]},
       { h: "Despre bannerul de cookie-uri", p: [
-        "Bannerul de la prima vizită are două butoane, iar diferența dintre ele e reală: „Doar necesare” lasă site-ul exact cum e descris în primul tabel, fără nicio măsurare; „Accept toate” adaugă Google Analytics și cele două cookie-uri ale lui.",
-        "Cât timp n-ai apăsat niciunul, tratăm asta ca pe un refuz: statistica nu pornește. Alegerea se ține în browserul tău, nu la noi, și o poți schimba oricând din Setări cookie-uri.",
+        "Bannerul de la prima vizită are trei butoane, iar diferența dintre ele e reală: „Doar necesare” lasă site-ul exact cum e descris în primul tabel, fără nicio măsurare; „Doar statistică” adaugă Google Analytics și cele două cookie-uri ale lui; „Accept toate” adaugă, în plus, Google Ads și pixelul Meta.",
+        "Cele două scopuri sunt independente: din Setări cookie-uri poți ține statistica pornită și publicitatea oprită, sau invers.",
+        "Cât timp n-ai apăsat niciun buton, tratăm asta ca pe un refuz: nu pornește nimic. Alegerea se ține în browserul tău, nu la noi, și o poți schimba oricând din Setări cookie-uri.",
       ]},
       { h: "Cum ștergi ce s-a salvat", p: [
         "Din site: pagina Setări cookie-uri îți arată alegerea curentă și îți permite să o schimbi.",
@@ -472,7 +497,9 @@ export function getLegalDocs(firma: Firma = FIRMA_IMPLICITA): LegalDoc[] {
       ]},
       { h: "Ce înseamnă fiecare variantă", lista: [
         "„Doar necesare” — rămân active doar elementele fără de care site-ul nu funcționează: coșul, favoritele, sesiunea de autentificare și chiar reținerea acestei alegeri.",
-        "„Accept toate” — pe lângă cele de mai sus, se încarcă Google Analytics, care măsoară anonim cum e folosit site-ul și pune două cookie-uri proprii. Detaliile, cu nume și durată, sunt în Politica de cookies.",
+        "„Statistică” — se încarcă Google Analytics, care măsoară anonim cum e folosit site-ul și pune două cookie-uri proprii.",
+        "„Publicitate” — se încarcă eticheta Google Ads și pixelul Meta (Facebook, Instagram), care ne arată care reclamă a adus o comandă și ne permit să îți arătăm reclame cu piesele pe care le-ai privit. Pun trei cookie-uri, cu durata de 90 de zile.",
+        "Cele două comutatoare sunt independente: poți ține statistica pornită și publicitatea oprită, sau invers. Detaliile fiecărui cookie, cu nume și durată, sunt în Politica de cookies.",
       ]},
       { h: "Ce nu poți dezactiva și de ce", p: [
         "Elementele strict necesare nu pot fi oprite din site: fără ele nu ai coș de cumpărături și nu poți rămâne autentificat în cont. Le poți însă șterge oricând din browser.",
