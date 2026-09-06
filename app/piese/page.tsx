@@ -9,7 +9,7 @@ import SortSelect from "@/components/SortSelect";
 import FiltreSertar from "@/components/FiltreSertar";
 import StareGoala from "@/components/StareGoala";
 import { IconLupa } from "@/components/Icoane";
-import { counturiPeModel, marciCuPiese, textCautare } from "@/lib/format";
+import { counturiPeModel, marciCuPiese, textCautare, numerePaginare } from "@/lib/format";
 import { getVacanta } from "@/lib/settings";
 import { VacantaStareGoala } from "@/components/VacantaNota";
 import Link from "next/link";
@@ -41,29 +41,6 @@ function adresaPaginii(sp: SP, n: number) {
   if (n > 1) q.set("pagina", String(n));
   const qs = q.toString();
   return `/piese${qs ? `?${qs}` : ""}`;
-}
-
-/**
- * Numerele de pagină de arătat: primele, ultimele și vecinii paginii curente,
- * cu „…" în locul golurilor. `null` = gol.
- *
- * La 365 de pagini nu se pot afișa toate — pe telefon ar fi un perete de cifre
- * lung cât pagina. Se arată mereu prima și ultima, ca saltul la capăt să fie la
- * un clic, plus câte una de-o parte și de alta a celei curente: maximum 7
- * elemente, deci încape și la 320px.
- */
-function numerePaginare(pagina: number, ultima: number): (number | null)[] {
-  // Fără `Set`: `tsconfig` țintește ES5, unde răspândirea unui Set n-are voie.
-  const brute = [1, ultima, pagina - 1, pagina, pagina + 1];
-  const n = brute
-    .filter((x, i) => x >= 1 && x <= ultima && brute.indexOf(x) === i)
-    .sort((a, b) => a - b);
-  const out: (number | null)[] = [];
-  for (let i = 0; i < n.length; i++) {
-    if (i > 0 && n[i] - n[i - 1] > 1) out.push(null);
-    out.push(n[i]);
-  }
-  return out;
 }
 
 /**

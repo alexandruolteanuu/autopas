@@ -70,10 +70,14 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 24. `ani-generatie.sql` -> 25. `marci-lipsa.sql` -> 26. `generatii-si-denumiri.sql` ->
 27. `mod-vacanta.sql` -> 28. `pagini-masini.sql` -> 29. `numar-piese-pe-model.sql` ->
 30. `ga4-public.sql` -> 31. `categorii-numar-rapid.sql` -> 32. `piese-marca-categorie.sql` ->
-33. `masuratori-publice.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9–33.
+33. `masuratori-publice.sql` -> 34. `piese-compatibile-masini.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9–34.
 NU sunt încă idempotente: 1–5, 8.
-**Aplicate pe producție: 1–33.**
+**Aplicate pe producție: 1–34.**
+34 e migrarea care face paginile de mașină să se umple singure: adaugă coloana
+calculată `products.nr_modele` (câte modele are piesa în `model_ids` — cheia de
+ordonare după relevanță) și view-ul `numar_piese_compatibile_pe_masina`. Nu
+șterge și nu modifică niciun rând.
 33 deschide public, printr-o singură funcție, id-urile de măsurare (GA4, Google Ads +
 eticheta de conversie, Meta Pixel, codul de verificare a domeniului Meta). Același motiv
 ca la 30: rândul `settings.integrari` NU e citibil public, fiindcă acolo stau parola FAN
@@ -290,30 +294,68 @@ sunt sarcini ale utilizatorului. Consemnate la 24 august 2026.
   · Ascunderea butonului de coș stă în `AddToCart`, nu în `ProductCard`: e singurul loc prin care
     o piesă ajunge în coș, deci acoperă dintr-o dată și favoritele, și piesele similare, și orice
     listă adăugată pe viitor. (`ProductCard` e componentă de server, n-are acces la context.)
-- **Paginile de mașină dezmembrată** (`/masini`, `/masini/[slug]`, 28 august 2026). Se umplu din
-  `products.vehicul_id`, adică din câmpul „Mașina-sursă" al editorului de produs. Legătura o pune
-  OMUL, la listare.
-  · **Cele 8.754 de piese importate rămân NELEGATE**, prin decizie a proprietarului. Feed-ul
-    pieseauto.ro nu spune niciodată de pe ce mașină s-a demontat piesa: CSV-ul are ID, URL, Titlu,
-    Monedă, Preț, iar pagina scrie „compatibilă cu", adică potrivire, nu proveniență.
-  · **Nu încerca să deduci legătura din titlu.** S-a măsurat pe 28 august 2026 și e greșită: la
-    „VW Golf 6 1.6 TDI", 36 din 67 de potriviri erau piese de Golf 7, fiindcă „6" se regăsește în
-    „1.6". Cu potrivire pe subșir era și mai rău („6" prinde în „2016"). Plafonul optimist era 246
-    de piese, 2,8% din catalog, și acelea contaminate. Două Passat B6 din curte (BMP și BMR) ar fi
-    oricum indistingibile din titlu.
-  · Deci o mașină fără piese NU e un defect, ci starea normală până la prima mașină dezmembrată de
-    noi. Pagina ei rămâne la HTTP 200, cu specificațiile și formularul de cerere precompletat.
-  · **Nicăieri nu se mai scrie „0 piese".** Hero-ul arată doar mașinile cu cel puțin o piesă și
+- **Paginile de mașină dezmembrată se umplu prin COMPATIBILITATE, nu prin proveniență**
+  (`/masini`, `/masini/[slug]`, rescris la 6 septembrie 2026, `supabase/piese-compatibile-masini.sql`).
+  Lista vine din `products.model_ids` — compatibilitățile extrase la import — potrivite pe
+  `vehicles.model_id`. Nimeni nu mai leagă piese de mână.
+  · **De ce s-a schimbat**: regula veche umplea pagina din `products.vehicul_id`, pus de om
+    piesă cu piesă. Măsurat pe 6 septembrie 2026, înainte de schimbare: **0 din 8.895 de piese**
+    aveau coloana completată, deci toate cele 23 de pagini de mașină erau goale — și aveau să
+    rămână, fiindcă feed-ul pieseauto.ro nu spune niciodată de pe ce mașină s-a demontat piesa.
+    Compatibilitatea, în schimb, o avem pe 8.684 din 8.804 piese publicate (98,6%).
+  · **Cheia e GENERAȚIA, niciodată anul.** Anul mașinii („Audi A4 · 2014") folosește o singură
+    dată, în admin, ca să ALEAGĂ generația (A4 B8, 2008–2015); pe pagină nu mai intervine.
+    Măsurat: doar generația = **221 de piese**; generația ȘI anul 2014 în `products.ani` = **90**.
+    Filtrul pe an ar arunca 131 de piese bune, fiindcă `products.ani` sunt anii MAȘINII DE PE CARE
+    S-A DEMONTAT piesa, nu intervalul ei de compatibilitate. Cine vrea să adauge filtrul pe an
+    reface întâi măsurătoarea asta.
+  · **Ordonarea e după `products.nr_modele`, crescător** (coloană calculată, migrarea 34): o piesă
+    trecută doar la „Passat B6" e aproape sigur o piesă de B6; una trecută la 31 de modele e un
+    senzor care intră peste tot. Pe Passat B6, 120 din 165 de piese au `nr_modele = 1` și ocupă
+    exact primele pagini. `id` la final face paginarea deterministă — `created_at` nu e unic.
+  · **Pagina spune „se potrivesc pe", niciodată „demontate de pe".** Deasupra grilei stă o notă
+    care explică diferența și trimite la telefon pentru confirmare, iar fiecare card își poartă
+    anii. Nu e mărunțiș juridic: aceeași generație acoperă și faceliftul (un B8 din 2009 și unul
+    din 2014 diferă la caroserie și lumini), iar un client care crede că piesa vine de pe mașina
+    din poze e un retur. Aceeași formulare în `descriereMasina` din `lib/seo.ts` și pe
+    `/masini`, `/cauta-dupa-masina`, hero.
+  · **`products.vehicul_id` rămâne, dar e strict INTERNĂ.** Nu mai are niciun efect pe site;
+    alimentează profitul și amortizarea pe mașină din `/admin/masini` — singura cifră care nu se
+    poate deduce din compatibilitate. Coloana NU se șterge (goală azi, `drop column` ireversibil),
+    la fel ca `products.stare`. În editorul de piesă câmpul e marcat „doar intern".
+  · **Alegerea mașinii-sursă bifează automat generația ei** la „Modele compatibile"
+    (`ProductForm`). Fără asta, o piesă demontată chiar de pe Passat-ul din curte, dar cu
+    generația nebifată, n-ar apărea pe pagina lui — cel mai ușor de ratat lucru din formular,
+    fiindcă cele două câmpuri arată complet nelegate.
+  · **O mașină fără marcă/model n-are nicio piesă pe pagină**, oricât de plin ar fi catalogul.
+    E singura muncă manuală rămasă, o dată pe mașină. `/admin/masini` o marchează cu „⚠ fără
+    marcă" / „⚠ fără model" și propune marca și generația citite din denumire
+    (`ghicesteMarcaModel` din `lib/format.ts`) — cu buton „Completează", niciodată aplicat singur.
+    Măsurat pe cele 23 de mașini: marca corectă la toate, generația la 21. Sugestia avertizează
+    când anul cade în afara generației propuse („Duster 1.5 dCi" din 2018 lângă „Duster
+    (2010–2017)" — e Duster 2).
+  · **`ghicesteMarcaModel` NU e potrivirea din import și n-are voie să devină.** Aceea trăiește
+    exclusiv în `lib/import/potrivire.mjs`. Diferența care justifică una simplă aici: textul e
+    scris de omul nostru, iar rezultatul îl confirmă tot el, cu un clic, înainte de orice scriere.
+    Deducerea automată din titlu de PIESĂ rămâne interzisă — s-a măsurat pe 28 august 2026 și e
+    greșită: la „VW Golf 6 1.6 TDI", 36 din 67 de potriviri erau piese de Golf 7, fiindcă „6" se
+    regăsește în „1.6".
+  · Deci o mașină fără piese NU e un defect. Pagina ei rămâne la HTTP 200, cu specificațiile și
+    formularul de cerere precompletat.
+  · **Nicăieri nu se scrie „0 piese".** Hero-ul arată doar mașinile cu cel puțin o piesă și
     dispare complet dacă nu există niciuna (grila trece atunci pe o coloană); `/masini` le împarte în
     „Cu piese pe site" și „În dezmembrare acum"; `/cauta-dupa-masina` scrie „piese pe cerere" și duce
-    la pagina mașinii, nu la `/piese?vehicul=…`, care pentru o mașină nelegată e drum înfundat.
-  · Numărul de piese se calculează **live**, nu se ia din `vehicles.piese_listate`. Coloana e corectă
-    (o ține triggerul `recalc_piese_vehicul`), dar e o valoare memorată, iar o desincronizare s-ar
-    vedea exact ca defectul pe care tocmai l-am reparat.
-  · Caruselul „piese de la mașini compatibile" are 3 niveluri din cele 4 din sarcină: același model,
-    același model altă generație (prin `bazaModel` din `lib/format.ts`), aceeași marcă. **Nivelul 3,
-    platforma comună, NU e implementat** — cere un tabel de platforme pe care nu-l avem. Sub 4
-    rezultate caruselul se ascunde complet.
+    la pagina mașinii, nu la `/piese?vehicul=…`, care acum e drum înfundat prin construcție.
+  · Numărul de piese vine din `numar_piese_compatibile_pe_masina`, cu ACELEAȘI filtre ca lista
+    (`publicat and stoc > 0`): contorul și grila trebuie să spună același lucru. Nu se ia din
+    `vehicles.piese_listate` — coloana aia numără altceva (piesele demontate chiar de pe mașină)
+    și e o valoare memorată de trigger.
+  · Pagina e paginată la 24, cu `rel=prev/next` și canonică pe fiecare pagină, ca `/piese`.
+    `numerePaginare` s-a mutat din `app/piese/page.tsx` în `lib/format.ts`: două copii ale ei
+    s-ar fi despărțit la prima corectură.
+  · **Caruselul „piese de la mașini compatibile" a fost ELIMINAT.** Arăta piese de pe alte mașini
+    din curte, prin `bazaModel`; acum toată pagina e compatibilitate, deci ar fi fost un al doilea
+    răspuns la aceeași întrebare, mai slab. `bazaModel` rămâne folosită în altă parte.
 - **Pozele mașinilor stau în același bucket ca ale pieselor** (`poze-piese`) — e aceeași componentă,
   `PhotoUploader`. De aceea `scripts/curata-orfani.mjs` citește ȘI `vehicles.poze`: fără asta ar
   raporta fiecare poză de mașină drept orfană, iar `--sterge` le-ar șterge pe toate. Orice tabelă
@@ -383,9 +425,11 @@ sunt sarcini ale utilizatorului. Consemnate la 24 august 2026.
   · Contoarele nu se calculează nici în Node, nici cu o subinterogare pe rând. Se calculează o
     dată, în bază, într-un view (vezi și `numar_piese_pe_model`).
 - **Datorie tehnică știută, de reparat înainte ca al catalogul să se dubleze** (28 august 2026):
-  · `/admin/masini` aduce toate cele 8.783 de produse (9 cereri paginate) doar ca să numere
-    piesele pe mașină — `numar_piese_pe_masina` dă exact aceleași cifre în 0,9 ms. Se
-    înlocuiește cu view-ul.
+  · ~~`/admin/masini` aduce toate cele 8.783 de produse doar ca să numere piesele pe mașină.~~
+    REZOLVAT la 6 septembrie 2026: cifra publică vine acum din
+    `numar_piese_compatibile_pe_masina`, iar citirea internă (piesele demontate de pe mașină,
+    pentru profit) filtrează în bază cu `.not("vehicul_id", "is", null)` — rândurile fără mașină
+    n-ar fi trecut oricum de prima verificare din buclă.
   · `/admin/rapoarte` aduce tot catalogul ca să traducă `product_id` în categorie și mașină.
     Azi e singura cale, dar la 30 de vânzări pe zi ar trebui mutat într-un `join` în bază.
   · `/piese` își face interogările de căutare în două valuri (vezi mai jos). Ecranele de admin
@@ -509,12 +553,15 @@ Import pieseauto.ro · Categorii (+subcategorii) · Mărci și modele · Mașini
 Marketing (coduri reducere) · Feed și export · Setări (firmă, curier, roluri) · Integrări.
 „Mașini la dezmembrat" ține și pagina publică a fiecărei mașini: poze, descriere, comutator de
 publicare, marcă/model și specificații. Mașinile cărora le lipsește ceva sunt marcate acolo cu
-„⚠ fără marcă" / „⚠ fără model", ca la modelele fără ani.
+„⚠ fără marcă" / „⚠ fără model", ca la modelele fără ani — iar de la 6 septembrie 2026 asta nu
+mai e cosmetică: fără generație, pagina publică a mașinii rămâne fără nicio piesă. Ecranul
+propune marca și generația citite din denumire, cu buton „Completează".
 Meniul și drepturile pe rol sunt definite în `app/admin/layout.tsx` (constanta `MENIU`).
 
 ## Baza de date — tabele cheie
 `categories` (+`parent_id` subcategorii, view `categorii_cu_numar`), `products` (+`poze[]`,
-`cod_intern`, `originala`, `subcategorie_id`, `greutate_kg`, `cost_lei`, `vizualizari`),
+`cod_intern`, `originala`, `subcategorie_id`, `greutate_kg`, `cost_lei`, `vizualizari`,
+`model_ids` = compatibilitățile, `nr_modele` = calculată din ele),
 `vehicles` (+`cost_achizitie`, `status`, `piese_listate` actualizat prin trigger),
 `orders` (+`livrare_baza`, `livrare_km_extra`, `livrare_alte`, `livrare_greutate_kg`,
 `livrare_dimensiuni`, `livrare_nota`, `livrare_stabilit_la` — `null` = transport necalculat)

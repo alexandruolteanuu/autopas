@@ -16,16 +16,17 @@ export const dynamic = "force-dynamic";
 // de aici — o piesă vândută rămânea „În stoc". La dezmembrări fiecare piesă e
 // unicat, deci stocul trebuie citit la secundă.
 export const fetchCache = "force-no-store";
-export const metadata = { title: "Caută după mașină", alternates: { canonical: "/cauta-dupa-masina" }, description: "Alege marca, modelul și categoria, sau pornește de la una dintre mașinile aflate la noi în dezmembrare. Fiecare piesă e legată de mașina din care provine." };
+export const metadata = { title: "Caută după mașină", alternates: { canonical: "/cauta-dupa-masina" }, description: "Alege marca, modelul și categoria, sau pornește de la una dintre mașinile aflate la noi în dezmembrare. Vezi piesele care se potrivesc pe generația ei." };
 
 export default async function CautaDupaMasina() {
   const sb = sbServer();
   const cars = sb ? await citesteTot<Vehicle>(() => sb.from("vehicles").select("*", { count: "exact" })
     .eq("publicat", true).order("intrare", { ascending: false }).order("id"), { eticheta: "mașinile" }) : [];
-  // Numărul de piese pe mașină, din view: un rând pe mașină, calculat la citire.
-  // Vezi supabase/numar-piese-pe-model.sql pentru de ce nu e `piese_listate`.
+  // Câte piese se potrivesc pe fiecare mașină, din view: un rând pe mașină,
+  // calculat la citire. Vezi supabase/piese-compatibile-masini.sql — cifra e a
+  // pieselor COMPATIBILE cu generația, nu a celor demontate chiar de pe mașină.
   type NrMasina = { vehicul_id: number; nr_piese: number };
-  const legRows = sb ? (((await sb.from("numar_piese_pe_masina").select("*")).data ?? []) as NrMasina[]) : [];
+  const legRows = sb ? (((await sb.from("numar_piese_compatibile_pe_masina").select("*")).data ?? []) as NrMasina[]) : [];
   const catePiese: Record<number, number> = {};
   for (const r of legRows) catePiese[r.vehicul_id] = r.nr_piese;
   const brands = sb ? await citesteTot<Brand>(() => sb.from("brands").select("*", { count: "exact" }).order("ordine").order("id"), { eticheta: "mărcile" }) : [];
@@ -46,12 +47,12 @@ export default async function CautaDupaMasina() {
       <div className="mt-5 mb-2"><VehicleFilter brands={marciCuPiese(brands, counts)} models={models} cats={cats} counts={counts} compact /></div>
       {vacanta.activ && <div className="mt-7"><VacantaStareGoala vacanta={vacanta} /></div>}
       {!vacanta.activ && (<>
-      <p className="text-textSecundar mt-6 max-w-2xl">Sau alege una dintre mașinile aflate la noi în dezmembrare — vezi doar piesele care ți se potrivesc. Fiecare piesă e legată de mașina din care provine, cu seria de șasiu la vedere.</p>
+      <p className="text-textSecundar mt-6 max-w-2xl">Sau alege una dintre mașinile aflate la noi în dezmembrare — vezi doar piesele care se potrivesc pe generația ei. Compatibilitatea e orientativă: pe fiecare piesă scriu anii mașinii de pe care a fost demontată, iar dacă nu ești sigur îți confirmăm la telefon.</p>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-7">
         {/* Cardul duce la PAGINA mașinii, nu la `/piese?vehicul=…`. Filtrul acela
-            întoarce o listă goală pentru o mașină fără piese legate, adică pentru
-            toate, deocamdată — un drum înfundat. Pagina mașinii are întotdeauna
-            ceva de arătat: specificațiile și formularul de cerere. */}
+            merge pe `vehicul_id`, care de la 6 septembrie 2026 e o coloană strict
+            internă (profitul pe mașină) și e goală pe tot catalogul — deci ar fi
+            un drum înfundat. Pagina mașinii are întotdeauna ceva de arătat. */}
         {cars.map((c) => {
           const n = catePiese[c.id] ?? 0;
           return (
@@ -61,7 +62,7 @@ export default async function CautaDupaMasina() {
               <div className="mt-2 flex items-center justify-between text-sm">
                 {/* „0 piese listate" e o promisiune neacoperită; „piese pe cerere"
                     e adevărul și, în plus, o invitație. */}
-                <span className="text-textSecundar">{n > 0 ? `${nrPiese(n)} ${n === 1 ? "listată" : "listate"}` : "piese pe cerere"}</span>
+                <span className="text-textSecundar">{n > 0 ? `${nrPiese(n)} ${n === 1 ? "potrivită" : "potrivite"}` : "piese pe cerere"}</span>
                 <span className="accentuat font-bold">{n > 0 ? "Vezi piesele →" : "Vezi mașina →"}</span>
               </div>
             </Link>

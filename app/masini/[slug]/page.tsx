@@ -4,17 +4,35 @@
 // De ce există: cineva caută „dezmembrari passat b7 2012" mult mai des decât un
 // cod OEM. Pagina asta e răspunsul la căutarea aia.
 //
-// CE O UMPLE
-// Piesele legate prin `products.vehicul_id`, adică prin câmpul „Mașina-sursă"
-// din editorul de produs. Legătura se pune de OM, la listare. Cele 8.754 de
-// piese importate din pieseauto.ro rămân nelegate, prin decizie (28 august
-// 2026): feed-ul nu spune niciodată de pe ce mașină s-a demontat piesa, iar
-// deducerea din titlu s-a măsurat și s-a dovedit greșită — la „VW Golf 6 1.6
-// TDI", 36 din 67 de potriviri erau piese de Golf 7, fiindcă „6" se regăsește
-// în „1.6". Vezi supabase/pagini-masini.sql.
+// CE O UMPLE (schimbat la 6 septembrie 2026)
+// Piesele COMPATIBILE cu generația mașinii, prin `products.model_ids` — adică
+// prin compatibilitatea extrasă la import din „Piesă auto compatibilă cu:".
+// Se umple singură; nimeni nu mai leagă piese de mână.
 //
-// Deci o mașină fără piese legate NU e un defect, ci starea normală până la
-// prima mașină dezmembrată de noi. Pagina ei arată o invitație, nu un gol.
+// Înainte, pagina arăta doar piesele legate manual prin `products.vehicul_id`.
+// Măsurat pe baza reală chiar înainte de schimbare: 0 din 8.895 de piese aveau
+// coloana aia completată, deci toate cele 23 de pagini de mașină erau goale, iar
+// cele 8.754 de piese importate n-aveau cum să ajungă vreodată acolo — feed-ul
+// pieseauto.ro nu spune niciodată de pe ce mașină s-a demontat piesa.
+//
+// POTRIVIREA SE FACE PE GENERAȚIE, NICIODATĂ PE AN.
+// Anul mașinii („Audi A4 2014") folosește o singură dată, în admin, ca operatorul
+// să aleagă generația (A4 B8). Pe pagină nu mai intervine. Măsurat:
+//     doar generația ............................ 221 de piese
+//     generația ȘI anul 2014 în `products.ani` ...  90 de piese
+// `products.ani` sunt anii MAȘINII DE PE CARE S-A DEMONTAT piesa, nu intervalul
+// ei de compatibilitate. Vezi supabase/piese-compatibile-masini.sql.
+//
+// CE NU PROMITE PAGINA
+// „Se potrivește pe", nu „demontată de pe". Compatibilitatea vine de la sursă și
+// e orientativă — un B8 din 2009 și unul din 2014 (facelift) diferă la caroserie
+// și lumini. De asta fiecare card își poartă anii, iar deasupra grilei stă o
+// notă care spune limpede ce e și ce nu e. Un client care crede că piesa vine de
+// pe mașina din poze e un retur.
+//
+// `products.vehicul_id` rămâne în bază și în editorul de piesă, dar e strict
+// INTERNĂ: alimentează profitul pe mașină din /admin/masini și nu are niciun
+// efect aici.
 // ============================================================
 import { cache } from "react";
 import { sbServer, citesteTot } from "@/lib/supabase";
@@ -29,7 +47,7 @@ import StareGoala from "@/components/StareGoala";
 import PartRequestForm from "@/components/PartRequestForm";
 import { VacantaBanner, VacantaStareGoala } from "@/components/VacantaNota";
 import { getVacanta } from "@/lib/settings";
-import { nrPiese, bazaModel } from "@/lib/format";
+import { nrPiese, numerePaginare, numeModelFaraAni, aniiModelului } from "@/lib/format";
 import { SITE_URL } from "@/lib/config";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -40,6 +58,21 @@ import type { Metadata } from "next";
 // minute pe pagină.
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
+
+/** Aceeași mărime ca pe /piese: 24 de carduri intră curat pe 2, 3 sau 4 coloane. */
+const PE_PAGINA = 24;
+
+type SP = { categorie?: string; pagina?: string };
+
+/** Adresa aceleiași pagini de mașină, la alt număr de pagină sau altă categorie.
+ *  Pagina 1 rămâne fără parametru, ca să existe o singură adresă canonică. */
+function adresaPaginii(slug: string, sp: SP, n: number) {
+  const q = new URLSearchParams();
+  if (sp.categorie) q.set("categorie", sp.categorie);
+  if (n > 1) q.set("pagina", String(n));
+  const qs = q.toString();
+  return `/masini/${slug}${qs ? `?${qs}` : ""}`;
+}
 
 /** Titlul afișat: „VW Passat B7 2.0 TDI · 2012".
  *
@@ -71,23 +104,37 @@ const iaMasina = cache(async (slug: string) => {
   return (data as Vehicle | null) ?? null;
 });
 
-/** Numărul REAL de piese publicate, din view. Un rând, nu tot catalogul.
+/** Câte piese se potrivesc pe mașina asta, din view: un rând, nu tot catalogul.
  *  Tot prin `cache()`: îl folosesc și metadatele, și pagina. */
 const iaNrPiese = cache(async (vehiculId: number) => {
   const sb = sbServer();
   if (!sb) return 0;
-  const { data } = await sb.from("numar_piese_pe_masina")
+  const { data } = await sb.from("numar_piese_compatibile_pe_masina")
     .select("nr_piese").eq("vehicul_id", vehiculId).maybeSingle();
   return Number((data as { nr_piese?: number } | null)?.nr_piese ?? 0);
 });
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+/** Generația și marca mașinii, ca date. Fără ele pagina n-are cheie de potrivire
+ *  și rămâne la starea „încă nu sunt listate" — se completează din Admin → Mașini. */
+const iaMarcaModel = cache(async (v: Vehicle) => {
+  const sb = sbServer();
+  if (!sb || (!v.marca_id && !v.model_id)) return { marca: null as Brand | null, model: null as Model | null };
+  const [b, m] = await Promise.all([
+    v.marca_id ? sb.from("brands").select("*").eq("id", v.marca_id).maybeSingle() : Promise.resolve({ data: null }),
+    v.model_id ? sb.from("models").select("*").eq("id", v.model_id).maybeSingle() : Promise.resolve({ data: null }),
+  ]);
+  return { marca: (b.data as Brand | null) ?? null, model: (m.data as Model | null) ?? null };
+});
+
+export async function generateMetadata(
+  { params, searchParams }: { params: { slug: string }; searchParams: SP },
+): Promise<Metadata> {
   const v = await iaMasina(params.slug);
   if (!v) return { title: "Mașină negăsită" };
   const t = titluMasina(v);
-  // Numărul se citește live, nu din `piese_listate`: coloana aia e o valoare
-  // memorată de trigger, iar o descriere care promite piese inexistente e mai
-  // rea decât una fără cifre.
+  const pagina = Math.max(1, Number(searchParams.pagina) || 1);
+  // Numărul se citește live, din view. O descriere care promite piese
+  // inexistente e mai rea decât una fără cifre.
   const cate = await iaNrPiese(v.id);
   const titlu = titluMasinaSeo(t);
   const descriere = descriereMasina(t, cate);
@@ -95,7 +142,9 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     // Titlu simplu: sufixul îl adaugă șablonul din layout, o singură dată.
     title: titlu,
     description: descriere,
-    alternates: { canonical: `/masini/${v.slug}` },
+    // Fiecare pagină din serie își are canonica ei, ca pe /piese: altfel Google
+    // ar vedea 10 adrese cu conținut diferit și aceeași canonică.
+    alternates: { canonical: adresaPaginii(v.slug, searchParams, pagina) },
     openGraph: {
       title: titlu + SUFIX_TITLU,
       description: descriere,
@@ -105,7 +154,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 export default async function PaginaMasina(
-  { params, searchParams }: { params: { slug: string }; searchParams: { categorie?: string } },
+  { params, searchParams }: { params: { slug: string }; searchParams: SP },
 ) {
   const sb = sbServer();
   if (!sb) notFound();
@@ -113,73 +162,75 @@ export default async function PaginaMasina(
   if (!v) notFound();
 
   const vacanta = await getVacanta();
+  const { marca: marcaAcestei, model: modelAcestei } = await iaMarcaModel(v);
+  const pagina = Math.max(1, Number(searchParams.pagina) || 1);
 
-  // ---- piesele acestei mașini ----
-  const piese = await citesteTot<Product>(() => sb.from("products")
-    .select("*, categories!products_categorie_id_fkey(*)", { count: "exact" })
-    .eq("vehicul_id", v.id).eq("publicat", true).gt("stoc", 0)
-    .order("created_at", { ascending: false }).order("id"), { eticheta: "piesele mașinii" });
+  // ---- piesele care se potrivesc pe mașina asta ----
+  // Cheia e generația. Fără ea (mașină fără marcă/model în admin) pagina rămâne
+  // corectă și goală, nu picată: `model_id` null înseamnă zero rezultate, iar
+  // adminul marchează mașina cu „⚠ fără model".
+  const categoriiTot = await citesteTot<Category>(
+    () => sb.from("categories").select("*", { count: "exact" }).order("ordine").order("id"),
+    { eticheta: "categoriile" });
+
+  // Categoriile pentru care mașina chiar are piese, cu numărul lor. Se citește o
+  // singură COLOANĂ, nu tot rândul: pentru 221 de piese e o cerere, iar dacă
+  // vreun model ajunge la mii de piese rămâne tot un întreg pe rând, nu un
+  // produs întreg cu poze și descriere.
+  const randuriCat = v.model_id
+    ? await citesteTot<{ categorie_id: number | null }>(
+        () => sb.from("products").select("categorie_id", { count: "exact" })
+          .contains("model_ids", [v.model_id as number])
+          .eq("publicat", true).gt("stoc", 0).order("id"),
+        { eticheta: "categoriile pieselor compatibile" })
+    : [];
+
+  const pePiese: Record<number, number> = {};
+  for (const r of randuriCat) if (r.categorie_id) pePiese[r.categorie_id] = (pePiese[r.categorie_id] ?? 0) + 1;
+  const categorii = categoriiTot
+    .filter((c) => (pePiese[c.id] ?? 0) > 0)
+    .sort((a, b) => (pePiese[b.id] ?? 0) - (pePiese[a.id] ?? 0));
+  const total = randuriCat.length;
 
   // Filtrul pe categorie apare doar când chiar ajută: sub 12 piese, sau cu o
   // singură categorie, ar fi un rând de butoane care nu filtrează nimic.
-  const categorii: Category[] = [];
-  for (const p of piese) {
-    const c = p.categories;
-    if (c && !categorii.some((x) => x.id === c.id)) categorii.push(c);
-  }
-  const areFiltru = piese.length >= 12 && categorii.length > 1;
+  const areFiltru = total >= 12 && categorii.length > 1;
   const catActiva = areFiltru ? categorii.find((c) => c.slug === searchParams.categorie) : undefined;
-  const pieseAfisate = catActiva ? piese.filter((p) => p.categories?.id === catActiva.id) : piese;
 
-  // ---- piese de la mașini compatibile (B.3) ----
-  // Ordinea de relevanță, de la tare la slab:
-  //   1. același model (adică aceeași generație — în `models` o generație e un
-  //      rând separat: „Golf 5" și „Golf 6" sunt două modele)
-  //   2. același model de bază, altă generație — `bazaModel` din lib/format.ts
-  //   4. aceeași marcă, alt model
-  // Nivelul 3 (platformă comună: Touran pe platforma lui Passat B6) NU e
-  // implementat: ar cere un tabel de platforme pe care nu-l avem. Vezi raportul.
-  const marci = await citesteTot<Brand>(() => sb.from("brands").select("*", { count: "exact" }).order("id"), { eticheta: "mărcile" });
-  const modele = await citesteTot<Model>(() => sb.from("models").select("*", { count: "exact" }).order("id"), { eticheta: "modelele" });
-  const modelAcestei = modele.find((m) => m.id === v.model_id);
-  const marcaAcestei = marci.find((b) => b.id === v.marca_id);
-
-  let compatibile: { p: Product; masina: Vehicle }[] = [];
-  if (v.marca_id || v.model_id) {
-    const altele = await citesteTot<Vehicle>(() => sb.from("vehicles").select("*", { count: "exact" })
-      .neq("id", v.id).eq("publicat", true).order("id"), { eticheta: "mașinile" });
-
-    const nivel = (alt: Vehicle): number => {
-      if (v.model_id && alt.model_id === v.model_id) return 1;
-      const mAlt = modele.find((m) => m.id === alt.model_id);
-      if (modelAcestei && mAlt && mAlt.brand_id === modelAcestei.brand_id
-          && bazaModel(mAlt.nume) === bazaModel(modelAcestei.nume)) return 2;
-      if (v.marca_id && alt.marca_id === v.marca_id) return 4;
-      return 99;
-    };
-
-    const candidate = altele.map((a) => ({ a, n: nivel(a) })).filter((x) => x.n < 99);
-    if (candidate.length) {
-      const dupaId = new Map(candidate.map((x) => [x.a.id, x]));
-      const rows = ((await sb.from("products").select("*")
-        .in("vehicul_id", candidate.map((x) => x.a.id))
-        .eq("publicat", true).gt("stoc", 0).limit(60)).data ?? []) as Product[];
-      compatibile = rows
-        .map((p) => ({ p, x: dupaId.get(p.vehicul_id as number)! }))
-        .filter((r) => r.x)
-        .sort((a, b) => a.x.n - b.x.n)
-        .slice(0, 12)
-        .map((r) => ({ p: r.p, masina: r.x.a }));
-    }
+  let piese: Product[] = [];
+  let totalAfisat = total;
+  if (v.model_id) {
+    let q = sb.from("products")
+      .select("*, categories!products_categorie_id_fkey(*)", { count: "exact" })
+      .contains("model_ids", [v.model_id])
+      .eq("publicat", true).gt("stoc", 0);
+    if (catActiva) q = q.eq("categorie_id", catActiva.id);
+    // Ordinea: întâi piesele SPECIFICE modelului. `nr_modele` e coloana calculată
+    // din migrarea 34 — câte modele sunt trecute pe piesă. Una trecută doar la
+    // „A4 B8" e aproape sigur o piesă de B8; una trecută la 31 de modele e un
+    // senzor care intră peste tot și n-are ce căuta în capul listei.
+    // `id` la final face paginarea deterministă: `created_at` nu e unic, importul
+    // scrie sute de piese în aceeași secundă.
+    q = q.order("nr_modele", { ascending: true })
+         .order("created_at", { ascending: false })
+         .order("id", { ascending: false });
+    const de = (pagina - 1) * PE_PAGINA;
+    const r = await q.range(de, de + PE_PAGINA - 1);
+    if (r.error) throw new Error(`piesele compatibile: ${r.error.message}`);
+    piese = (r.data ?? []) as Product[];
+    totalAfisat = r.count ?? 0;
   }
-  // „Sub 4 rezultate, ascunde caruselul complet" — o secțiune cu două carduri
-  // arată a defect, nu a ofertă.
-  const arataCompatibile = compatibile.length >= 4;
+  const ultimaPagina = Math.max(1, Math.ceil(totalAfisat / PE_PAGINA));
 
   const t = titluMasina(v);
+  const numeGeneratie = modelAcestei
+    ? `${marcaAcestei ? marcaAcestei.nume + " " : ""}${numeModelFaraAni(modelAcestei.nume)}`
+    : "";
+  const aniiGeneratiei = modelAcestei ? aniiModelului(modelAcestei) : "";
+
   const SPECIFICATII: [string, string][] = [
     ["Marca", marcaAcestei?.nume ?? "—"],
-    ["Model", modelAcestei?.nume ?? "—"],
+    ["Model", modelAcestei ? numeModelFaraAni(modelAcestei.nume) : "—"],
     ["An", v.an ? String(v.an) : "—"],
     ["Motorizare", v.motorizare || "—"],
     ["Caroserie", v.caroserie || "—"],
@@ -198,7 +249,7 @@ export default async function PaginaMasina(
         "@type": "Vehicle",
         name: t,
         ...(marcaAcestei ? { brand: { "@type": "Brand", name: marcaAcestei.nume } } : {}),
-        ...(modelAcestei ? { model: modelAcestei.nume } : {}),
+        ...(modelAcestei ? { model: numeModelFaraAni(modelAcestei.nume) } : {}),
         ...(v.an ? { modelDate: String(v.an) } : {}),
         ...(v.culoare ? { color: v.culoare } : {}),
         ...(v.caroserie ? { bodyType: v.caroserie } : {}),
@@ -243,8 +294,8 @@ export default async function PaginaMasina(
           <h1 className="t-sectiune mt-1">{t}</h1>
 
           <p className="mt-3 text-textSecundar text-[15px]">
-            {piese.length > 0
-              ? <>Avem <b className="text-text">{nrPiese(piese.length)}</b> demontate de pe această mașină.</>
+            {total > 0
+              ? <>Avem <b className="text-text">{nrPiese(total)}</b> care se potrivesc pe {numeGeneratie || t}.</>
               : <>Mașina e în dezmembrare. Piesele nu sunt încă listate — scrie-ne ce cauți și verificăm pe loc.</>}
           </p>
 
@@ -263,20 +314,34 @@ export default async function PaginaMasina(
         </div>
       </div>
 
-      {/* ---- piesele acestei mașini ---- */}
+      {/* ---- piesele care se potrivesc ---- */}
       <section className="mt-12">
-        <h2 className="font-disp font-bold text-2xl mb-5">Piesele acestei mașini</h2>
+        <h2 className="font-disp font-bold text-2xl">
+          {numeGeneratie ? `Piese care se potrivesc pe ${numeGeneratie}` : "Piese care se potrivesc"}
+          {aniiGeneratiei && <span className="font-normal text-textSecundar text-lg"> ({aniiGeneratiei})</span>}
+        </h2>
+
+        {/* Nota nu e mărunțiș juridic, e ce ne scutește de retururi: lista vine din
+            compatibilitatea declarată de sursă, pe generație. Un B8 din 2009 și
+            unul din 2014, de după facelift, diferă la caroserie și lumini. */}
+        {total > 0 && !vacanta.activ && (
+          <p className="mt-2 mb-5 text-[13px] text-textSecundar max-w-3xl">
+            Lista e făcută după generația mașinii, nu după piesele demontate chiar de pe exemplarul din
+            poze. Fiecare piesă își poartă anii mașinii de pe care a fost demontată — dacă nu ești sigur
+            că se potrivește pe anul tău, sună-ne și verificăm împreună înainte să comanzi.
+          </p>
+        )}
 
         {areFiltru && (
           <div className="flex gap-2 flex-wrap mb-5">
-            <Link href={`/masini/${v.slug}`}
+            <Link href={adresaPaginii(v.slug, {}, 1)}
               className={`rounded-full border px-3.5 py-1.5 text-sm ${!catActiva ? "bg-accent text-accentContrast border-accentChenar" : "border-chenarPuternic"}`}>
-              Toate ({piese.length})
+              Toate ({total})
             </Link>
             {categorii.map((c) => (
-              <Link key={c.id} href={`/masini/${v.slug}?categorie=${c.slug}`}
+              <Link key={c.id} href={adresaPaginii(v.slug, { categorie: c.slug }, 1)}
                 className={`rounded-full border px-3.5 py-1.5 text-sm ${catActiva?.id === c.id ? "bg-accent text-accentContrast border-accentChenar" : "border-chenarPuternic"}`}>
-                {c.nume} ({piese.filter((p) => p.categories?.id === c.id).length})
+                {c.nume} ({pePiese[c.id]})
               </Link>
             ))}
           </div>
@@ -284,43 +349,63 @@ export default async function PaginaMasina(
 
         {vacanta.activ ? (
           <VacantaStareGoala vacanta={vacanta} />
-        ) : pieseAfisate.length > 0 ? (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {pieseAfisate.map((p) => <ProductCard key={p.id} p={p} />)}
-          </div>
+        ) : piese.length > 0 ? (
+          <>
+            {ultimaPagina > 1 && (
+              <p className="text-sm text-textSecundar mb-4">
+                {totalAfisat} {totalAfisat === 1 ? "piesă" : "piese"} · pagina {pagina} din {ultimaPagina}
+              </p>
+            )}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {piese.map((p, i) => <ProductCard key={p.id} p={p} prioritara={i === 0} />)}
+            </div>
+
+            {/* Paginarea: linkuri adevărate, ca pe /piese. Google trebuie să poată
+                urma fiecare pagină, altfel din 221 de piese ar indexa 24. */}
+            {ultimaPagina > 1 && (
+              <>
+                {pagina > 1 && <link rel="prev" href={adresaPaginii(v.slug, searchParams, pagina - 1)} />}
+                {pagina < ultimaPagina && <link rel="next" href={adresaPaginii(v.slug, searchParams, pagina + 1)} />}
+                <nav aria-label="Paginare" className="mt-8 flex items-center justify-center gap-1.5 flex-wrap">
+                  {pagina > 1 && (
+                    <Link href={adresaPaginii(v.slug, searchParams, pagina - 1)} rel="prev"
+                      className="rounded-lg border border-chenarPuternic px-3 min-h-[44px] inline-flex items-center text-sm">
+                      ← Înapoi
+                    </Link>
+                  )}
+                  {numerePaginare(pagina, ultimaPagina).map((n, i) =>
+                    n === null ? (
+                      <span key={`gol-${i}`} className="px-1.5 text-textSecundar">…</span>
+                    ) : (
+                      <Link key={n} href={adresaPaginii(v.slug, searchParams, n)}
+                        aria-current={n === pagina ? "page" : undefined}
+                        className={`rounded-lg border px-3 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-sm ${
+                          n === pagina ? "bg-accent text-accentContrast border-accentChenar font-semibold" : "border-chenarPuternic"}`}>
+                        {n}
+                      </Link>
+                    ))}
+                  {pagina < ultimaPagina && (
+                    <Link href={adresaPaginii(v.slug, searchParams, pagina + 1)} rel="next"
+                      className="rounded-lg border border-chenarPuternic px-3 min-h-[44px] inline-flex items-center text-sm">
+                      Înainte →
+                    </Link>
+                  )}
+                </nav>
+              </>
+            )}
+          </>
         ) : (
           <StareGoala
             icon={<MasinaArt className="w-14 h-14 rounded-full" />}
-            titlu={piese.length > 0 ? "Nicio piesă în categoria asta" : "Piesele nu sunt încă listate"}
-            text={piese.length > 0
-              ? "Alege altă categorie sau vezi toate piesele mașinii."
+            titlu={total > 0 ? "Nicio piesă în categoria asta" : "Piesele nu sunt încă listate"}
+            text={total > 0
+              ? "Alege altă categorie sau vezi toate piesele care se potrivesc."
               : `Dezmembrăm ${t} chiar acum. Spune-ne ce piesă cauți și îți răspundem cu disponibilitatea și prețul.`}
-            actiune={piese.length > 0 ? { eticheta: "Vezi toate piesele", href: `/masini/${v.slug}` } : undefined}
+            actiune={total > 0 ? { eticheta: "Vezi toate piesele", href: adresaPaginii(v.slug, {}, 1) } : undefined}
             secundar={{ eticheta: "Vezi tot catalogul", href: "/piese" }}
           />
         )}
       </section>
-
-      {/* ---- piese de la mașini compatibile ---- */}
-      {arataCompatibile && !vacanta.activ && (
-        <section className="mt-12">
-          <div className="dim">Se potrivesc și pe {t}</div>
-          <h2 className="font-disp font-bold text-2xl mt-2 mb-5">Piese de la mașini compatibile</h2>
-          <div className="flex gap-4 overflow-x-auto pb-2 snap-x">
-            {compatibile.map(({ p, masina }) => (
-              <div key={p.id} className="w-[220px] shrink-0 snap-start">
-                <ProductCard p={p} />
-                {/* „fiecare card arată de la ce mașină provine" — altfel omul n-ar
-                    ști că piesa nu e de pe mașina pe care tocmai o citește. */}
-                <Link href={`/masini/${masina.slug}`}
-                  className="block mt-1.5 text-[12px] text-textSecundar hover:text-text truncate">
-                  de pe {masina.nume}
-                </Link>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* ---- cererea de piesă, precompletată cu mașina ---- */}
       <section className="mt-12">

@@ -3,17 +3,21 @@
 //
 // Lista mașinilor din depozit. Are două grupe, și separarea e intenționată:
 //
-//   · „Cu piese pe site" — mașini care chiar au ce vinde acum;
-//   · „În dezmembrare acum" — mașini intrate, fără piese listate încă.
+//   · „Cu piese pe site" — mașini pentru care avem ce vinde acum;
+//   · „În dezmembrare acum" — mașini intrate, fără nicio piesă potrivită încă.
 //
 // A doua grupă NU e umplutură. Clientul care caută o portieră de Passat B6 vrea
 // exact informația asta: „au mașina, întreabă-i". Ascunsă, ar fi o vânzare
 // pierdută; amestecată cu prima, ar face lista să pară plină de pagini goale.
 //
-// Numărul de piese se calculează LIVE, dintr-o singură interogare, nu se ia din
-// `vehicles.piese_listate`. Coloana aia e corectă (o ține triggerul
-// `recalc_piese_vehicul`), dar e o valoare memorată: dacă vreodată se desincronizează,
-// aici s-ar vedea ca „0 piese" pe o mașină plină.
+// Numărul de piese e cel COMPATIBIL cu generația mașinii, din
+// `numar_piese_compatibile_pe_masina` (migrarea 34) — aceeași cifră pe care o
+// arată și pagina mașinii. De la 6 septembrie 2026 piesele nu se mai leagă de
+// mână: vezi comentariul din app/masini/[slug]/page.tsx.
+//
+// Se calculează LIVE, dintr-o singură interogare, nu se ia din
+// `vehicles.piese_listate`. Coloana aia numără altceva (piesele demontate chiar
+// de pe mașină, folosite intern la profit) și e o valoare memorată de trigger.
 // ============================================================
 import { cache } from "react";
 import { sbServer, citesteTot } from "@/lib/supabase";
@@ -74,8 +78,8 @@ const iaMasini = cache(async () => {
     // Numărătorile vin din view: un rând pe mașină. Varianta veche aducea un rând
     // pe piesă legată și se oprea tăcut la 1.000 — vezi supabase/numar-piese-pe-model.sql.
     citesteTot<{ vehicul_id: number; nr_piese: number }>(
-      () => sb.from("numar_piese_pe_masina").select("*", { count: "exact" }).order("vehicul_id"),
-      { eticheta: "numărul de piese pe mașină" }),
+      () => sb.from("numar_piese_compatibile_pe_masina").select("*", { count: "exact" }).order("vehicul_id"),
+      { eticheta: "numărul de piese compatibile pe mașină" }),
   ]);
   const cate: Record<number, number> = {};
   for (const r of randuri) cate[r.vehicul_id] = r.nr_piese;
@@ -94,7 +98,7 @@ export default async function Masini() {
 
       <h1 className="t-sectiune mt-4">Mașini dezmembrate</h1>
       <p className="text-textSecundar mt-2 max-w-2xl text-[15px]">
-        Mașinile din depozitul nostru și piesele demontate de pe fiecare. Dacă mașina ta e în listă,
+        Mașinile din depozitul nostru și piesele care se potrivesc pe fiecare. Dacă mașina ta e în listă,
         aproape sigur avem piesa — dacă n-o vezi pe site, întreabă-ne.
       </p>
 
@@ -123,7 +127,7 @@ export default async function Masini() {
             <section className="mt-10">
               <h2 className="font-disp font-bold text-xl mb-1">În dezmembrare acum</h2>
               <p className="text-textSecundar text-sm mb-4">
-                Piesele nu sunt încă listate. Sună-ne sau trimite o cerere — verificăm pe loc.
+                Încă n-avem piese potrivite pe site pentru ele. Sună-ne sau trimite o cerere — verificăm pe loc.
               </p>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {faraPiese.map((v, i) => <CardMasina key={v.id} v={v} cate={0} prioritara={cuPiese.length === 0 && i === 0} />)}

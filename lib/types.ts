@@ -16,6 +16,10 @@ export type Product  = {
   stare_nota: string | null; pret_lei: number; pret_sufix: string | null; ani: string | null;
   art: string; categorie_id: number | null; vehicul_id: number | null;
   compat: string[]; stoc: number; publicat: boolean; model_ids?: number[]; greutate_kg?: number | null;
+  // Calculată de bază din model_ids (supabase/piese-compatibile-masini.sql):
+  // câte modele sunt trecute pe piesă. Cu cât mai puține, cu atât piesa e mai
+  // specific a modelului respectiv — de asta e cheia de ordonare pe pagina mașinii.
+  nr_modele?: number;
   cost_lei?: number | null; vizualizari?: number; subcategorie_id?: number | null; cod_intern?: string | null;
   originala?: boolean; poze?: string[] | null; created_at?: string;
   categories?: Category | null; vehicles?: Vehicle | null;

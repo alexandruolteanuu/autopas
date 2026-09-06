@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { sbBrowser, scrieVerificat, citesteTot } from "@/lib/supabase";
-import { lei } from "@/lib/format";
+import { lei, ghicesteMarcaModel, numeModelFaraAni, aniiModelului } from "@/lib/format";
 import PhotoUploader from "@/components/admin/PhotoUploader";
 import type { VehiculAdmin, Brand, Model } from "@/lib/types";
 
@@ -22,24 +22,41 @@ export default function Masini() {
   // Storage înainte de salvare, iar lista de modele depinde de marca aleasă.
   const [poze, setPoze] = useState<string[]>([]);
   const [marcaSel, setMarcaSel] = useState<number | "">("");
+  // Modelul, denumirea și anul sunt controlate (nu `defaultValue`) fiindcă
+  // sugestia de mai jos trebuie să le poată completa cu un clic, iar denumirea
+  // și anul sunt chiar datele din care se calculează sugestia.
+  const [modelSel, setModelSel] = useState<number | "">("");
+  const [numeForm, setNumeForm] = useState("");
+  const [anForm, setAnForm] = useState("");
+  // Câte piese se potrivesc pe fiecare mașină — exact cifra pe care o vede
+  // clientul pe /masini/[slug]. Vine din view, un rând pe mașină.
+  const [peSite, setPeSite] = useState<Record<number, number>>({});
 
   const incarca = useCallback(async () => {
     const sb = sbBrowser(); if (!sb) return;
-    const [v, p, it, b, m] = await Promise.all([
+    const [v, p, it, b, m, cp] = await Promise.all([
       citesteTot<VehiculAdmin>(() => sb.from("vehicles").select("*", { count: "exact" }).order("intrare", { ascending: false }).order("id"), { eticheta: "mașinile" }),
-      // PAGINAT: `products` are 8.754 de rânduri, iar PostgREST taie la 1.000.
-      // Fără asta, „piese listate / vândute" pe mașină se calculau pe o optime
-      // din catalog. Vezi `citesteTot` din lib/supabase.ts.
+      // Doar piesele care CHIAR au o mașină-sursă. Înainte se aduceau toate cele
+      // 8.895 (9 cereri paginate) ca să se numere piesele a 23 de mașini — datoria
+      // tehnică notată în CLAUDE.md. Filtrul îl face acum baza: restul rândurilor
+      // n-ar fi trecut oricum de `if (!x.vehicul_id) return;` de mai jos.
+      // PAGINAT rămâne: PostgREST taie la 1.000. Vezi `citesteTot`.
       citesteTot<any>(() => sb.from("products")
-        .select("id,vehicul_id,stoc,pret_lei", { count: "exact" }).order("id"),
-        { eticheta: "piesele" }),
+        .select("id,vehicul_id,stoc,pret_lei", { count: "exact" })
+        .not("vehicul_id", "is", null).order("id"),
+        { eticheta: "piesele legate de o mașină" }),
       citesteTot<any>(() => sb.from("order_items").select("pret,cantitate,product_id,orders!inner(status)", { count: "exact" }).neq("orders.status", "anulata").order("id"), { eticheta: "liniile comenzilor" }),
       citesteTot<Brand>(() => sb.from("brands").select("*", { count: "exact" }).order("nume").order("id"), { eticheta: "mărcile" }),
       citesteTot<Model>(() => sb.from("models").select("*", { count: "exact" }).order("nume").order("id"), { eticheta: "modelele" }),
+      citesteTot<{ vehicul_id: number; nr_piese: number }>(() => sb.from("numar_piese_compatibile_pe_masina")
+        .select("*", { count: "exact" }).order("vehicul_id"), { eticheta: "piesele compatibile pe mașină" }),
     ]);
     setCars(v);
     setMarci(b);
     setModele(m);
+    const ps: Record<number, number> = {};
+    for (const r of cp) ps[r.vehicul_id] = r.nr_piese;
+    setPeSite(ps);
     const pieseDupaId = new Map<number, any>((p as any[]).map((x) => [x.id, x]));
     const r: Record<number, Randament> = {};
     (p as any[]).forEach((x) => {
@@ -71,8 +88,8 @@ export default function Masini() {
       motorizare: text("motorizare"), caroserie: text("caroserie"),
       culoare: text("culoare"), cutie_viteze: text("cutie"),
       km: Number(f.get("km")) || null,
-      marca_id: Number(f.get("marca")) || null,
-      model_id: Number(f.get("model")) || null,
+      marca_id: marcaSel || null,
+      model_id: modelSel || null,
     };
     let eroare: string | undefined;
     if (edit) {
@@ -95,13 +112,14 @@ export default function Masini() {
    *  rămâne cele ale mașinii editate anterior. */
   function deschideEdit(v: VehiculAdmin) {
     setEdit(v); setForm(false); setMsg("");
-    setPoze(v.poze ?? []); setMarcaSel(v.marca_id ?? "");
+    setPoze(v.poze ?? []); setMarcaSel(v.marca_id ?? ""); setModelSel(v.model_id ?? "");
+    setNumeForm(v.nume); setAnForm(v.an ? String(v.an) : "");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
   function deschideNou() {
     const deschis = !form;
     setEdit(null); setForm(deschis); setMsg("");
-    setPoze([]); setMarcaSel("");
+    setPoze([]); setMarcaSel(""); setModelSel(""); setNumeForm(""); setAnForm("");
   }
 
   async function sterge(v: VehiculAdmin) {
@@ -110,6 +128,17 @@ export default function Masini() {
     await sb.from("products").update({ vehicul_id: null }).eq("vehicul_id", v.id);
     const r = await scrieVerificat(sb.from("vehicles").delete().eq("id", v.id));
     setMsg(r.ok ? "✓ Mașina a fost ștearsă." : `Nu s-a șters: ${r.eroare}`); incarca();
+  }
+
+  // Sugestia de marcă/generație, recalculată la fiecare tastă din denumire.
+  // `ghicesteMarcaModel` e în lib/format.ts, cu explicația de ce n-are voie să
+  // devină potrivirea din import.
+  const sugestie = ghicesteMarcaModel(numeForm, Number(anForm) || null, marci, modele);
+  const sugestieDiferita = !!sugestie.marca
+    && (marcaSel !== sugestie.marca.id || (!!sugestie.model && modelSel !== sugestie.model.id));
+  function aplicaSugestia() {
+    if (sugestie.marca) setMarcaSel(sugestie.marca.id);
+    setModelSel(sugestie.model ? sugestie.model.id : "");
   }
 
   const totalCost = cars.reduce((s, c) => s + Number(c.cost_achizitie || 0), 0);
@@ -137,8 +166,9 @@ export default function Masini() {
         <form onSubmit={salveaza} className="card p-5 grid sm:grid-cols-3 gap-3 text-sm">
           <b className="font-disp font-semibold text-[13px] sm:col-span-3">{edit ? `Editezi: ${edit.nume}` : "Vehicul nou"}</b>
           <div className="fld sm:col-span-2"><label>Denumire * <span className="font-normal text-mut">(ex. VW Passat B7 2.0 TDI)</span></label>
-            <input name="nume" required defaultValue={edit?.nume} /></div>
-          <div className="fld"><label>An</label><input name="an" type="number" defaultValue={edit?.an ?? ""} /></div>
+            <input name="nume" required value={numeForm} onChange={(e) => setNumeForm(e.target.value)} /></div>
+          <div className="fld"><label>An</label>
+            <input name="an" type="number" value={anForm} onChange={(e) => setAnForm(e.target.value)} /></div>
           <div className="fld"><label>VIN mascat <span className="font-normal text-mut">(public, parțial)</span></label>
             <input name="vin" defaultValue={edit?.vin_masca ?? ""} placeholder="WVWZZZ…9917" /></div>
           <div className="fld"><label>Cost achiziție (lei)</label><input name="cost" type="number" step="0.01" defaultValue={edit?.cost_achizitie ?? ""} /></div>
@@ -160,18 +190,47 @@ export default function Masini() {
             {edit && <Link href={`/masini/${edit.slug}`} target="_blank" className="ml-2 font-normal text-acc">vezi pagina ↗</Link>}
           </b>
 
-          {/* Marca și modelul ca DATE, nu ca text în denumire: fără ele pagina
-              mașinii n-are cum să afle ce alte mașini sunt înrudite. */}
+          {/* Marca și GENERAȚIA ca date, nu ca text în denumire. De la 6 septembrie
+              2026 nu mai sunt un moft: generația e SINGURA cheie prin care pagina
+              publică a mașinii își găsește piesele (`products.model_ids`). O mașină
+              fără ea rămâne o pagină fără nicio piesă, oricât de plin ar fi
+              catalogul. Vezi supabase/piese-compatibile-masini.sql.
+
+              Anul NU filtrează piesele. Servește o singură dată, aici, ca să te
+              ajute să alegi generația — pe „Audi A4 · 2014" e A4 B8 (2008–2015).
+              Filtrarea pieselor pe an ar arunca 131 din 221 de piese bune, fiindcă
+              anii scriși pe o piesă sunt ai mașinii de pe care a fost demontată. */}
           <div className="fld"><label>Marca</label>
-            <select name="marca" value={marcaSel} onChange={(e) => setMarcaSel(Number(e.target.value) || "")}>
+            <select name="marca" value={marcaSel}
+              onChange={(e) => { setMarcaSel(Number(e.target.value) || ""); setModelSel(""); }}>
               <option value="">— alege —</option>
               {marci.map((b) => <option key={b.id} value={b.id}>{b.nume}</option>)}
             </select></div>
           <div className="fld"><label>Modelul <span className="font-normal text-mut">(generația)</span></label>
-            <select name="model" defaultValue={edit?.model_id ?? ""} key={`mod-${marcaSel}-${edit?.id ?? "nou"}`}>
+            <select name="model" value={modelSel} onChange={(e) => setModelSel(Number(e.target.value) || "")}>
               <option value="">— alege —</option>
               {modele.filter((m) => m.brand_id === marcaSel).map((m) => <option key={m.id} value={m.id}>{m.nume}</option>)}
             </select></div>
+
+          {/* SUGESTIA din denumire. Nu se aplică singură: propune, omul confirmă.
+              De asta poate fi o potrivire simplă pe text — spre deosebire de
+              importul de piese, unde nimeni nu verifică rezultatul și de asta
+              deducerea din titlu s-a dovedit greșită. */}
+          {sugestie.marca && (
+            <div className="sm:col-span-3 -mt-1 text-[12px] flex flex-wrap items-center gap-2">
+              <span className="text-mut">Din denumire pare a fi:</span>
+              <b>{sugestie.marca.nume}{sugestie.model ? ` · ${numeModelFaraAni(sugestie.model.nume)}` : ""}</b>
+              {sugestie.model && aniiModelului(sugestie.model) &&
+                <span className="text-mut">({aniiModelului(sugestie.model)})</span>}
+              {sugestieDiferita && (
+                <button type="button" onClick={aplicaSugestia}
+                  className="rounded-lg border-2 border-line px-2.5 py-1 font-semibold hover:border-acc">
+                  Completează
+                </button>
+              )}
+              {sugestie.aviz && <span className="text-red-600">⚠ {sugestie.aviz}</span>}
+            </div>
+          )}
           <div className="fld"><label>Motorizare</label><input name="motorizare" defaultValue={edit?.motorizare ?? ""} placeholder="2.0 TDI 140 CP" /></div>
           <div className="fld"><label>Caroserie</label><input name="caroserie" defaultValue={edit?.caroserie ?? ""} placeholder="break / berlină / hatchback" /></div>
           <div className="fld"><label>Cutie de viteze</label><input name="cutie" defaultValue={edit?.cutie_viteze ?? ""} placeholder="manuală 6 trepte" /></div>
@@ -211,8 +270,9 @@ export default function Masini() {
                   <td data-eticheta="Mașina" className="px-4 py-3"><b>{v.nume}</b>{v.an ? ` · ${v.an}` : ""}
                     <div className="text-[11px] text-mut">{v.vin_masca ?? ""}</div>
                     {/* Semnalăm ce lipsește pentru pagina publică, la fel ca „⚠ fără ani"
-                        din Mărci și modele: fără marcă și model, mașina n-are cum să
-                        arate piese de la mașini compatibile. */}
+                        din Mărci și modele. Fără generație, pagina mașinii rămâne
+                        goală oricât de plin ar fi catalogul: `products.model_ids` e
+                        singura cheie prin care își găsește piesele. */}
                     <div className="text-[11px] mt-0.5 flex gap-2 flex-wrap">
                       {!v.publicat && <span className="text-mut">nepublicată</span>}
                       {!v.marca_id && <span className="text-red-600">⚠ fără marcă</span>}
@@ -220,8 +280,14 @@ export default function Masini() {
                       {(v.poze?.length ?? 0) === 0 && <span className="text-mut">fără poze</span>}
                     </div></td>
                   <td data-eticheta="Intrare" className="px-4 py-3 text-mut">{new Date(v.intrare).toLocaleDateString("ro-RO")}</td>
-                  <td data-eticheta="Piese listate" className="px-4 py-3"><Link href={`/piese?vehicul=${v.slug}`} className="text-acc font-semibold">{r.listate} listate</Link>
-                    <div className="text-[11px] text-mut">{r.vandute} vândute</div></td>
+                  {/* Cifra mare e cea pe care o vede clientul: piesele care se
+                      potrivesc pe generația mașinii. Sub ea, cifra internă —
+                      piesele demontate chiar de aici, adică baza profitului. */}
+                  <td data-eticheta="Piese" className="px-4 py-3">
+                    <Link href={`/masini/${v.slug}`} target="_blank" className="text-acc font-semibold">
+                      {peSite[v.id] ?? 0} pe pagină
+                    </Link>
+                    <div className="text-[11px] text-mut">{r.listate} demontate de aici · {r.vandute} vândute</div></td>
                   <td data-eticheta="Cost achiziție" className="px-4 py-3">{cost ? lei(cost) : <span className="text-mut">—</span>}</td>
                   <td data-eticheta="Încasat" className="px-4 py-3">{lei(r.incasat)}</td>
                   <td data-eticheta="Profit" className={`px-4 py-3 font-semibold ${profit >= 0 ? "text-ok" : "text-red-600"}`}>{cost ? (profit >= 0 ? "+" : "") + lei(profit) : "—"}</td>

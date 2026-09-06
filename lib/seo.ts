@@ -164,12 +164,17 @@ export function titluMasinaSeo(numeAfisat: string) {
 
 /**
  * Descrierea unei mașini dezmembrate. Numărul de piese e informație reală, se
- * schimbă odată cu catalogul, și e chiar ce caută omul: „au sau n-au piese de
- * pe mașina mea".
+ * schimbă odată cu catalogul, și e chiar ce caută omul: „au sau n-au piese
+ * pentru mașina mea".
+ *
+ * Scrie „se potrivesc pe", nu „demontate de pe" (6 septembrie 2026): pagina
+ * arată de acum piesele COMPATIBILE cu generația mașinii, nu doar pe cele
+ * demontate chiar de pe ea. Diferența nu e de nuanță — a promite proveniență
+ * într-un rezultat Google și a livra compatibilitate e exact drumul spre retur.
  */
 export function descriereMasina(numeAfisat: string, nrPiese: number) {
   const cap = nrPiese > 0
-    ? `${nrPiese} ${nrPiese === 1 ? "piesă demontată" : "piese demontate"} de pe ${numeAfisat}, testate, cu garanție 90 de zile.`
+    ? `${nrPiese} ${nrPiese === 1 ? "piesă care se potrivește" : "piese care se potrivesc"} pe ${numeAfisat}, testate, cu garanție 90 de zile.`
     : `Dezmembrăm ${numeAfisat}. Spune-ne ce piesă cauți și verificăm pe loc dacă o avem.`;
   return taie(`${cap} Livrare în toată țara.`.replace(/\s+/g, " "), MAX_DESCRIERE);
 }
@@ -179,5 +184,5 @@ export function descriereListaMasini(cuPiese: number, total: number) {
   const cap = cuPiese > 0
     ? `${cuPiese} ${cuPiese === 1 ? "mașină" : "mașini"} cu piese pe site, din ${total} aflate la dezmembrat.`
     : `${total} ${total === 1 ? "mașină aflată" : "mașini aflate"} la dezmembrat în depozitul nostru.`;
-  return taie(`${cap} Vezi ce piese avem de pe fiecare, cu garanție 90 de zile.`, MAX_DESCRIERE);
+  return taie(`${cap} Vezi ce piese se potrivesc pe fiecare, cu garanție 90 de zile.`, MAX_DESCRIERE);
 }

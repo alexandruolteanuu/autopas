@@ -18,6 +18,7 @@ export default function ProductForm({ produs }: { produs?: Product }) {
   const [modeleSel, setModeleSel] = useState<number[]>(produs?.model_ids ?? []);
   const [marcaFiltru, setMarcaFiltru] = useState<string>("");
   const [subcatId, setSubcatId] = useState<string>(String(produs?.subcategorie_id ?? ""));
+  const [vehiculId, setVehiculId] = useState<string>(String(produs?.vehicul_id ?? ""));
   const [msg, setMsg] = useState("");
   const [salvez, setSalvez] = useState(false);
 
@@ -34,6 +35,25 @@ export default function ProductForm({ produs }: { produs?: Product }) {
   const principale = cats.filter((c) => !c.parent_id);
   const subcats = cats.filter((c) => String(c.parent_id ?? "") === catId);
   const modeleAfisate = marcaFiltru ? models.filter((m) => String(m.brand_id) === marcaFiltru) : models;
+  const masinaAleasa = cars.find((c) => String(c.id) === vehiculId);
+
+  /** La alegerea mașinii-sursă se bifează automat și generația ei la „Modele
+   *  compatibile", dacă nu era deja bifată.
+   *
+   *  Nu e cosmetică: de la 6 septembrie 2026 pagina publică a mașinii se umple
+   *  EXCLUSIV din `model_ids` (vezi app/masini/[slug]/page.tsx). O piesă
+   *  demontată chiar de pe Passat-ul din curte, dar fără generația bifată, n-ar
+   *  apărea pe pagina lui — cel mai ușor de ratat lucru din formular, fiindcă
+   *  cele două câmpuri arată complet nelegate.
+   *
+   *  Bifa se poate scoate imediat după, cu mâna: e o sugestie aplicată, nu o
+   *  regulă. Mașinile fără generație completată în Admin → Mașini nu bifează
+   *  nimic, tocmai fiindcă n-au ce. */
+  function alegeMasina(id: string) {
+    setVehiculId(id);
+    const v = cars.find((c) => String(c.id) === id);
+    if (v?.model_id && !modeleSel.includes(v.model_id)) setModeleSel([...modeleSel, v.model_id]);
+  }
 
   async function salveaza(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault(); setMsg(""); setSalvez(true);
@@ -161,11 +181,24 @@ export default function ProductForm({ produs }: { produs?: Product }) {
                 {subcats.map((s) => <option key={s.id} value={s.id}>{s.nume}</option>)}
               </select></div>
             <p className="text-[11px] text-mut -mt-1">Lipsește o categorie? <Link href="/admin/categorii" className="text-acc font-semibold">Adaug-o aici</Link>.</p>
-            <div className="fld"><label>Mașina-sursă</label>
-              <select name="vehicul" defaultValue={produs?.vehicul_id ?? ""}>
+            <div className="fld"><label>Mașina-sursă <span className="font-normal text-mut">(doar intern — nu apare pe site)</span></label>
+              <select name="vehicul" value={vehiculId} onChange={(e) => alegeMasina(e.target.value)}>
                 <option value="">— fără —</option>
                 {cars.map((v) => <option key={v.id} value={v.id}>{v.nume}{v.an ? ` · ${v.an}` : ""}</option>)}
               </select></div>
+            {/* Ce face și ce NU face câmpul de mai sus. Textul e scurt intenționat,
+                dar spune exact cele două lucruri pe care operatorul le-ar presupune
+                greșit: că mașina aleasă duce piesa pe pagina ei (nu, aia o face
+                generația bifată mai jos) și că e obligatorie (nu e). */}
+            <p className="text-[11px] text-mut -mt-1">
+              De pe ce mașină ai demontat piesa. Alimentează profitul pe mașină din{" "}
+              <Link href="/admin/masini" className="text-acc font-semibold">Mașini la dezmembrat</Link>.
+              Pe site piesa apare după <b>modelele compatibile</b> bifate mai jos.
+              {masinaAleasa && !masinaAleasa.model_id && (
+                <> <span className="text-red-600">Mașina asta n-are generația completată</span> — completeaz-o
+                în Mașini la dezmembrat, altfel n-are pagină cu piese.</>
+              )}
+            </p>
           </div>
 
           <div className="card p-5 grid gap-3 text-sm">

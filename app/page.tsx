@@ -42,21 +42,22 @@ async function getData() {
     // Contoarele pentru filtru vin din view, nu din `products`: 537 de rânduri
     // în loc de 8.754, și corecte prin construcție. Vezi supabase/numar-piese-pe-model.sql.
     sb.from("numar_piese_pe_model").select("*"),
-    // Numărul real de piese pe fiecare mașină, din view: un rând pe mașină.
+    // Câte piese se potrivesc pe fiecare mașină, din view: un rând pe mașină.
     // Varianta veche aducea un rând pe PIESĂ legată — până la 8.754 — ca să afle
     // 22 de numere, și se lovea de plafonul de 1.000. Nu se ia din
     // `vehicles.piese_listate`, care e o valoare memorată: o desincronizare
     // s-ar vedea exact ca defectul „0 piese" reparat aici.
-    sb.from("numar_piese_pe_masina").select("*"),
+    sb.from("numar_piese_compatibile_pe_masina").select("*"),
   ]);
   const models = m;
   const counts = counturiPeModel((fit.data ?? []) as any[], models);
 
   const pePiese: Record<number, number> = {};
   for (const r of ((pv.data ?? []) as { vehicul_id: number; nr_piese: number }[])) pePiese[r.vehicul_id] = r.nr_piese;
-  // „Afișează doar mașinile cu cel puțin o piesă publicată" (B.5). O mașină fără
-  // piese nu e o eroare — e o mașină abia intrată — dar în hero ar arăta ca o
-  // promisiune neacoperită. Ea rămâne vizibilă în /masini, la „În dezmembrare acum".
+  // „Afișează doar mașinile cu cel puțin o piesă potrivită" (B.5). O mașină fără
+  // piese nu e o eroare — e una căreia încă nu i-am completat generația, sau una
+  // pentru care n-avem nimic în catalog — dar în hero ar arăta ca o promisiune
+  // neacoperită. Rămâne vizibilă în /masini, la „În dezmembrare acum".
   const cars = v
     .map((x) => ({ ...x, piese_listate: pePiese[x.id] ?? 0 }))
     .filter((x) => x.piese_listate > 0)
@@ -111,7 +112,9 @@ export default async function Home() {
               mereu, iar cu `vehicul_id` necompletat pe tot catalogul arăta patru
               mașini cu „0 piese disponibile" — adică fix promisiunea pe care
               n-o putea ține. Fără ea, grila rămâne pe o coloană și titlul
-              ocupă toată lățimea, ceea ce arată intenționat, nu ciuntit. */}
+              ocupă toată lățimea, ceea ce arată intenționat, nu ciuntit.
+              De la 6 septembrie 2026 cifra e cea a pieselor COMPATIBILE cu
+              generația mașinii, nu a celor demontate de pe ea. */}
           {cars.length > 0 && (
             <div className="flex flex-col lg:h-full">
               <div className="dim !text-heroText/60">Mașini dezmembrate recent</div>
@@ -121,7 +124,7 @@ export default async function Home() {
                     className="flex items-center justify-between gap-3 rounded-xl bg-suprafata border border-chenar px-4 py-3 hover:border-accentChenar transition lg:flex-1 lg:max-h-[140px]">
                     <div>
                       <b className="font-disp text-[15px] tracking-wide">{c.nume}{c.an ? ` · ${c.an}` : ""}</b>
-                      <div className="text-heroText/50 text-xs">{nrPiese(c.piese_listate ?? 0)} {c.piese_listate === 1 ? "disponibilă" : "disponibile"}</div>
+                      <div className="text-heroText/50 text-xs">{nrPiese(c.piese_listate ?? 0)} {c.piese_listate === 1 ? "potrivită" : "potrivite"}</div>
                     </div>
                     <span className="accentuat font-bold">→</span>
                   </Link>
