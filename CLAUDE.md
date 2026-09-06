@@ -10,7 +10,9 @@ adresă cu sediul social. Site public + cont client + panou de administrare comp
 
 **Stare la 28 august 2026: încă nelansat.** Nu are clienți, nu are comenzi reale (`orders` e goală).
 În bază sunt **8.754 de piese**, importate din pieseauto.ro — sunt anunțurile reale ale firmei, nu
-exemple — și **22 de mașini** la dezmembrat, introduse de mână.
+exemple — și **23 de mașini** la dezmembrat, introduse de mână. La 6 septembrie 2026 li s-au
+completat marca și generația (toate în afară de „Skoda Superb 1", care n-are generație în
+`models`), fără de care paginile lor n-ar arăta nicio piesă.
 Codul nu trebuie să conțină date inventate; datele din bază sunt provizorii și e în regulă.
 
 ## Stack
