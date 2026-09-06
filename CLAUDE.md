@@ -10,9 +10,9 @@ adresă cu sediul social. Site public + cont client + panou de administrare comp
 
 **Stare la 28 august 2026: încă nelansat.** Nu are clienți, nu are comenzi reale (`orders` e goală).
 În bază sunt **8.754 de piese**, importate din pieseauto.ro — sunt anunțurile reale ale firmei, nu
-exemple — și **23 de mașini** la dezmembrat, introduse de mână. La 6 septembrie 2026 li s-au
-completat marca și generația (toate în afară de „Skoda Superb 1", care n-are generație în
-`models`), fără de care paginile lor n-ar arăta nicio piesă.
+exemple — și **22 de mașini** la dezmembrat, introduse de mână. La 6 septembrie 2026 li s-au
+completat tuturor marca și generația, fără de care paginile lor n-ar arăta nicio piesă, și s-a
+șters un al 23-lea rând care era un duplicat fără an al lui „VW Passat B7 2.0 TDI".
 Codul nu trebuie să conțină date inventate; datele din bază sunt provizorii și e în regulă.
 
 ## Stack
@@ -72,10 +72,15 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 24. `ani-generatie.sql` -> 25. `marci-lipsa.sql` -> 26. `generatii-si-denumiri.sql` ->
 27. `mod-vacanta.sql` -> 28. `pagini-masini.sql` -> 29. `numar-piese-pe-model.sql` ->
 30. `ga4-public.sql` -> 31. `categorii-numar-rapid.sql` -> 32. `piese-marca-categorie.sql` ->
-33. `masuratori-publice.sql` -> 34. `piese-compatibile-masini.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9–34.
+33. `masuratori-publice.sql` -> 34. `piese-compatibile-masini.sql` -> 35. `superb-1.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9–35.
 NU sunt încă idempotente: 1–5, 8.
-**Aplicate pe producție: 1–34.**
+**Aplicate pe producție: 1–35.**
+35 adaugă generația „Škoda Superb 1" (2001–2008), care lipsea din `models`, și mută pe ea
+cele 4 piese cu „Superb 1"/„Superb 3U" în titlu care stăteau greșit pe Superb 2 — importul
+alesese generația prin suprapunere de ani, iar „2005–2008" atinge „2008–2015" într-un singur
+an. Sursa nu scrie NICIODATĂ „Skoda Superb 1" (numărat: „Superb 3" 97 de piese, „Superb"
+fără cifră 92, „Superb 2" 66), deci un import viitor nu va lega singur nimic de ea.
 34 e migrarea care face paginile de mașină să se umple singure: adaugă coloana
 calculată `products.nr_modele` (câte modele are piesa în `model_ids` — cheia de
 ordonare după relevanță) și view-ul `numar_piese_compatibile_pe_masina`. Nu
