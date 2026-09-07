@@ -298,6 +298,31 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
   suprapunere — dar numai dacă o singură generație se suprapune. „Caddy 2003 2004 2005" iese cu un an
   din „Caddy III (2004–2015)" și tot se nimerește; „Golf 2008" prinde și Golf 5, și Golf 6, deci
   rămâne ambiguu și nu se alege niciuna.
+- **Codul piesei (`oem`) vine din descriere, de pe rândul „COD: …"** (7 septembrie 2026,
+  `codOem` din `lib/import/extragere.mjs`). Până atunci `extrage()` întorcea `oem: null`, cu nota
+  „confirmat absent pe pagină" — concluzie trasă când descrierea se citea TĂIATĂ (vezi mai jos),
+  iar rândul cu codul cădea aproape mereu în partea pierdută.
+  · **Formele sunt măsurate**: 43 de rânduri „COD:" culese de pe 60 de pagini reale. Regula care
+    iese din ele: **spațiul ține împreună, bara desparte**. „av6n 18456 ca" e UN cod (Ford, Toyota,
+    Mazda le scriu cu spații), „4M0853817 / 4M0854819" sunt DOUĂ. N-a apărut niciun caz în care un
+    spațiu să despartă două coduri.
+  · **Sursa nu pune întotdeauna `<br>` după cod**, deci fraza curge lipită: „8200842205Pretul
+    afisat este pe bucata !". Se taie la primul cuvânt care arată a cuvânt — o majusculă urmată de
+    litere mici, sau patru majuscule la rând. Numerele de piesă nu arată niciodată așa: se termină
+    în cel mult trei litere („5H0805915P", „1k0407272JT").
+  · **Un câmp gol e mai bun decât unul cu text în el**: `oem` ajunge în feed-urile de reclame și în
+    anunțurile de pe dez.ro. De aceea „COD: se vede in poza" nu produce nimic, iar un cod trebuie
+    să aibă cel puțin trei cifre.
+  · Piesele importate înainte se completează cu `scripts/completeaza-oem.mjs`.
+- **Descrierea se lua TĂIATĂ la primul `</div>`** (defect găsit la 7 septembrie 2026, în producție
+  de la primul import). Sursa își scrie paragrafele în `<div>`-uri imbricate, iar regexul non-greedy
+  se oprea la închiderea primului div interior — de obicei rândul gol de sub titlu. Măsurat pe 40
+  de pagini luate din tot catalogul: **17 descrieri din 40 erau tăiate**, una de la 386 de
+  caractere la 84. `blocEtichetat()` numără acum deschiderile și închiderile aceleiași etichete.
+  · Reparat pentru piesele vechi de `scripts/completeaza-oem.mjs`, cu **regula prefixului**:
+    descrierea salvată se înlocuiește DOAR dacă e chiar începutul celei citite acum. O descriere
+    tăiată e, literalmente, prefixul celei întregi; una rescrisă de operator nu e, deci rămâne
+    neatinsă. Verificat pe 8 piese reale înainte de a scrie regula.
 - **Greutatea NU poate veni de la pieseauto.ro** (verificat 25 august 2026): nu e nici în CSV
   (ID, URL, Titlu, Moneda, Pret), nici pe pagina produsului — n-au tabel de specificații. Rămâne
   1 kg cu `greutate_estimata = true`, cântărit la formarea coletului.
@@ -840,6 +865,7 @@ Niciuna nu e dependință a site-ului și niciuna nu rulează la build. Se cheam
 | `completeaza-taxonomia.mjs` | o singură dată după schimbarea regulilor de taxonomie. Completează categoria și modelul pieselor importate ÎNAINTE de reguli — un re-import nu le repară, fiindcă `patchLaReimport` nu atinge categoria. Doar raportează; scrie cu `--scrie`. Cu `--reciteste` cere din nou pagina fiecărei piese, când extragerea s-a schimbat. Nu atinge piesele cu `editat_manual` |
 | `verifica-vacanta.mjs` | după orice atingere a modului vacanță. **Rulează pe baza reală** și comută vacanța câteva secunde, apoi o lasă dezactivată. Verifică cele 7 puncte din sarcină: amprenta catalogului înainte/după ciclu, refuzul lui `plaseaza_comanda`, ordinea gărzii. Nu creează nicio comandă |
 | `verifica-seo.mjs` | **după orice modificare a metadatelor sau a șabloanelor de titlu.** Cere paginile de la un server care rulează (`BASE=…`) și verifică: titlu ≤ 65, descriere ≤ 165 și prezentă, **marca apare exact o dată în titlu**, descrieri unice, un singur `canonical`. Iese cu cod 1 dacă pică ceva |
+| `completeaza-oem.mjs` | **o singură dată**, ca să completeze `oem` și să repare descrierile tăiate ale pieselor importate ÎNAINTE de 7 septembrie 2026. Recitește pagina fiecărei piese (~2s), deci ~5 ore la 8.965 de piese; `--de-la=<id>` reia de unde a rămas, `--limita=N` face o probă. Doar raportează; scrie cu `--scrie` |
 | `verifica-import.mjs` | după orice modificare în `lib/import/`. 78 de verificări pe regulile importului — protecția de 20%, reluarea din poziția salvată, canarul, ce are voie să atingă un re-import. Fără rețea și fără bază de date: sursa și depozitul sunt false, deci se poate rula oricând |
 | `scan-responsive.mjs` | după modificări de așezare. 19 pagini × 13 lățimi; `TEMA=luminos` schimbă tema. Cere `playwright-core` legat în `node_modules` — vezi antetul fișierului |
 | `reconverteste-poze.mjs` | **rar, la nevoie.** Trece în WebP pozele rămase JPEG în bucket. A fost scris fiindcă primele piese importate au ajuns JPEG, când `sharp` nu era încă instalat, iar `lib/import/imagini.mjs` urcă originalul dacă lipsește codecul. Dacă apar iar JPEG-uri în bucket, ori a picat `sharp`, ori conversia a preferat originalul (poză deja bine comprimată) — scriptul spune care din două. Idempotent, cu `--uscat` |

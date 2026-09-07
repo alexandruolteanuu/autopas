@@ -21,7 +21,7 @@ import {
   parseCSV, verificaColoane, planifica, proceseazaRanduri,
   patchLaReimport, construiesteRand, PRAG_CANAR, REZERVA_MS,
   potrivesteCategoria, modelDinTitlu, categoriaSursa, slugifica,
-  extrage, potriveste, taxonomieDinUrl, numeModelNou,
+  extrage, potriveste, taxonomieDinUrl, numeModelNou, blocEtichetat, codOem, faraTaguri,
 } from "../lib/import/index.mjs";
 
 let treceri = 0, picate = 0;
@@ -670,6 +670,71 @@ sectiune("13. Sinonime de marcă");
   const kgm = potriveste({ titlu: "Far Stanga KGM Korando 2015", compat: ["KGM Korando"],
                            an_min: 2015, an_max: 2015, erori: [] }, taxS);
   cer("numele corporativ nou (KGM) e recunoscut ca sinonim", kgm.model_id === 70, JSON.stringify(kgm.note));
+}
+
+// ============================================================
+// 14. Descrierea întreagă și codul piesei
+//
+// DE CE (defect găsit la 7 septembrie 2026, în producție de la primul import)
+// Descrierea se lua până la PRIMUL `</div>`, iar sursa își scrie paragrafele în
+// `<div>`-uri imbricate. Măsurat pe 40 de pagini reale: 17 descrieri erau tăiate,
+// una de la 386 de caractere la 84. Rândul „COD: …", care stă mai jos în text,
+// cădea aproape mereu în partea pierdută — de aceea în bază aveau cod doar 455
+// de piese din 8.965, deși pe pagini apare la vreo treime.
+// ============================================================
+sectiune("14. Descrierea întreagă și codul piesei");
+{
+  // Exact structura sursei: titlu îngroșat, un div gol, apoi codul, apoi restul.
+  const paginaImbricata = `
+<html><head>
+<meta property="og:url" content="https://www.pieseauto.ro/stopuri/skoda/scala/stop-1.html">
+<meta itemprop="price" content="350"><meta itemprop="priceCurrency" content="RON">
+</head><body>
+<h1>Stop stanga dreapta LED Skoda Scala 2018</h1>
+<div class="pr-desc" itemprop="description"><b>Stop stanga dreapta LED Skoda Scala 2018</b><div><b><br /></b></div><div><span><b>COD:&nbsp;657945207 /&nbsp;</b><b>657945208</b></span></div><div>Pretul afisat este pe bucata !</div><div>Provin din dezmembrari.</div></div>
+<script>let images = [{"original":"https://exemplu/poza0.jpg"}];</script>
+</body></html>`;
+
+  const e = extrage(paginaImbricata, "https://www.pieseauto.ro/stopuri/skoda/scala/stop-1.html");
+  cer("descrierea nu se mai taie la primul </div>",
+    (e.descriere ?? "").includes("Provin din dezmembrari"), JSON.stringify(e.descriere));
+  cer("codul piesei ajunge în `oem`", e.oem === "657945207 / 657945208", String(e.oem));
+
+  // Blocul echilibrat trebuie să se oprească la ÎNCHIDEREA lui, nu mai departe.
+  const dupa = `<div itemprop="description">a<div>b</div>c</div><div>ALTCEVA</div>`;
+  cer("blocul se oprește la închiderea lui", !faraTaguri(blocEtichetat(dupa, 'itemprop="description"')).includes("ALTCEVA"));
+
+  // Formele reale de scriere a codului, toate culese de pe pagini (43 de rânduri
+  // de pe 60 de pagini, 7 septembrie 2026). Parserul le trece pe 42 din 43.
+  cer("„COD:” fără spațiu", codOem("COD:3t0941699c") === "3t0941699c");
+  cer("„Cod injector :” (cuvânt între)", codOem("Cod injector : 038130073AG") === "038130073AG");
+  cer("mai multe rânduri cu cod se strâng toate",
+    codOem("COD: 8E0407271S\nCOD: 8E0407272S") === "8E0407271S / 8E0407272S");
+  cer("un cod cu liniuță e acceptat", codOem("COD: 5dv009610-00") === "5dv009610-00");
+
+  // SPAȚIUL ȚINE ÎMPREUNĂ, BARA DESPARTE — regula care iese din datele reale.
+  cer("bara desparte două coduri",
+    codOem("COD: 4M0853817 / 4M0854819") === "4M0853817 / 4M0854819");
+  cer("spațiul NU desparte: „av6n 18456 ca” e UN cod",
+    codOem("COD: av6n 18456 ca") === "av6n 18456 ca", String(codOem("COD: av6n 18456 ca")));
+  cer("la fel și când e numai din cifre („27060 27040”)",
+    codOem("COD: 27060 27040") === "27060 27040");
+
+  // Sursa nu pune întotdeauna un <br> după cod: fraza curge lipită de el.
+  cer("fraza lipită de cod se taie",
+    codOem("COD: 8200842205Pretul afisat este pe bucata !") === "8200842205",
+    String(codOem("COD: 8200842205Pretul afisat este pe bucata !")));
+  cer("se taie și la MAJUSCULE lipite",
+    codOem("COD: 6J1035153gNECESITA DECODARE !") === "6J1035153g");
+  cer("codul cu spații nu se pierde când e lipit de frază",
+    codOem("COD: 27060 27040Alternatorul se poate vedea") === "27060 27040");
+
+  // Ce NU trebuie să ajungă niciodată în `oem`. Câmpul ajunge în feed-urile de
+  // reclame și în anunțurile de pe dez.ro: mai bine gol decât cu text în el.
+  cer("text în loc de cod => null", codOem("COD: se vede in poza") === null);
+  cer("„Codul postal” nu e cod de piesă", codOem("Codul postal: 617508") === null);
+  cer("fără niciun cod => null", codOem("Piesa e originala, fara defecte.") === null);
+  cer("descriere goală => null", codOem(null) === null);
 }
 
 console.log(`\n=== ${treceri} verificări trec · ${picate} pică ===`);
