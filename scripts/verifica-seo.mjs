@@ -122,6 +122,42 @@ for (const cale of pagini) {
     cer(`${cale} — descriere unică`, !vazutaLa, `aceeași ca la ${vazutaLa}`);
     if (!vazutaLa) descrieri.set(descriere, cale);
   }
+
+  // ---- datele structurate, pe paginile de piesă ----
+  //
+  // Merchant Center le citește ca să corecteze prețul și disponibilitatea între
+  // două preluări ale feed-ului. Dacă pagina spune altceva decât feed-ul, Google
+  // nu alege una dintre ele: suspendă produsul. De aceea verificarea nu se uită
+  // doar la „există", ci la ce scrie acolo.
+  if (cale.startsWith("/piese/") && !cale.startsWith("/piese/categorie/") && !cale.startsWith("/piese/marca/")) {
+    const blocuri = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)]
+      .map((m) => { try { return JSON.parse(m[1]); } catch { return null; } });
+    const produs = blocuri.find((b) => b?.["@type"] === "Product");
+    const drum = blocuri.find((b) => b?.["@type"] === "BreadcrumbList");
+
+    cer(`${cale} — are date structurate Product`, !!produs);
+    if (produs) {
+      const o = produs.offers ?? {};
+      cer(`${cale} — prețul e „123.45", fără monedă`, /^\d+\.\d{2}$/.test(String(o.price)), String(o.price));
+      cer(`${cale} — moneda e RON`, o.priceCurrency === "RON", String(o.priceCurrency));
+      // Google acceptă exact valorile astea două; „InStock" fără adresă, sau
+      // „in_stock" ca în feed, nu sunt citite și produsul rămâne fără stoc.
+      cer(`${cale} — disponibilitatea e una dintre cele două adrese schema.org`,
+          ["https://schema.org/InStock", "https://schema.org/OutOfStock"].includes(String(o.availability)),
+          String(o.availability));
+      cer(`${cale} — starea e „folosit"`, produs.itemCondition === "https://schema.org/UsedCondition");
+      cer(`${cale} — are cod propriu (sku)`, !!produs.sku);
+      // Prețul din pagină trebuie să fie exact cel afișat omului. Verificarea e
+      // grosieră intenționat: caută cifrele prețului în textul paginii.
+      const intreg = String(o.price).split(".")[0];
+      cer(`${cale} — prețul din date se regăsește în pagină`,
+          html.includes(intreg) || html.includes(Number(intreg).toLocaleString("ro-RO")), intreg);
+      // Recenzii inventate = penalizare manuală. Nu avem recenzii, deci n-are
+      // ce căuta nimic aici.
+      cer(`${cale} — fără recenzii inventate`, !produs.aggregateRating && !produs.review);
+    }
+    cer(`${cale} — are firul Ariadnei structurat`, !!drum && (drum.itemListElement ?? []).length >= 3);
+  }
 }
 
 console.log(`\n=== ${treceri} verificări trec · ${picate} pică ===`);

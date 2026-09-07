@@ -521,6 +521,28 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
     n-au fost încă trecute prin aceeași verificare.
   Niciuna nu e blocantă: sunt ecrane interne, nu pagini publice. Devin dureroase când catalogul
   crește — exact ca plafonul de 1.000 de rânduri, care n-a durut până la a 1.001-a piesă.
+- **Pagina de piesă poartă date structurate `schema.org/Product`** (7 septembrie 2026,
+  `dateStructuratePiesa` din `lib/seo.ts`). Motivul e comercial, nu SEO: piesele sunt UNICAT, iar
+  un anunț Google Shopping pentru o piesă vândută se plătește până la următoarea preluare a
+  feed-ului — de obicei a doua zi. Cu datele astea în pagină, Merchant Center poate folosi
+  „Automatic item updates" și corectează prețul și stocul în ore.
+  · **Ce scrie în pagină trebuie să spună EXACT ce spune feed-ul.** Dacă pagina zice 350 și feed-ul
+    380, Google nu alege una — suspendă produsul. De aceea prețul și disponibilitatea se calculează
+    din aceleași câmpuri ca în `lib/feed.ts`, iar `scripts/verifica-seo.mjs` le verifică pe pagini
+    reale (formă „123.45", monedă RON, disponibilitate ca adresă schema.org, preț regăsit în pagină).
+  · **NU se pune `shippingDetails`**: costul transportului se stabilește după cântărire (decizia din
+    7 august 2026), iar o valoare inventată aici ar fi o promisiune pe care checkout-ul n-o ține.
+    Tariful pentru Google se pune în Merchant Center, unde e limpede că e o estimare.
+  · **NU se pune `aggregateRating` sau `review`**: n-avem recenzii, iar recenziile inventate în date
+    structurate sunt motiv de penalizare manuală. Verificarea le interzice explicit.
+  · `hasMerchantReturnPolicy` spune ce spun documentele legale: 14 zile, costul returnării la
+    cumpărător (`lib/legal.ts`). Dacă se schimbă politica, se schimbă în amândouă.
+- **Adresa Supabase se curăță de bara finală în depozite** (`lib/import/depozit.mjs`,
+  `lib/dezro/depozit.mjs`). Variabila de mediu se termină cu „/", iar `${url}/storage/...` a ieșit
+  cu două bare la 8.855 din 8.964 de piese. Adresele funcționează (verificat, HTTP 200 pe ambele
+  forme), deci rândurile vechi NU se rescriu — și e o decizie: `dezro_anunturi.poze_trimise`
+  compară adresele ca text, iar o rescriere în masă ar face fiecare poză să pară nouă și ar reurca
+  ~20.000 de fișiere la dez.ro.
 - **Marca se adaugă titlurilor într-un SINGUR loc** (28 august 2026): șablonul
   `SABLON_TITLU` din `app/layout.tsx`, care îl importă din `lib/seo.ts`. Generatoarele de
   titlu NU pun sufixul, iar paginile nu folosesc `absolute`.
@@ -884,7 +906,7 @@ Niciuna nu e dependință a site-ului și niciuna nu rulează la build. Se cheam
 | `actualizeaza-taxonomie-sursa.mjs` | când catalogul pieseauto.ro se schimbă. Reface `lib/import/taxonomie-sursa.mjs` din pagina lor `/categorii/`. Are `--uscat`; refuză să scrie dacă extrage sub 300 de categorii (semn că pagina lor s-a schimbat) |
 | `completeaza-taxonomia.mjs` | o singură dată după schimbarea regulilor de taxonomie. Completează categoria și modelul pieselor importate ÎNAINTE de reguli — un re-import nu le repară, fiindcă `patchLaReimport` nu atinge categoria. Doar raportează; scrie cu `--scrie`. Cu `--reciteste` cere din nou pagina fiecărei piese, când extragerea s-a schimbat. Nu atinge piesele cu `editat_manual` |
 | `verifica-vacanta.mjs` | după orice atingere a modului vacanță. **Rulează pe baza reală** și comută vacanța câteva secunde, apoi o lasă dezactivată. Verifică cele 7 puncte din sarcină: amprenta catalogului înainte/după ciclu, refuzul lui `plaseaza_comanda`, ordinea gărzii. Nu creează nicio comandă |
-| `verifica-seo.mjs` | **după orice modificare a metadatelor sau a șabloanelor de titlu.** Cere paginile de la un server care rulează (`BASE=…`) și verifică: titlu ≤ 65, descriere ≤ 165 și prezentă, **marca apare exact o dată în titlu**, descrieri unice, un singur `canonical`. Iese cu cod 1 dacă pică ceva |
+| `verifica-seo.mjs` | **după orice modificare a metadatelor, a șabloanelor de titlu sau a datelor structurate.** Cere paginile de la un server care rulează (`BASE=…`) și verifică: titlu ≤ 65, descriere ≤ 165 și prezentă, **marca apare exact o dată în titlu**, descrieri unice, un singur `canonical`. Iese cu cod 1 dacă pică ceva |
 | `completeaza-oem.mjs` | **o singură dată**, ca să completeze `oem` și să repare descrierile tăiate ale pieselor importate ÎNAINTE de 7 septembrie 2026. Recitește pagina fiecărei piese (~2s), deci ~5 ore la 8.965 de piese; `--de-la=<id>` reia de unde a rămas, `--limita=N` face o probă. Doar raportează; scrie cu `--scrie` |
 | `verifica-import.mjs` | după orice modificare în `lib/import/`. 78 de verificări pe regulile importului — protecția de 20%, reluarea din poziția salvată, canarul, ce are voie să atingă un re-import. Fără rețea și fără bază de date: sursa și depozitul sunt false, deci se poate rula oricând |
 | `scan-responsive.mjs` | după modificări de așezare. 19 pagini × 13 lățimi; `TEMA=luminos` schimbă tema. Cere `playwright-core` legat în `node_modules` — vezi antetul fișierului |

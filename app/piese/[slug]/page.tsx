@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { sbServer, citesteTot } from "@/lib/supabase";
-import { titluPiesa, descrierePiesa, SUFIX_TITLU } from "@/lib/seo";
+import { titluPiesa, descrierePiesa, SUFIX_TITLU, dateStructuratePiesa } from "@/lib/seo";
 import type { Product, Category, Brand, Model } from "@/lib/types";
 import AddToCart from "@/components/AddToCart";
 import ProductCard from "@/components/ProductCard";
@@ -13,6 +13,7 @@ import { lei } from "@/lib/format";
 import EvenimentGa from "@/components/EvenimentGa";
 import { piesaGa, MONEDA } from "@/lib/analytics";
 import { getSetariServer, waLinkCu } from "@/lib/settings";
+import { SITE_URL } from "@/lib/config";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -145,8 +146,29 @@ export default async function Produs({ params }: { params: { slug: string } }) {
     ["Livrare", "prin curier rapid în 24/48h (contra cost)"],
   ];
 
+  // Datele structurate. Merchant Center le citește ca să corecteze prețul și
+  // disponibilitatea între două preluări ale feed-ului — la un catalog de piese
+  // unicat, asta e diferența dintre „anunț oprit în câteva ore" și „anunț plătit
+  // o zi întreagă pentru o piesă vândută". Vezi `dateStructuratePiesa`.
+  const structurate = dateStructuratePiesa({
+    produs: prod,
+    marca: marcaProd ?? null,
+    url: `${SITE_URL}/piese/${prod.slug}`,
+    poze: prod.poze ?? [],
+    vanzator: firma.denumire,
+    caleCategorie: [
+      ...(catPrinc ? [{ nume: catPrinc.nume, href: `/piese/categorie/${catPrinc.slug}` }] : []),
+      ...(subcat ? [{ nume: subcat.nume, href: `/piese/categorie/${subcat.slug}` }] : []),
+    ],
+  });
+
   return (
     <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+      {structurate.map((d, i) => (
+        <script key={i} type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(d) }} />
+      ))}
+
       <div className="flex items-center gap-3 flex-wrap mb-3">
         <BackLink />
         <Breadcrumbs items={[

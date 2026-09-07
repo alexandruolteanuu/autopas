@@ -19,6 +19,7 @@
 // descrieri peste 160.
 // ============================================================
 import type { Product, Brand, Model } from "./types";
+import { SITE_URL } from "./config";
 
 /**
  * Sufixul de marcă al fiecărui titlu. **Un singur loc din tot proiectul îl
@@ -158,6 +159,125 @@ export const taieText = (t: string, max: number) => taie(t, max);
  * „Dezmembrări Vw Passat B6 2.0 TDI BMP · 2008 — piese disponibile · Autopas
  * Dezmembrări". Se folosește cu `title: { absolute }`.
  */
+// ============================================================
+// DATE STRUCTURATE PENTRU PAGINA DE PIESĂ (schema.org/Product)
+//
+// DE CE (7 septembrie 2026, înainte de primele campanii Google Ads)
+// Piesele noastre sunt UNICAT. Când una se vinde, anunțul din Google Shopping
+// rămâne activ până la următoarea preluare a feed-ului — de obicei o dată pe zi.
+// Plătim clicuri pentru ceva ce nu mai există, iar Merchant Center penalizează
+// nepotrivirea dintre feed și pagină.
+//
+// Leacul e „Automatic item updates": Google citește prețul și disponibilitatea
+// DIRECT DE PE PAGINĂ, între două preluări ale feed-ului, și corectează anunțul
+// în ore, nu în zile. Ca să poată, pagina trebuie să poarte datele astea în
+// formă citibilă de mașină. Până azi n-avea niciuna.
+//
+// REGULA CARE NU SE ÎNCALCĂ: ce scrie aici trebuie să spună EXACT ce spune
+// feed-ul. Dacă pagina zice 350 și feed-ul 380, Google nu alege una — suspendă
+// produsul. De aceea `pret` și `disponibilitate` se calculează din aceleași
+// câmpuri, în același fel ca în `lib/feed.ts`, iar `scripts/verifica-seo.mjs`
+// compară cele două surse pe pagini reale.
+//
+// CE NU SE PUNE, DELIBERAT
+//   · `shippingDetails` — costul transportului se stabilește DUPĂ cântărire
+//     (decizia din 7 august 2026). O valoare inventată aici ar fi o promisiune
+//     pe care checkout-ul n-o poate ține. Tariful pentru Google se pune în
+//     Merchant Center, unde e clar că e o estimare.
+//   · `priceValidUntil` — n-avem de unde ști până când ține prețul. Google dă
+//     doar o avertizare pentru lipsa lui, nu o eroare.
+//   · `aggregateRating` / `review` — n-avem recenzii. Datele structurate cu
+//     recenzii inventate sunt motiv de penalizare manuală.
+// ============================================================
+
+/** Disponibilitatea, în vocabularul schema.org. Aceeași regulă ca
+ *  `disponibilitate_google` din `lib/feed.ts`: contează doar stocul. */
+export const disponibilitateSchema = (stoc: number) =>
+  stoc > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock";
+
+/** Prețul în forma cerută de schema.org: „350.00", punct zecimal, fără monedă.
+ *  Moneda merge separat, în `priceCurrency`. */
+export const pretSchema = (n: number) => Number(n).toFixed(2);
+
+/**
+ * Politica de retur, așa cum e scrisă în documentele noastre legale
+ * (`lib/legal.ts`): 14 zile, iar costul returnării îl suportă cumpărătorul.
+ * Valorile sunt cele din vocabularul Google — nu se inventează o sumă pe care
+ * n-o știm.
+ */
+const RETUR = {
+  "@type": "MerchantReturnPolicy",
+  applicableCountry: "RO",
+  returnPolicyCountry: "RO",
+  returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
+  merchantReturnDays: 14,
+  returnMethod: "https://schema.org/ReturnByMail",
+  returnFees: "https://schema.org/ReturnFeesCustomerResponsibility",
+};
+
+/**
+ * `Product` + `Offer` pentru o piesă, plus firul Ariadnei.
+ *
+ * `marca` e marca MAȘINII, nu a producătorului piesei — pe care n-o știm.
+ * Aceeași valoare pleacă și în `g:brand` din feed; dacă cele două s-ar despărți,
+ * Merchant Center ar vedea două produse diferite pe aceeași adresă.
+ */
+export function dateStructuratePiesa(opt: {
+  produs: Product;
+  marca?: Brand | null;
+  url: string;
+  poze: string[];
+  vanzator: string;
+  caleCategorie: { nume: string; href: string }[];
+}) {
+  const { produs: p, marca, url, poze, vanzator, caleCategorie } = opt;
+  const produs: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: p.nume,
+    description: descrierePiesa(p),
+    sku: p.cod_intern ?? String(p.id),
+    itemCondition: "https://schema.org/UsedCondition",
+    url,
+    offers: {
+      "@type": "Offer",
+      url,
+      price: pretSchema(Number(p.pret_lei)),
+      priceCurrency: "RON",
+      availability: disponibilitateSchema(p.stoc),
+      itemCondition: "https://schema.org/UsedCondition",
+      seller: { "@type": "Organization", name: vanzator },
+      hasMerchantReturnPolicy: RETUR,
+    },
+  };
+  if (poze.length) produs.image = poze;
+  // `mpn` doar când chiar avem codul. `identifier_exists: no` din feed spune
+  // același lucru pentru piesele fără cod; aici tăcerea e forma echivalentă.
+  if (p.oem && p.oem.trim() && p.oem.trim() !== "-") produs.mpn = p.oem.trim();
+  if (marca?.nume) produs.brand = { "@type": "Brand", name: marca.nume };
+
+  const drum = [
+    { nume: "Acasă", href: "/" },
+    { nume: "Piese auto", href: "/piese" },
+    ...caleCategorie,
+    { nume: p.nume, href: new URL(url).pathname },
+  ];
+
+  return [
+    produs,
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: drum.map((d, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        name: d.nume,
+        item: d.href.startsWith("http") ? d.href : `${SITE_URL}${d.href}`,
+      })),
+    },
+  ];
+}
+
 export function titluMasinaSeo(numeAfisat: string) {
   return taie(`Dezmembrări ${numeAfisat}`.replace(/\s+/g, " "), MAX_TITLU);
 }
