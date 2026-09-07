@@ -569,10 +569,30 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
     cel mai necesar. Triggerul scrie rândul în `email_coada` în ACEEAȘI tranzacție cu
     comanda: dacă există comanda, există și e-mailul de trimis. Ce se poate întâmpla mai rău
     e o întârziere, niciodată o pierdere.
-  · **Un e-mail nu are voie să strice o comandă.** Tot corpul triggerului e învelit într-un
-    `exception when others then null`. Dacă pg_net cade, dacă `settings` e gol, dacă site-ul
-    e în timpul unui deploy — comanda se salvează oricum. O comandă pierdută costă bani; un
-    e-mail întârziat, nu.
+  · **Un e-mail nu are voie să strice o comandă.** Triggerul are DOUĂ blocuri, fiecare cu
+    `exception` propriu. Dacă pg_net cade, dacă `settings` e gol, dacă site-ul e în timpul
+    unui deploy — comanda se salvează oricum. O comandă pierdută costă bani; un e-mail
+    întârziat, nu.
+  · **DE CE DOUĂ BLOCURI, nu unul** (defect găsit și reparat în aceeași zi, 7 septembrie
+    2026, la prima comandă reală). În PL/pgSQL o excepție anulează TOT ce s-a făcut în blocul
+    în care a apărut. Prima versiune avea inserarea în coadă și apelul HTTP în același
+    `begin ... exception`, iar apelul era scris `extensions.net.http_post` — greșit, fiindcă
+    **pg_net își face oricum schema proprie `net`**, indiferent de `with schema` de la
+    `create extension`. Funcția inexistentă ridica excepție, excepția era înghițită, și odată
+    cu ea se anula și inserarea. Comanda a intrat în bază, coada a rămas goală: exact
+    invariantul pe care triggerul trebuia să-l apere.
+    · **Regula, de acum: un `exception when others` nu protejează ce e ÎNAINTE de el în
+      același bloc — îl aruncă. Fiecare efect care trebuie să supraviețuiască singur stă în
+      blocul lui.**
+    · Eșecul trezirii NU se mai înghite tăcut: se scrie în `email_coada.eroare`, ca să se
+      vadă în panou de ce a întârziat.
+    · Cum a scăpat de la testare: testul de dinainte de lansare a rulat cu `webhook_url` gol,
+      deci `if`-ul era fals și apelul nici nu se făcea. Testasem exact ramura care ocolea
+      eroarea. Un test pe o funcție cu `exception when others` trebuie rulat cu configurarea
+      COMPLETĂ, altfel confirmă doar ramura leneșă.
+    · Verificare rapidă a lanțului, fără să trimiți vreun e-mail: inserezi în `part_requests`
+      un rând FĂRĂ `email`. Trece prin trigger → coadă → trezire → rută și se închide singur
+      cu „fără adresă de e-mail". `net._http_response` arată codul întors de rută.
   · Trezirea rutei e fire-and-forget (`net.http_post`). Dacă nu ajunge, rândul rămâne în
     coadă; butonul „Trimite ce a rămas în coadă" din Admin → Integrări e cârligul de
     recuperare, ca să nu depindem de un cron.

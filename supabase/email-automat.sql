@@ -3,6 +3,13 @@
 -- Supabase → SQL Editor → New query → lipește tot → Run
 -- IDEMPOTENTĂ: se poate re-rula oricând.
 --
+-- CORECTATĂ ÎN ACEEAȘI ZI, 7 septembrie 2026. Prima versiune chema
+-- `extensions.net.http_post`, dar pg_net se instalează întotdeauna în schema
+-- `net`; iar inserarea în coadă stătea în ACELAȘI bloc `exception` cu apelul,
+-- deci eroarea apelului anula și inserarea. Prima comandă reală a intrat fără
+-- niciun e-mail. Fișierul de aici e versiunea reparată — cine îl re-rulează
+-- primește funcția corectă. Explicația lungă e în corpul funcției.
+--
 -- CE FACE (7 septembrie 2026)
 -- Pune la coadă un e-mail de fiecare dată când intră o comandă sau o cerere, și
 -- trezește ruta `/api/email-coada` de pe site, care le trimite prin Brevo.
@@ -16,9 +23,9 @@
 -- Ce se poate întâmpla mai rău e o întârziere, niciodată o pierdere.
 --
 -- REGULA CARE NU SE ÎNCALCĂ: un e-mail nu are voie să strice o comandă.
--- Tot ce face triggerul e învelit într-un `exception when others then null`.
--- Dacă pg_net cade, dacă `settings` e gol, dacă site-ul e în timpul unui deploy —
--- comanda se salvează oricum, iar rândul rămâne în coadă și se trimite la
+-- Triggerul are DOUĂ blocuri, fiecare cu `exception` propriu — inserarea în coadă
+-- și trezirea rutei. Dacă pg_net cade, dacă `settings` e gol, dacă site-ul e în
+-- timpul unui deploy: comanda se salvează, rândul rămâne în coadă și pleacă la
 -- următoarea trezire. O comandă pierdută costă bani; un e-mail întârziat, nu.
 --
 -- UNDE STAU SECRETELE
@@ -35,6 +42,12 @@
 -- activăm explicit ca să rămână scrisă în migrare, nu apăsată într-o interfață.
 -- Apelul e ASINCRON: `net.http_post` doar pune cererea într-o coadă internă și
 -- se întoarce imediat, deci nu ține tranzacția comenzii în loc.
+--
+-- ⚠ `with schema extensions` de mai jos e ÎNȘELĂTOR: pg_net își creează oricum
+-- schema proprie `net`, iar funcțiile se cheamă `net.http_post`, nu
+-- `extensions.net.http_post`. Verifică cu:
+--     select n.nspname, p.proname from pg_proc p
+--       join pg_namespace n on n.oid = p.pronamespace where p.proname = 'http_post';
 -- ============================================================
 create extension if not exists pg_net with schema extensions;
 
@@ -88,12 +101,29 @@ create or replace function public.pune_email_in_coada()
 returns trigger
 language plpgsql
 security definer
-set search_path = public, extensions
+set search_path = public
 as $$
 declare
   v_url    text;
   v_secret text;
 begin
+  -- ------------------------------------------------------------
+  -- BLOCUL 1 — rândul în coadă. Are exception handler PROPRIU.
+  --
+  -- Despărțirea de blocul 2 nu e stil, e corectitudine. În PL/pgSQL o excepție
+  -- anulează TOT ce s-a făcut în blocul în care a apărut. Prima versiune a
+  -- funcției (7 septembrie 2026, dimineața) avea inserarea și apelul HTTP în
+  -- același `begin ... exception`, iar apelul era scris greșit —
+  -- `extensions.net.http_post`, când pg_net se instalează întotdeauna în schema
+  -- `net`, indiferent de `with schema` de la `create extension`. Funcția
+  -- inexistentă ridica o excepție, excepția era înghițită... și odată cu ea se
+  -- anula și inserarea. Prima comandă reală a intrat în bază fără niciun rând în
+  -- coadă, adică exact invariantul pe care funcția asta trebuia să-l apere.
+  --
+  -- Regula, de acum: fiecare efect care trebuie să supraviețuiască singur stă în
+  -- blocul lui. Un `exception when others` nu protejează ce e ÎNAINTE de el în
+  -- același bloc — îl aruncă.
+  -- ------------------------------------------------------------
   begin
     if tg_table_name = 'orders' then
       insert into public.email_coada (tip, referinta_id) values ('comanda_client', new.id)
@@ -104,7 +134,18 @@ begin
       insert into public.email_coada (tip, referinta_id) values (tg_table_name, new.id)
         on conflict (tip, referinta_id) do nothing;
     end if;
+  exception when others then
+    -- Înghițit intenționat: un e-mail nu are voie să strice o comandă.
+    null;
+  end;
 
+  -- ------------------------------------------------------------
+  -- BLOCUL 2 — trezirea rutei. Separat, deci o eroare aici NU mai poate
+  -- anula rândul pus mai sus. Cel mai rău caz devine o întârziere: rândul
+  -- așteaptă în coadă până la butonul „Trimite ce a rămas" din panou sau
+  -- până la următoarea comandă.
+  -- ------------------------------------------------------------
+  begin
     select valoare->'email'->>'webhook_url', valoare->'email'->>'webhook_secret'
       into v_url, v_secret
       from public.settings where cheie = 'integrari';
@@ -113,7 +154,7 @@ begin
     -- și pleacă la prima trezire de după configurare. Nu e o eroare, e starea
     -- normală cât timp integrarea nu e pornită din Admin → Integrări.
     if v_url is not null and v_url <> '' and v_secret is not null and v_secret <> '' then
-      perform extensions.net.http_post(
+      perform net.http_post(
         url     := v_url,
         body    := '{}'::jsonb,
         headers := jsonb_build_object('Content-Type', 'application/json', 'x-autopas-email', v_secret),
@@ -121,9 +162,16 @@ begin
       );
     end if;
   exception when others then
-    -- Înghițit intenționat. Vezi antetul: un e-mail nu are voie să strice o comandă.
-    null;
+    -- NU se mai înghite tăcut: eșecul trezirii se scrie în coadă, ca să se vadă
+    -- în panou de ce a întârziat. Tăcerea de aici a costat o comandă întreagă.
+    begin
+      update public.email_coada
+         set eroare = 'trezire eșuată: ' || coalesce(sqlerrm, 'necunoscut')
+       where trimis_la is null and referinta_id = new.id;
+    exception when others then null;
+    end;
   end;
+
   return new;
 end;
 $$;
