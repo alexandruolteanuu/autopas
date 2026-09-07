@@ -33,12 +33,18 @@ type Stare = {
   config: { areCheie: boolean; areCont: boolean; utilizator: string; activ: boolean;
             sesiuneValabila: boolean; sesiuneExpira: string | null };
   cifre: any;
-  laEi: { total: number; approved: number; pending: number } | null;
   retrageri: { active: number; deRetras: number; procent: number } | null;
   catalog: { marci: number; modele: number; categorii: number };
   mapari: { marci: number; modele: number; categorii: number; deConfirmat: number };
   job: Job | null;
   istoric: Job[];
+  anunturi: Anunt[];
+};
+
+type Anunt = {
+  product_id: number; ad_id: number | null; url: string | null;
+  status: string; aprobat: boolean | null; eroare: string | null;
+  trimis_la: string | null; nume: string; cod_intern: string | null;
 };
 
 /** De câte ori reîncearcă singură pagina un lot picat. Are voie: progresul se
@@ -284,23 +290,21 @@ export default function Dezro() {
               Actualizează starea anunțurilor
             </button>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
+          {/* „Trimise" și „publicate la ei" NU sunt același lucru: anunțurile trec
+              printr-o aprobare la dez.ro. Un singur contor, numit „active", ar fi
+              spus că sunt pe site piese care de fapt așteaptă la moderare. */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3 mt-3">
             <Cifra t="Gata de trimis" v={cifre.gata} bun />
-            <Cifra t="Anunțuri active" v={cifre.anunturi_active} />
+            <Cifra t="Trimise la dez.ro" v={cifre.anunturi_active} />
+            <Cifra t="Publicate la ei" v={cifre.anunturi_aprobate ?? 0} bun />
+            <Cifra t="Așteaptă aprobarea" v={cifre.anunturi_in_asteptare ?? 0} />
             <Cifra t="Cu eroare" v={cifre.anunturi_eroare} rau={cifre.anunturi_eroare > 0} />
-            <Cifra t="Retrase" v={cifre.anunturi_retrase} />
           </div>
-          {stare?.laEi && (
-            <p className="text-sm mt-3">
-              La dez.ro: <b>{nr(stare.laEi.approved)}</b> anunțuri publicate ·{" "}
-              <b>{nr(stare.laEi.pending)}</b> în așteptarea aprobării lor · {nr(stare.laEi.total)} în total.
-              {stare.laEi.pending > 0 && (
-                <span className="block text-xs text-mut mt-1">
-                  Anunțurile trimise prin API trec printr-o aprobare la ei, deși documentația lor spune
-                  că apar pe loc. Până la aprobare n-au adresă publică. Nu e nimic de făcut din partea
-                  noastră — se așteaptă.
-                </span>
-              )}
+          {(cifre.anunturi_in_asteptare ?? 0) > 0 && (
+            <p className="text-xs text-mut mt-3">
+              Anunțurile trimise prin API trec printr-o aprobare la ei, deși documentația lor spune că
+              apar pe loc. Până la aprobare n-au adresă publică. Nu e nimic de făcut din partea noastră —
+              se așteaptă, apoi se apasă „Actualizează starea anunțurilor".
             </p>
           )}
           {cifre.gata < cifre.eligibile && (
@@ -477,6 +481,48 @@ export default function Dezro() {
         )}
       </div>
 
+      {/* ---------- ANUNȚURILE ---------- */}
+      {!!stare?.anunturi?.length && (
+        <div className="card p-5">
+          <b className="font-disp text-base">Ultimele anunțuri trimise</b>
+          <p className="text-sm text-mut mt-1">
+            Starea vine din ce ne-au răspuns ei. „Așteaptă aprobarea" nu e o eroare de-a noastră —
+            e coada lor de moderare; adresa publică apare abia după ce trece.
+          </p>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-mut">
+                  <th className="py-2 pr-3">Piesa</th>
+                  <th className="py-2 pr-3">Anunț</th>
+                  <th className="py-2 pr-3">Stare</th>
+                  <th className="py-2">Trimis</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stare.anunturi.map((a) => (
+                  <tr key={a.product_id} className="border-t border-line align-top">
+                    <td className="py-2 pr-3">
+                      <a href={`/admin/produse/${a.product_id}`} className="hover:underline">{a.nume}</a>
+                      {a.cod_intern && <span className="block text-xs text-mut">{a.cod_intern}</span>}
+                    </td>
+                    <td className="py-2 pr-3 text-xs">
+                      {a.url
+                        ? <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-acc hover:underline">vezi anunțul</a>
+                        : <span className="text-mut">{a.ad_id ? `#${a.ad_id}` : "—"}</span>}
+                    </td>
+                    <td className="py-2 pr-3 text-xs"><StareAnunt a={a} /></td>
+                    <td className="py-2 text-xs text-mut">
+                      {a.trimis_la ? new Date(a.trimis_la).toLocaleString("ro-RO") : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* ---------- ISTORIC ---------- */}
       {!!stare?.istoric?.length && (
         <div className="card p-5">
@@ -515,6 +561,18 @@ export default function Dezro() {
       )}
     </div>
   );
+}
+
+/** Starea unui anunț, în cuvintele operatorului. Se citește din DOUĂ câmpuri:
+ *  `status` (ce am făcut noi) și `aprobat` (ce spun ei). Fără al doilea, un
+ *  anunț aflat în coada lor de moderare ar arăta identic cu unul publicat. */
+function StareAnunt({ a }: { a: Anunt }) {
+  if (a.status === "eroare")
+    return <span className="text-red-600" title={a.eroare ?? ""}>eroare: {(a.eroare ?? "").slice(0, 60)}</span>;
+  if (a.status === "retras") return <span className="text-mut">retras (piesa nu mai e pe site)</span>;
+  if (a.status === "nou") return <span className="text-mut">pregătit, încă netrimis</span>;
+  if (a.aprobat) return <span className="text-ok">publicat la ei ✓</span>;
+  return <span className="text-yellow-700">așteaptă aprobarea lor</span>;
 }
 
 function Progres({ facut, total, eticheta }: { facut: number; total: number; eticheta: string }) {

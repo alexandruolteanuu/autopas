@@ -23,7 +23,7 @@ import {
   BUGET_MS, LIMITA_LOT_MS, BUGET_POZE_MS, TIMEOUT_MS, MAX_POZE,
   potrivesteModel, potrivesteMarca, potrivesteCategorie, normalizeazaModel,
   faraGeneratie, REGULI_CATEGORII, PRAG_SIGUR,
-  construieste, amprentaCampuri, diferentaPoze, anulSigur, descriere, MOTIVE,
+  construieste, amprentaCampuri, diferentaPoze, anulAnuntului, descriere, MOTIVE,
   lotPublicare, lotRetragere, TIP_ANUNT,
 } from "../lib/dezro/index.mjs";
 
@@ -145,11 +145,14 @@ cer("modelul e cel mapat", a.campuri?.idModel === 2);
 cer("categoria e cea mapată", a.campuri?.idPart === 46);
 cer("prețul e întreg", a.campuri?.price === 350);
 
-// Anul: „2004–2008” e un interval, iar câmpul lor e un an. Nu se ghicește.
-cer("intervalul de ani NU devine un an", a.campuri?.year === 0, String(a.campuri?.year));
-cer("un an singur se trimite", anulSigur("2011") === 2011);
-cer("„2004–2008” nu dă niciun an", anulSigur("2004–2008") === 0);
-cer("fără ani -> 0", anulSigur(null) === 0);
+// Anul: PRIMUL din interval. Decizia de dimineata (niciun an, ca sa nu inventam)
+// a fost rasturnata chiar de moderatorul lor, care a verificat primul anunt real:
+// categoria ok, marca ok, modelul ok, pretul ok, titlul ok - dar nu avem an.
+cer("din interval se ia PRIMUL an", a.campuri?.year === 2004, String(a.campuri?.year));
+cer("un an singur se trimite ca atare", anulAnuntului("2011") === 2011);
+cer("intervalul da primul an", anulAnuntului("2004-2008") === 2004);
+cer("fara ani -> 0 (an necunoscut la ei)", anulAnuntului(null) === 0);
+cer("text fara ani -> 0", anulAnuntului("necunoscut") === 0);
 
 // Generația e singurul lucru pe care catalogul lor plat nu-l are.
 cer("generația ajunge în `variant`", a.campuri?.variant === "Golf 5", a.campuri?.variant);

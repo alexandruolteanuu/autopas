@@ -723,10 +723,22 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
     memorează în `settings.integrari.dezro`, ca să nu ne autentificăm la fiecare lot.
   · **Amprenta câmpurilor e ce ține traficul jos.** Fără ea, fiecare rulare ar rescrie toate cele
     ~8.700 de anunțuri. La a doua rulare consecutivă fără modificări nu pleacă NICIO cerere.
-  · **Anul aproape nu se trimite niciodată, și e intenționat.** 8.695 din 8.825 de piese au în
-    `ani` un INTERVAL, iar câmpul lor e un an singur. „2008–2011" n-are un an adevărat: 2008 ar
-    ascunde piesa de cine caută 2011. Intervalul intră în descriere. Se reia decizia doar dacă
-    aflăm de la ei ce înseamnă exact filtrul lor pe an.
+  · **Anul e PRIMUL din interval** (decizie răsturnată în aceeași zi, 7 septembrie 2026). Prima
+    variantă a fost „niciun an": 8.695 din 8.825 de piese au în `ani` un INTERVAL, iar câmpul lor
+    primește un singur an. Criteriul de reluare era scris în cod — „dacă aflăm de la ei ce
+    înseamnă filtrul pe an" — și l-am aflat de la moderatorul lor, care a verificat primul anunț:
+    „categoria e ok, marca ok, modelul ok, prețul ok, titlul ok — nu avem an". Un an lipsă nu e
+    neutru: anunțul nu apare în nicio căutare filtrată pe an. Intervalul întreg rămâne în descriere.
+    · DE ÎNTREBAT la ei: filtrul lor caută exact valoarea trimisă sau un interval în jurul ei?
+  · **API-ul lor e lent, nu doar cu hopuri.** Măsurat pe contul real: `GET /ads?page=1` a răspuns
+    în 23s, apoi 98s, apoi deloc — pentru UN SINGUR anunț. De aceea (a) ecranul de admin NU cheamă
+    niciodată API-ul lor la încărcare, ci doar la apăsarea butonului de reîmprospătare; (b)
+    scriptul din terminal folosește `TIMEOUT_LUNG_MS` (150s) și loturi lungi, fiindcă acolo nu
+    există limita de 60s a unei funcții.
+  · **Un timeout NU înseamnă că n-a intrat nimic la ei.** O actualizare a expirat de partea
+    noastră la 30s, iar anunțul citit după aceea AVEA schimbarea. De asta rândul rămâne cu
+    amprenta VECHE la eșec: se retrimite data viitoare, iar retrimiterea e inofensivă
+    (`POST /ads/{id}` scrie aceleași valori peste ele însele).
   · **Generația pleacă în `variant`.** Catalogul lor e plat („Passat", nu „Passat B6"), iar
     generația e exact ce desparte o piesă care se potrivește de una care nu.
   · **Marca NU se trimite dintr-o mapare proprie**, ci din părintele modelului lor. Așa e imposibil

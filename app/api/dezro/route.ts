@@ -107,37 +107,36 @@ async function stare(depozit: any) {
     await Promise.all([
       depozit.stare().catch(() => null),
       depozit.pragRetragere().catch(() => null),
-      depozit.numaraRanduri("dezro_catalog", { fel: "eq.marca" }).catch(zero),
-      depozit.numaraRanduri("dezro_catalog", { fel: "eq.model" }).catch(zero),
-      depozit.numaraRanduri("dezro_catalog", { fel: "eq.piesa" }).catch(zero),
-      depozit.numaraRanduri("dezro_mapari", { fel: "eq.marca", dezro_id: "not.is.null" }).catch(zero),
-      depozit.numaraRanduri("dezro_mapari", { fel: "eq.model", dezro_id: "not.is.null" }).catch(zero),
-      depozit.numaraRanduri("dezro_mapari", { fel: "eq.categorie", dezro_id: "not.is.null" }).catch(zero),
-      depozit.numaraRanduri("dezro_mapari", { sursa: "eq.auto", scor: `lt.${PRAG_SIGUR}` }).catch(zero),
+      depozit.numaraRanduri("dezro_catalog", "dezro_id", { fel: "eq.marca" }).catch(zero),
+      depozit.numaraRanduri("dezro_catalog", "dezro_id", { fel: "eq.model" }).catch(zero),
+      depozit.numaraRanduri("dezro_catalog", "dezro_id", { fel: "eq.piesa" }).catch(zero),
+      depozit.numaraRanduri("dezro_mapari", "local_id", { fel: "eq.marca", dezro_id: "not.is.null" }).catch(zero),
+      depozit.numaraRanduri("dezro_mapari", "local_id", { fel: "eq.model", dezro_id: "not.is.null" }).catch(zero),
+      depozit.numaraRanduri("dezro_mapari", "local_id", { fel: "eq.categorie", dezro_id: "not.is.null" }).catch(zero),
+      depozit.numaraRanduri("dezro_mapari", "local_id", { sursa: "eq.auto", scor: `lt.${PRAG_SIGUR}` }).catch(zero),
       depozit.jobActiv(),
       depozit.jobUltimele(8),
     ]);
+  const anunturi = await depozit.anunturiRecente(25).catch(() => []);
 
-  // Cifrele LOR, dintr-o singură cerere. Sunt singurul loc din care se vede câte
-  // anunțuri sunt cu adevărat live: la noi „activ" înseamnă doar „trimis".
-  let laEi = null;
-  if (pub.areCheie && pub.areCont) {
-    try {
-      const c = await depozit.citesteConfig();
-      laEi = await numaraAnunturi(sesiuneDin(c, depozit));
-    } catch { laEi = null; }
-  }
+  // NU se cheamă API-ul lor de aici. Măsurat la 7 septembrie 2026, `GET /ads`
+  // răspunde în 23s, 98s, sau deloc — pentru UN SINGUR anunț. Un ecran de admin
+  // care așteaptă asta la fiecare deschidere e un ecran stricat.
+  // Câte anunțuri sunt aprobate se vede din coloanele noastre
+  // (`anunturi_aprobate` / `anunturi_in_asteptare`), completate de butonul
+  // „Actualizează starea anunțurilor" — singurul loc unde se plătește
+  // încetineala lor, și doar când o cere omul.
 
   return raspuns({
     ok: true,
     config: pub,
-    laEi,
     cifre,
     retrageri,
     catalog: { marci: cMarci, modele: cModele, categorii: cCategorii },
     mapari: { marci: mMarci, modele: mModele, categorii: mCategorii, deConfirmat },
     job,
     istoric,
+    anunturi,
   });
 }
 
@@ -370,8 +369,12 @@ async function improspateaza(depozit: any, corp: any) {
   const { cfg } = await config(depozit);
   if (!cfg.cheie || !cfg.utilizator || !cfg.parola) return eroare("Configurarea dez.ro e incompletă.");
   const sesiune = sesiuneDin(cfg, depozit);
-  const r = await lotImprospatare({ depozit, sesiune, pagina: Number(corp?.pagina ?? 1) });
-  return raspuns({ ok: true, ...r });
+  const pagina = Number(corp?.pagina ?? 1);
+  const r = await lotImprospatare({ depozit, sesiune, pagina });
+  // Contoarele lor se cer o singură dată, la prima pagină: e tot o cerere către
+  // un API care poate ține un minut.
+  const counts = pagina === 1 ? await numaraAnunturi(sesiune).catch(() => null) : null;
+  return raspuns({ ok: true, ...r, counts });
 }
 
 // ------------------------------------------------------------

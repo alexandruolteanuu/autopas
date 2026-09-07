@@ -274,9 +274,16 @@ select
   count(*) filter (where categorie_local is null)                                    as fara_categorie,
   count(*) filter (where categorie_local is not null and categorie_dezro is null)    as categorie_nemapata,
   count(*) filter (where nr_poze > 0 and model_dezro is not null and categorie_dezro is not null) as gata,
+  -- „activ" înseamnă TRIMIS, nu „live". Cele două nu sunt același lucru: anunțurile
+  -- trimise prin API trec printr-o aprobare la ei (măsurat la primul anunț real,
+  -- 7 septembrie 2026, deși ghidul lor spune de trei ori că apar pe loc). Cine
+  -- citește „anunțuri active" și înțelege „sunt pe site" se înșală, de aceea
+  -- există și cele două coloane de dedesubt.
   (select count(*) from dezro_anunturi where status = 'activ')                       as anunturi_active,
   (select count(*) from dezro_anunturi where status = 'eroare')                      as anunturi_eroare,
-  (select count(*) from dezro_anunturi where status = 'retras')                      as anunturi_retrase
+  (select count(*) from dezro_anunturi where status = 'retras')                      as anunturi_retrase,
+  (select count(*) from dezro_anunturi where status = 'activ' and aprobat)           as anunturi_aprobate,
+  (select count(*) from dezro_anunturi where status = 'activ' and not aprobat)       as anunturi_in_asteptare
 from cu_mapari;
 
 comment on view dezro_stare_piese is 'Cifrele ecranului Admin → dez.ro, numărate o singură dată în bază.';

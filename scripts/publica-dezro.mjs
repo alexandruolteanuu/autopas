@@ -30,8 +30,15 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   depozitDinMediu, sesiuneDin, lotCatalog, lotPublicare, lotRetragere,
-  potrivesteTot, contextPublicare, construieste, PRAG_RETRAGERE,
+  potrivesteTot, contextPublicare, construieste, PRAG_RETRAGERE, TIMEOUT_LUNG_MS,
 } from "../lib/dezro/index.mjs";
+
+// În terminal nu există limita de 60 de secunde a unei funcții serverless, deci
+// lotul are voie să fie lung și cererea are voie să aștepte. Nu e un lux:
+// măsurat pe contul real, API-ul lor a răspuns la o listare în 98 de secunde, iar
+// o actualizare a expirat la 30 — deși ajunsese. Cu valorile din panou, o
+// publicare mare la ore de vârf ar da eroare după eroare degeaba.
+const LOT_TERMINAL = { limitaMs: 15 * 60_000, bugetMs: 10 * 60_000, timeout: TIMEOUT_LUNG_MS };
 
 // .env.local, dacă rulezi din proiect
 const caleEnv = path.join(process.cwd(), ".env.local");
@@ -103,7 +110,7 @@ async function main() {
 
   // ---------- publicarea ----------
   for (;;) {
-    const r = await lotPublicare({ cfg, depozit, sesiune, job: { pozitie }, context });
+    const r = await lotPublicare({ cfg, depozit, sesiune, job: { pozitie }, context, ...LOT_TERMINAL });
     pozitie = r.pozitie;
     total.publicate += r.publicate;
     total.actualizate += r.actualizate;
@@ -139,7 +146,7 @@ async function main() {
     }
     let p = 0;
     for (;;) {
-      const r = await lotRetragere({ depozit, sesiune, job: { pozitie: p } });
+      const r = await lotRetragere({ depozit, sesiune, job: { pozitie: p }, ...LOT_TERMINAL });
       p = r.pozitie;
       total.retrase += r.retrase;
       total.erori += r.erori.length;

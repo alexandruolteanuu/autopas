@@ -129,12 +129,18 @@ fiindcă ce n-are nimic schimbat nu se atinge deloc.
 | `oem` | dacă îl avem (azi: la nicio piesă) |
 | `images[]` | pozele piesei, cel mult 10 |
 
-**Anul e aproape mereu gol, și e intenționat.** 8.695 din cele 8.825 de piese au
-în `ani` un *interval* („2008–2011"), iar câmpul lor e *un* an. Din „2008–2011"
-nu iese un an adevărat: 2008 ar spune că piesa e de pe o mașină din 2008, iar
-cumpărătorul cu un 2011 ar trece pe lângă ea. Intervalul intră în descriere, unde
-se citește întreg. Dacă vreodată aflăm de la ei ce înseamnă exact filtrul lor pe
-an, decizia se reia.
+**Anul trimis e PRIMUL din interval.** 8.695 din cele 8.825 de piese au în `ani`
+un *interval* („2008–2011"), iar câmpul lor primește *un* an.
+
+Prima variantă a fost să nu trimitem niciun an, ca să nu inventăm o valoare.
+Moderatorul lor, verificând primul anunț, a spus: *„categoria e ok, marca ok,
+modelul ok, prețul ok, titlul ok — nu avem an"*. Un an lipsă nu e neutru:
+anunțul nu apare în nicio căutare filtrată pe an. Primul an al intervalului e o
+valoare adevărată, luată din datele sursei, iar intervalul întreg rămâne scris
+în descriere.
+
+**De întrebat la ei**, ca să știm dacă mai e ceva de făcut: filtrul lor pe an
+caută exact valoarea trimisă, sau un interval în jurul ei?
 
 **Descrierea nu conține niciun link către site-ul nostru.** Pe orice portal de
 anunțuri, un link care trimite cumpărătorul în altă parte e motiv de respingere
