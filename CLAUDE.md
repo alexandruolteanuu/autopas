@@ -50,7 +50,7 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
   Bannerele ANPC/SOL sunt fișiere oficiale în `public/`, nu redesenate.
 
 ## Structura
-- `app/` — paginile (App Router). `app/admin/` = panoul de administrare (17 module).
+- `app/` — paginile (App Router). `app/admin/` = panoul de administrare (18 module).
   `app/feed/` = feed-urile publice de produse (Google Merchant, Meta, generic CSV/XML).
   `app/masini/` = paginile publice ale mașinilor dezmembrate.
 - `components/` — componente refolosibile; `components/admin/` = specifice adminului.
@@ -59,6 +59,7 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
   `imagini.ts`, `feed.ts` + `feed-formate.ts` + `feed-raspuns.ts` (feed-urile de produse),
   `masuratori.ts` (id-urile de măsurare, citite din browser).
   `lib/import/` = motorul de import, în `.mjs`, folosit și de script, și de rută.
+  `lib/dezro/` = motorul publicării pe dez.ro, tot în `.mjs`, tot împărțit între script și rută.
 - `supabase/` — migrările SQL (vezi ordinea).
 
 ## Ordinea migrărilor SQL (rulare manuală în Supabase, o singură dată fiecare)
@@ -73,10 +74,14 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 27. `mod-vacanta.sql` -> 28. `pagini-masini.sql` -> 29. `numar-piese-pe-model.sql` ->
 30. `ga4-public.sql` -> 31. `categorii-numar-rapid.sql` -> 32. `piese-marca-categorie.sql` ->
 33. `masuratori-publice.sql` -> 34. `piese-compatibile-masini.sql` -> 35. `superb-1.sql` ->
-36. `email-automat.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9–36.
+36. `email-automat.sql` -> 37. `dezro.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9–37.
 NU sunt încă idempotente: 1–5, 8.
-**Aplicate pe producție: 1–36.**
+**Aplicate pe producție: 1–37.**
+37 adaugă cele patru tabele ale legăturii cu dez.ro (`dezro_catalog`, `dezro_mapari`,
+`dezro_anunturi`, `dezro_jobs`) și două view-uri de numărat (`dezro_stare_piese`,
+`dezro_de_retras`). Nu atinge nimic existent: niciun `drop`, niciun `update` pe date
+vechi. Toate patru sunt citibile și scriibile doar de echipă.
 36 activează `pg_net`, creează tabela `email_coada` (citibilă doar de echipă) și pune un
 trigger `after insert` pe `orders` și pe cele patru tabele de cereri.
 35 adaugă generația „Škoda Superb 1" (2001–2008), care lipsea din `models`, și mută pe ea
@@ -129,6 +134,15 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
     Nu mai e o sarcină de pregătire, e una restantă.
   · Pașii, scriși pe îndelete: **`docs/email.md`**. Codul de trimitere e gata și așteaptă
     doar cheia din Admin → Integrări.
+- **Contul de pe dez.ro — utilizatorul și parola lipsesc.** Cheia de aplicație o avem de la ei
+  și e deja salvată în `settings.integrari.dezro`; catalogul lor e adus, iar potrivirile sunt
+  făcute. Ce mai trebuie, în Admin → Integrări → „dez.ro — anunțuri": utilizatorul și parola
+  contului nostru de pe dez.ro. Fără ele nu se poate trimite niciun anunț (cheia identifică
+  aplicația, sesiunea identifică vânzătorul).
+  · ⚠ ÎNAINTE de prima publicare: județul, localitatea și telefonul de pe anunțuri se iau din
+    PROFILUL contului de pe dez.ro, nu din codul nostru. Se verifică acolo — altfel toate cele
+    ~8.700 de anunțuri ies cu alt județ.
+  · Pașii, în ordine: **`docs/dez.ro.md`**.
 
 ## Decizii deja luate (nu le schimba fără să întrebi)
 - Logo = imagine PNG (roată dințată + siluetă de mașină + „AUTOPAS DEZMEMBRĂRI", metalic cu
@@ -666,12 +680,68 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
     orice schimbare de furnizor începe acolo, nu se termină acolo. Aceeași regulă ca la GA4 și la Meta. Data afișată
     la finalul lor vine acum din `LEGAL_ACTUALIZAT` (`lib/legal.ts`) — era scrisă de mână în
     pagină și rămăsese „august 2026" peste două actualizări de conținut.
+- **Piesele se publică pe dez.ro ca anunțuri** (7 septembrie 2026, `lib/dezro/`, migrarea 37).
+  dez.ro e un site de anunțuri de piese auto; ne-au dat o cheie de aplicație și două ghiduri
+  (`docs/dez.ro/`). Manualul de operare: **`docs/dez.ro.md`**.
+  · **Un singur motor, două declanșatoare** — `scripts/publica-dezro.mjs` și `/admin/dezro`, prin
+    `app/api/dezro/route.ts`. Aceeași regulă ca la `lib/import/`, din același motiv.
+    Prima publicare mare se face din TERMINAL: ecranul cere un lot pe HTTP, deci recitește
+    catalogul și mapările la fiecare lot (~350 de loturi la 8.700 de piese).
+  · **Arborele lor întreg într-o cerere NU merge.** Ghidul lor recomandă `?with_models` și
+    `?with_children` pe `/brands` și `/parts`; măsurat, amândouă răspund **504**. Catalogul se
+    aduce în trepte: o marcă / o grupă pe cerere (135 de pași, ~4 minute). Un nod cu
+    `?with_children` merge în 0,2s; tot arborele, nu.
+  · **API-ul lor are hopuri** (500 și 504 pe cereri valide, care merg la reîncercare) și dă
+    **403 fără User-Agent propriu**. De aici scara de reîncercări din `api.mjs`. Un 4xx în afară
+    de 429 NU se reîncearcă: un 422 reîncercat de trei ori tot 422 rămâne.
+  · **Autentificările eșuate sunt limitate la 5 la 15 minute**, deci un 401 la login nu se
+    reîncearcă niciodată automat. Token-ul ține 30 de zile (nu se prelungește la folosire) și se
+    memorează în `settings.integrari.dezro`, ca să nu ne autentificăm la fiecare lot.
+  · **Amprenta câmpurilor e ce ține traficul jos.** Fără ea, fiecare rulare ar rescrie toate cele
+    ~8.700 de anunțuri. La a doua rulare consecutivă fără modificări nu pleacă NICIO cerere.
+  · **Anul aproape nu se trimite niciodată, și e intenționat.** 8.695 din 8.825 de piese au în
+    `ani` un INTERVAL, iar câmpul lor e un an singur. „2008–2011" n-are un an adevărat: 2008 ar
+    ascunde piesa de cine caută 2011. Intervalul intră în descriere. Se reia decizia doar dacă
+    aflăm de la ei ce înseamnă exact filtrul lor pe an.
+  · **Generația pleacă în `variant`.** Catalogul lor e plat („Passat", nu „Passat B6"), iar
+    generația e exact ce desparte o piesă care se potrivește de una care nu.
+  · **Marca NU se trimite dintr-o mapare proprie**, ci din părintele modelului lor. Așa e imposibil
+    să trimitem un model care nu aparține mărcii trimise.
+  · **Modelul e cel PRINCIPAL** (`model_ids[0]`), niciodată al doilea din listă. A cădea pe a doua
+    compatibilitate ar trece un Sharan la Ford Galaxy. Fără mapare pe el, piesa nu se publică.
+  · **Descrierea nu conține niciun link către site-ul nostru.** Pe un portal de anunțuri, un link
+    care duce cumpărătorul în altă parte e motiv de respingere. Codul intern („AP-000123") face
+    aceeași treabă fără riscul ăsta.
+  · **Starea la 7 septembrie 2026**: catalogul lor e adus (106 mărci, 2.671 de modele, 573 de
+    categorii), potrivirea automată a scris 836 de mapări, au rămas 104 de confirmat de om
+    (3 mărci, 38 de modele, 63 de categorii). **8.209 din 8.825 de piese sunt gata de trimis.**
+    Nu s-a publicat încă nimic: lipsesc utilizatorul și parola contului de pe dez.ro.
+  · **Traducerile de categorii scrise de om bat automatismul** (`REGULI_CATEGORII`, 270 de reguli,
+    acoperă 98,2% din piese). Aceeași regulă ca `REGULI_CATEGORII` de la import, și din același
+    motiv măsurat: automatul alegea „Suport compresor AC" în loc de „Compresor aer conditionat",
+    fiindcă seamănă la cuvinte. Fiecare regulă a fost verificată mecanic pe amândouă capetele:
+    slug-ul există la noi, calea există la ei ȘI e selectabilă.
+  · **Generația se scoate DOAR din numele nostru, niciodată din al lor**, la potrivirea modelelor.
+    Dacă s-ar scoate din amândouă, „Golf 5" și „Golf 6" s-ar reduce amândouă la „golf" și s-ar
+    lipi una de alta. Măsurat: 505 din 543 de modele se potrivesc sigur, 32 cer confirmare.
+  · **Automatul propune, omul decide.** O mapare cu `sursa = 'om'` nu e călcată niciodată de o
+    resincronizare — nici măcar una negativă („s-a decis că nu are corespondent", `dezro_id` null).
+    Distincția „rând lipsă" / „`dezro_id` null" e purtătoare de sens, nu accident.
+  · **Retragerea are prag de 20%**, cu confirmare separată peste el. La ei ștergerea unui anunț NU
+    se poate desface prin API, deci o depublicare în masă la noi ar stinge ireversibil tot ce avem
+    acolo. Aceeași plasă ca `PRAG_DEPUBLICARE` de la import.
+  · **Un lot trebuie să încapă în 60 de secunde**: `BUGET_MS + TIMEOUT_MS ≤ LIMITA_LOT_MS ≤ 55s`
+    (20 + 30 = 50). Termenul absolut (`pana`) e ce garantează asta — `cere()` nu începe o încercare
+    care oricum n-ar apuca să se termine. `scripts/verifica-dezro.mjs` verifică suma.
+  · **Județul, localitatea și telefonul de pe anunț vin din profilul contului de pe dez.ro**, nu
+    din cod („Location is resolved automatically from the user's profile"). Se verifică ACOLO
+    înainte de prima publicare, altfel toate cele 8.700 de anunțuri arată alt județ.
 - Roluri: `client`, `operator`, `contabil`, `admin` (coloana `role` în `profiles`, controlată prin RLS).
 
-## Cele 17 module de admin
+## Cele 18 module de admin
 Dashboard · Comenzi (+detaliu cu jurnal, cost livrare, anulare cu restoc, ștergere) ·
 Cereri (inbox 4 taburi) · Produse (pagină de editare cu poze reale) · Piese de completat ·
-Import pieseauto.ro · Categorii (+subcategorii) · Mărci și modele · Mașini la dezmembrat
+Import pieseauto.ro · Anunțuri dez.ro · Categorii (+subcategorii) · Mărci și modele · Mașini la dezmembrat
 (profit/amortizare) · Expedieri (AWB) · Clienți · Facturi (export Saga) · Rapoarte ·
 Marketing (coduri reducere) · Feed și export · Setări (firmă, curier, roluri) · Integrări.
 „Mașini la dezmembrat" ține și pagina publică a fiecărei mașini: poze, descriere, comutator de
@@ -689,7 +759,8 @@ Meniul și drepturile pe rol sunt definite în `app/admin/layout.tsx` (constanta
 `orders` (+`livrare_baza`, `livrare_km_extra`, `livrare_alte`, `livrare_greutate_kg`,
 `livrare_dimensiuni`, `livrare_nota`, `livrare_stabilit_la` — `null` = transport necalculat)
 + `order_items` (trigger scade stocul automat) + `order_events` (jurnal),
-`brands` + `models`, `part_requests`/`car_intake_requests`/`return_requests`/`contact_messages`
+`dezro_catalog` (catalogul lor) + `dezro_mapari` (puntea) + `dezro_anunturi` (piesă -> anunț)
++ `dezro_jobs`, `brands` + `models`, `part_requests`/`car_intake_requests`/`return_requests`/`contact_messages`
 (cu status), `profiles` (roluri), `discount_codes`, `settings`, `favorites`.
 
 ## Funcții de bază de date (toate `security definer`, verifică rolul în interior)
@@ -773,6 +844,8 @@ Niciuna nu e dependință a site-ului și niciuna nu rulează la build. Se cheam
 | `scan-responsive.mjs` | după modificări de așezare. 19 pagini × 13 lățimi; `TEMA=luminos` schimbă tema. Cere `playwright-core` legat în `node_modules` — vezi antetul fișierului |
 | `reconverteste-poze.mjs` | **rar, la nevoie.** Trece în WebP pozele rămase JPEG în bucket. A fost scris fiindcă primele piese importate au ajuns JPEG, când `sharp` nu era încă instalat, iar `lib/import/imagini.mjs` urcă originalul dacă lipsește codecul. Dacă apar iar JPEG-uri în bucket, ori a picat `sharp`, ori conversia a preferat originalul (poză deja bine comprimată) — scriptul spune care din două. Idempotent, cu `--uscat` |
 | `verifica-feed.mjs` | **după orice modificare în `lib/feed.ts` sau `lib/feed-formate.ts`.** Cere feed-urile de la un server care rulează (`BASE=…`) și verifică regulile Google (id ≤ 50 și unic, titlu ≤ 150, descriere ≤ 5.000, link și imagine absolute, preț `123.45 RON`, disponibilitate și stare din listele închise), antetul CSV-ului Meta și — cel mai important — că **cele două feed-uri conțin exact aceleași id-uri**. Iese cu cod 1 dacă pică ceva |
+| `publica-dezro.mjs` | **prima publicare mare pe dez.ro**, și oricând vrei o rulare lungă fără browser. `--catalog` aduce catalogul lor, `--potriveste` rulează potrivirea automată, `--uscat` arată ce s-ar trimite fără să trimită (merge și fără cont), `--limita=N` se oprește după N piese |
+| `verifica-dezro.mjs` | **după orice modificare în `lib/dezro/`.** 63 de verificări pe regulile publicării — invariantul de timp al unui lot, potrivirea modelelor, traducerile aprobate, ce se trimite într-un anunț, amprenta, diferența de poze, retragerea. Fără rețea și fără bază de date |
 | `curata-orfani.mjs` | **periodic**, mai ales după sesiuni lungi de lucru pe produse. Găsește fișierele din `poze-piese` spre care nu mai arată niciun rând din `products` SAU din `vehicles`. Implicit doar raportează; șterge numai cu `--sterge` și numai fișiere mai vechi de 24h (`--ore=N`). Peste 5% orfani refuză să șteargă și cere `--confirm-stergere-mare`: atâția deodată înseamnă de obicei o citire incompletă, nu formulare abandonate. Raportează și cazul invers, mai grav: adrese din bază fără fișier în stocare |
 
 **De ce apar orfani** (tipar structural, găsit la 25 august 2026): `components/admin/PhotoUploader.tsx`

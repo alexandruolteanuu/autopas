@@ -33,6 +33,13 @@ const INTEGRARI: Stare[] = [
   { nume: "Google Analytics 4", grup: "Analiză", stare: "pregatit",
     desc: "Codul e scris și așteaptă doar ID-ul. Cât timp câmpul de mai jos e gol, în site NU se încarcă niciun script și nu pleacă nicio cerere către Google. Evenimentele de comerț (vizualizare piesă, adăugare în coș, comandă) sunt deja legate. Măsurarea pornește doar pentru vizitatorii care apasă „Accept toate” în bannerul de cookie-uri; traficul din /admin nu se numără niciodată.",
     pasi: ["Cont GA4 → ID de măsurare (G-XXXXXXX)", "Îl lipești în câmpul de mai jos și salvezi — atât", "Verifici în GA4 → Rapoarte → Timp real că apari", "⚠ Înainte de a-l activa: Politica de cookies trebuie actualizată (vezi docs/google-analytics.md)"] },
+  { nume: "dez.ro — anunțuri", grup: "Reclame", stare: "pregatit",
+    desc: "Piesele publicate de pe site ajung ca anunțuri pe dez.ro, cu poze, preț și descriere. Prețul se ține la zi singur, iar anunțul unei piese vândute se retrage automat — piesele noastre sunt unicat, deci un anunț rămas în aer înseamnă un telefon degeaba. Cheia de aplicație e primită de la ei; utilizatorul și parola sunt ale contului nostru de pe dez.ro. Publicarea propriu-zisă se face din Admin → Anunțuri dez.ro.",
+    pasi: ["Lipești mai jos cheia API primită de la dez.ro",
+           "Pui utilizatorul și parola contului de pe dez.ro (contul care va apărea ca vânzător)",
+           "Bifezi „Activă”, salvezi, apoi mergi la Admin → Anunțuri dez.ro → „Testează conexiunea”",
+           "Acolo: aduci catalogul lor, potrivești mărcile și categoriile, publici o piesă de probă, apoi pornești tot",
+           "⚠ Locul de livrare (județ/localitate) îl iau ei din profilul contului de pe dez.ro — verifică-l acolo, nu se trimite din cod"] },
   { nume: "Google Merchant Center", grup: "Reclame", stare: "activ",
     desc: "Feed-ul de produse există și se reîmprospătează singur la 3 ore: /feed/google.xml. Conține toate piesele publicate, cu poză și preț. Adresa completă și numărul de produse le vezi în Admin → Feed și export.",
     pasi: ["Cont Merchant Center → revendici domeniul (e deja verificat în Search Console)",
@@ -69,6 +76,11 @@ const CAMPURI: Record<string, { k: string; l: string; tip?: string }[]> = {
     { k: "webhook_url", l: "Adresa pe care o cheamă baza de date (https://…/api/email-coada)" },
     { k: "webhook_secret", l: "Secretul acelei adrese", tip: "password" },
   ],
+  "dez.ro — anunțuri": [
+    { k: "cheie", l: "Cheie API dez.ro", tip: "password" },
+    { k: "utilizator", l: "Utilizator dez.ro" },
+    { k: "parola", l: "Parolă dez.ro", tip: "password" },
+  ],
   "Google Analytics 4": [{ k: "id", l: "ID de măsurare (G-XXXXXXX)" }],
   "Google Merchant Center": [{ k: "id", l: "ID cont Merchant (doar pentru evidență)" }],
   // Eticheta se ține SEPARAT de id, nu lipită („AW-123/AbC”): așa nu se poate
@@ -84,7 +96,7 @@ const CHEI: Record<string, string> = {
   "WhatsApp Business": "whatsapp", "Saga — facturare": "saga", "FAN Courier (SelfAWB)": "fancourier",
   "Plată cu cardul (Netopia / Stripe)": "netopia", "Google Analytics 4": "ga4", "E-mail automat (Brevo)": "email",
   "Google Merchant Center": "merchant", "Google Ads": "google_ads",
-  "Meta — Facebook și Instagram": "meta",
+  "Meta — Facebook și Instagram": "meta", "dez.ro — anunțuri": "dezro",
 };
 
 /**
@@ -187,6 +199,17 @@ export default function Integrari() {
         setMsg("„Adresa pe care o cheamă baza de date” trebuie să fie o adresă web, nu una de e-mail. " +
                "Valoarea corectă: https://autopas-dezmembrari.ro/api/email-coada");
         return;
+      }
+    }
+    // Schimbarea contului dez.ro invalidează token-ul memorat: el aparține
+    // utilizatorului cu care s-a făcut autentificarea, iar la ei e valabil 30 de
+    // zile indiferent de parolă. Fără linia asta, după mutarea pe alt cont am
+    // continua să publicăm în numele celui vechi, fără niciun semn.
+    if (cheie === "dezro") {
+      const vechi = conf.dezro ?? {};
+      if (valori.utilizator !== vechi.utilizator || valori.parola !== vechi.parola) {
+        valori.token = null;
+        valori.token_expira = null;
       }
     }
     const sb = sbBrowser()!; setMsg(""); setSalvez(cheie);
