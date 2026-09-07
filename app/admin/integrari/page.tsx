@@ -10,6 +10,13 @@ const INTEGRARI: Stare[] = [
   { nume: "WhatsApp Business", grup: "Comunicare", stare: "activ",
     desc: "Buton plutitor pe tot site-ul + mesaje precompletate cu numele piesei și codul OEM. Din admin: buton direct pe fiecare comandă și cerere.",
     pasi: ["Schimbi numărul din Vercel → Settings → Environment Variables → NEXT_PUBLIC_WHATSAPP_PHONE (format 40722XXXXXX)"] },
+  { nume: "E-mail automat (Brevo)", grup: "Comunicare", stare: "pregatit",
+    desc: "Confirmarea de comandă către client, anunțul de comandă nouă către tine și confirmările la formulare. Rândul intră în coadă în ACEEAȘI tranzacție cu comanda, deci un client care închide tabul imediat după plasare nu te lasă neanunțat. Cât timp câmpurile de mai jos sunt goale, nu pleacă niciun mesaj și nu se pierde nimic — coada așteaptă. Confirmarea NU conține costul livrării: acela se stabilește după cântărire și se comunică la telefon.",
+    pasi: ["Cutia contact@ trebuie să existe întâi (Zoho Mail) și domeniul verificat la Brevo — vezi docs/email.md",
+           "Brevo → SMTP & API → Generate a new API key → o lipești mai jos",
+           "Adresa de notificări: unde vrei să primești anunțul de comandă nouă (ex. pieseneamt@yahoo.ro)",
+           "Bifezi „Activă”, salvezi, apoi apeși „Trimite un test” și verifici INCLUSIV folderul Spam",
+           "⚠ Înainte de activare: politica de confidențialitate trebuie să îl treacă pe Brevo la destinatari (e deja actualizată)"] },
   { nume: "Saga — facturare", grup: "Facturare", stare: "activ",
     desc: "Saga nu are API public; fluxul standard e importul de fișiere. Exportul CSV conține clientul, CUI-ul, produsele și prețurile defalcate bază + TVA 19%.",
     pasi: ["Admin → Facturi → alegi intervalul → Export Saga (CSV)", "În Saga: Operații → Import → alegi fișierul", "Notezi seria facturii înapoi în comandă"] },
@@ -54,6 +61,14 @@ const CAMPURI: Record<string, { k: string; l: string; tip?: string }[]> = {
   "Saga — facturare": [{ k: "serie", l: "Seria facturilor (ex. AUTP)" }],
   "FAN Courier (SelfAWB)": [{ k: "client_id", l: "Client ID" }, { k: "user", l: "Utilizator" }, { k: "parola", l: "Parolă", tip: "password" }],
   "Plată cu cardul (Netopia / Stripe)": [{ k: "pos_id", l: "POS Signature / ID" }, { k: "signature", l: "Cheie privată", tip: "password" }],
+  "E-mail automat (Brevo)": [
+    { k: "cheie", l: "Cheie API Brevo", tip: "password" },
+    { k: "expeditor", l: "Adresa „De la” (implicit contact@autopas-dezmembrari.ro)" },
+    { k: "nume_expeditor", l: "Numele afișat al expeditorului" },
+    { k: "notificari", l: "Unde primești anunțul de comandă nouă" },
+    { k: "webhook_url", l: "Adresa pe care o cheamă baza de date (https://…/api/email-coada)" },
+    { k: "webhook_secret", l: "Secretul acelei adrese", tip: "password" },
+  ],
   "Google Analytics 4": [{ k: "id", l: "ID de măsurare (G-XXXXXXX)" }],
   "Google Merchant Center": [{ k: "id", l: "ID cont Merchant (doar pentru evidență)" }],
   // Eticheta se ține SEPARAT de id, nu lipită („AW-123/AbC”): așa nu se poate
@@ -67,10 +82,64 @@ const CAMPURI: Record<string, { k: string; l: string; tip?: string }[]> = {
 };
 const CHEI: Record<string, string> = {
   "WhatsApp Business": "whatsapp", "Saga — facturare": "saga", "FAN Courier (SelfAWB)": "fancourier",
-  "Plată cu cardul (Netopia / Stripe)": "netopia", "Google Analytics 4": "ga4",
+  "Plată cu cardul (Netopia / Stripe)": "netopia", "Google Analytics 4": "ga4", "E-mail automat (Brevo)": "email",
   "Google Merchant Center": "merchant", "Google Ads": "google_ads",
   "Meta — Facebook și Instagram": "meta",
 };
+
+/**
+ * Testul și golirea manuală a cozii.
+ *
+ * Testul trece prin ACELAȘI drum ca un e-mail adevărat — aceeași rută, aceeași
+ * cheie, același expeditor — altfel un test care trece n-ar dovedi nimic.
+ *
+ * „Trimite ce a rămas" există fiindcă trezirea din baza de date e fire-and-forget:
+ * dacă site-ul era în timpul unui deploy exact atunci, rândul rămâne în coadă și
+ * n-are cine să-l ia. Butonul ăsta e cârligul de recuperare, fără cron.
+ */
+function UneltEmail({ implicit }: { implicit: string }) {
+  const [catre, setCatre] = useState(implicit);
+  const [lucru, setLucru] = useState<"" | "test" | "coada">("");
+  const [rez, setRez] = useState("");
+  useEffect(() => { setCatre(implicit); }, [implicit]);
+
+  async function cheama(corp: Record<string, unknown>, ce: "test" | "coada") {
+    const sb = sbBrowser(); if (!sb) return;
+    const token = (await sb.auth.getSession()).data.session?.access_token;
+    if (!token) { setRez("Sesiune expirată — autentifică-te din nou."); return; }
+    setLucru(ce); setRez("");
+    try {
+      const r = await fetch("/api/email-coada", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(corp),
+      });
+      const d = await r.json();
+      if (d.ok && ce === "test") setRez("✓ Trimis. Verifică inbox-ul ȘI folderul Spam.");
+      else if (d.ok) setRez(`✓ ${d.trimise ?? 0} trimise, ${d.esuate ?? 0} eșuate, ${d.sarite ?? 0} fără adresă.${d.nota ? " " + d.nota : ""}`);
+      else setRez(`Nu a mers: ${d.eroare ?? "eroare necunoscută"}`);
+    } catch (e: any) {
+      setRez(`Nu a mers: ${e?.message ?? e}`);
+    }
+    setLucru("");
+  }
+
+  return (
+    <div className="mt-4 pt-3 border-t border-line grid gap-2 text-sm">
+      <div className="fld"><label>Trimite un test la</label>
+        <input value={catre} onChange={(e) => setCatre(e.target.value)} type="email" placeholder="adresa@exemplu.ro" /></div>
+      <div className="flex gap-2 flex-wrap">
+        <button type="button" disabled={lucru !== "" || !catre} onClick={() => cheama({ test: catre }, "test")}
+          className="rounded-xl border-2 border-line px-3 py-2 text-xs font-semibold hover:border-acc disabled:opacity-40">
+          {lucru === "test" ? "Se trimite…" : "Trimite un test"}</button>
+        <button type="button" disabled={lucru !== ""} onClick={() => cheama({}, "coada")}
+          className="rounded-xl border-2 border-line px-3 py-2 text-xs font-semibold hover:border-acc disabled:opacity-40">
+          {lucru === "coada" ? "Se trimite…" : "Trimite ce a rămas în coadă"}</button>
+      </div>
+      {rez && <p className="text-xs">{rez}</p>}
+    </div>
+  );
+}
 
 export default function Integrari() {
   const [env, setEnv] = useState<Record<string, boolean>>({});
@@ -131,6 +200,7 @@ export default function Integrari() {
                   <ol className="mt-3 space-y-1 text-xs text-steel">
                     {i.pasi.map((p, n) => <li key={n} className="flex gap-2"><span className="text-acc font-bold">{n + 1}.</span>{p}</li>)}
                   </ol>
+                  {i.nume === "E-mail automat (Brevo)" && <UneltEmail implicit={conf.email?.notificari ?? ""} />}
                   {CAMPURI[i.nume] && (
                     <form onSubmit={(e) => { e.preventDefault();
                       const f = new FormData(e.currentTarget);

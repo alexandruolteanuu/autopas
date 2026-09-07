@@ -13,6 +13,13 @@ export type Integrari = {
   netopia?: { pos_id?: string; signature?: string; activ?: boolean };
   saga?: { serie?: string; activ?: boolean };
   ga4?: { id?: string; activ?: boolean };
+  // E-mailurile automate (7 septembrie 2026). `cheie` e cheia API a
+  // furnizorului, `notificari` e adresa pe care ajung anunțurile interne, iar
+  // `webhook_secret` e parola cu care baza de date cheamă /api/email-coada.
+  // Toate stau AICI, în rândul `integrari`, care nu e citibil public — politica
+  // de pe `settings` lasă la vedere doar `firma` și `curieri`.
+  email?: { cheie?: string; expeditor?: string; nume_expeditor?: string; notificari?: string;
+            webhook_url?: string; webhook_secret?: string; activ?: boolean };
 };
 
 // Datele REALE ale firmei — folosite ca rezervă dacă în tabela `settings` nu s-a salvat nimic.

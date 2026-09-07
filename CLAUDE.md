@@ -72,10 +72,13 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 24. `ani-generatie.sql` -> 25. `marci-lipsa.sql` -> 26. `generatii-si-denumiri.sql` ->
 27. `mod-vacanta.sql` -> 28. `pagini-masini.sql` -> 29. `numar-piese-pe-model.sql` ->
 30. `ga4-public.sql` -> 31. `categorii-numar-rapid.sql` -> 32. `piese-marca-categorie.sql` ->
-33. `masuratori-publice.sql` -> 34. `piese-compatibile-masini.sql` -> 35. `superb-1.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9–35.
+33. `masuratori-publice.sql` -> 34. `piese-compatibile-masini.sql` -> 35. `superb-1.sql` ->
+36. `email-automat.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9–36.
 NU sunt încă idempotente: 1–5, 8.
-**Aplicate pe producție: 1–35.**
+**Aplicate pe producție: 1–36.**
+36 activează `pg_net`, creează tabela `email_coada` (citibilă doar de echipă) și pune un
+trigger `after insert` pe `orders` și pe cele patru tabele de cereri.
 35 adaugă generația „Škoda Superb 1" (2001–2008), care lipsea din `models`, și mută pe ea
 cele 4 piese cu „Superb 1"/„Superb 3U" în titlu care stăteau greșit pe Superb 2 — importul
 alesese generația prin suprapunere de ani, iar „2005–2008" atinge „2008–2015" într-un singur
@@ -108,19 +111,24 @@ Sunt independente între ele, dar codul din `lib/import/` le presupune pe amând
 ## De configurat (nu e cod, se rezolvă din afara proiectului)
 
 Lucruri pe care codul le presupune deja făcute, dar care încă nu sunt. Nu le implementa —
-sunt sarcini ale utilizatorului. Consemnate la 24 august 2026.
+sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
 
-- **`contact@autopas-dezmembrari.ro` — cutia poștală nu există încă.** Adresa e sursa unică
-  din `settings.firma.email` și apare în toate cele 8 documente legale din `lib/legal.ts`,
-  unde clientul are drept legal să scrie (retur, garanție, GDPR). Până la configurarea
-  cutiei, mesajele trimise acolo **se pierd tăcut** — nimeni nu primește nimic și
-  expeditorul nu află.
-- **`NEXT_PUBLIC_SITE_URL` nu e setată în Vercel.** Fără ea: mesajul WhatsApp de
-  confirmare a comenzii iese fără domeniu (`SITE_DOMENIU` din `lib/config.ts` întoarce
-  intenționat șir gol, ca să nu scrie „de pe localhost:3000" într-un text către client),
-  iar `sitemap.xml`, `robots.txt` și linkurile Open Graph trimit spre adresa `.vercel.app`.
-  Valoarea corectă: `https://autopas-dezmembrari.ro`. Toate variabilele sunt documentate
-  în `.env.local.example`.
+- ~~`NEXT_PUBLIC_SITE_URL` nu e setată~~ — **REZOLVAT.** `sitemap.xml` de pe domeniu scrie
+  adresele corecte.
+- ~~Indexarea e oprită~~ — **PORNITĂ.** `robots.txt` de pe domeniu răspunde cu `Allow: /`,
+  deci `PERMITE_INDEXARE=da` e pus în Vercel. Site-ul e deschis motoarelor de căutare.
+- **`contact@autopas-dezmembrari.ro` — cutia poștală tot nu există** (verificat la
+  7 septembrie 2026: domeniul e înregistrat, DNS-ul e la Vercel, dar **nu există nicio
+  înregistrare MX**, și nici SPF sau DMARC). Adresa e sursa unică din `settings.firma.email`
+  și apare în toate cele 8 documente legale, unde clientul are drept legal să scrie.
+  · Ce se întâmplă azi cu un mesaj trimis acolo: neexistând MX, expeditorul încearcă
+    adresa A a domeniului, care e Vercel; Vercel nu vorbește SMTP, deci mesajul **se
+    întoarce la expeditor** după câteva ore. (Nota veche spunea „se pierd tăcut" — de
+    fapt expeditorul află, târziu.)
+  · Cu indexarea pornită, promisiunea din documentele legale e deja publică în Google.
+    Nu mai e o sarcină de pregătire, e una restantă.
+  · Pașii, scriși pe îndelete: **`docs/email.md`**. Codul de trimitere e gata și așteaptă
+    doar cheia din Admin → Integrări.
 
 ## Decizii deja luate (nu le schimba fără să întrebi)
 - Logo = imagine PNG (roată dințată + siluetă de mașină + „AUTOPAS DEZMEMBRĂRI", metalic cu
@@ -144,8 +152,11 @@ sunt sarcini ale utilizatorului. Consemnate la 24 august 2026.
   din cod, din texte și din `settings.curieri`. Scheletul SelfAWB se activează la primirea
   credențialelor (Admin -> Integrări).
 - Plată card = fază viitoare; butonul e vizibil, activarea vine cu procesatorul.
-- Notificare comandă nouă = alertă sonoră+vizuală în `/admin` (fără e-mail; utilizatorul a refuzat Resend)
-  + buton „Trimite confirmarea pe WhatsApp" precompletat.
+- Notificare comandă nouă = alertă sonoră+vizuală în `/admin` + buton „Trimite confirmarea pe
+  WhatsApp" precompletat + **e-mail automat, din 7 septembrie 2026** (vezi blocul de mai jos).
+  Alerta din panou NU se scoate: e-mailul te prinde când nu ești în fața calculatorului,
+  alerta te prinde când ești. Decizia veche „fără e-mail, utilizatorul a refuzat Resend" a
+  fost răsturnată de utilizator; furnizorul ales acum e Brevo, nu Resend.
 - **Costul livrării NU se afișează la checkout** (decizie 7 aug 2026). Piesele diferă prea mult ca
   greutate și gabarit ca să existe un tarif fix. Clientul comandă doar produsele; echipa completează
   în `/admin/comenzi/[id]` greutatea, dimensiunile, transportul de bază, km suplimentari și alte taxe,
@@ -550,6 +561,45 @@ sunt sarcini ale utilizatorului. Consemnate la 24 august 2026.
     o conversie pierdută și un eveniment inventat în rapoarte.
   · `view_cart`, `remove_from_cart` și `select_item` NU se trimit la Meta: n-au eveniment
     standard, iar unul personalizat nu se poate folosi la licitare.
+- **E-mailurile automate pleacă dintr-o COADĂ scrisă de baza de date, nu din browser**
+  (7 septembrie 2026, `supabase/email-automat.sql` + `lib/email.ts` + `app/api/email-coada`).
+  · **De ce nu din browser**: varianta evidentă e ca pagina de checkout să cheme o rută după
+    ce comanda reușește. Dar atunci un client care închide tabul în secunda de după „Trimite
+    comanda" lasă comanda în bază fără să anunțe pe nimeni — exact cazul în care e-mailul e
+    cel mai necesar. Triggerul scrie rândul în `email_coada` în ACEEAȘI tranzacție cu
+    comanda: dacă există comanda, există și e-mailul de trimis. Ce se poate întâmpla mai rău
+    e o întârziere, niciodată o pierdere.
+  · **Un e-mail nu are voie să strice o comandă.** Tot corpul triggerului e învelit într-un
+    `exception when others then null`. Dacă pg_net cade, dacă `settings` e gol, dacă site-ul
+    e în timpul unui deploy — comanda se salvează oricum. O comandă pierdută costă bani; un
+    e-mail întârziat, nu.
+  · Trezirea rutei e fire-and-forget (`net.http_post`). Dacă nu ajunge, rândul rămâne în
+    coadă; butonul „Trimite ce a rămas în coadă" din Admin → Integrări e cârligul de
+    recuperare, ca să nu depindem de un cron.
+  · `email_coada` e și JURNAL: către cine, când, ce eroare, a câta încercare. La retururi și
+    la garanție contează să poți ARĂTA că i-ai trimis clientului confirmarea. După 5 eșecuri
+    rândul se lasă în pace, cu eroarea la vedere — o adresă greșită nu se repară singură.
+  · **Confirmarea de comandă NU conține costul livrării.** Rămâne decizia din 7 august:
+    transportul se stabilește după cântărire și se comunică telefonic. E-mailul spune exact
+    ce spune mesajul de WhatsApp. Un e-mail automat care ar inventa un cost ar contrazice
+    prima convorbire cu clientul, iar clientul l-ar crede pe el, nu pe operator.
+  · **Notificarea internă are `Reply-To` pe adresa CLIENTULUI.** Proprietarul citește pe
+    `pieseneamt@yahoo.ro` și apasă „Reply" — răspunsul trebuie să ajungă la client, nu la el.
+  · **Răspunsurile pleacă de pe Yahoo, ca `pieseneamt@yahoo.ro`** (decizie 7 septembrie
+    2026, întrebat explicit). Deci nu se construiește nimic pentru „răspunde ca contact@" —
+    prin serverele Yahoo ar rupe oricum alinierea SPF/DKIM și ar ateriza la Spam.
+  · Cutia `contact@` e la Zoho, nu o simplă redirecționare: la o redirecționare pură, dacă
+    Yahoo pune mesajul la Spam, mesajul nu mai există nicăieri. Cu o cutie reală rămâne o
+    copie — vezi `docs/email.md`.
+  · Secretele (cheia Brevo, secretul webhook-ului) stau în `settings.integrari.email`, ca
+    parola FAN Courier: rândul `integrari` nu e citibil public, politica lasă la vedere doar
+    `firma` și `curieri`.
+  · **O singură înregistrare SPF pe domeniu.** Zoho și Brevo trebuie puse în ACEEAȘI linie.
+    Două înregistrări SPF le invalidează pe amândouă și tot ce trimitem ajunge la Spam.
+  · Documentele legale au fost actualizate ÎNAINTE de punerea în funcțiune, cu Brevo și Zoho
+    la destinatari și la locul de stocare. Aceeași regulă ca la GA4 și la Meta. Data afișată
+    la finalul lor vine acum din `LEGAL_ACTUALIZAT` (`lib/legal.ts`) — era scrisă de mână în
+    pagină și rămăsese „august 2026" peste două actualizări de conținut.
 - Roluri: `client`, `operator`, `contabil`, `admin` (coloana `role` în `profiles`, controlată prin RLS).
 
 ## Cele 17 module de admin

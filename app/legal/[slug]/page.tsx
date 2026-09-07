@@ -1,4 +1,4 @@
-import { getLegal, LEGAL_SLUGS } from "@/lib/legal";
+import { getLegal, LEGAL_SLUGS, LEGAL_ACTUALIZAT } from "@/lib/legal";
 import { getSetariServer } from "@/lib/settings";
 import CookieSettings from "@/components/CookieSettings";
 import Link from "next/link";
@@ -98,7 +98,7 @@ export default async function LegalPage({ params }: { params: { slug: string } }
               className="accentuat font-semibold">legislatie.just.ro</a>
           </p>
         )}
-        <p className="text-xs text-textSecundar mt-8 border-t border-chenar pt-4">Ultima actualizare: august 2026 · Pentru orice întrebare, folosește pagina de <Link href="/contact" className="accentuat font-semibold">contact</Link>.</p>
+        <p className="text-xs text-textSecundar mt-8 border-t border-chenar pt-4">Ultima actualizare: {LEGAL_ACTUALIZAT} · Pentru orice întrebare, folosește pagina de <Link href="/contact" className="accentuat font-semibold">contact</Link>.</p>
       </article>
     </div>
   );
