@@ -202,13 +202,28 @@ export default async function Produs({ params }: { params: { slug: string } }) {
           </div>
 
           <div className="mt-3 flex items-center gap-2.5 flex-wrap text-[12px]">
+            {/* „Vândută", nu „Stoc epuizat": la dezmembrări fiecare piesă e unicat,
+                deci nu se reaprovizionează niciodată. „Epuizat" lasă impresia că
+                merită să revii peste o săptămână. */}
             {prod.stoc > 0
               ? <span className="px-2.5 py-1 rounded-full bg-ok/10 text-ok">În stoc</span>
-              : <span className="px-2.5 py-1 rounded-full bg-chenar text-text">Stoc epuizat</span>}
+              : <span className="px-2.5 py-1 rounded-full bg-chenar text-text">Vândută</span>}
             {prod.originala !== false && (
               <span className="px-2.5 py-1 rounded-full bg-accent/10 accentuat">Piesă originală</span>
             )}
           </div>
+
+          {/* Pagina unei piese vândute rămâne la HTTP 200 (migrarea 38). Cine
+              ajunge aici vine, de cele mai multe ori, dintr-un anunț plătit
+              cumpărat înainte de vânzare — merită un răspuns limpede și o cale
+              mai departe, nu un 404. */}
+          {prod.stoc === 0 && !vacanta.activ && (
+            <div className="mt-4 rounded-xl border border-chenar bg-suprafata2 px-3.5 py-3 text-[13px]">
+              <b>Piesa asta s-a vândut.</b> Fiecare piesă din dezmembrări e unicat, deci nu se
+              reaprovizionează. Caută mai jos printre piesele similare sau scrie-ne pe WhatsApp —
+              de multe ori avem aceeași piesă de pe altă mașină, încă neurcată pe site.
+            </div>
+          )}
 
           {vacanta.activ && <VacantaBanner vacanta={vacanta} className="mt-4" />}
 
@@ -219,7 +234,9 @@ export default async function Produs({ params }: { params: { slug: string } }) {
                 </div>
               : prod.stoc > 0
               ? <AddToCart p={prod} mare />
-              : <div className="rounded-xl bg-chenar text-text px-5 min-h-[44px] grid place-items-center text-sm font-medium text-center">Stoc epuizat — vezi piese similare</div>}
+              : <div className="rounded-xl bg-chenar text-text px-5 min-h-[44px] grid place-items-center text-sm font-medium text-center">
+                  Piesa s-a vândut — vezi piesele similare mai jos
+                </div>}
             <div className="grid grid-cols-2 sm:flex gap-2.5">
               <a href={waLinkCu(firma.whatsapp, `Bună! Mă interesează: ${prod.nume}${prod.oem ? ` (OEM ${prod.oem})` : ""} — cod ${prod.cod_intern ?? ""}.`)}
                 target="_blank" rel="noopener noreferrer"

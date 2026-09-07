@@ -74,10 +74,13 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 27. `mod-vacanta.sql` -> 28. `pagini-masini.sql` -> 29. `numar-piese-pe-model.sql` ->
 30. `ga4-public.sql` -> 31. `categorii-numar-rapid.sql` -> 32. `piese-marca-categorie.sql` ->
 33. `masuratori-publice.sql` -> 34. `piese-compatibile-masini.sql` -> 35. `superb-1.sql` ->
-36. `email-automat.sql` -> 37. `dezro.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9–37.
+36. `email-automat.sql` -> 37. `dezro.sql` -> 38. `piesa-vanduta-ramane.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9–38.
 NU sunt încă idempotente: 1–5, 8.
-**Aplicate pe producție: 1–37.**
+**Aplicate pe producție: 1–38.**
+38 scoate `publicat = false` din triggerul de vânzare (și perechea lui din
+`anuleaza_comanda`). Vezi blocul de decizii; pe scurt, `publicat` înseamnă de acum
+„operatorul vrea piesa pe site", iar `stoc` înseamnă „piesa mai există".
 37 adaugă cele patru tabele ale legăturii cu dez.ro (`dezro_catalog`, `dezro_mapari`,
 `dezro_anunturi`, `dezro_jobs`) și două view-uri de numărat (`dezro_stare_piese`,
 `dezro_de_retras`). Nu atinge nimic existent: niciun `drop`, niciun `update` pe date
@@ -521,6 +524,22 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
     n-au fost încă trecute prin aceeași verificare.
   Niciuna nu e blocantă: sunt ecrane interne, nu pagini publice. Devin dureroase când catalogul
   crește — exact ca plafonul de 1.000 de rânduri, care n-a durut până la a 1.001-a piesă.
+- **O piesă vândută rămâne o pagină, nu devine un 404** (7 septembrie 2026, migrarea 38).
+  Triggerul `scade_stocul` punea la vânzare `stoc = 0` ȘI `publicat = false`, iar al doilea scotea
+  pagina de sub politica de citire publică — deci pagina murea.
+  · **Ce costa asta, în bani**: Google ia feed-ul o dată pe zi, deci anunțul din Shopping rămâne
+    activ după vânzare. Clicul e plătit, iar vizitatorul ajungea pe 404. Mai rău: „Automatic
+    availability updates" din Merchant Center, care ar fi oprit anunțul în ore citind `OutOfStock`
+    de pe pagină, n-are ce citi pe o pagină inexistentă — în loc de asta, produsul primește eroare
+    de pagină de destinație.
+  · **De ce e sigur**: `publicat = false` NU era ce ascundea piesa vândută. Toate listările,
+    feed-urile, sitemap-ul, piesele similare și publicarea pe dez.ro filtrează deja
+    `publicat = true AND stoc > 0` — verificat câmp cu câmp înainte de migrare.
+  · **Înțelesul coloanelor, de acum**: `publicat` = operatorul vrea piesa pe site (se schimbă doar
+    din admin sau când piesa dispare din feed-ul sursei); `stoc` = piesa mai există fizic.
+  · Pagina scrie „Vândută", n-are buton de comandă, explică în două rânduri că piesele din
+    dezmembrări sunt unicat, și trimite la piese similare și la WhatsApp. Clicul plătit nu se mai
+    pierde. Același principiu ca la modul vacanță: paginile rămân la 200.
 - **Pagina de piesă poartă date structurate `schema.org/Product`** (7 septembrie 2026,
   `dateStructuratePiesa` din `lib/seo.ts`). Motivul e comercial, nu SEO: piesele sunt UNICAT, iar
   un anunț Google Shopping pentru o piesă vândută se plătește până la următoarea preluare a
