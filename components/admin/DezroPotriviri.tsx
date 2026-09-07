@@ -10,7 +10,7 @@
 // niciodată peste ea. De asta butonul „Nu are corespondent" e o alegere, nu o
 // lipsă: scrie explicit „am hotărât că nu există", iar rândul dispare din listă.
 // ============================================================
-import { useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 
 type Rand = {
   local_id: number;
@@ -32,7 +32,21 @@ const ETICHETE: Record<Fel, string> = {
   marca: "Mărci",
 };
 
-export default function DezroPotriviri({
+/**
+ * `memo` NU e o optimizare de rutină aici (7 septembrie 2026, semnalat de
+ * avertizarea INP din Chrome: 221ms de interfață blocată la un clic).
+ *
+ * Tabelul are un `select` pe rând, iar lista de categorii de la ei are 557 de
+ * intrări: 63 de rânduri de confirmat înseamnă ~35.000 de elemente `<option>`.
+ * Bucla de reîmprospătare a stării anunțurilor cheamă `setMsg` la fiecare pagină
+ * citită, deci pagina se redesena de zeci de ori — și cu ea tot tabelul ăsta,
+ * care n-are nicio legătură cu ce se schimbase.
+ *
+ * Funcționează pentru că amândouă props-urile vin din `useCallback` stabile.
+ * Dacă cineva le trece vreodată ca funcții create în render, memo-ul devine
+ * inutil fără să dea vreun semn.
+ */
+const DezroPotriviri = memo(function DezroPotriviri({
   cere,
   laSalvare,
 }: {
@@ -59,7 +73,10 @@ export default function DezroPotriviri({
 
   useEffect(() => { incarca(); }, [incarca]);
 
-  async function salveaza(rand: Rand, dezroId: number | null) {
+  // `useCallback` aici e ce face `memo`-ul de pe rând să funcționeze cu adevărat.
+  // Cu o funcție creată la fiecare randare, fiecare literă scrisă în căutare ar
+  // fi redesenat toate rândurile, cu tot cu `select`-urile lor.
+  const salveaza = useCallback(async (rand: Rand, dezroId: number | null) => {
     setSalvez(rand.local_id);
     const d = await cere({ actiune: "salveaza-mapare", fel, local_id: rand.local_id, dezro_id: dezroId });
     setSalvez(null);
@@ -68,7 +85,7 @@ export default function DezroPotriviri({
     // apasă „Arată-le pe toate".
     setRanduri((v) => v.filter((x) => x.local_id !== rand.local_id));
     laSalvare?.();
-  }
+  }, [cere, fel, laSalvare]);
 
   const cautat = q.trim().toLowerCase();
   const vizibile = cautat
@@ -138,7 +155,7 @@ export default function DezroPotriviri({
                   rand={r}
                   alegeri={r.toate ?? alegeri}
                   salvez={salvez === r.local_id}
-                  onSalveaza={(id) => salveaza(r, id)}
+                  onSalveaza={salveaza}
                 />
               ))}
             </tbody>
@@ -153,18 +170,26 @@ export default function DezroPotriviri({
       )}
     </div>
   );
-}
+});
 
-function RandPotrivire({
+export default DezroPotriviri;
+
+const RandPotrivire = memo(function RandPotrivire({
   rand, alegeri, salvez, onSalveaza,
 }: {
   rand: Rand;
   alegeri: { dezro_id: number; nume: string }[];
   salvez: boolean;
-  onSalveaza: (id: number | null) => void;
+  onSalveaza: (rand: Rand, id: number | null) => void;
 }) {
   const propunere = rand.candidati[0] ?? null;
   const [ales, setAles] = useState<string>(String(rand.curent ?? propunere?.dezro_id ?? ""));
+  // Lista întreagă se desenează abia când omul atinge chiar acest `select`.
+  // Până atunci e nevoie de o singură opțiune: cea afișată. Altfel fiecare rând
+  // ar aduce în pagină toate cele 557 de categorii ale lor, iar deschiderea
+  // ecranului ar dura secunde.
+  const [desfasurat, setDesfasurat] = useState(false);
+  const optiuni = desfasurat ? alegeri : alegeri.filter((a) => String(a.dezro_id) === ales);
 
   return (
     <tr className="border-t border-line align-top">
@@ -192,10 +217,12 @@ function RandPotrivire({
         <select
           value={ales}
           onChange={(e) => setAles(e.target.value)}
+          onFocus={() => setDesfasurat(true)}
+          onPointerDown={() => setDesfasurat(true)}
           className="w-full min-w-[220px] rounded-xl border-2 border-line px-2 py-2 text-sm"
         >
           <option value="">— nu are corespondent —</option>
-          {alegeri.map((a) => (
+          {optiuni.map((a) => (
             <option key={a.dezro_id} value={a.dezro_id}>{a.nume}</option>
           ))}
         </select>
@@ -204,7 +231,7 @@ function RandPotrivire({
         <button
           type="button"
           disabled={salvez}
-          onClick={() => onSalveaza(ales === "" ? null : Number(ales))}
+          onClick={() => onSalveaza(rand, ales === "" ? null : Number(ales))}
           className="rounded-xl border-2 border-line px-3 py-2 text-xs font-semibold hover:border-acc disabled:opacity-40"
         >
           {salvez ? "Se salvează…" : "Salvează"}
@@ -212,4 +239,4 @@ function RandPotrivire({
       </td>
     </tr>
   );
-}
+});
