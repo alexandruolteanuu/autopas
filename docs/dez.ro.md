@@ -80,9 +80,22 @@ Rover" ca să treacă neobservat, dar sunt două mașini. De asta tot ce e sub 8
 puncte așteaptă un om.
 
 ### 5. Publică o piesă de probă
-Trimite **o singură** piesă și îți dă adresa anunțului. Deschide-o și uită-te:
-titlul, pozele, prețul, categoria, județul. Abia după ce arată bine treci mai
-departe.
+Trimite **o singură** piesă. Verifică-l în contul tău de pe dez.ro: titlul,
+pozele, prețul, categoria, localitatea.
+
+⚠️ **Anunțurile trimise prin API NU apar pe loc pe site — trec printr-o aprobare
+la ei.** Documentația lor spune de trei ori contrariul („approved is always true
+for API-created ads", „The ad is immediately visible on the site", „For
+API-created ads pending should always be 0"), dar primul anunț real, trimis la
+7 septembrie 2026, s-a întors cu `approved: false` și fără adresă publică, iar
+`GET /ads?count` a răspuns `{total:1, approved:0, pending:1}`.
+
+Ce înseamnă asta în practică:
+- adresa publică a anunțului nu există în clipa trimiterii; apare după aprobare;
+- butonul **„Actualizează starea anunțurilor"** din panou recitește lista lor și
+  scrie înapoi cine e publicat și cu ce adresă. Se apasă după ce ei au aprobat.
+- dacă aprobarea durează sau nu vine, e o discuție cu ei, nu ceva de reparat la
+  noi.
 
 ### 6. Prima publicare mare — din terminal, nu din panou
 
@@ -178,6 +191,7 @@ Aceeași plasă ca protecția anti-fișier-trunchiat de la importul din pieseaut
 | „Prea multe autentificări eșuate" | ai depășit limita. Aștepți 15 minute. |
 | 500 / 504 la aducerea catalogului | hopuri de-ale lor. Se reîncearcă singur de 3 ori; dacă tot pică, mai încearcă peste o oră. |
 | „Invalid part id" la publicare | o mapare arată spre o categorie care nu mai există la ei. Reia pasul 2, apoi 4. |
+| Anunțuri trimise, dar `pending` la ei | normal: trec printr-o aprobare. Vezi pasul 5. |
 | Anunțuri cu status „eroare" în panou | fiecare are eroarea scrisă. Reporni publicarea le reîncearcă. |
 
 Verificarea regulilor, fără rețea și fără bază de date:

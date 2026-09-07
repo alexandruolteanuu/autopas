@@ -134,14 +134,13 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
     Nu mai e o sarcină de pregătire, e una restantă.
   · Pașii, scriși pe îndelete: **`docs/email.md`**. Codul de trimitere e gata și așteaptă
     doar cheia din Admin → Integrări.
-- **Contul de pe dez.ro — utilizatorul și parola lipsesc.** Cheia de aplicație o avem de la ei
-  și e deja salvată în `settings.integrari.dezro`; catalogul lor e adus, iar potrivirile sunt
-  făcute. Ce mai trebuie, în Admin → Integrări → „dez.ro — anunțuri": utilizatorul și parola
-  contului nostru de pe dez.ro. Fără ele nu se poate trimite niciun anunț (cheia identifică
-  aplicația, sesiunea identifică vânzătorul).
-  · ⚠ ÎNAINTE de prima publicare: județul, localitatea și telefonul de pe anunțuri se iau din
-    PROFILUL contului de pe dez.ro, nu din codul nostru. Se verifică acolo — altfel toate cele
-    ~8.700 de anunțuri ies cu alt județ.
+- ~~Contul de pe dez.ro~~ — **REZOLVAT la 7 septembrie 2026.** Utilizatorul `autopas` și parola
+  sunt în `settings.integrari.dezro`, integrarea e pornită, autentificarea verificată.
+  · Adresa din profilul lor, pusă de proprietar: „Strada Bistritei 181, loc. Piatra-Neamț, jud.
+    Neamț", telefon 0743627151. Telefonul e cel bun. Strada și localitatea diferă de adresa
+    oficială din `lib/config.ts` („Str. Petru Rareș nr. 181, sat Bistrița, com. Alexandru cel
+    Bun") — de verificat cu proprietarul care e forma corectă, fiindcă ea apare pe toate
+    anunțurile.
   · Pașii, în ordine: **`docs/dez.ro.md`**.
 
 ## Decizii deja luate (nu le schimba fără să întrebi)
@@ -740,7 +739,8 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
   · **Starea la 7 septembrie 2026**: catalogul lor e adus (106 mărci, 2.671 de modele, 573 de
     categorii), potrivirea automată a scris 836 de mapări, au rămas 104 de confirmat de om
     (3 mărci, 38 de modele, 63 de categorii). **8.209 din 8.825 de piese sunt gata de trimis.**
-    Nu s-a publicat încă nimic: lipsesc utilizatorul și parola contului de pe dez.ro.
+    Contul (`autopas`) e configurat și autentificarea merge. S-a trimis UN anunț de probă
+    (AP-000011, ad 13421998, două poze urcate), care așteaptă aprobarea lor.
   · **Traducerile de categorii scrise de om bat automatismul** (`REGULI_CATEGORII`, 270 de reguli,
     acoperă 98,2% din piese). Aceeași regulă ca `REGULI_CATEGORII` de la import, și din același
     motiv măsurat: automatul alegea „Suport compresor AC" în loc de „Compresor aer conditionat",
@@ -758,6 +758,14 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
   · **Un lot trebuie să încapă în 60 de secunde**: `BUGET_MS + TIMEOUT_MS ≤ LIMITA_LOT_MS ≤ 55s`
     (20 + 30 = 50). Termenul absolut (`pana`) e ce garantează asta — `cere()` nu începe o încercare
     care oricum n-ar apuca să se termine. `scripts/verifica-dezro.mjs` verifică suma.
+  · **Anunțurile trimise prin API NU apar pe loc: trec printr-o aprobare la ei** (măsurat la
+    primul anunț real, 7 septembrie 2026). Ghidul lor spune de TREI ori contrariul („approved is
+    always true for API-created ads", „The ad is immediately visible on the site", „For API-created
+    ads pending should always be 0"). Anunțul s-a întors cu `approved: false`, `url: null`, iar
+    `GET /ads?count` a răspuns `{total:1, approved:0, pending:1}`. Deci adresa publică a unui anunț
+    NU există în clipa creării — vine după aprobare, iar singurul mod de a o afla e să recitim
+    lista lor (`lotImprospatare`, butonul „Actualizează starea anunțurilor"). La noi
+    `dezro_anunturi.status = 'activ'` înseamnă „trimis", nu „live"; „live" e `aprobat = true`.
   · **Județul, localitatea și telefonul de pe anunț vin din profilul contului de pe dez.ro**, nu
     din cod („Location is resolved automatically from the user's profile"). Se verifică ACOLO
     înainte de prima publicare, altfel toate cele 8.700 de anunțuri arată alt județ.

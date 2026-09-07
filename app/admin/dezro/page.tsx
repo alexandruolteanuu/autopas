@@ -33,6 +33,7 @@ type Stare = {
   config: { areCheie: boolean; areCont: boolean; utilizator: string; activ: boolean;
             sesiuneValabila: boolean; sesiuneExpira: string | null };
   cifre: any;
+  laEi: { total: number; approved: number; pending: number } | null;
   retrageri: { active: number; deRetras: number; procent: number } | null;
   catalog: { marci: number; modele: number; categorii: number };
   mapari: { marci: number; modele: number; categorii: number; deConfirmat: number };
@@ -116,6 +117,27 @@ export default function Dezro() {
           break;
         }
         if (d.gata) break;
+      }
+    } finally {
+      setRuleaza(false);
+      incarcaStarea();
+    }
+  }, [cere, incarcaStarea]);
+
+  // Reîmprospătarea stării de aprobare: paginile lor, una după alta.
+  // Anunțurile trimise prin API NU sunt publicate pe loc, deși ghidul lor spune
+  // altfel — adresa publică apare abia după ce le aprobă cineva la ei.
+  const improspateaza = useCallback(async () => {
+    setRuleaza(true); setMsg("");
+    try {
+      let pagina = 1, actualizate = 0, aprobate = 0, inAsteptare = 0;
+      for (;;) {
+        const d = await cere({ actiune: "improspateaza", pagina });
+        if (!d.ok) { setMsg(d.eroare ?? "Nu s-a putut citi lista de la dez.ro."); break; }
+        actualizate += d.actualizate; aprobate += d.aprobate; inAsteptare += d.inAsteptare;
+        setMsg(`${nr(actualizate)} anunțuri verificate · ${nr(aprobate)} publicate · ${nr(inAsteptare)} în așteptare…`);
+        if (d.gata) { setMsg(`✓ ${nr(actualizate)} anunțuri verificate · ${nr(aprobate)} publicate la ei · ${nr(inAsteptare)} încă în așteptarea aprobării.`); break; }
+        pagina = d.pagina;
       }
     } finally {
       setRuleaza(false);
@@ -251,13 +273,36 @@ export default function Dezro() {
       {/* ---------- 4. CE SE POATE PUBLICA ---------- */}
       {cifre && (
         <div className="card p-5">
-          <b className="font-disp text-base">4. Ce se poate publica</b>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <b className="font-disp text-base">4. Ce se poate publica</b>
+            <button
+              type="button"
+              disabled={ruleaza || !c?.areCont}
+              onClick={improspateaza}
+              className="rounded-xl border-2 border-line px-3 py-2 text-xs font-semibold hover:border-acc disabled:opacity-40"
+            >
+              Actualizează starea anunțurilor
+            </button>
+          </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
             <Cifra t="Gata de trimis" v={cifre.gata} bun />
             <Cifra t="Anunțuri active" v={cifre.anunturi_active} />
             <Cifra t="Cu eroare" v={cifre.anunturi_eroare} rau={cifre.anunturi_eroare > 0} />
             <Cifra t="Retrase" v={cifre.anunturi_retrase} />
           </div>
+          {stare?.laEi && (
+            <p className="text-sm mt-3">
+              La dez.ro: <b>{nr(stare.laEi.approved)}</b> anunțuri publicate ·{" "}
+              <b>{nr(stare.laEi.pending)}</b> în așteptarea aprobării lor · {nr(stare.laEi.total)} în total.
+              {stare.laEi.pending > 0 && (
+                <span className="block text-xs text-mut mt-1">
+                  Anunțurile trimise prin API trec printr-o aprobare la ei, deși documentația lor spune
+                  că apar pe loc. Până la aprobare n-au adresă publică. Nu e nimic de făcut din partea
+                  noastră — se așteaptă.
+                </span>
+              )}
+            </p>
+          )}
           {cifre.gata < cifre.eligibile && (
             <div className="mt-3 text-sm">
               <p className="text-mut">

@@ -19,6 +19,7 @@
 //   propuneri        — lista pentru ecranul de potriviri, cu alternative
 //   salveaza-mapare  — decizia omului (sursa = 'om')
 //   proba            — publică O SINGURĂ piesă, ca să se vadă rezultatul la ei
+//   improspateaza    — recitește lista lor și scrie înapoi `aprobat` și adresa publică
 //   start            — creează jobul de publicare
 //   lot              — următoarea felie
 //   pauza/reia/anuleaza
@@ -26,7 +27,7 @@
 import { NextResponse } from "next/server";
 import { esteEchipa } from "@/lib/supabase";
 import {
-  depozitDinMediu, sesiuneDin, lotCatalog, lotPublicare, lotRetragere,
+  depozitDinMediu, sesiuneDin, lotCatalog, lotPublicare, lotRetragere, lotImprospatare,
   potrivesteTot, contextPublicare, potrivesteCategorie, potrivesteModel, potrivesteMarca,
   caleaCategoriei, numaraAnunturi, PRAG_RETRAGERE, PRAG_SIGUR,
 } from "@/lib/dezro/index.mjs";
@@ -61,6 +62,7 @@ export async function POST(req: Request) {
       case "propuneri":       return await propuneri(depozit, corp);
       case "salveaza-mapare": return await salveazaMapare(depozit, corp);
       case "proba":           return await proba(depozit, corp);
+      case "improspateaza":   return await improspateaza(depozit, corp);
       case "start":           return await start(depozit, corp);
       case "lot":             return await lot(depozit, corp);
       case "pauza":           return await comanda(depozit, corp, "in_pauza", "Oprit de operator.");
@@ -116,9 +118,20 @@ async function stare(depozit: any) {
       depozit.jobUltimele(8),
     ]);
 
+  // Cifrele LOR, dintr-o singură cerere. Sunt singurul loc din care se vede câte
+  // anunțuri sunt cu adevărat live: la noi „activ" înseamnă doar „trimis".
+  let laEi = null;
+  if (pub.areCheie && pub.areCont) {
+    try {
+      const c = await depozit.citesteConfig();
+      laEi = await numaraAnunturi(sesiuneDin(c, depozit));
+    } catch { laEi = null; }
+  }
+
   return raspuns({
     ok: true,
     config: pub,
+    laEi,
     cifre,
     retrageri,
     catalog: { marci: cMarci, modele: cModele, categorii: cCategorii },
@@ -342,6 +355,23 @@ async function proba(depozit: any, corp: any) {
              "Continuă proba de la poziția întoarsă.",
     });
   return raspuns({ ok: true, rezultat: rez, proba: rez.proba ?? null });
+}
+
+// ------------------------------------------------------------
+// REÎMPROSPĂTAREA STĂRII DE APROBARE
+//
+// Anunțurile trimise prin API NU sunt publicate pe loc, deși ghidul lor spune
+// asta de trei ori: primul anunț real s-a întors cu `approved: false` și fără
+// adresă publică. Adresa vine abia după aprobarea lor, iar singurul mod de a o
+// afla e să recitim lista. Nu folosește jobul: paginile lor sunt numerotate,
+// deci reluarea e gratuită — se cere pagina următoare și atât.
+// ------------------------------------------------------------
+async function improspateaza(depozit: any, corp: any) {
+  const { cfg } = await config(depozit);
+  if (!cfg.cheie || !cfg.utilizator || !cfg.parola) return eroare("Configurarea dez.ro e incompletă.");
+  const sesiune = sesiuneDin(cfg, depozit);
+  const r = await lotImprospatare({ depozit, sesiune, pagina: Number(corp?.pagina ?? 1) });
+  return raspuns({ ok: true, ...r });
 }
 
 // ------------------------------------------------------------
