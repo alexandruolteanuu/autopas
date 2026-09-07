@@ -178,6 +178,15 @@ export default function Integrari() {
   const [conf, setConf] = useState<Record<string, any>>({});
   const [msg, setMsg] = useState("");
   const [salvez, setSalvez] = useState<string | null>(null);
+  // Rezultatul ultimei salvări, legat de integrarea atinsă.
+  //
+  // DE CE nu ajunge `msg` (7 septembrie 2026): mesajul acela se afișează O
+  // SINGURĂ DATĂ, sus, deasupra grupurilor. Cine salvează un card din josul
+  // paginii — dez.ro e ultimul din „Reclame" — nu vede nimic: câmpurile își
+  // păstrează valorile, bifa rămâne bifată, deci ecranul arată exact ca înainte
+  // de apăsare. Prima reacție e „nu s-a salvat" și se apasă din nou, deși
+  // scrierea reușise. Confirmarea trebuie să fie lângă butonul apăsat.
+  const [rezultat, setRezultat] = useState<{ cheie: string; text: string; bun: boolean } | null>(null);
 
   const incarca = useCallback(async () => {
     const sb = sbBrowser(); if (!sb) return;
@@ -212,14 +221,18 @@ export default function Integrari() {
         valori.token_expira = null;
       }
     }
-    const sb = sbBrowser()!; setMsg(""); setSalvez(cheie);
+    const sb = sbBrowser()!; setMsg(""); setRezultat(null); setSalvez(cheie);
     const nou = { ...conf, [cheie]: valori };
     // Ca la Setări: un UPDATE oprit de RLS nu dă eroare, dă zero rânduri. Aici
     // conta dublu — credențialele de curier salvate „cu succes" în gol înseamnă
     // AWB-uri care nu se generează, descoperite abia la primul colet.
     const r = await scrieVerificat(sb.from("settings").update({ valoare: nou }).eq("cheie", "integrari"));
     setSalvez(null);
-    if (!r.ok) { setMsg(`Nu s-a salvat: ${r.eroare}`); return; }
+    if (!r.ok) {
+      setMsg(`Nu s-a salvat: ${r.eroare}`);
+      setRezultat({ cheie, text: `Nu s-a salvat: ${r.eroare}`, bun: false });
+      return;
+    }
     // Aceeași regulă ca la Setări și la modul vacanță: după o salvare confirmată
     // se golește cache-ul paginilor publice. Google Analytics nu depinde de el —
     // își cere id-ul din browser, tocmai ca să nu rămână prins în HTML-ul static —
@@ -227,6 +240,7 @@ export default function Integrari() {
     await golesteCachePublic();
     setConf(nou);
     setMsg("✓ Salvat.");
+    setRezultat({ cheie, text: "✓ Salvat.", bun: true });
     incarca();
   }
 
@@ -266,16 +280,33 @@ export default function Integrari() {
                       CAMPURI[i.nume].forEach((c) => { v[c.k] = String(f.get(c.k) ?? ""); });
                       v.activ = f.get("activ") === "on";
                       salveaza(cheie, v); }}
+                      autoComplete="off"
                       className="mt-4 pt-3 border-t border-line grid gap-2 text-sm">
                       {CAMPURI[i.nume].map((c) => (
                         <div className="fld" key={c.k}><label>{c.l}</label>
-                          <input name={c.k} type={c.tip ?? "text"} defaultValue={conf[CHEI[i.nume]]?.[c.k] ?? ""} /></div>
+                          {/* `autoComplete` NU e cosmetică aici (7 septembrie 2026).
+                              Chrome vede un câmp `password` lângă unul text, hotărăște
+                              că e formular de autentificare și pune peste amândouă
+                              contul cu care ești logat în /admin. Utilizatorul dez.ro
+                              scris de om („autopas") apărea, după un simplu refresh,
+                              ca adresa de e-mail a adminului — iar o apăsare pe
+                              „Salvează" ar fi scris-o chiar așa în bază, peste
+                              valoarea bună, fără ca nimeni să înțeleagă de ce nu mai
+                              merge integrarea.
+                              `new-password` pe câmpurile de parolă e ce oprește
+                              euristica; `off` singur nu e respectat de Chrome. */}
+                          <input name={c.k} type={c.tip ?? "text"}
+                            autoComplete={c.tip === "password" ? "new-password" : "off"}
+                            defaultValue={conf[CHEI[i.nume]]?.[c.k] ?? ""} /></div>
                       ))}
                       <label className="flex items-center gap-2 text-xs cursor-pointer">
                         <input type="checkbox" name="activ" defaultChecked={conf[CHEI[i.nume]]?.activ ?? false} />
                         Activă (folosește această integrare)</label>
                       <button className="btn-dark !py-2 text-xs" disabled={salvez !== null}>
                         {salvez === CHEI[i.nume] ? "Se salvează…" : "Salvează configurarea"}</button>
+                      {rezultat?.cheie === CHEI[i.nume] && (
+                        <p className={`text-xs ${rezultat.bun ? "text-ok" : "text-red-600"}`}>{rezultat.text}</p>
+                      )}
                     </form>
                   )}
                 </div>
