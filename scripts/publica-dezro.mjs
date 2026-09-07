@@ -20,6 +20,7 @@
 //   node scripts/publica-dezro.mjs --potriveste    # doar potrivirea automată
 //   node scripts/publica-dezro.mjs --uscat         # spune ce ar face, fără să trimită
 //   node scripts/publica-dezro.mjs --limita=50     # se oprește după 50 de piese
+//   node scripts/publica-dezro.mjs --doar-cu-oem   # doar piesele care au deja cod OEM
 //   node scripts/publica-dezro.mjs --fara-retragere
 //
 // Are nevoie de NEXT_PUBLIC_SUPABASE_URL și SUPABASE_SERVICE_ROLE_KEY în mediu
@@ -59,6 +60,11 @@ const valoare = (n, implicit) => {
 };
 
 const USCAT = arg("uscat");
+// Cât timp `completeaza-oem.mjs` încă rulează, catalogul e amestecat: unele piese
+// au descrierea întreagă și codul, altele încă nu. Cu filtrul ăsta se trimit doar
+// cele gata, iar restul la o rulare următoare — mai bine două rulări decât 8.000
+// de anunțuri care ar trebui apoi actualizate unul câte unul.
+const DOAR_CU_OEM = arg("doar-cu-oem");
 const LIMITA = Number(valoare("limita", 0)) || 0;
 const nr = (n) => new Intl.NumberFormat("ro-RO").format(n || 0);
 
@@ -110,7 +116,13 @@ async function main() {
 
   // ---------- publicarea ----------
   for (;;) {
-    const r = await lotPublicare({ cfg, depozit, sesiune, job: { pozitie }, context, ...LOT_TERMINAL });
+    // `--limita` se respectă LA PIESĂ, nu la lot. Altfel „--limita=3" ar fi
+    // trimis tot lotul de 25 — la o probă înaintea unei publicări mari, exact
+    // surpriza pe care n-o vrei, fiindcă anunțurile plecate nu se pot lua înapoi.
+    const facuteAcum = total.publicate + total.actualizate + total.neschimbate + total.sarite;
+    const r = await lotPublicare({ cfg, depozit, sesiune, job: { pozitie }, context, ...LOT_TERMINAL,
+      filtrePiese: DOAR_CU_OEM ? "oem=not.is.null&oem=neq." : "",
+      ...(LIMITA ? { maxPiese: Math.max(1, LIMITA - facuteAcum) } : {}) });
     pozitie = r.pozitie;
     total.publicate += r.publicate;
     total.actualizate += r.actualizate;
@@ -134,7 +146,9 @@ async function main() {
   console.log("");
 
   // ---------- retragerea ----------
-  if (!arg("fara-retragere")) {
+  // La o rulare parțială nu se retrage nimic: „lipsește din mulțimea publicată"
+  // nu înseamnă „s-a vândut", iar pragul de 20% s-ar declanșa degeaba.
+  if (!arg("fara-retragere") && !DOAR_CU_OEM) {
     const prag = await depozit.pragRetragere();
     if (prag.active > 0 && prag.procent > PRAG_RETRAGERE && !arg("confirm-retragere-mare")) {
       console.error(
