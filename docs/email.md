@@ -77,13 +77,14 @@ când vede înregistrările.
 ## Pasul 2 — trimiterea automată, prin Brevo (gratuit)
 
 1. Cont pe **brevo.com**.
-2. Senders, Domains & Dedicated IPs → **Domains** → Add a domain →
-   `autopas-dezmembrari.ro` → Authenticate.
-3. Brevo îți dă înregistrările de autentificare. Le adaugi în Vercel, la fel ca mai sus:
-   - o înregistrare **DKIM** (TXT, pe un nume de forma `brevo._domainkey` sau
-     `mail._domainkey`);
-   - o înregistrare **DMARC**, dacă ți-o propune;
-   - o valoare de adăugat în **SPF**.
+2. **Autentifici domeniul.** Click pe numele tău, sus-dreapta → **Senders & IP** →
+   **Domains** → adaugi `autopas-dezmembrari.ro` → **Verify**.
+   Brevo îți dă două înregistrări TXT: **Brevo code** și **DKIM** (gazda e de forma
+   `mail._domainkey`). Le adaugi în Vercel, ca la Pasul 1. Verificarea poate dura
+   până la 48 de ore, dar de obicei merge în câteva minute.
+3. **Adaugi expeditorul**: `contact@autopas-dezmembrari.ro`. Brevo trimite un cod de
+   confirmare pe adresa aceea — și îl vei primi în Yahoo, prin redirecționarea ImprovMX
+   făcută la Pasul 1. E prima dovadă că redirecționarea chiar funcționează.
 
 ### ⚠ Cea mai frecventă greșeală: două înregistrări SPF
 
@@ -110,7 +111,13 @@ v=DMARC1; p=none; rua=mailto:contact@autopas-dezmembrari.ro
 `p=quarantine`. Pornit direct pe `quarantine`, orice greșeală de configurare ar arunca
 confirmările de comandă la Spam, fără să afli.
 
-4. Brevo → **SMTP & API** → Generate a new API key. O copiezi — se arată o singură dată.
+4. **Cheia.** Numele tău, sus-dreapta → **Settings** → **SMTP & API** → fila **API keys**
+   → *Generate a new API key*. O copiezi imediat: se arată o singură dată.
+
+   ⚠ **Cheie API, nu cheie SMTP.** Pe aceeași pagină Brevo are două file, iar cele două
+   chei nu sunt interschimbabile. Codul nostru (`lib/email.ts`) folosește API-ul REST, deci
+   are nevoie de cea din fila **API keys**. Cu o cheie SMTP, testul din panou întoarce
+   „Brevo a răspuns 401" și pare că nu merge nimic.
 
 ---
 
