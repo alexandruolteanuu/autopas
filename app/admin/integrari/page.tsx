@@ -101,7 +101,20 @@ function UneltEmail({ implicit }: { implicit: string }) {
   const [catre, setCatre] = useState(implicit);
   const [lucru, setLucru] = useState<"" | "test" | "coada">("");
   const [rez, setRez] = useState("");
+  const [asteptare, setAsteptare] = useState<{ n: number; eroare: string | null } | null>(null);
   useEffect(() => { setCatre(implicit); }, [implicit]);
+
+  // Câte e-mailuri așteaptă și de ce. Fără linia asta, o coadă blocată e
+  // invizibilă până când clientul sună să întrebe de ce n-a primit confirmarea —
+  // exact ce s-a întâmplat la comanda AP-2026-01004.
+  const vezicoada = useCallback(async () => {
+    const sb = sbBrowser(); if (!sb) return;
+    const { data } = await sb.from("email_coada")
+      .select("id,eroare").is("trimis_la", null).order("id", { ascending: false }).limit(50);
+    const r = (data ?? []) as { id: number; eroare: string | null }[];
+    setAsteptare({ n: r.length, eroare: r.find((x) => x.eroare)?.eroare ?? null });
+  }, []);
+  useEffect(() => { vezicoada(); }, [vezicoada]);
 
   async function cheama(corp: Record<string, unknown>, ce: "test" | "coada") {
     const sb = sbBrowser(); if (!sb) return;
@@ -122,6 +135,7 @@ function UneltEmail({ implicit }: { implicit: string }) {
       setRez(`Nu a mers: ${e?.message ?? e}`);
     }
     setLucru("");
+    vezicoada();
   }
 
   return (
@@ -137,6 +151,12 @@ function UneltEmail({ implicit }: { implicit: string }) {
           {lucru === "coada" ? "Se trimite…" : "Trimite ce a rămas în coadă"}</button>
       </div>
       {rez && <p className="text-xs">{rez}</p>}
+      {asteptare && (asteptare.n > 0
+        ? <p className="text-xs text-red-600">
+            ⚠ {asteptare.n} {asteptare.n === 1 ? "e-mail așteaptă" : "e-mailuri așteaptă"} în coadă.
+            {asteptare.eroare ? ` Ultima eroare: ${asteptare.eroare}` : ""}
+          </p>
+        : <p className="text-xs text-ok">✓ Coada e goală — totul a plecat.</p>)}
     </div>
   );
 }
@@ -155,6 +175,20 @@ export default function Integrari() {
   useEffect(() => { fetch("/api/integrari").then((r) => r.json()).then(setEnv).catch(() => {}); incarca(); }, [incarca]);
 
   async function salveaza(cheie: string, valori: any) {
+    // Adresa pe care o cheamă baza de date TREBUIE să fie o adresă web. La
+    // 7 septembrie 2026 a ajuns acolo, din greșeală, o adresă de e-mail —
+    // `admin@autopas-dezmembrari.ro` — iar pg_net a refuzat-o cu „Bad scheme".
+    // Comanda AP-2026-01004 a rămas cu e-mailurile în coadă, nesemnalate nicăieri
+    // în panou. Câmpul se verifică acum ÎNAINTE de salvare: o adresă greșită se
+    // observă în două secunde, nu la a doua comandă pierdută.
+    if (cheie === "email") {
+      const u = String(valori.webhook_url ?? "").trim();
+      if (u !== "" && !/^https?:\/\/[^\s]+$/i.test(u)) {
+        setMsg("„Adresa pe care o cheamă baza de date” trebuie să fie o adresă web, nu una de e-mail. " +
+               "Valoarea corectă: https://autopas-dezmembrari.ro/api/email-coada");
+        return;
+      }
+    }
     const sb = sbBrowser()!; setMsg(""); setSalvez(cheie);
     const nou = { ...conf, [cheie]: valori };
     // Ca la Setări: un UPDATE oprit de RLS nu dă eroare, dă zero rânduri. Aici

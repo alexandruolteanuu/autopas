@@ -651,6 +651,15 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
   · **O singură înregistrare SPF pe domeniu.** ImprovMX și Brevo trebuie puse în ACEEAȘI
     linie (`v=spf1 include:spf.improvmx.com include:spf.brevo.com ~all`). Două înregistrări
     SPF le invalidează pe amândouă și tot ce trimitem ajunge la Spam.
+  · **Adresa webhook-ului se verifică la salvare, iar coada se vede în panou** (7 septembrie
+    2026, după al doilea incident din aceeași zi). În câmpul „Adresa pe care o cheamă baza de
+    date" ajunsese, din greșeală, o adresă de E-MAIL. pg_net a refuzat-o cu „Bad scheme",
+    comanda AP-2026-01004 a rămas cu ambele e-mailuri în coadă, iar în panou nu se vedea
+    nimic. Acum: câmpul refuză orice nu începe cu `http(s)://`, iar caseta de e-mail arată
+    câte mesaje așteaptă și ultima eroare. O coadă blocată nu mai poate fi invizibilă.
+    · Ce a funcționat, totuși: rândurile ERAU acolo. Despărțirea în două blocuri, făcută cu
+      câteva ore înainte, și-a făcut treaba — o configurare greșită a întârziat e-mailurile,
+      nu le-a pierdut. S-a corectat adresa și au plecat amândouă.
   · Documentele legale au fost actualizate ÎNAINTE de punerea în funcțiune, cu Brevo și
     ImprovMX la destinatari și la locul de stocare — și au fost corectate în aceeași zi când
     Zoho a fost înlocuit cu ImprovMX. Documentul legal trebuie să numească furnizorul REAL:

@@ -131,7 +131,7 @@ confirmările de comandă la Spam, fără să afli.
 | Adresa „De la” | `contact@autopas-dezmembrari.ro` |
 | Numele afișat | `AUTOPAS Dezmembrări` |
 | Unde primești anunțul de comandă nouă | `pieseneamt@yahoo.ro` |
-| Adresa pe care o cheamă baza de date | `https://autopas-dezmembrari.ro/api/email-coada` |
+| Adresa pe care o cheamă baza de date | `https://autopas-dezmembrari.ro/api/email-coada` — **adresă web, nu de e-mail** |
 | Secretul acelei adrese | un șir lung, aleatoriu (vezi mai jos) |
 
 Secretul îl generezi cu o comandă în terminal, sau îl inventezi — orice șir lung și
@@ -167,6 +167,9 @@ Ce înseamnă asta practic:
   **Trimite ce a rămas în coadă**, din același panou.
 - Fiecare încercare se scrie în `email_coada`: către cine, când, ce eroare. După 5 eșecuri
   rândul se lasă în pace, cu eroarea la vedere — o adresă greșită nu se repară singură.
+- **Sub butoane, panoul arată câte e-mailuri așteaptă în coadă și ultima eroare.** Dacă scrie
+  „✓ Coada e goală", totul a plecat. Dacă arată un număr, apeși „Trimite ce a rămas în coadă"
+  și citești eroarea — de obicei e o configurare greșită, nu o defecțiune.
 
 ## Ce NU scrie niciodată în confirmarea de comandă
 
