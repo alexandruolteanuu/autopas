@@ -588,16 +588,24 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
   · **Răspunsurile pleacă de pe Yahoo, ca `pieseneamt@yahoo.ro`** (decizie 7 septembrie
     2026, întrebat explicit). Deci nu se construiește nimic pentru „răspunde ca contact@" —
     prin serverele Yahoo ar rupe oricum alinierea SPF/DKIM și ar ateriza la Spam.
-  · Cutia `contact@` e la Zoho, nu o simplă redirecționare: la o redirecționare pură, dacă
-    Yahoo pune mesajul la Spam, mesajul nu mai există nicăieri. Cu o cutie reală rămâne o
-    copie — vezi `docs/email.md`.
+  · Primirea pe `contact@` e o REDIRECȚIONARE prin ImprovMX către `pieseneamt@yahoo.ro`,
+    nu o cutie poștală. Alegerea inițială fusese Zoho Mail, pentru arhiva de pe server;
+    s-a răsturnat la 7 septembrie 2026, după ce s-a verificat pe paginile lor: planul lor
+    gratuit e restricționat pe regiuni (utilizatorul nici nu-l vedea din România) și nu
+    listează redirecționarea printre funcțiile incluse — adică exact lucrul de care aveam
+    nevoie. Arhiva e acum Yahoo; ce se pierde e copia de rezervă dacă redirecționarea însăși
+    se strică, iar ImprovMX întoarce mesajul la expeditor în loc să-l înghită. Alternativa
+    plătită, dacă se vrea vreodată cutie reală: Zoho Mail Lite, ~5 lei/lună. Vezi `docs/email.md`.
   · Secretele (cheia Brevo, secretul webhook-ului) stau în `settings.integrari.email`, ca
     parola FAN Courier: rândul `integrari` nu e citibil public, politica lasă la vedere doar
     `firma` și `curieri`.
-  · **O singură înregistrare SPF pe domeniu.** Zoho și Brevo trebuie puse în ACEEAȘI linie.
-    Două înregistrări SPF le invalidează pe amândouă și tot ce trimitem ajunge la Spam.
-  · Documentele legale au fost actualizate ÎNAINTE de punerea în funcțiune, cu Brevo și Zoho
-    la destinatari și la locul de stocare. Aceeași regulă ca la GA4 și la Meta. Data afișată
+  · **O singură înregistrare SPF pe domeniu.** ImprovMX și Brevo trebuie puse în ACEEAȘI
+    linie (`v=spf1 include:spf.improvmx.com include:spf.brevo.com ~all`). Două înregistrări
+    SPF le invalidează pe amândouă și tot ce trimitem ajunge la Spam.
+  · Documentele legale au fost actualizate ÎNAINTE de punerea în funcțiune, cu Brevo și
+    ImprovMX la destinatari și la locul de stocare — și au fost corectate în aceeași zi când
+    Zoho a fost înlocuit cu ImprovMX. Documentul legal trebuie să numească furnizorul REAL:
+    orice schimbare de furnizor începe acolo, nu se termină acolo. Aceeași regulă ca la GA4 și la Meta. Data afișată
     la finalul lor vine acum din `LEGAL_ACTUALIZAT` (`lib/legal.ts`) — era scrisă de mână în
     pagină și rămăsese „august 2026" peste două actualizări de conținut.
 - Roluri: `client`, `operator`, `contabil`, `admin` (coloana `role` în `profiles`, controlată prin RLS).

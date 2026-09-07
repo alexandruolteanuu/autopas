@@ -29,7 +29,7 @@ export type LegalDoc = { slug: string; titlu: string; titluScurt?: string; secti
  * schimbăm ceva important — un scop nou, un destinatar nou — actualizăm această
  * pagină și modificăm data de la final." Era scrisă de mână în
  * app/legal/[slug]/page.tsx și rămăsese „august 2026" peste două actualizări de
- * conținut (Google Ads și pixelul Meta la 4 septembrie, Brevo și Zoho la 7).
+ * conținut (Google Ads și pixelul Meta la 4 septembrie, Brevo și ImprovMX la 7).
  *
  * Cine schimbă conținutul legal schimbă și linia asta. E singura de schimbat.
  */
@@ -184,7 +184,7 @@ export function getLegalDocs(firma: Firma = FIRMA_IMPLICITA): LegalDoc[] {
         "FAN Courier — numele, adresa și telefonul, ca să îți poată livra coletul;",
         "furnizorii care găzduiesc site-ul și baza de date, descriși mai jos;",
         "Brevo (Sendinblue) — numele și adresa ta de e-mail, ca să îți putem trimite confirmarea comenzii și răspunsul la formularele completate de tine; serverele sunt în Uniunea Europeană;",
-        "Zoho — furnizorul cutiei noastre poștale contact@autopas-dezmembrari.ro, prin care trec mesajele pe care ni le scrii;",
+        "ImprovMX — serviciul prin care mesajele trimise la contact@autopas-dezmembrari.ro ajung în cutia noastră poștală; el doar le transmite mai departe, nu le păstrează;",
         "Google, pentru statistica de trafic — dar numai dacă ai acceptat cookie-urile de statistică, și fără numele, telefonul, e-mailul sau adresa ta;",
         "Google și Meta (Facebook, Instagram), pentru măsurarea reclamelor — numai dacă ai acceptat cookie-urile de publicitate, și tot fără numele, telefonul, e-mailul sau adresa ta;",
         "contabilul firmei, prin exportul facturilor;",
@@ -194,7 +194,7 @@ export function getLegalDocs(firma: Firma = FIRMA_IMPLICITA): LegalDoc[] {
       ]},
       { h: "Unde sunt stocate datele", p: [
         "Baza de date și fotografiile sunt găzduite la Supabase, pe infrastructură aflată în Uniunea Europeană (Irlanda). Site-ul este găzduit de Vercel.",
-        "E-mailurile automate (confirmarea comenzii, confirmarea unei cereri trimise prin formular) pleacă prin Brevo, societate franceză, cu serverele în Uniunea Europeană. Corespondența pe care ne-o scrii la contact@autopas-dezmembrari.ro este găzduită la Zoho.",
+        "E-mailurile automate (confirmarea comenzii, confirmarea unei cereri trimise prin formular) pleacă prin Brevo, societate franceză, cu serverele în Uniunea Europeană. Mesajele pe care ni le scrii la contact@autopas-dezmembrari.ro trec prin ImprovMX, care le transmite mai departe către cutia poștală în care le citim.",
         "Dacă ai acceptat cookie-urile de statistică, datele de trafic ajung și la Google, prin Google Analytics. Dacă ai acceptat și cookie-urile de publicitate, ajung date și la Google Ads, și la Meta Platforms Ireland Limited, prin pixelul Facebook. Ce anume se trimite scrie în Politica de cookies.",
         "Toate aceste societăți au sediul, sau societatea-mamă, în Statele Unite. În măsura în care intervine un transfer de date în afara Spațiului Economic European, acesta se face pe baza garanțiilor prevăzute de Regulament — clauzele contractuale standard aprobate de Comisia Europeană și, după caz, Cadrul UE–SUA privind confidențialitatea datelor.",
       ]},

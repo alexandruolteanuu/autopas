@@ -1,14 +1,14 @@
 # E-mail: cutia `contact@` și mesajele automate
 
 Scris la 7 septembrie 2026. Codul e gata și așteaptă; ce urmează aici se face **din afara
-proiectului**, din interfețele Vercel, Zoho și Brevo.
+proiectului**, din interfețele Vercel, ImprovMX și Brevo.
 
 ## Ce e de rezolvat, în trei bucăți separate
 
 Se amestecă mereu, și de-aia iese prost. Sunt trei lucruri diferite:
 
 1. **Primirea** — ca `contact@autopas-dezmembrari.ro` să existe și mesajele să ajungă pe
-   `pieseneamt@yahoo.ro`. Se face din DNS, la Zoho. Nu are nevoie de nicio linie de cod.
+   `pieseneamt@yahoo.ro`. Se face din DNS, la ImprovMX. Nu are nevoie de nicio linie de cod.
 2. **Trimiterea automată** — confirmarea de comandă, anunțul de comandă nouă. Se face prin
    Brevo, plus trei înregistrări DNS. Codul există deja.
 3. **Răspunsul** — se dă direct din Yahoo, ca `pieseneamt@yahoo.ro`. Decizie luată la
@@ -32,35 +32,45 @@ garanție și GDPR, iar site-ul e deja indexabil. Deci nu e o sarcină de pregă
 
 ---
 
-## Pasul 1 — cutia poștală, la Zoho Mail (gratuit)
+## Pasul 1 — redirecționarea, la ImprovMX (gratuit)
 
-De ce Zoho și nu o simplă redirecționare: la o redirecționare pură, dacă Yahoo pune mesajul la
-Spam sau redirecționarea se strică, mesajul **nu mai există nicăieri**. Cu o cutie reală
-rămâne o copie, ceea ce contează la un litigiu de garanție.
+**De ce nu Zoho, cum era planul inițial:** planul „Forever Free" al lor mai există, dar e
+restricționat pe regiuni (nu apare pentru toate țările) și, mai important, pe pagina lor de
+prețuri redirecționarea nu e listată ca funcție a planului gratuit, iar IMAP/POP/SMTP sunt
+excluse explicit. Adică exact lucrul de care avem nevoie nu e garantat. Verificat la
+7 septembrie 2026.
 
-1. Cont pe **zoho.com/mail**, plan **Forever Free**, cu domeniu propriu.
-   **Alege centrul de date EUROPA** la înregistrare — nu se poate schimba după.
-2. Verifică domeniul: Zoho îți dă o valoare TXT. O adaugi în Vercel → Settings → Domains →
-   `autopas-dezmembrari.ro` → Add record: tip `TXT`, nume gol (sau `@`), valoarea de la Zoho.
-3. Creează utilizatorul **`contact`** → devine `contact@autopas-dezmembrari.ro`.
-4. Adaugă înregistrările **MX** date de Zoho. Pentru centrul de date european arată așa:
+**Ce pierdem față de o cutie adevărată:** copia de pe server. Mesajele ajung în Yahoo și
+rămân acolo, deci arhiva e Yahoo. Ce nu mai avem e rezerva pentru cazul în care
+redirecționarea însăși se strică. ImprovMX întoarce mesajul la expeditor când nu poate livra
+(nu îl înghite tăcut) și ține un jurnal de 7 zile, deci ai cum să afli.
+
+Dacă vrei totuși cutie reală cu arhivă, varianta scurtă e **Zoho Mail Lite**, în jur de
+5 lei pe lună: aceleași setări, doar că MX-urile sunt ale lor.
+
+### Pașii
+
+1. Cont pe **improvmx.com**, plan gratuit (1 domeniu, 25 de adrese, 500 de mesaje
+   redirecționate pe zi — mult peste ce vei primi).
+2. Adaugi domeniul `autopas-dezmembrari.ro` și aliasul:
+   `contact@autopas-dezmembrari.ro` → `pieseneamt@yahoo.ro`.
+3. Adaugi înregistrările în **Vercel → Settings → Domains → `autopas-dezmembrari.ro` →
+   Add record**:
 
    | Tip | Nume | Valoare | Prioritate |
    |---|---|---|---|
-   | MX | `@` | `mx.zoho.eu` | 10 |
-   | MX | `@` | `mx2.zoho.eu` | 20 |
-   | MX | `@` | `mx3.zoho.eu` | 50 |
+   | MX | `@` | `mx1.improvmx.com` | 10 |
+   | MX | `@` | `mx2.improvmx.com` | 20 |
 
-   **Copiază valorile exacte de pe ecranul Zoho**, nu de aici: diferă după centrul de date și
-   se mai schimbă în timp.
-5. **Redirecționarea către Yahoo**: Zoho Mail → Settings → Mail Accounts → contact@ →
-   Email Forwarding → adaugi `pieseneamt@yahoo.ro`. Zoho trimite un cod de confirmare pe
-   Yahoo; îl introduci. Bifează și **Keep a copy** (păstrează copia în Zoho) — altfel pierzi
-   exact arhiva pentru care am ales Zoho.
+   Dacă găsești acolo vreo înregistrare MX veche, o ștergi întâi — domeniul nu are azi
+   niciuna, deci n-ar trebui să fie cazul.
+4. SPF-ul se adaugă la **Pasul 2**, într-o singură linie împreună cu Brevo. Nu-l pune acum
+   separat, citește avertismentul de acolo.
 
 **Verificare:** trimite-ți singur un mesaj de pe Yahoo la `contact@autopas-dezmembrari.ro`.
-Trebuie să ajungă înapoi în Yahoo în mai puțin de un minut. Dacă nu ajunge în 15 minute, DNS-ul
-încă nu s-a propagat; mai încearcă peste o oră.
+Trebuie să ajungă înapoi în Yahoo în mai puțin de un minut. Dacă nu ajunge, DNS-ul încă nu
+s-a propagat — poate dura până la câteva ore, uneori 24. Panoul ImprovMX îți arată singur
+când vede înregistrările.
 
 ---
 
@@ -77,17 +87,17 @@ Trebuie să ajungă înapoi în Yahoo în mai puțin de un minut. Dacă nu ajung
 
 ### ⚠ Cea mai frecventă greșeală: două înregistrări SPF
 
-Un domeniu are voie cu **o singură** înregistrare SPF. Dacă adaugi una pentru Zoho și alta
+Un domeniu are voie cu **o singură** înregistrare SPF. Dacă adaugi una pentru ImprovMX și alta
 pentru Brevo, **amândouă devin invalide** și toate mesajele ajung la Spam. Se face UNA singură,
 care le conține pe amândouă:
 
 ```
 Tip: TXT   Nume: @   Valoare:
-v=spf1 include:zoho.eu include:spf.brevo.com ~all
+v=spf1 include:spf.improvmx.com include:spf.brevo.com ~all
 ```
 
-(Confirmă cele două valori `include:` de pe ecranele Zoho și Brevo — sunt valorile de la
-7 septembrie 2026.)
+(Cele două valori `include:` sunt cele din documentația ImprovMX și Brevo la 7 septembrie
+2026. Confirmă-le pe ecranele lor — se mai schimbă.)
 
 Și DMARC, o singură înregistrare, de pornire blândă:
 
@@ -161,5 +171,6 @@ contrazice prima ta convorbire cu clientul, iar clientul l-ar crede pe el, nu pe
 ## Documentele legale
 
 Au fost actualizate **înainte** de punerea în funcțiune, ca la Google Analytics și la Meta:
-Brevo și Zoho sunt trecuți la destinatarii datelor și la locul de stocare, în politica de
-confidențialitate. Dacă se schimbă vreodată furnizorul, se schimbă întâi acolo.
+Brevo și ImprovMX sunt trecuți la destinatarii datelor și la locul de stocare, în politica de
+confidențialitate. Dacă se schimbă vreodată furnizorul, se schimbă întâi acolo — s-a și
+întâmplat o dată, la 7 septembrie 2026, când Zoho a fost înlocuit cu ImprovMX.

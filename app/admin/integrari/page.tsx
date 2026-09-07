@@ -12,7 +12,7 @@ const INTEGRARI: Stare[] = [
     pasi: ["Schimbi numărul din Vercel → Settings → Environment Variables → NEXT_PUBLIC_WHATSAPP_PHONE (format 40722XXXXXX)"] },
   { nume: "E-mail automat (Brevo)", grup: "Comunicare", stare: "pregatit",
     desc: "Confirmarea de comandă către client, anunțul de comandă nouă către tine și confirmările la formulare. Rândul intră în coadă în ACEEAȘI tranzacție cu comanda, deci un client care închide tabul imediat după plasare nu te lasă neanunțat. Cât timp câmpurile de mai jos sunt goale, nu pleacă niciun mesaj și nu se pierde nimic — coada așteaptă. Confirmarea NU conține costul livrării: acela se stabilește după cântărire și se comunică la telefon.",
-    pasi: ["Cutia contact@ trebuie să existe întâi (Zoho Mail) și domeniul verificat la Brevo — vezi docs/email.md",
+    pasi: ["Cutia contact@ trebuie să existe întâi (ImprovMX) și domeniul verificat la Brevo — vezi docs/email.md",
            "Brevo → SMTP & API → Generate a new API key → o lipești mai jos",
            "Adresa de notificări: unde vrei să primești anunțul de comandă nouă (ex. pieseneamt@yahoo.ro)",
            "Bifezi „Activă”, salvezi, apoi apeși „Trimite un test” și verifici INCLUSIV folderul Spam",
