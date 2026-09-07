@@ -32,7 +32,8 @@ export default function AddToCart({ p, mare = false }: { p: Product; mare?: bool
   return (
     <button
       onClick={() => { if (inCos) { router.push("/cos"); return; }
-        add({ id: p.id, slug: p.slug, nume: p.nume, pret: Number(p.pret_lei), art: p.art, oem: p.oem ?? p.cod_intern ?? "" });
+        add({ id: p.id, slug: p.slug, nume: p.nume, pret: Number(p.pret_lei), art: p.art,
+              oem: p.oem ?? p.cod_intern ?? "", poza: p.poze?.[0] ?? null });
         router.push("/cos"); }}
       className={`w-full inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition
         min-h-[44px] whitespace-nowrap text-center px-4

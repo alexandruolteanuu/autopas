@@ -151,7 +151,36 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
 - Curier = **doar FAN Courier** (decizie 7 aug 2026). Cargus și Sameday au fost scoase complet
   din cod, din texte și din `settings.curieri`. Scheletul SelfAWB se activează la primirea
   credențialelor (Admin -> Integrări).
-- Plată card = fază viitoare; butonul e vizibil, activarea vine cu procesatorul.
+- **Plata e EXCLUSIV ramburs la livrare** (decizie 7 septembrie 2026, care înlocuiește
+  „butonul de card e vizibil, activarea vine cu procesatorul"). Cardul și transferul bancar
+  au fost scoase din checkout, din FAQ, din subsolul care afișa „VISA · Mastercard" și din
+  secțiunea „8. Plata" a Termenilor. Cardul era oricum inactiv: se înregistra comanda și se
+  cerea plata pe altă cale, adică fix promisiunea pe care checkout-ul n-o putea ține.
+  · În checkout NU e un grup de butoane radio cu o singură opțiune — e o afirmație. Un buton
+    între care n-ai ce alege arată a defect, iar cel bifat din start pare că ascunde altele.
+  · Valoarea trimisă lui `plaseaza_comanda` rămâne `"ramburs"`, dintr-o constantă în
+    `app/checkout/page.tsx`, ca ziua în care se adaugă cardul să aibă un singur loc de schimbat.
+  · Integrarea „Plată cu cardul (Netopia / Stripe)" rămâne listată în Admin → Integrări ca
+    fază următoare: e o notă internă, nu o promisiune făcută clientului.
+- **Coșul reține poza piesei** (`CartItem.poza`, 7 septembrie 2026). Înainte `/cos` desena
+  întotdeauna `PartArt`, adică ilustrația de rezervă, chiar și pentru cele ~8.700 de piese
+  care au poze reale — clientul punea în coș o piesă cu fotografie și primea un desen.
+  · `poza: null` înseamnă „am verificat, n-are poză"; CHEIA LIPSĂ înseamnă „coș salvat
+    înainte de schimbare". `CartContext` completează o singură dată coșurile vechi, dintr-o
+    interogare, și se bazează pe distincția asta. Cu `!i.poza` în loc de `!("poza" in i)`, o
+    piesă fără poză ar fi pornit o cerere la fiecare încărcare de pagină, pe viață.
+  · `/cos` folosește `ProductPhoto`, aceeași componentă ca pe carduri și pe pagina de piesă,
+    deci imaginea arată la fel peste tot și rezerva desenată rămâne pentru piesele fără poză.
+- **Coșul se golește la reîncărcare ÎN DEZVOLTARE, nu în producție** (constatat 7 septembrie
+  2026, măsurat pe amândouă build-urile). `CartProvider` citește `localStorage` într-un efect
+  și scrie în altul, la fiecare schimbare a coșului. În dev, React StrictMode rulează efectele
+  de două ori: prima pereche citește coșul și îl rescrie, a doua CITEȘTE ce tocmai s-a scris —
+  adică `[]`, fiindcă la a doua montare starea repornește goală. În build-ul de producție
+  efectele rulează o singură dată și coșul supraviețuiește; verificat cu `next start`.
+  · Nu e reparat: nu afectează niciun client. Dar cine testează coșul cu `npm run dev` trebuie
+    să știe, altfel pierde o oră căutând un defect care nu există.
+  · Dacă se repară vreodată: nu se scrie în `localStorage` până când citirea inițială n-a avut
+    loc (un `useState` de „încărcat"), nu se atacă simptomul.
 - Notificare comandă nouă = alertă sonoră+vizuală în `/admin` + buton „Trimite confirmarea pe
   WhatsApp" precompletat + **e-mail automat, din 7 septembrie 2026** (vezi blocul de mai jos).
   Alerta din panou NU se scoate: e-mailul te prinde când nu ești în fața calculatorului,

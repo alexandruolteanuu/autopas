@@ -24,7 +24,13 @@ export type Product  = {
   originala?: boolean; poze?: string[] | null; created_at?: string;
   categories?: Category | null; vehicles?: Vehicle | null;
 };
-export type CartItem = { id: number; slug: string; nume: string; pret: number; art: string; oem: string; cantitate: number };
+// `poza` = prima poză a piesei, memorată în coș ca să nu fie nevoie de o
+// interogare pentru fiecare rând la fiecare afișare a coșului.
+// `null` înseamnă „am verificat, piesa n-are poză" — DIFERIT de cheia lipsă,
+// care înseamnă „coș salvat înainte de 7 septembrie 2026, încă neverificat".
+// CartContext se bazează pe distincția asta ca să nu reinterogheze la infinit.
+export type CartItem = { id: number; slug: string; nume: string; pret: number; art: string; oem: string;
+  cantitate: number; poza?: string | null };
 export type Brand = { id: number; slug: string; nume: string; ordine: number };
 // an_start / an_final = anii generației, ca date (supabase/ani-generatie.sql).
 // an_final null = model încă în producție. Numele rămâne doar pentru afișare.

@@ -34,7 +34,10 @@ export default function Checkout() {
       items: items.map((i) => ({ item_id: i.oem || String(i.id), item_name: i.nume, price: i.pret, quantity: i.cantitate })) });
   }, [items, total]);
   const [curier, setCurier] = useState("fan");
-  const [plata, setPlata] = useState("ramburs");
+  // Ramburs e singura metodă de plată (decizie 7 septembrie 2026). Rămâne o
+  // variabilă, nu un literal lipit în apel, ca ziua în care se adaugă cardul să
+  // aibă un singur loc de schimbat.
+  const plata = "ramburs";
   const [stare, setStare] = useState<"idle" | "trimit" | "eroare">("idle");
   const [msg, setMsg] = useState("");
   const [curieri, setCurieri] = useState<Curier[]>(CURIERI_IMPLICITI);
@@ -168,18 +171,28 @@ export default function Checkout() {
               <p className="text-xs text-textSecundar">Piesele voluminoase (motoare, cutii de viteze) se livrează paletizat. Detalii în <Link href="/legal/livrare" className="accentuat font-semibold">pagina Livrare</Link>.</p>
             </div>
           </div>
-          {/* 3. Plata */}
+          {/* 3. Plata — RAMBURS, singura metodă (decizie 7 septembrie 2026).
+              Nu e un grup de butoane radio cu o singură opțiune: un buton între
+              care nu ai ce alege arată a defect, iar cel bifat din start pare
+              că ascunde altele. E o afirmație, fiindcă asta și e.
+
+              Cardul și transferul bancar au fost SCOASE. Cardul era oricum
+              inactiv — se înregistra comanda și se cerea plata pe altă cale,
+              adică fix promisiunea pe care checkout-ul n-o putea ține.
+              Valoarea trimisă serverului rămâne „ramburs", din starea de mai
+              sus; `plaseaza_comanda` o primește neschimbată. */}
           <div className="card p-5">
-            <b className="font-disp font-semibold text-[13px]">3 · Metoda de plată</b>
-            <div className="mt-3 space-y-2">
-              {[["card","Card online","Visa / Mastercard — plată securizată"],["ramburs","Ramburs la curier","plătești când primești piesa"],["transfer","Transfer bancar","primești proforma pe e-mail"]].map(([id,t,d]) => (
-                <label key={id} className={`flex items-center gap-3 rounded-lg border-2 px-4 min-h-[44px] py-3 cursor-pointer ${plata === id ? "border-accentChenar bg-accent/5" : "border-chenar"}`}>
-                  <input type="radio" name="plata" checked={plata === id} onChange={() => setPlata(id)} className="w-5 h-5 shrink-0 accent-[rgb(var(--accent))]" />
-                  <span><b>{t}</b> <span className="text-textSecundar text-sm">· {d}</span></span>
-                </label>
-              ))}
-              {plata === "card" && <p className="text-[12px] text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
-                Plata cu cardul se activează la conectarea procesatorului. Până atunci, comanda se înregistrează și te contactăm cu linkul de plată sau poți alege ramburs.</p>}
+            <b className="font-disp font-semibold text-[13px]">3 · Plata</b>
+            <div className="mt-3 flex items-start gap-3 rounded-lg border-2 border-accentChenar bg-accent/5 px-4 py-3">
+              <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor"
+                strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="2" y="6" width="20" height="13" rx="2" /><path d="M2 10h20M6 15h4" />
+              </svg>
+              <span><b>Ramburs la livrare</b>
+                <span className="block text-textSecundar text-sm mt-0.5">
+                  Plătești curierului când primești piesa, după ce ai verificat coletul.
+                  Nu îți cerem date de card și nu ceri nimic în avans.
+                </span></span>
             </div>
           </div>
           {/* 4. GDPR */}

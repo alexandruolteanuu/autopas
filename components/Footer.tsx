@@ -119,7 +119,9 @@ export default function Footer({ firma = FIRMA_IMPLICITA, marciTop = [] }:
         <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap gap-2 justify-between">
           {/* Datele firmei vin din Admin → Setări → Date firmă (tabela settings), nu din cod. */}
           <span>© {new Date().getFullYear()} {firma.denumire}{firma.cui ? ` · CUI ${firma.cui}` : ""}{firma.reg_com ? ` · Reg. Com. ${firma.reg_com}` : ""}{firma.adresa ? ` · Sediu social: ${firma.adresa}` : ""} · Autorizat pentru tratarea vehiculelor scoase din uz</span>
-          <span>VISA · Mastercard · Ramburs</span>
+          {/* Scria „VISA · Mastercard · Ramburs" — logouri de carduri pe care
+              nu le acceptăm. Acum plata e exclusiv ramburs (7 septembrie 2026). */}
+          <span>Plata ramburs, la livrare</span>
         </div>
       </div>
     </footer>

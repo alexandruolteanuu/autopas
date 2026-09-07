@@ -93,8 +93,8 @@ export function getLegalDocs(firma: Firma = FIRMA_IMPLICITA): LegalDoc[] {
         "Nu expediem nimic până nu ești de acord cu totalul. Dacă suma nu îți convine, anulezi comanda fără niciun cost. Detalii complete în pagina Livrare.",
       ]},
       { h: "8. Plata", p: [
-        "Poți plăti ramburs, la primirea coletului, sau prin transfer bancar pe baza unei facturi proforme.",
-        "Plata cu cardul online va fi disponibilă ulterior; până atunci butonul este vizibil, dar inactiv.",
+        "Plata se face exclusiv ramburs, la primirea coletului: plătești curierului, după ce ai verificat ce ai primit.",
+        "Nu îți cerem date de card, nu îți cerem plată în avans și nu procesăm plăți online.",
         "Emitem factură pentru fiecare comandă. Pentru facturarea pe firmă, completează datele societății în formularul de comandă.",
       ]},
       { h: "9. Anularea comenzii", p: [

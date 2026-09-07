@@ -1,7 +1,7 @@
 "use client";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import { useCart } from "@/components/CartContext";
-import PartArt from "@/components/PartArt";
+import ProductPhoto from "@/components/ProductPhoto";
 import { lei, nrPiese } from "@/lib/format";
 import { useEffect, useRef, useState } from "react";
 import { ev, MONEDA } from "@/lib/analytics";
@@ -61,7 +61,12 @@ export default function Cos() {
           {items.map((i) => (
             <div key={i.id} className="p-4">
               <div className="flex gap-3 sm:gap-4 min-w-0">
-                <PartArt kind={i.art} className="w-20 sm:w-24 shrink-0 rounded-lg" />
+                {/* Poza REALĂ a piesei, cu desenul doar ca rezervă. Aceeași
+                    componentă ca pe carduri și pe pagina de produs, deci arată
+                    la fel peste tot. Înainte era `PartArt` fix, adică desenul
+                    chiar și pentru cele 8.700 de piese care au poze. */}
+                <ProductPhoto poze={i.poza ? [i.poza] : null} art={i.art} alt={i.nume}
+                  className="w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-lg" />
                 <div className="min-w-0 flex-1">
                   <Link href={`/piese/${i.slug}`} className="inline-flex items-center min-h-[44px] font-semibold text-[15px] leading-snug accentuat-hover break-words">{i.nume}</Link>
                   <div className="text-[13px] text-textSecundar mt-0.5 break-words">OEM {i.oem} · piesă unică — rezervată 30 min</div>
