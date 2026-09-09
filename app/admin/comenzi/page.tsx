@@ -5,12 +5,24 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { sbBrowser, citesteTot, citesteDupaIduri } from "@/lib/supabase";
 import { lei } from "@/lib/format";
+import ProductPhoto from "@/components/ProductPhoto";
 import type { OrderFull } from "@/lib/types";
 
 const FILTRE = [
   { id: "", t: "Toate" }, { id: "noua", t: "Noi" }, { id: "confirmata", t: "Confirmate" },
   { id: "expediata", t: "Expediate" }, { id: "livrata", t: "Livrate" }, { id: "anulata", t: "Anulate" },
 ];
+// O linie de comandă, cu poza piesei adusă din `products`. `order_items` ține
+// numele și prețul de la momentul comenzii (ca să nu se schimbe retroactiv), dar
+// nu și poza — de aceea o cerem prin legătura `product_id`.
+type Linie = {
+  order_id: number; product_id: number | null; nume: string; cantitate: number;
+  products: { poze: string[] | null; art: string; slug: string } | null;
+};
+// Câte piese se văd pe rând înainte de „+N". Peste atât, rândul ar deveni mai
+// înalt decât restul tabelului și lista și-ar pierde rostul de coadă de lucru.
+const MAX_PIESE = 3;
+
 const STATUS: Record<string, string> = { noua: "bg-acc/10 text-acc", confirmata: "bg-blue-100 text-blue-700", expediata: "bg-purple-100 text-purple-700", livrata: "bg-ok/10 text-ok", anulata: "bg-red-100 text-red-600" };
 
 function ComenziInner() {
@@ -18,6 +30,7 @@ function ComenziInner() {
   const [filtru, setFiltru] = useState(sp.get("f") ?? "");
   const [q, setQ] = useState("");
   const [orders, setOrders] = useState<OrderFull[]>([]);
+  const [piese, setPiese] = useState<Record<number, Linie[]>>({});
   const [contor, setContor] = useState<Record<string, number>>({});
   const [gata, setGata] = useState(false);
 
@@ -27,7 +40,27 @@ function ComenziInner() {
     if (filtru) query = query.eq("status", filtru);
     if (q.trim()) query = query.or(`numar.ilike.%${q}%,nume.ilike.%${q}%,telefon.ilike.%${q}%,email.ilike.%${q}%`);
     const { data } = await query;
-    setOrders((data ?? []) as OrderFull[]); setGata(true);
+    const lista = (data ?? []) as OrderFull[];
+    setOrders(lista); setGata(true);
+
+    // Piesele din fiecare comandă, ca operatorul să vadă ce s-a comandat fără să
+    // deschidă comanda. Se cer DUPĂ ce lista e afișată: tabelul apare imediat, iar
+    // pozele se umplu când sosesc. `citesteDupaIduri` sparge în loturi de 200 —
+    // `.in("order_id", …)` cu 200 de id-uri încape în URL, cu câteva mii nu.
+    setPiese({});
+    if (lista.length) {
+      // `any` fiindcă supabase-js tipează orice legătură încorporată ca VECTOR;
+      // `product_id` e o cheie străină simplă, deci vine un singur obiect. Aceeași
+      // turnare ca în pagina de detaliu a comenzii.
+      const linii = await citesteDupaIduri<any>(lista.map((o) => o.id),
+        (lot) => sb.from("order_items")
+          .select("order_id,product_id,nume,cantitate,products(poze,art,slug)", { count: "exact" })
+          .in("order_id", lot).order("id"),
+        { eticheta: "piesele comenzilor" });
+      const pe: Record<number, Linie[]> = {};
+      (linii as Linie[]).forEach((l) => { (pe[l.order_id] ??= []).push(l); });
+      setPiese(pe);
+    }
     // PAGINAT: contoarele taburilor numărau TOATE comenzile, dar primeau cel mult
     // 1.000. Lista de deasupra rămâne la 200 — e o listă de lucru, nu un raport —
     // însă contorul trebuie să spună adevărul.
@@ -75,9 +108,9 @@ function ComenziInner() {
       </div>
 
       <div className="card overflow-x-auto">
-        <table className="tabel-carduri w-full text-sm md:min-w-[760px]">
+        <table className="tabel-carduri w-full text-sm md:min-w-[980px]">
           <thead><tr className="text-left text-mut text-xs border-b border-line">
-            <th className="px-4 py-3">Comandă</th><th className="px-4 py-3">Client</th><th className="px-4 py-3">Plată</th>
+            <th className="px-4 py-3">Comandă</th><th className="px-4 py-3">Client</th><th className="px-4 py-3">Piese</th><th className="px-4 py-3">Plată</th>
             <th className="px-4 py-3">Total</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Factură</th>
             <th className="px-4 py-3">AWB</th><th className="px-4 py-3"></th></tr></thead>
           <tbody className="divide-y divide-line">
@@ -86,6 +119,34 @@ function ComenziInner() {
                 <td data-eticheta="Comandă" className="px-4 py-3"><b className="font-disp">{o.numar}</b>
                   <div className="text-[11px] text-mut">{new Date(o.created_at).toLocaleString("ro-RO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</div></td>
                 <td data-eticheta="Client" className="px-4 py-3">{o.firma ?? o.nume}<div className="text-[11px] text-mut">{o.oras} · {o.telefon}</div></td>
+                <td data-eticheta="Piese" className="px-4 py-3 min-w-[220px]">
+                  {(() => {
+                    const linii = piese[o.id];
+                    // `undefined` = încă nu au sosit; `[]` = comandă fără linii (nu
+                    // se întâmplă azi, dar un „—" e mai onest decât un loc gol).
+                    if (!linii) return <span className="text-mut text-xs">…</span>;
+                    if (!linii.length) return <span className="text-mut text-xs">—</span>;
+                    const ramase = linii.length - MAX_PIESE;
+                    return (
+                      <div className="space-y-1.5">
+                        {linii.slice(0, MAX_PIESE).map((l, k) => (
+                          <div key={k} className="flex items-center gap-2">
+                            <ProductPhoto poze={l.products?.poze} art={l.products?.art ?? "engine"} alt={l.nume}
+                              className="w-9 h-9 rounded-lg shrink-0 border border-line" />
+                            <div className="min-w-0">
+                              {l.products?.slug
+                                ? <a href={`/piese/${l.products.slug}`} target="_blank" rel="noopener"
+                                    className="text-xs leading-tight line-clamp-2 hover:text-acc">{l.nume}</a>
+                                : <span className="text-xs leading-tight line-clamp-2">{l.nume}</span>}
+                              {l.cantitate > 1 && <div className="text-[11px] text-mut font-semibold">× {l.cantitate}</div>}
+                            </div>
+                          </div>
+                        ))}
+                        {ramase > 0 && <div className="text-[11px] text-mut font-semibold">+ încă {ramase} {ramase === 1 ? "piesă" : "piese"}</div>}
+                      </div>
+                    );
+                  })()}
+                </td>
                 <td data-eticheta="Plată" className="px-4 py-3">{o.plata}</td>
                 <td data-eticheta="Total" className="px-4 py-3 font-disp font-semibold">{lei(Number(o.total))}
                   {/* fără cost de livrare, totalul afișat e incomplet — semnalăm explicit */}
