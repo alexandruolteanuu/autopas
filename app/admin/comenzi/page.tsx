@@ -119,7 +119,7 @@ function ComenziInner() {
                 <td data-eticheta="Comandă" className="px-4 py-3"><b className="font-disp">{o.numar}</b>
                   <div className="text-[11px] text-mut">{new Date(o.created_at).toLocaleString("ro-RO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</div></td>
                 <td data-eticheta="Client" className="px-4 py-3">{o.firma ?? o.nume}<div className="text-[11px] text-mut">{o.oras} · {o.telefon}</div></td>
-                <td data-eticheta="Piese" className="px-4 py-3 min-w-[220px]">
+                <td data-eticheta="Piese" className="celula-bloc px-4 py-3 md:min-w-[240px] md:max-w-[320px]">
                   {(() => {
                     const linii = piese[o.id];
                     // `undefined` = încă nu au sosit; `[]` = comandă fără linii (nu
@@ -128,21 +128,30 @@ function ComenziInner() {
                     if (!linii.length) return <span className="text-mut text-xs">—</span>;
                     const ramase = linii.length - MAX_PIESE;
                     return (
-                      <div className="space-y-1.5">
-                        {linii.slice(0, MAX_PIESE).map((l, k) => (
-                          <div key={k} className="flex items-center gap-2">
-                            <ProductPhoto poze={l.products?.poze} art={l.products?.art ?? "engine"} alt={l.nume}
-                              className="w-9 h-9 rounded-lg shrink-0 border border-line" />
-                            <div className="min-w-0">
-                              {l.products?.slug
-                                ? <a href={`/piese/${l.products.slug}`} target="_blank" rel="noopener"
-                                    className="text-xs leading-tight line-clamp-2 hover:text-acc">{l.nume}</a>
-                                : <span className="text-xs leading-tight line-clamp-2">{l.nume}</span>}
-                              {l.cantitate > 1 && <div className="text-[11px] text-mut font-semibold">× {l.cantitate}</div>}
-                            </div>
-                          </div>
-                        ))}
-                        {ramase > 0 && <div className="text-[11px] text-mut font-semibold">+ încă {ramase} {ramase === 1 ? "piesă" : "piese"}</div>}
+                      <div className="space-y-1">
+                        {linii.slice(0, MAX_PIESE).map((l, k) => {
+                          const continut = (
+                            <>
+                              <ProductPhoto poze={l.products?.poze} art={l.products?.art ?? "engine"} alt=""
+                                className="w-10 h-10 rounded-lg shrink-0 border border-line" />
+                              <span className="min-w-0 text-xs leading-tight line-clamp-2">
+                                {l.nume}
+                                {l.cantitate > 1 && <b className="text-mut"> × {l.cantitate}</b>}
+                              </span>
+                            </>
+                          );
+                          // Rândul întreg e ținta de atins, nu doar denumirea: 44px
+                          // înălțime, cât cere o atingere pe telefon.
+                          return l.products?.slug
+                            ? <a key={k} href={`/piese/${l.products.slug}`} target="_blank" rel="noopener"
+                                className="flex items-center gap-2 min-h-[44px] hover:text-acc">{continut}</a>
+                            : <div key={k} className="flex items-center gap-2 min-h-[44px]">{continut}</div>;
+                        })}
+                        {ramase > 0 && (
+                          <Link href={`/admin/comenzi/${o.id}`} className="block text-[11px] text-mut font-semibold hover:text-acc">
+                            + încă {ramase} {ramase === 1 ? "piesă" : "piese"}
+                          </Link>
+                        )}
                       </div>
                     );
                   })()}
