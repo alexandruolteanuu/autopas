@@ -21,9 +21,16 @@
 // în HTML, iar celelalte se pierdeau. Costă o cerere pe piesă, cu pauza politicoasă
 // obișnuită, deci durează ~2 secunde pentru fiecare.
 //
+// Cu `--doar-incomplete`, se uită NUMAI la piesele cărora chiar le lipsește
+// ceva (fără model sau fără categorie). Contează doar împreună cu `--reciteste`:
+// o recitire a întregului catalog înseamnă ~8.800 de pagini × 2s, adică vreo
+// cinci ore, iar dacă de reparat sunt o sută de piese, restul e drum degeaba.
+// Regulile rămân aceleași — se schimbă doar mulțimea, nu ce se face cu ea.
+//
 //   node scripts/completeaza-taxonomia.mjs             # doar raportează
 //   node scripts/completeaza-taxonomia.mjs --scrie     # aplică
 //   node scripts/completeaza-taxonomia.mjs --reciteste --scrie
+//   node scripts/completeaza-taxonomia.mjs --doar-incomplete --reciteste
 // ============================================================
 import { depozitDinMediu, SURSA, taxonomieDinUrl, potriveste, potrivesteCategoria,
          asiguraCategoria, asiguraModelul, asiguraModeleleInPlus, aducePagina, extrage,
@@ -31,14 +38,26 @@ import { depozitDinMediu, SURSA, taxonomieDinUrl, potriveste, potrivesteCategori
 
 const SCRIE = process.argv.includes("--scrie");
 const RECITESTE = process.argv.includes("--reciteste");
+const DOAR_INCOMPLETE = process.argv.includes("--doar-incomplete");
 
 const depozit = depozitDinMediu();
 const taxonomie = await depozit.citesteTaxonomia();
 
 // Toate piesele de la sursă, cu ce ne trebuie ca să decidem.
-const piese = await depozit.citesteTotPentruCompletare(SURSA);
+const toate = await depozit.citesteTotPentruCompletare(SURSA);
+// Filtrul se aplică DUPĂ citire, nu în interogare: citirea e o singură trecere
+// ieftină, iar „îi lipsește ceva" înseamnă exact ce verifică și buclele de mai
+// jos. Ținut într-un `where` din REST, s-ar despărți de ele la prima corectură.
+const piese = DOAR_INCOMPLETE
+  ? toate.filter((p) => !p.editat_manual &&
+      (!(p.model_ids ?? []).length || !p.categorie_id || !p.subcategorie_id))
+  : toate;
 
-console.log(`${piese.length} piese de la ${SURSA}${SCRIE ? "" : "  ·  MOD RAPORT: nu se scrie nimic"}\n`);
+console.log(
+  `${piese.length} piese de la ${SURSA}` +
+  (DOAR_INCOMPLETE ? ` (din ${toate.length}: doar cele cărora le lipsește ceva)` : "") +
+  (SCRIE ? "" : "  ·  MOD RAPORT: nu se scrie nimic") + "\n",
+);
 
 const catNoi = [], modNoi = [], atinse = [], nerezolvate = [];
 let recitite = 0, compatMaiBogate = 0;

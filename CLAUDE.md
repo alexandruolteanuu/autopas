@@ -76,10 +76,19 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 30. `ga4-public.sql` -> 31. `categorii-numar-rapid.sql` -> 32. `piese-marca-categorie.sql` ->
 33. `masuratori-publice.sql` -> 34. `piese-compatibile-masini.sql` -> 35. `superb-1.sql` ->
 36. `email-automat.sql` -> 37. `dezro.sql` -> 38. `piesa-vanduta-ramane.sql` ->
-39. `dezro-automat.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9–39.
+39. `dezro-automat.sql` -> 40. `senzori-auto-despartire.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9–40.
 NU sunt încă idempotente: 1–5, 8.
-**Aplicate pe producție: 1–39.**
+**Aplicate pe producție: 1–40.**
+40 e o migrare de DATE, nu de schemă (10 septembrie 2026): desparte categoria-sac
+„Senzori auto" (id 196) în opt subcategorii — radar distronic, impact pietoni, unghi
+mort, impact airbag, unghi volan, nivel faruri, nivel suspensie, deschidere haion —
+plus câteva piese mutate în categorii care existau deja (parcare, ploaie, presiune
+gaze, ESP). Motivul: pe dez.ro fiecare dintre ele e o categorie diferită, deci 84 de
+piese nu se puteau publica. Mută după titlu, într-o ordine care e regula însăși
+(„Radar / Senzor blind spot" e unghi mort, nu radar), nu atinge `editat_manual`, și
+lasă categoria 196 goală, dar existentă. Piesele mutate au plecat singure la dez.ro:
+triggerul din 39 urmărește și `categorie_id`, și `subcategorie_id`.
 39 face publicarea pe dez.ro automată: `dezro_coada`, `dezro_trezire`, trei
 funcții și trei triggere pe `products` (insert / update filtrat pe coloane /
 before delete), plus view-ul `dezro_coada_stare`. Nu atinge nimic existent:
@@ -811,6 +820,13 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
   · **Automatul propune, omul decide.** O mapare cu `sursa = 'om'` nu e călcată niciodată de o
     resincronizare — nici măcar una negativă („s-a decis că nu are corespondent", `dezro_id` null).
     Distincția „rând lipsă" / „`dezro_id` null" e purtătoare de sens, nu accident.
+  · **Mapările APROXIMATIVE au nota care începe cu „APROXIMATIV"** (10 septembrie 2026). Ca să se
+    publice TOATE piesele, câteva categorii și modele fără corespondent exact la ei au primit cel mai
+    apropiat vecin: Discovery Sport → Discovery, apărători noroi → carenaj, buton oglinzi → oglinzi,
+    troliu → sistem de tractare, cric → lift hidraulic, cheie → contact cu cheie, nivel faruri →
+    instalație xenon. Modelul și generația exacte pleacă oricum în `variant`. Dacă moderatorii lor
+    resping un anunț pe motiv de categorie, lista de reparat e
+    `select * from dezro_mapari where nota like 'APROXIMATIV%'`.
   · **Retragerea are prag de 20%**, cu confirmare separată peste el. La ei ștergerea unui anunț NU
     se poate desface prin API, deci o depublicare în masă la noi ar stinge ireversibil tot ce avem
     acolo. Aceeași plasă ca `PRAG_DEPUBLICARE` de la import.
@@ -986,7 +1002,7 @@ Niciuna nu e dependință a site-ului și niciuna nu rulează la build. Se cheam
 |---|---|
 | `verifica-contrast.mjs` | după orice atingere a paletei din `globals.css`. Calculează raporturile pe cele trei palete și iese cu cod 1 dacă o pereche obligatorie pică |
 | `actualizeaza-taxonomie-sursa.mjs` | când catalogul pieseauto.ro se schimbă. Reface `lib/import/taxonomie-sursa.mjs` din pagina lor `/categorii/`. Are `--uscat`; refuză să scrie dacă extrage sub 300 de categorii (semn că pagina lor s-a schimbat) |
-| `completeaza-taxonomia.mjs` | o singură dată după schimbarea regulilor de taxonomie. Completează categoria și modelul pieselor importate ÎNAINTE de reguli — un re-import nu le repară, fiindcă `patchLaReimport` nu atinge categoria. Doar raportează; scrie cu `--scrie`. Cu `--reciteste` cere din nou pagina fiecărei piese, când extragerea s-a schimbat. Nu atinge piesele cu `editat_manual` |
+| `completeaza-taxonomia.mjs` | o singură dată după schimbarea regulilor de taxonomie. Completează categoria și modelul pieselor importate ÎNAINTE de reguli — un re-import nu le repară, fiindcă `patchLaReimport` nu atinge categoria. Doar raportează; scrie cu `--scrie`. Cu `--reciteste` cere din nou pagina fiecărei piese, când extragerea s-a schimbat. Nu atinge piesele cu `editat_manual`. Cu `--doar-incomplete` se uită doar la piesele fără model sau fără categorie — împreună cu `--reciteste` înseamnă minute, nu cinci ore |
 | `verifica-vacanta.mjs` | după orice atingere a modului vacanță. **Rulează pe baza reală** și comută vacanța câteva secunde, apoi o lasă dezactivată. Verifică cele 7 puncte din sarcină: amprenta catalogului înainte/după ciclu, refuzul lui `plaseaza_comanda`, ordinea gărzii. Nu creează nicio comandă |
 | `verifica-seo.mjs` | **după orice modificare a metadatelor, a șabloanelor de titlu sau a datelor structurate.** Cere paginile de la un server care rulează (`BASE=…`) și verifică: titlu ≤ 65, descriere ≤ 165 și prezentă, **marca apare exact o dată în titlu**, descrieri unice, un singur `canonical`. Iese cu cod 1 dacă pică ceva |
 | `completeaza-oem.mjs` | **o singură dată**, ca să completeze `oem` și să repare descrierile tăiate ale pieselor importate ÎNAINTE de 7 septembrie 2026. Recitește pagina fiecărei piese (~2s), deci ~5 ore la 8.965 de piese; `--de-la=<id>` reia de unde a rămas, `--limita=N` face o probă. Doar raportează; scrie cu `--scrie` |
