@@ -883,11 +883,18 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
     pg_net așteaptă 3 secunde, un lot ține până la 60 — trezirea e fire-and-forget prin construcție.
     Cine caută dovada că lotul a lucrat o caută în `dezro_coada_stare` și în `dezro_anunturi`,
     niciodată în codul întors lui pg_net. Un timeout acolo NU e un eșec.
-  · Verificarea lanțului fără să atingi nicio dată: `update products set publicat = publicat where
-    id = <o piesă publicată>`. Funcția triggerului nu compară valorile, deci un UPDATE cu efect nul
-    îl declanșează; rândul trece prin coadă, iar amprenta face să nu plece nicio cerere la ei
-    (`dezro_anunturi.actualizat_la` rămâne neschimbat). Geamănul verificării cu `part_requests`
-    fără e-mail de la migrarea 36.
+  · **Un UPDATE cu efect nul NU declanșează triggerul** (corectat 10 septembrie 2026). Funcția
+    `dezro_marcheaza()` nu compară valorile, dar TRIGGERUL are o clauză `when (old.X is distinct
+    from new.X …)`, deci `set publicat = publicat` nu ajunge nici măcar la funcție. Nota veche de aici
+    recomanda exact testul ăsta; „a trecut" doar fiindcă o coadă goală arată la fel cu una prin care
+    nu a trecut nimic. Dovada reală a lanțului e o schimbare REALĂ: la migrarea 40, 73 de piese și-au
+    schimbat categoria, au intrat în coadă și s-au golit singure în câteva minute.
+  · **O mapare nouă NU pune nimic în coadă.** Triggerele stau pe `products`; o piesă care devine
+    publicabilă fiindcă i s-a mapat modelul sau categoria nu s-a schimbat ea însăși. După orice
+    completare de mapări, piesele devenite gata se trimit ori cu `scripts/publica-dezro.mjs`, ori
+    puse direct în coadă: `insert into dezro_coada (product_id, motiv) select … on conflict
+    (product_id) do update …` și apoi `select dezro_trezeste(true)`. Așa au rămas netrimise 396 de
+    piese o zi întreagă, la 10 septembrie 2026.
   · Ruta refuză să lucreze cât timp există un job de publicare activ: doi scriitori pe aceleași
     anunțuri ar putea trimite aceeași piesă de două ori, iar la ei un anunț dublat nu se poate uni.
 - Roluri: `client`, `operator`, `contabil`, `admin` (coloana `role` în `profiles`, controlată prin RLS).
