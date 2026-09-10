@@ -856,8 +856,22 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
   · **Coada nu poate fi invizibilă**: „4b. Sincronizarea automată" din Admin → Anunțuri dez.ro arată
     câte așteaptă, câte s-au blocat după 5 încercări și ultima eroare, cu buton de golire manuală.
     Lecția cozii de e-mail din 7 septembrie 2026, aplicată din prima.
-  · Cât timp `webhook_url` și `webhook_secret` lipsesc din Admin → Integrări, triggerele scriu în
-    coadă și nimic nu pleacă. Nu se pierde nimic: totul pleacă la prima trezire de după completare.
+  · **PORNITĂ pe producție la 10 septembrie 2026.** `webhook_url` și `webhook_secret` sunt în
+    `settings.integrari.dezro`; ruta răspunde pe `https://autopas-dezmembrari.ro/api/dezro-coada`.
+    Cât lipsesc, triggerele scriu în coadă și nu pleacă nimic — nu se pierde nimic, totul pleacă la
+    prima trezire de după completare. Exact așa s-a și întâmplat: ruta n-a fost trimisă în producție
+    odată cu migrarea, a răspuns 404 o zi, iar coada a strâns 91 de rânduri (51 modificări, 38 de
+    piese ȘTERSE, 3 piese noi). La pornire au plecat toate: 38 de anunțuri stinse la ei, 3 retrase,
+    zero erori, zero blocate.
+  · **`net._http_response` va arăta ÎNTOTDEAUNA „Timeout of 3000 ms" pentru trezire, și e normal.**
+    pg_net așteaptă 3 secunde, un lot ține până la 60 — trezirea e fire-and-forget prin construcție.
+    Cine caută dovada că lotul a lucrat o caută în `dezro_coada_stare` și în `dezro_anunturi`,
+    niciodată în codul întors lui pg_net. Un timeout acolo NU e un eșec.
+  · Verificarea lanțului fără să atingi nicio dată: `update products set publicat = publicat where
+    id = <o piesă publicată>`. Funcția triggerului nu compară valorile, deci un UPDATE cu efect nul
+    îl declanșează; rândul trece prin coadă, iar amprenta face să nu plece nicio cerere la ei
+    (`dezro_anunturi.actualizat_la` rămâne neschimbat). Geamănul verificării cu `part_requests`
+    fără e-mail de la migrarea 36.
   · Ruta refuză să lucreze cât timp există un job de publicare activ: doi scriitori pe aceleași
     anunțuri ar putea trimite aceeași piesă de două ori, iar la ei un anunț dublat nu se poate uni.
 - Roluri: `client`, `operator`, `contabil`, `admin` (coloana `role` în `profiles`, controlată prin RLS).
