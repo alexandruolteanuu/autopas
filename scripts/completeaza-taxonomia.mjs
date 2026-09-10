@@ -106,6 +106,21 @@ for (const p of piese) {
     if (recitite > 0) await pauzaPoliticoasa();
     recitite++;
     const r = await aducePagina(p.sursa_url);
+    // Un refuz care ține după toată scara de reîncercări (5 + 15 + 45 s) e la fel
+    // pentru toate piesele: sursa refuză ADRESA noastră, nu pagina (vezi `fatal`
+    // în lib/import/aducere.mjs). Fără oprirea asta, scriptul dormea 65 de secunde
+    // pe fiecare piesă — 119 piese, peste două ore — fără nicio cerere reușită și
+    // fără să spună nimic, fiindcă raportul se tipărește abia la final. Aceeași
+    // regulă ca motorul de import. Ce s-a scris până aici rămâne scris: fiecare
+    // piesă se salvează înainte să se treacă la următoarea.
+    if (!r.ok && r.fatal) {
+      console.error(
+        `\nOPRIT: pieseauto.ro refuză cererile de pe adresa asta (${r.eroare}). ` +
+        `Prelucrate înainte de refuz: ${recitite - 1}. ` +
+        `Reia mai târziu, sau de pe altă adresă IP — piesele deja completate nu se refac.`,
+      );
+      process.exit(2);
+    }
     if (r.ok) {
       const proaspat = extrage(r.html, urlCanonic(r.html, p.sursa_url)).compat;
       if (proaspat.length > compat.length) compatMaiBogate++;
