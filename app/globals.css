@@ -4,10 +4,16 @@
 
 /* ============================================================
    PALETA SITE-ULUI — „Atelier, galben industrial" (galbenul #F2B705).
-   Două teme, aceeași identitate: „Întunecat" (implicită, negru) și
-   „Luminos" (alb cald), comutabile din header. Alegerea se ține în
+   Două teme, aceeași identitate: „Luminos" (implicită, gri rece) și
+   „Întunecat" (negru), comutabile din header. Alegerea se ține în
    localStorage, cheia `autopas-tema`, și se aplică prin atributul
-   `data-tema` de pe <html>.
+   `data-tema` de pe <html>, scris din start de app/layout.tsx.
+
+   ATENȚIE LA CARE E IMPLICITĂ: blocul `:root` de mai jos e cel ÎNTUNECAT,
+   deși implicit se vede luminosul. Nu e o scăpare — `data-tema="luminos"`
+   vine pus pe <html> de pe server, deci selectorul mai specific câștigă
+   întotdeauna, iar întunecatul apare doar când comutatorul scoate atributul.
+   Așa nicio valoare nu e scrisă de două ori.
 
    ACESTA E SINGURUL LOC DE UNDE SE SCHIMBĂ CULORILE. Componentele nu
    scriu culori direct; folosesc clasele semantice din tailwind.config.ts
@@ -18,9 +24,9 @@
    folosi și transparența: bg-accent/10, border-chenar/40.
    ============================================================ */
 :root {
-  /* Tema e întunecată. Fără linia asta browserul ar desena barele de
-     defilare, calendarele native și listele de select în variantă
-     luminoasă — petice albe pe un site negru. */
+  /* Tema întunecată — cea de sub atribut, nu cea implicită (vezi nota de sus).
+     Fără linia asta browserul ar desena barele de defilare, calendarele native
+     și listele de select în variantă luminoasă — petice albe pe un site negru. */
   color-scheme: dark;
 
   --fundal: 16 16 16;           /* #101010 */
@@ -71,9 +77,10 @@
 }
 
 /* ============================================================
-   TEMA „LUMINOS" — hero alb, zonele negre păstrate.
-   Se activează prin `data-tema="luminos"` pe <html>, pus de comutatorul din
-   header și de scriptul anti-flash din app/layout.tsx.
+   TEMA „LUMINOS" (IMPLICITĂ) — hero alb, zonele negre păstrate.
+   Se activează prin `data-tema="luminos"` pe <html>, scris de pe server în
+   app/layout.tsx. Scriptul anti-flash de acolo doar îl SCOATE, când omul a
+   ales întunecatul din comutatorul din header.
 
    Fundalul NU e alb pur: cardurile sunt albe, iar alb pe alb înseamnă zero
    separare. #EDEFF2 e un gri RECE — varianta caldă de dinainte (#F7F7F5) trăgea

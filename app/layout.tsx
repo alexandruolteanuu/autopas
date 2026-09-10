@@ -120,20 +120,27 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         .gt("nr_piese", 0).order("nr_piese", { ascending: false }).limit(10)).data ?? []) as MarcaTop[])
     : [];
   return (
-    <html lang="ro" className={poppins.variable}>
+    // `data-tema="luminos"` e scris AICI, pe server, nu lăsat pe seama scriptului
+    // de mai jos: așa tema implicită e în HTML din prima, fără licărire și chiar
+    // cu JavaScript oprit. Întunecatul rămâne o abatere, cerută explicit din
+    // comutator — vezi components/ComutatorTema.tsx.
+    <html lang="ro" data-tema="luminos" className={poppins.variable}>
       <head>
         {/* SCRIPT ANTI-FLASH. Rulează înainte de orice desenare: citește tema
-            salvată și o pune pe <html>. Fără el, pagina ar apărea o clipă
-            întunecată și apoi ar sări pe luminos la fiecare reîncărcare — exact
-            genul de licărire pe care oamenii o simt fără s-o poată numi.
-            Implicit rămâne întunecatul: dacă nu e nimic salvat, nu se pune nimic.
+            salvată și, dacă omul a ales întunecatul, SCOATE atributul pus pe
+            <html> mai sus. Fără el, pagina ar apărea o clipă luminoasă și apoi ar
+            sări pe întunecat la fiecare reîncărcare — exact genul de licărire pe
+            care oamenii o simt fără s-o poată numi.
+            Implicitul NU se pune de aici, ci în atributul de pe <html>; scriptul
+            ăsta se ocupă doar de abaterea de la el. Dacă nu e nimic salvat, nu
+            face nimic, iar site-ul rămâne luminos.
             `dangerouslySetInnerHTML` e singura cale de a insera un script inline
             în App Router; conținutul e scris de noi, nu vine de nicăieri. */}
         <script
           dangerouslySetInnerHTML={{
             __html:
               "(function(){try{var t=localStorage.getItem('autopas-tema');" +
-              "if(t==='luminos'){document.documentElement.setAttribute('data-tema','luminos');}" +
+              "if(t==='intunecat'){document.documentElement.removeAttribute('data-tema');}" +
               "}catch(e){}})();",
           }}
         />

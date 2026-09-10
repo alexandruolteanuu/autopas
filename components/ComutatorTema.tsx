@@ -1,14 +1,15 @@
 "use client";
 // ============================================================
-// COMUTATORUL DE TEMĂ — „Întunecat" (implicit) / „Luminos".
+// COMUTATORUL DE TEMĂ — „Luminos" (implicit) / „Întunecat".
 //
-// Alegerea se ține în localStorage, cheia `autopas-tema`, și se aplică punând
+// Alegerea se ține în localStorage, cheia `autopas-tema`, și se aplică prin
 // `data-tema="luminos"` pe <html>. Restul e treaba variabilelor din globals.css:
 // nicio componentă nu știe pe ce temă e.
 //
-// IMPLICIT rămâne întunecatul, indiferent de setarea sistemului. `prefers-color-scheme`
-// NU se folosește: clientul a cerut întunecatul ca standard, iar un site care se
-// deschide altfel decât cum l-a gândit proprietarul nu e „adaptare", e surpriză.
+// IMPLICIT e LUMINOSUL, indiferent de setarea sistemului. Atributul vine scris de
+// pe server, din app/layout.tsx, iar butonul ăsta doar îl scoate și îl pune la loc.
+// `prefers-color-scheme` NU se folosește: un site care se deschide altfel decât
+// cum l-a gândit proprietarul nu e „adaptare", e surpriză.
 //
 // ICOANELE se comută din CSS, nu din JavaScript (vezi `.ic-soare`/`.ic-luna` în
 // globals.css). Așa iconița corectă e desenată din primul cadru, împreună cu
@@ -20,7 +21,9 @@ import { useEffect, useState } from "react";
 const CHEIE = "autopas-tema";
 
 export default function ComutatorTema() {
-  const [luminos, setLuminos] = useState(false);
+  // Pornește de la implicit — luminos — ca `aria-pressed` să fie corect din
+  // primul cadru. Efectul de mai jos îl corectează dacă omul a ales întunecatul.
+  const [luminos, setLuminos] = useState(true);
 
   // Sincronizează starea React cu ce a pus deja scriptul anti-flash pe <html>.
   useEffect(() => {
