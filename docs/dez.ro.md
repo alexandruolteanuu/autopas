@@ -163,10 +163,70 @@ de completat.
 
 ---
 
+## Sincronizarea automată (de la 9 septembrie 2026)
+
+**Nu mai trebuie apăsat nimic pentru piesele de zi cu zi.** Baza de date anunță
+singură site-ul la fiecare piesă adăugată, modificată, vândută sau ștearsă, iar
+anunțul pleacă, se actualizează sau se stinge în câteva secunde.
+
+De ce contează mai ales retragerea: piesele noastre sunt unicat. Între două
+apăsări de buton, un anunț rămas în aer pentru o piesă vândută înseamnă un
+telefon degeaba.
+
+### Ce trebuie pus o singură dată
+
+**Admin → Integrări → „dez.ro — anunțuri"**, ultimele două câmpuri:
+
+| Câmp | Ce se pune |
+|---|---|
+| Sincronizare automată: adresa chemată de baza de date | `https://autopas-dezmembrari.ro/api/dezro-coada` |
+| Secretul acelei adrese | un șir lung, inventat de tine (ex. din `openssl rand -hex 24`) |
+
+Adresa TREBUIE să înceapă cu `https://` — câmpul refuză altceva. Regula vine de
+la incidentul de la e-mail din 7 septembrie 2026, când în câmpul echivalent
+ajunsese o adresă de e-mail și coada a rămas blocată nevăzută.
+
+Secretul nu se pune nicăieri altundeva: ruta îl citește din aceeași setare.
+Cât timp cele două câmpuri sunt goale, triggerele scriu oricum în coadă și nu se
+pierde nimic — totul pleacă la prima trezire de după completare.
+
+### Cum se vede că merge
+
+**Admin → Anunțuri dez.ro → „4b. Sincronizarea automată"**: câte piese așteaptă,
+câte s-au blocat după 5 încercări, ultima eroare. Butonul **„Sincronizează acum"**
+e cârligul de recuperare — trezirea din baza de date e fire-and-forget, deci dacă
+site-ul era în timpul unui deploy exact atunci, rândul rămâne în coadă și n-are
+cine să-l ia.
+
+### Ce oprește o ștergere în masă
+
+Aceeași plasă de **20%** ca la publicarea mare, dar aici e mai importantă: la
+buton omul citește un avertisment, aici nu apasă nimeni nimic. Dacă un
+`update products set publicat = false` dat din greșeală ar duce la retragerea a
+peste 20% dintre anunțurile active, sincronizarea **se oprește singură** și scrie
+în panou de ce. Se reia doar cu butonul „Am verificat, retrage anunțurile".
+
+Piesele ȘTERSE din bază se numără separat în plasa asta: rândul lor din
+`dezro_anunturi` pleacă odată cu piesa (`on delete cascade`), deci n-ar mai apărea
+în numărătoarea obișnuită. Triggerul copiază id-ul anunțului în coadă înainte de
+ștergere — altfel anunțul ar rămâne pentru totdeauna la ei, fără să mai știm nici
+măcar că există.
+
+### Ce NU declanșează o resincronizare
+
+Lista de coloane urmărite de trigger e exact ce intră în anunț, plus `publicat`.
+`vizualizari` NU e în listă, și e cel mai important lucru din ea: crește la
+fiecare deschidere a unei pagini de piesă, deci fără filtru fiecare vizitator ar
+pune o piesă în coadă. Cine adaugă un câmp nou în anunț îl adaugă și în trigger
+(`supabase/dezro-automat.sql`).
+
+---
+
 ## Întreținerea
 
-Din panou, o dată pe zi sau când ai adăugat piese: **Pornește publicarea**. Face
-trei lucruri, în ordine:
+Sincronizarea automată acoperă ziua obișnuită. **Pornește publicarea** rămâne
+pentru resincronizări complete — după ce s-au confirmat potriviri noi, după o
+schimbare de reguli, sau dacă ai o îndoială. Face trei lucruri, în ordine:
 
 1. **trimite** piesele care nu-s încă la ei;
 2. **actualizează** ce s-a schimbat (preț, descriere, poze);
@@ -220,6 +280,7 @@ de timp al unui lot, potrivirea modelelor, traducerile aprobate, ce se trimite
 | Ecranul operatorului | `app/admin/dezro/page.tsx` + `components/admin/DezroPotriviri.tsx` |
 | Ruta de server | `app/api/dezro/route.ts` |
 | Scriptul din terminal | `scripts/publica-dezro.mjs` |
+| Sincronizarea automată | `supabase/dezro-automat.sql` (migrarea 39) + `app/api/dezro-coada/route.ts` |
 | Verificările | `scripts/verifica-dezro.mjs` |
 | Tabelele | `supabase/dezro.sql` (migrarea 37) |
 | Secretele | `settings.integrari.dezro` — cheia, contul, token-ul de sesiune |

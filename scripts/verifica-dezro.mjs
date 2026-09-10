@@ -14,6 +14,8 @@
 //   6. diferența de poze: ce se adaugă, ce se șterge, plafonul de 10
 //   7. o piesă fără mapare NU se publică (nu se inventează o categorie)
 //   8. retragerea: numai anunțurile pieselor care chiar nu mai sunt eligibile
+//   9. coada automată: ce e de făcut se decide din starea de ACUM a piesei, iar
+//      anunțul unei piese ȘTERSE se stinge deși rândul ei nu mai există
 //
 //   node scripts/verifica-dezro.mjs
 //
@@ -24,7 +26,7 @@ import {
   potrivesteModel, potrivesteMarca, potrivesteCategorie, normalizeazaModel,
   faraGeneratie, REGULI_CATEGORII, PRAG_SIGUR,
   construieste, amprentaCampuri, diferentaPoze, anulAnuntului, descriere, MOTIVE,
-  lotPublicare, lotRetragere, TIP_ANUNT,
+  lotPublicare, lotRetragere, lotCoada, pragCoada, PRAG_RETRAGERE, TIP_ANUNT,
 } from "../lib/dezro/index.mjs";
 
 let treceri = 0, picate = 0;
@@ -210,6 +212,7 @@ function depozitFals(stare) {
     async pieseEligibile(dupa, cate) { return stare.piese.filter((p) => p.id > dupa).slice(0, cate); },
     async citesteAnunturiPentru(ids) { return new Map(ids.filter((i) => stare.anunturi[i]).map((i) => [i, stare.anunturi[i]])); },
     async scrieAnunt(id, patch) { stare.anunturi[id] = { ...(stare.anunturi[id] ?? {}), product_id: id, ...patch }; },
+    async pieseDupaIduri(ids) { return stare.piese.filter((p) => ids.includes(p.id)); },
     async anunturiDeRetras(dupa, cate) {
       const eligibile = new Set(stare.piese.map((p) => p.id));
       return Object.values(stare.anunturi)
@@ -267,6 +270,74 @@ stare.anunturi[1] = { ...stare.anunturi[1], status: "activ" };
 const jurnal5 = [];
 const r5 = await lotRetragere({ depozit: dep, sesiune: sesiuneFalsa(jurnal5), job: { pozitie: 0 } });
 cer("piesa încă în stoc NU se retrage", r5.retrase === 0 && jurnal5.length === 0, jurnal5.join(" | "));
+
+// ============================================================
+sectiune("9. Coada automată (migrarea 39)");
+// Regula pe care se sprijină tot mecanismul: ce e de făcut cu un rând din coadă
+// se decide din starea piesei de ACUM, nu din `motiv`-ul scris de trigger.
+// Între trigger și procesare piesa se mai poate schimba o dată — iar o coadă
+// care ar ține minte „era de publicat" ar trimite la ei o piesă vândută între timp.
+{
+  const st = { piese: [piesaFalsa], anunturi: {} };
+  const d = depozitFals(st);
+  d.coadaSterge = async () => {};
+  d.coadaEsec = async () => {};
+
+  const j1 = [];
+  const c1r = await lotCoada({ depozit: d, sesiune: sesiuneFalsa(j1), context,
+    randuri: [{ id: 1, product_id: 1, motiv: "piesă nouă" }] });
+  cer("piesă nouă din coadă => se publică", c1r.publicate === 1 && c1r.facute.length === 1, JSON.stringify(c1r.motive));
+
+  // Același rând, nimic schimbat: rândul se închide, dar fără nicio cerere la ei.
+  const j2 = [];
+  const c2r = await lotCoada({ depozit: d, sesiune: sesiuneFalsa(j2), context,
+    randuri: [{ id: 2, product_id: 1, motiv: "piesă modificată" }] });
+  cer("rând fără nicio schimbare => zero cereri la ei", c2r.neschimbate === 1 && j2.length === 0, j2.join(" | "));
+  cer("rândul se închide oricum (nu rămâne blocat)", c2r.facute.length === 1);
+
+  // Triggerul a scris „piesă modificată", dar între timp piesa s-a VÂNDUT.
+  // Decizia se ia din starea de acum: anunțul se retrage.
+  st.piese = [];
+  const j3 = [];
+  const c3r = await lotCoada({ depozit: d, sesiune: sesiuneFalsa(j3), context,
+    randuri: [{ id: 3, product_id: 1, motiv: "piesă modificată" }] });
+  cer("piesa vândută între timp => se retrage, nu se publică",
+    c3r.retrase === 1 && c3r.publicate === 0, JSON.stringify(c3r));
+  cer("s-a chemat DELETE /ads/{id}", j3.some((x) => x.startsWith("DELETE /ads/")), j3.join(" | "));
+
+  // Piesa ȘTEARSĂ din bază: rândul din `dezro_anunturi` a plecat cu ea, deci
+  // singura urmă a anunțului e `ad_id`-ul copiat în coadă de trigger.
+  const j4 = [];
+  const c4r = await lotCoada({ depozit: d, sesiune: sesiuneFalsa(j4), context,
+    randuri: [{ id: 4, ad_id: 555, motiv: "piesă ștearsă" }] });
+  cer("piesă ștearsă => anunțul orfan se stinge după ad_id",
+    c4r.retrase === 1 && j4.some((x) => x === "DELETE /ads/555"), j4.join(" | "));
+
+  // O piesă nepublicată care n-a avut niciodată anunț: rândul se închide fără
+  // nicio cerere. E cazul obișnuit al unei piese editate în admin.
+  const j5 = [];
+  const c5r = await lotCoada({ depozit: d, sesiune: sesiuneFalsa(j5), context,
+    randuri: [{ id: 5, product_id: 42, motiv: "piesă modificată" }] });
+  cer("piesă fără anunț și fără stoc => zero cereri", c5r.neschimbate === 1 && j5.length === 0, j5.join(" | "));
+}
+
+// Plasa de 20%: aici nu apasă nimeni niciun buton, deci trebuie să OPREASCĂ.
+{
+  const depPrag = (active, deRetras, deSters) => ({
+    async pragRetragere() { return { active, deRetras, procent: active ? deRetras / active : 0 }; },
+    async coadaStare() { return { de_sters: deSters }; },
+  });
+  const putine = await pragCoada({ depozit: depPrag(1000, 50, 0) });
+  cer("50 din 1.000 de anunțuri => trece", !putine.depasit, JSON.stringify(putine));
+  const multe = await pragCoada({ depozit: depPrag(1000, 300, 0) });
+  cer("300 din 1.000 => se oprește și cere confirmare", multe.depasit, JSON.stringify(multe));
+  // Piesele ȘTERSE nu mai apar în `dezro_de_retras` (rândul lor din
+  // `dezro_anunturi` a plecat cu ele), deci trebuie numărate separat — altfel
+  // exact ștergerea în masă, cazul cel mai grav, ar trece pe lângă plasă.
+  const sterse = await pragCoada({ depozit: depPrag(1000, 0, 300) });
+  cer("300 de piese ȘTERSE => tot se oprește", sterse.depasit, JSON.stringify(sterse));
+  cer("pragul e același ca la publicarea mare", PRAG_RETRAGERE === 0.2, String(PRAG_RETRAGERE));
+}
 
 // ============================================================
 console.log(`\n${treceri} verificări trecute, ${picate} picate.`);

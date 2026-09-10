@@ -12,3 +12,7 @@ node_modules/
 # fișiere temporare de depanare, scrise în rădăcină ca să vadă node_modules
 dbg-temp.mjs
 dbg*.mjs
+
+# Fișierele de lucru ale publicării pe dez.ro (semnul și jurnalul supraveghetorului)
+.dezro-in-lucru
+.dezro-publicare.log

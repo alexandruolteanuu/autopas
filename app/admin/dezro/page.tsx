@@ -324,6 +324,9 @@ export default function Dezro() {
         </div>
       )}
 
+      {/* ---------- 4b. SINCRONIZAREA AUTOMATĂ ---------- */}
+      <SincronizareAutomata activ={!!c?.activ && !!c?.areCont} />
+
       {/* ---------- 5. PUBLICAREA ---------- */}
       <div className="card p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -604,6 +607,111 @@ function Mica({ t, v, rau }: { t: string; v: number; rau?: boolean }) {
     <div className="rounded-lg border border-line px-2 py-1.5">
       <div className={`font-semibold ${rau ? "text-red-600" : ""}`}>{nr(v)}</div>
       <div className="text-[11px] text-mut">{t}</div>
+    </div>
+  );
+}
+
+// ============================================================
+// SINCRONIZAREA AUTOMATĂ (migrarea 39)
+//
+// Cifrele vin din view-ul `dezro_coada_stare`, numărate în bază. Caseta asta
+// există dintr-un motiv măsurat pe coada de e-mailuri, la 7 septembrie 2026: o
+// coadă blocată care nu se vede nicăieri e descoperită abia când sună clientul.
+// Aici ar fi și mai rău — nimeni n-are cum să observe singur că un anunț n-a
+// plecat.
+//
+// Butonul „Sincronizează acum" e cârligul de recuperare, ca „Trimite ce a rămas"
+// de la e-mail: trezirea din baza de date e fire-and-forget, deci dacă site-ul
+// era în timpul unui deploy exact atunci, rândul rămâne în coadă și n-are cine
+// să-l ia.
+// ============================================================
+function SincronizareAutomata({ activ }: { activ: boolean }) {
+  const [coada, setCoada] = useState<{ total: number; de_facut: number; blocate: number; de_sters: number; o_eroare: string | null } | null>(null);
+  const [mesajPrag, setMesajPrag] = useState<string | null>(null);
+  const [lucru, setLucru] = useState(false);
+  const [rez, setRez] = useState("");
+
+  const vezi = useCallback(async () => {
+    const sb = sbBrowser(); if (!sb) return;
+    const [c, cfg] = await Promise.all([
+      sb.from("dezro_coada_stare").select("*").maybeSingle(),
+      sb.from("settings").select("valoare").eq("cheie", "integrari").maybeSingle(),
+    ]);
+    setCoada((c.data as any) ?? null);
+    setMesajPrag(((cfg.data?.valoare as any)?.dezro?.coada_mesaj as string) ?? null);
+  }, []);
+  useEffect(() => { vezi(); }, [vezi]);
+
+  async function goleste(confirmatPrag = false) {
+    const sb = sbBrowser(); if (!sb) return;
+    setLucru(true); setRez("");
+    const { data: { session } } = await sb.auth.getSession();
+    let facute = 0, treceri = 0;
+    // Se cheamă până se golește: ruta face un lot pe cerere, iar din panou vrem
+    // rezultatul acum, nu peste încă o trezire. Plafonul de treceri e ca butonul
+    // să nu poată ține pagina ocupată la infinit dacă ceva se blochează.
+    for (; treceri < 20; treceri++) {
+      const r = await fetch("/api/dezro-coada", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token ?? ""}` },
+        body: JSON.stringify({ confirmatPrag }),
+      }).then((x) => x.json()).catch(() => ({ ok: false, eroare: "Nu s-a putut chema ruta." }));
+      if (!r.ok) { setRez(r.eroare ?? "Nu a mers."); break; }
+      facute += r.facute ?? 0;
+      if (r.cereConfirmare) { setRez(r.nota); break; }
+      if (!r.continua) { setRez(r.nota ?? `Gata · ${facute} rânduri lucrate.`); break; }
+    }
+    setLucru(false);
+    vezi();
+  }
+
+  const n = coada?.de_facut ?? 0;
+  return (
+    <div className="card p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <b className="font-disp text-base">4b. Sincronizarea automată</b>
+          <p className="text-sm text-mut mt-1">
+            Baza de date anunță ruta la fiecare piesă adăugată, modificată, vândută sau ștearsă.
+            Nu trebuie apăsat nimic; butonul e doar pentru ce a rămas în urmă.
+          </p>
+        </div>
+        <button
+          type="button" disabled={lucru || !activ} onClick={() => goleste(false)}
+          className="rounded-xl border-2 border-line px-3 py-2 text-xs font-semibold hover:border-acc disabled:opacity-40"
+        >
+          {lucru ? "Se sincronizează…" : "Sincronizează acum"}
+        </button>
+      </div>
+
+      <div className="grid sm:grid-cols-3 gap-3 mt-3">
+        <Cifra t="Așteaptă în coadă" v={n} />
+        <Cifra t="Blocate (5 încercări)" v={coada?.blocate ?? 0} rau={(coada?.blocate ?? 0) > 0} />
+        <Cifra t="Anunțuri de șters" v={coada?.de_sters ?? 0} />
+      </div>
+
+      {!activ && (
+        <p className="text-xs text-mut mt-3">
+          Integrarea e oprită sau fără cont. Coada se strânge oricum și pleacă întreagă când o pornești —
+          nu se pierde nimic.
+        </p>
+      )}
+      {coada?.o_eroare && (
+        <p className="text-xs text-red-600 mt-3">Ultima eroare din coadă: {coada.o_eroare}</p>
+      )}
+      {mesajPrag && (
+        <div className="mt-3 rounded-xl border-2 border-yellow-200 bg-yellow-50 p-3 text-xs text-yellow-800">
+          <b className="block">Sincronizarea s-a oprit singură.</b>
+          <p className="mt-1">{mesajPrag}</p>
+          <button
+            type="button" disabled={lucru} onClick={() => goleste(true)}
+            className="mt-2 rounded-lg border-2 border-yellow-300 px-3 py-1.5 font-semibold hover:bg-yellow-100 disabled:opacity-40"
+          >
+            Am verificat, retrage anunțurile
+          </button>
+        </div>
+      )}
+      {rez && <p className="text-xs mt-3">{rez}</p>}
     </div>
   );
 }

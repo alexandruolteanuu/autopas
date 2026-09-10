@@ -80,6 +80,11 @@ const CAMPURI: Record<string, { k: string; l: string; tip?: string }[]> = {
     { k: "cheie", l: "Cheie API dez.ro", tip: "password" },
     { k: "utilizator", l: "Utilizator dez.ro" },
     { k: "parola", l: "Parolă dez.ro", tip: "password" },
+    // Sincronizarea automată (migrarea 39): baza de date cheamă ruta la fiecare
+    // schimbare de piesă. Fără cele două câmpuri, triggerele scriu în coadă și
+    // atât — nimic nu se pierde, dar nimic nu pleacă singur.
+    { k: "webhook_url", l: "Sincronizare automată: adresa chemată de baza de date (https://…/api/dezro-coada)" },
+    { k: "webhook_secret", l: "Secretul acelei adrese", tip: "password" },
   ],
   "Google Analytics 4": [{ k: "id", l: "ID de măsurare (G-XXXXXXX)" }],
   "Google Merchant Center": [{ k: "id", l: "ID cont Merchant (doar pentru evidență)" }],
@@ -202,11 +207,11 @@ export default function Integrari() {
     // Comanda AP-2026-01004 a rămas cu e-mailurile în coadă, nesemnalate nicăieri
     // în panou. Câmpul se verifică acum ÎNAINTE de salvare: o adresă greșită se
     // observă în două secunde, nu la a doua comandă pierdută.
-    if (cheie === "email") {
+    if (cheie === "email" || cheie === "dezro") {
       const u = String(valori.webhook_url ?? "").trim();
       if (u !== "" && !/^https?:\/\/[^\s]+$/i.test(u)) {
         setMsg("„Adresa pe care o cheamă baza de date” trebuie să fie o adresă web, nu una de e-mail. " +
-               "Valoarea corectă: https://autopas-dezmembrari.ro/api/email-coada");
+               `Valoarea corectă: https://autopas-dezmembrari.ro/api/${cheie === "email" ? "email-coada" : "dezro-coada"}`);
         return;
       }
     }

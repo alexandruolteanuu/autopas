@@ -59,7 +59,8 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
   `imagini.ts`, `feed.ts` + `feed-formate.ts` + `feed-raspuns.ts` (feed-urile de produse),
   `masuratori.ts` (id-urile de măsurare, citite din browser).
   `lib/import/` = motorul de import, în `.mjs`, folosit și de script, și de rută.
-  `lib/dezro/` = motorul publicării pe dez.ro, tot în `.mjs`, tot împărțit între script și rută.
+  `lib/dezro/` = motorul publicării pe dez.ro, tot în `.mjs`, tot împărțit între script și rută
+  (și de ruta cozii automate, `app/api/dezro-coada/`).
 - `supabase/` — migrările SQL (vezi ordinea).
 
 ## Ordinea migrărilor SQL (rulare manuală în Supabase, o singură dată fiecare)
@@ -74,10 +75,15 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 27. `mod-vacanta.sql` -> 28. `pagini-masini.sql` -> 29. `numar-piese-pe-model.sql` ->
 30. `ga4-public.sql` -> 31. `categorii-numar-rapid.sql` -> 32. `piese-marca-categorie.sql` ->
 33. `masuratori-publice.sql` -> 34. `piese-compatibile-masini.sql` -> 35. `superb-1.sql` ->
-36. `email-automat.sql` -> 37. `dezro.sql` -> 38. `piesa-vanduta-ramane.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9–38.
+36. `email-automat.sql` -> 37. `dezro.sql` -> 38. `piesa-vanduta-ramane.sql` ->
+39. `dezro-automat.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9–39.
 NU sunt încă idempotente: 1–5, 8.
-**Aplicate pe producție: 1–38.**
+**Aplicate pe producție: 1–39.**
+39 face publicarea pe dez.ro automată: `dezro_coada`, `dezro_trezire`, trei
+funcții și trei triggere pe `products` (insert / update filtrat pe coloane /
+before delete), plus view-ul `dezro_coada_stare`. Nu atinge nimic existent:
+niciun `drop` în afara propriilor obiecte, niciun `update` pe date vechi.
 38 scoate `publicat = false` din triggerul de vânzare (și perechea lui din
 `anuleaza_comanda`). Vezi blocul de decizii; pe scurt, `publicat` înseamnă de acum
 „operatorul vrea piesa pe site", iar `stoc` înseamnă „piesa mai există".
@@ -822,6 +828,38 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
   · **Județul, localitatea și telefonul de pe anunț vin din profilul contului de pe dez.ro**, nu
     din cod („Location is resolved automatically from the user's profile"). Se verifică ACOLO
     înainte de prima publicare, altfel toate cele 8.700 de anunțuri arată alt județ.
+- **dez.ro se actualizează SINGUR la fiecare schimbare de piesă** (9 septembrie 2026, migrarea 39,
+  `supabase/dezro-automat.sql` + `app/api/dezro-coada/route.ts` + `lotCoada` din `lib/dezro/motor.mjs`).
+  Un trigger scrie piesa în `dezro_coada` în ACEEAȘI tranzacție cu modificarea, apoi trezește ruta
+  prin pg_net. Aceeași formă ca la e-mailurile automate (migrarea 36) și din același motiv: baza de
+  date e singurul loc care știe sigur că s-a schimbat ceva.
+  · **Ce e de făcut se decide la PROCESARE, din starea piesei de atunci — niciodată din `motiv`-ul
+    scris de trigger.** Între trigger și procesare piesa se mai poate schimba o dată; o coadă care
+    ar ține minte „era de publicat" ar trimite la ei o piesă vândută între timp.
+  · **Piesa ȘTEARSĂ e singurul caz în care coada ține ea informația.** `dezro_anunturi` are
+    `on delete cascade`, deci rândul cu `ad_id` pleacă odată cu piesa; triggerul e BEFORE DELETE și
+    copiază `ad_id` în coadă. Fără asta, anunțul ar rămâne pentru totdeauna la ei, fără să mai știm
+    nici măcar că există.
+  · **Lista de coloane a triggerului de UPDATE nu e „toate, ca să fim siguri".** `vizualizari`
+    crește la FIECARE deschidere a unei pagini de piesă: fără filtru, fiecare vizitator ar pune o
+    piesă în coadă și ar bate la ușa rutei. Lista e exact ce citește `pieseEligibile()` plus
+    `publicat`. Cine adaugă un câmp în anunț îl adaugă și acolo.
+  · **Ordinea de la finalul unui lot e deblocare, APOI recitirea cozii** — niciodată invers. Așa se
+    închide cursa dintre „lotul tocmai s-a terminat" și „a mai intrat o modificare": orice trigger
+    de după deblocare bate singur la ușă, iar orice trigger dinainte și-a lăsat rândul în coadă,
+    unde recitirea îl vede. Ruta se cheamă singură mai departe cât timp mai are de lucru, dar DOAR
+    dacă lotul a închis chiar rânduri — altfel un refuz de la ei ar porni o buclă de funcții.
+  · **Plasa de 20% e aici mai importantă decât la butonul de publicare**, fiindcă nu apasă nimeni
+    nimic: peste prag, sincronizarea se OPREȘTE și scrie motivul în `settings.integrari.dezro.coada_mesaj`,
+    vizibil în panou, cu buton de confirmare. Piesele șterse se numără separat în prag (`pragCoada`),
+    fiindcă ele nu mai apar în `dezro_de_retras`.
+  · **Coada nu poate fi invizibilă**: „4b. Sincronizarea automată" din Admin → Anunțuri dez.ro arată
+    câte așteaptă, câte s-au blocat după 5 încercări și ultima eroare, cu buton de golire manuală.
+    Lecția cozii de e-mail din 7 septembrie 2026, aplicată din prima.
+  · Cât timp `webhook_url` și `webhook_secret` lipsesc din Admin → Integrări, triggerele scriu în
+    coadă și nimic nu pleacă. Nu se pierde nimic: totul pleacă la prima trezire de după completare.
+  · Ruta refuză să lucreze cât timp există un job de publicare activ: doi scriitori pe aceleași
+    anunțuri ar putea trimite aceeași piesă de două ori, iar la ei un anunț dublat nu se poate uni.
 - Roluri: `client`, `operator`, `contabil`, `admin` (coloana `role` în `profiles`, controlată prin RLS).
 
 ## Cele 18 module de admin
@@ -860,17 +898,28 @@ fiindcă `anon` moștenește dreptul prin rolul `PUBLIC`.
 ## Culorile site-ului
 
 **Identitate: „Atelier, galben industrial" (#F2B705). DOUĂ teme, din 25 august 2026:
-„Întunecat" (implicită, negru) și „Luminos" (griuri reci). Culorile se modifică exclusiv din
-`app/globals.css`: blocul `:root` pentru întunecat, `:root[data-tema="luminos"]` pentru luminos.**
+„Luminos" (implicită din 10 septembrie 2026, griuri reci) și „Întunecat" (negru). Culorile se
+modifică exclusiv din `app/globals.css`: blocul `:root` pentru întunecat,
+`:root[data-tema="luminos"]` pentru luminos.**
 Componentele nu scriu niciodată culori direct, ci folosesc clasele semantice din
 `tailwind.config.ts` (`bg-fundal`, `text-text`, `text-textSecundar`, `bg-accent`,
 `text-accentContrast`, `border-chenar`, `bg-imagineBg`, `bg-heroBg`…), care citesc variabilele.
 O schimbare de nuanță = o linie modificată.
 
 Comutatorul e o iconiță soare/lună în header (`components/ComutatorTema.tsx`). Alegerea stă în
-`localStorage`, cheia `autopas-tema`, iar scriptul anti-flash din `<head>`-ul lui
-`app/layout.tsx` o aplică înainte de prima desenare. Implicit rămâne întunecatul, indiferent
-de `prefers-color-scheme`.
+`localStorage`, cheia `autopas-tema`. Implicit e **LUMINOSUL** (schimbat la 10 septembrie 2026,
+cerut de proprietar; înainte era întunecatul), indiferent de `prefers-color-scheme`.
+
+**Atenție la asimetria dintre CSS și implicit.** Blocul `:root` din `globals.css` e cel
+ÎNTUNECAT, deși implicit se vede luminosul — nu e o scăpare. `data-tema="luminos"` e scris
+direct pe `<html>` în `app/layout.tsx`, pe SERVER, iar scriptul anti-flash din `<head>` doar îl
+SCOATE când în `localStorage` scrie `intunecat`. Trei motive pentru forma asta:
+· tema corectă e în HTML din primul octet, deci nu există licărire nici la prima vizită;
+· merge și cu JavaScript oprit — un implicit lăsat pe seama scriptului n-ar merge;
+· nicio culoare nu e scrisă de două ori: selectorul mai specific câștigă întotdeauna, deci
+  întunecatul rămâne exact abaterea pe care o cere omul din comutator.
+Cine vrea să răstoarne iar implicitul schimbă DOAR cele două locuri (atributul de pe `<html>`
+și valoarea căutată în script), niciodată blocurile de culori.
 
 Reguli care rezultă din asta:
 - **Nu scrie hexa în componente.** `bg-accent`, nu `bg-[#F2B705]`.
@@ -932,7 +981,7 @@ Niciuna nu e dependință a site-ului și niciuna nu rulează la build. Se cheam
 | `reconverteste-poze.mjs` | **rar, la nevoie.** Trece în WebP pozele rămase JPEG în bucket. A fost scris fiindcă primele piese importate au ajuns JPEG, când `sharp` nu era încă instalat, iar `lib/import/imagini.mjs` urcă originalul dacă lipsește codecul. Dacă apar iar JPEG-uri în bucket, ori a picat `sharp`, ori conversia a preferat originalul (poză deja bine comprimată) — scriptul spune care din două. Idempotent, cu `--uscat` |
 | `verifica-feed.mjs` | **după orice modificare în `lib/feed.ts` sau `lib/feed-formate.ts`.** Cere feed-urile de la un server care rulează (`BASE=…`) și verifică regulile Google (id ≤ 50 și unic, titlu ≤ 150, descriere ≤ 5.000, link și imagine absolute, preț `123.45 RON`, disponibilitate și stare din listele închise), antetul CSV-ului Meta și — cel mai important — că **cele două feed-uri conțin exact aceleași id-uri**. Iese cu cod 1 dacă pică ceva |
 | `publica-dezro.mjs` | **prima publicare mare pe dez.ro**, și oricând vrei o rulare lungă fără browser. `--catalog` aduce catalogul lor, `--potriveste` rulează potrivirea automată, `--uscat` arată ce s-ar trimite fără să trimită (merge și fără cont), `--limita=N` se oprește după N piese |
-| `verifica-dezro.mjs` | **după orice modificare în `lib/dezro/`.** 63 de verificări pe regulile publicării — invariantul de timp al unui lot, potrivirea modelelor, traducerile aprobate, ce se trimite într-un anunț, amprenta, diferența de poze, retragerea. Fără rețea și fără bază de date |
+| `verifica-dezro.mjs` | **după orice modificare în `lib/dezro/`.** 75 de verificări pe regulile publicării — invariantul de timp al unui lot, potrivirea modelelor, traducerile aprobate, ce se trimite într-un anunț, amprenta, diferența de poze, retragerea, coada automată și plasa ei de 20%. Fără rețea și fără bază de date |
 | `curata-orfani.mjs` | **periodic**, mai ales după sesiuni lungi de lucru pe produse. Găsește fișierele din `poze-piese` spre care nu mai arată niciun rând din `products` SAU din `vehicles`. Implicit doar raportează; șterge numai cu `--sterge` și numai fișiere mai vechi de 24h (`--ore=N`). Peste 5% orfani refuză să șteargă și cere `--confirm-stergere-mare`: atâția deodată înseamnă de obicei o citire incompletă, nu formulare abandonate. Raportează și cazul invers, mai grav: adrese din bază fără fișier în stocare |
 
 **De ce apar orfani** (tipar structural, găsit la 25 august 2026): `components/admin/PhotoUploader.tsx`
