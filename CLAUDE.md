@@ -171,7 +171,7 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
 - ~~Contul FAN Courier~~ — **REZOLVAT la 15 septembrie 2026.** Client ID 7108882, utilizatorul
   `pieseautopas`, parola în `settings.integrari.fancourier`. Testat pe contul REAL: un AWB de
   verificare (7000166182434, ramburs 1 leu) a ieșit cu expeditorul „PIESE AUTO PAS SRL", serviciul
-  Cont Colector cu IBAN-ul firmei, „Deschidere la livrare", transport plătit de expeditor, eticheta
+  Cont Colector cu IBAN-ul firmei, transport plătit de expeditor, eticheta
   PDF în 2 exemplare pe pagină (setarea contului lor), apoi a fost șters la FAN.
 - ~~Contul de pe dez.ro~~ — **REZOLVAT la 7 septembrie 2026.** Utilizatorul `autopas` și parola
   sunt în `settings.integrari.dezro`, integrarea e pornită, autentificarea verificată.
@@ -277,7 +277,7 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
   · **Verificat pe API-ul real** cu contul de test din ghidul lor (clientId 7032158,
     `clienttest`/`testing`): login JSON → token 24h; `POST /intern-awb` → `awbNumber`, `tariff`
     (fără TVA), `vat`, `trackingUrl`; `GET /awb/label?pdf=1` → PDF; `DELETE /awb`; localitate
-    inexistentă → `errors.locality`. Opțiunea „A" = Deschidere la livrare. Greutatea cu zecimale e
+    inexistentă → `errors.locality`. Greutatea cu zecimale e
     rotunjită în sus de FAN. AWB-urile de test au fost șterse.
   · **Operatorul scrie la fiecare AWB colete, kg și cele trei dimensiuni — greutatea NU se ia din
     piese** (decizia proprietarului: piesele au 1 kg pus automat). Câmpurile pornesc doar de la ce
@@ -287,21 +287,25 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
     = totalul comenzii (include transportul), conținutul = numele pieselor, `costCenter` = numărul
     comenzii (se regăsește pe selfawb.ro). Adresa se poate corecta dintr-un panou pliat.
   · Transportul îl plătește firma (`payment: "sender"`). Serviciul: „Cont Colector" dacă e ramburs
-    și bifa „ramburs în cont" e pusă, altfel „Standard". „Deschidere la livrare" e pusă implicit:
-    checkout-ul promite că clientul plătește „după ce a verificat coletul".
+    și bifa „ramburs în cont" e pusă, altfel „Standard".
+  · **Fără „Deschidere la livrare", nicăieri** (decizia proprietarului, 15 septembrie 2026): AWB-ul și
+    tariful pleacă cu `options: []`, bifa din Integrări a fost scoasă, iar textele care promiteau
+    plata „după ce ai verificat coletul" (checkout, FAQ) au fost scurtate. Politica de livrare cere
+    doar verificarea ambalajului EXTERIOR în prezența curierului (pentru procesul-verbal de daună).
+    Opțiunea FAN „A" costa 6 lei + TVA: Cluj 5 kg 40×30×20 a scăzut de la 36,18 la 28,92 lei.
   · AWB-ul se scrie în comandă DE RUTĂ, imediat după răspunsul FAN — nu de browser. Dacă scrierea
     pică, ruta întoarce numărul, ca să nu existe un AWB la FAN necunoscut nouă.
   · Rămâne regula din 7 august: fără cost de livrare stabilit, AWB-ul nu se generează.
   · **Calculatorul de transport** (15 septembrie 2026, cerut de proprietar: „nu stabilesc eu costul").
     Cardul „Livrare — FAN Courier" din comandă are trei pași: (1) colete + kg + dimensiuni →
-    „Calculează transportul" → prețul FAN defalcat (greutate, km suplimentari, combustibil,
-    deschidere colet, TVA) și totalul de plată; operatorul sună clientul; (2) „Clientul a acceptat"
-    → `seteaza_cost_livrare`, cu km suplimentari și deschiderea separat, cu TVA; (3) „Generează AWB"
+    „Calculează transportul" → prețul FAN defalcat (greutate, km suplimentari, combustibil, TVA)
+    și totalul de plată; operatorul sună clientul; (2) „Clientul a acceptat"
+    → `seteaza_cost_livrare`, cu km suplimentari separat, cu TVA; (3) „Generează AWB"
     cu aceleași kg/dimensiuni (avertisment dacă diferă de calcul). Suma pentru client rămâne
     editabilă (rotunjire, 0 la ridicare personală). Cardul manual „Cost livrare" a fost scos.
     Același calculator, fără comandă, stă în „Expedieri", pentru clientul care sună înainte să comande.
-  · Tariful vine din `GET /reports/awb/internal-tariff`, cu ACELAȘI serviciu și aceeași opțiune „A"
-    ca AWB-ul. Măsurat pe contul real: Cluj 5 kg 40×30×20 = 36,18 lei cu TVA; Broșteni (SV) +15 lei
+  · Tariful vine din `GET /reports/awb/internal-tariff`, cu ACELAȘI serviciu și aceleași opțiuni (niciuna)
+    ca AWB-ul. Măsurat pe contul real: Cluj 5 kg 40×30×20 = 28,92 lei cu TVA; Broșteni (SV) +15 lei
     km suplimentari; suma rambursului NU schimbă prețul. Cu ramburs, FAN cere `info[returnPayment]`.
   · **Județul și localitatea pleacă fără diacritice** (`faraDiacritice`): tariful respinge
     „Broșteni" ca localitate inexistentă și acceptă „Brosteni".

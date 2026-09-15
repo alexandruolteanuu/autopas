@@ -4,7 +4,7 @@
 // Pașii, în ordinea în care îi face omul:
 //   1. scrie câte colete, kilogramele și dimensiunile -> „Calculează transportul"
 //      -> vede prețul FAN defalcat (greutate, km suplimentari, combustibil,
-//      deschidere colet, TVA);
+//      TVA);
 //   2. sună clientul și îi spune totalul; dacă acceptă -> „Clientul a acceptat"
 //      (costul intră în comandă, totalul se recalculează pe server);
 //   3. „Generează AWB" -> „Printează eticheta".
@@ -69,7 +69,7 @@ export function DefalcareTarif({ t }: { t: Tarif }) {
       {rand("Transport (după greutate și volum)", t.greutate)}
       {t.kmSuplimentari > 0 ? rand("Km suplimentari (localitate îndepărtată)", t.kmSuplimentari, true) : rand("Km suplimentari", 0)}
       {rand("Taxă combustibil", t.combustibil)}
-      {t.optiuni > 0 && rand("Deschidere colet la livrare", t.optiuni)}
+      {t.optiuni > 0 && rand("Opțiuni FAN", t.optiuni)}
       {t.asigurare > 0 && rand("Asigurare", t.asigurare)}
       {rand("TVA", t.tva)}
       <div className="flex justify-between border-t border-line pt-1 mt-1 text-base font-bold text-ink">
@@ -144,7 +144,7 @@ export default function LivrareFan({ o, continut, laSchimbare, salveazaManual }:
 
   /** Costul acceptat de client intră în comandă prin `seteaza_cost_livrare`, care
    *  recalculează totalul pe server. Suma se împarte pe rubricile existente, cu TVA:
-   *  km suplimentari separat (clientul întreabă de ei), deschiderea coletului la
+   *  km suplimentari separat (clientul întreabă de ei), eventualele opțiuni FAN la
    *  „alte taxe", restul la transport. */
   async function accepta() {
     if (!tarif) return;

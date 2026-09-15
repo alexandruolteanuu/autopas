@@ -9,10 +9,10 @@ export type Firma = { denumire: string; cui: string; reg_com: string; adresa: st
   serie_factura: string; telefon: string; email: string; whatsapp: string };
 export type Curier = { id: string; nume: string; detalii: string; pret: number };
 export type Integrari = {
-  // `ramburs_cont` și `deschidere_livrare` sunt bife salvate ca text („on" / ""),
-  // citite de `configFan` din lib/fancourier.ts; nesalvate încă = „da".
+  // `ramburs_cont` e o bifă salvată ca text („on" / ""), citită de `configFan`
+  // din lib/fancourier.ts; nesalvată încă = „da".
   fancourier?: { client_id?: string; user?: string; parola?: string; activ?: boolean;
-                 ramburs_cont?: string | boolean; deschidere_livrare?: string | boolean };
+                 ramburs_cont?: string | boolean };
   netopia?: { pos_id?: string; signature?: string; activ?: boolean };
   saga?: { serie?: string; activ?: boolean };
   ga4?: { id?: string; activ?: boolean };

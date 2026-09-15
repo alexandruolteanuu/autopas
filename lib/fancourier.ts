@@ -17,7 +17,8 @@
 //   · GET  /awb/label    -> PDF;
 //   · DELETE /awb        -> „The AWB was deleted successfully.";
 //   · GET  /reports/services -> serviciile contului.
-// Opțiunea „A" = Deschidere la livrare (din /reports/service-options).
+// Nicio opțiune suplimentară pe AWB (`options: []`) — decizia proprietarului din
+// 15 septembrie 2026: coletul NU se deschide la livrare.
 // ============================================================
 import { sbAdmin } from "./supabase";
 import type { Integrari } from "./settings";
@@ -29,8 +30,6 @@ export type ConfigFan = {
   clientId: string; user: string; parola: string;
   /** Rambursul intră în contul bancar (serviciul „Cont Colector"), nu în plic („Standard"). */
   rambursInCont: boolean;
-  /** Clientul poate deschide coletul înainte să plătească — checkout-ul promite asta. */
-  deschidereLaLivrare: boolean;
 };
 
 /** Credențialele: întâi din Admin → Integrări, apoi din variabilele Vercel. */
@@ -41,15 +40,14 @@ export async function configFan(): Promise<ConfigFan> {
     const { data } = await sb.from("settings").select("valoare").eq("cheie", "integrari").maybeSingle();
     f = ((data?.valoare as Integrari | undefined)?.fancourier) ?? {};
   }
-  // Bifele se salvează ca text („on" / ""); un câmp care n-a fost salvat
-  // niciodată înseamnă valoarea implicită, adică „da" la amândouă.
+  // Bifa se salvează ca text („on" / ""); un câmp care n-a fost salvat
+  // niciodată înseamnă valoarea implicită, adică „da".
   const bifa = (v: unknown) => v === undefined || v === null ? true : v === true || v === "on" || v === "da";
   return {
     clientId: String(f.client_id || process.env.FANCOURIER_CLIENT_ID || "").trim(),
     user: String(f.user || process.env.FANCOURIER_USER || "").trim(),
     parola: String(f.parola || process.env.FANCOURIER_PASS || ""),
     rambursInCont: bifa(f.ramburs_cont),
-    deschidereLaLivrare: bifa(f.deschidere_livrare),
   };
 }
 
@@ -179,7 +177,8 @@ export async function genereazaAwb(dest: Destinatar, colet: Colet, cfg?: ConfigF
           dimensions: { length: colet.lungime, width: colet.latime, height: colet.inaltime },
           // Apare în borderoul de pe selfawb.ro: așa se regăsește comanda noastră.
           costCenter: colet.referinta,
-          options: cfg.deschidereLaLivrare ? ["A"] : [],
+          // Fără opțiuni: coletul nu se deschide la livrare (decizie 15 septembrie 2026).
+          options: [],
         },
         recipient: {
           name: dest.nume,
@@ -214,7 +213,7 @@ export type Tarif = {
  * Măsurat pe contul real (15 septembrie 2026): suma rambursului NU schimbă
  * prețul (400 sau 1.500 lei dau același total), dar serviciul, opțiunile,
  * greutatea, dimensiunile și localitatea da. Deci se trimite ACELAȘI serviciu
- * și ACEEAȘI opțiune de deschidere care vor pleca și pe AWB — altfel prețul spus
+ * și ACELEAȘI opțiuni (niciuna) care pleacă și pe AWB — altfel prețul spus
  * clientului n-ar fi cel facturat de FAN.
  * `returnPayment` e cerut de ei când există ramburs, chiar dacă nu schimbă suma.
  */
@@ -240,7 +239,6 @@ export async function tarifTransport(
     "recipient[locality]": faraDiacritice(dest.localitate),
   };
   if (colet.cuRamburs) { query["info[cod]"] = "1"; query["info[returnPayment]"] = "sender"; }
-  if (cfg.deschidereLaLivrare) query["info[options][]"] = ["A"];
   let d: any;
   try {
     d = await cere(cfg, "/reports/awb/internal-tariff", { query });

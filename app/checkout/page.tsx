@@ -195,7 +195,7 @@ export default function Checkout() {
               </svg>
               <span><b>Ramburs la livrare</b>
                 <span className="block text-textSecundar text-sm mt-0.5">
-                  Plătești curierului când primești piesa, după ce ai verificat coletul.
+                  Plătești curierului când primești piesa.
                   Nu îți cerem date de card și nu ceri nimic în avans.
                 </span></span>
             </div>

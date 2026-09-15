@@ -69,11 +69,8 @@ const CAMPURI: Record<string, { k: string; l: string; tip?: string }[]> = {
   "WhatsApp Business": [{ k: "numar", l: "Număr WhatsApp (format 40722…)" }],
   "Saga — facturare": [{ k: "serie", l: "Seria facturilor (ex. AUTP)" }],
   "FAN Courier (SelfAWB)": [{ k: "client_id", l: "Client ID" }, { k: "user", l: "Utilizator selfawb.ro" }, { k: "parola", l: "Parolă selfawb.ro", tip: "password" },
-    // Bife: nesalvate încă înseamnă „da" (vezi `configFan` din lib/fancourier.ts).
-    { k: "ramburs_cont", l: "Rambursul intră în contul bancar (serviciul Cont Colector). Debifat = ramburs în plic.", tip: "bifa" },
-    // Checkout-ul îi spune clientului că plătește „după ce a verificat coletul";
-    // fără opțiunea asta pe AWB, curierul nu are voie să-l lase să deschidă.
-    { k: "deschidere_livrare", l: "Deschidere colet la livrare (clientul verifică piesa înainte să plătească — așa promite checkout-ul)", tip: "bifa" }],
+    // Bifă: nesalvată încă înseamnă „da" (vezi `configFan` din lib/fancourier.ts).
+    { k: "ramburs_cont", l: "Rambursul intră în contul bancar (serviciul Cont Colector). Debifat = ramburs în plic.", tip: "bifa" }],
   "Plată cu cardul (Netopia / Stripe)": [{ k: "pos_id", l: "POS Signature / ID" }, { k: "signature", l: "Cheie privată", tip: "password" }],
   "E-mail automat (Brevo)": [
     { k: "cheie", l: "Cheie API Brevo", tip: "password" },

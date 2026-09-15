@@ -368,7 +368,7 @@ export function getLegalDocs(firma: Firma = FIRMA_IMPLICITA): LegalDoc[] {
         "Dacă nu reușim să livrăm în acest termen, te anunțăm și îți poți denunța contractul, caz în care îți restituim integral sumele plătite.",
       ]},
       { h: "5. Verificarea coletului", p: [
-        "Recomandăm verificarea coletului la primire, în prezența curierului. Piesele sunt ambalate protejat și etichetate cu codul OEM.",
+        "Verifică aspectul exterior al ambalajului la primire, în prezența curierului. Piesele sunt ambalate protejat și etichetate cu codul OEM.",
         "Dacă ambalajul este vizibil deteriorat, cere curierului întocmirea unui proces-verbal de constatare și anunță-ne în aceeași zi. Ne ușurează mult recuperarea daunei de la curier.",
       ]},
       { h: "6. Ridicare personală", p: [
