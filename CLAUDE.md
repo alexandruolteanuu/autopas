@@ -209,6 +209,19 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
   · **Cantitatea**: `stoc` dacă piesa e publicată și are stoc, altfel 0. Vândutele și ascunsele
     PLEACĂ cu 0 (113 la generare), nu lipsesc: nu știm dacă importul lor șterge rândurile lipsă.
     Citirea se face cu `sbAdmin`, fiindcă anonimul nu vede piesele ascunse.
+  · **Categoria mai precisă din TITLU bate categoria aleasă** (15 septembrie 2026, cerut de pieseauto.ro
+    după prima verificare: „motoras etrier" stătea la „Etriere"). Chiar și categoria din anunțul original
+    poate fi prea largă — o alesese omul. Se trece pe o categorie de-a lor doar dacă e din aceeași grupă,
+    o CONȚINE pe cea aleasă („Motoraș etrier" ⊃ „etrier"), titlul ÎNCEPE cu primul ei cuvânt și toate
+    cuvintele ei apar în titlu, fără egalitate între candidate. „Etrier cu motoras…" rămâne „Etriere".
+    Măsurat pe tot fișierul: 9 piese schimbate, toate corecte (6 motoraș etrier, 2 panou comandă AC
+    climă, 1 pompă motorină din rezervor). Nu s-a lărgit regula: pieseauto.ro a spus că titlurile clare
+    le încadrează ei.
+  · **Fraza „Pretul difera in functie de …" se scoate din descriere** (`faraFrazeInterzise`, cerut de
+    pieseauto.ro): la ei fiecare rând e UN produs, cu prețul final cu TVA. Apărea la 2 piese
+    (AP-000014, AP-000015). Doar în fișier; textul din bază rămâne cum l-a scris omul.
+  · **Confirmat de pieseauto.ro (15 septembrie 2026)**: structura fișierului e corectă; ID-ul inițial nu
+    se schimbă niciodată, produsele noi se ADAUGĂ, nu iau locul celor existente — exact formula de mai sus.
   · **Ciornele NU pleacă** (`import_erori.ciorna`): n-au poze și descriere și ar goli anunțurile lor.
   · **Pozele pleacă ca JPEG**, prin `/feed/poze/<cale din bucket>.jpg` (conversie cu `sharp`, cache
     CDN un an). 20.147 din 20.220 sunt WebP în bucket, iar exemplul lor are `.jpg`. Ruta acceptă

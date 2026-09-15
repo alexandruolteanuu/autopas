@@ -67,6 +67,12 @@ export type RaportPieseauto = {
   excluse_ciorne: number; excluse_fara_pret: number; fara_poze: number;
   id_de_la_pieseauto: number; id_nou: number;
   categorii: Record<Provenienta, number>;
+  /** Piese mutate pe o categorie de-a lor mai precisă, numită chiar la începutul titlului
+   *  („Motoras etrier…" la „Motoraș etrier", nu la „Etriere"). Cu primele exemple. */
+  din_titlu: number;
+  exemple_din_titlu: { titlu: string; din: string; in: string }[];
+  /** Descrieri din care s-a scos fraza „Prețul diferă în funcție de…". */
+  fraze_scoase: number;
   /** Categoriile trimise cu numele nostru, necunoscute în catalogul lor, cu câte piese. */
   neverificate: Record<string, number>;
 };
@@ -90,9 +96,25 @@ const html = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").repla
 /** Descrierea HTML: textul vânzătorului pe paragrafe, apoi ce știm sigur despre
  *  piesă. Fără niciun link către site-ul nostru — pe un portal de anunțuri e
  *  motiv de respingere (aceeași regulă ca la dez.ro). */
+/**
+ * Fraze pe care regulile pieseauto.ro nu le acceptă în descriere (cerut de ei la
+ * 15 septembrie 2026): „Pretul difera in functie de model." Fiecare rând din fișier
+ * e UN produs, cu prețul final — o descriere care spune că prețul variază contrazice
+ * rândul însuși. Se scoate doar fraza, restul textului rămâne.
+ */
+const FRAZE_INTERZISE = /pre[tț]ul?\s+(?:difer[aă]|vari(?:az|ea)[aă])\s+[iî]n\s+func[tț]ie\s+de\b[^.!?\n]*[.!?]*/gi;
+const ARE_FRAZA_INTERZISA = new RegExp(FRAZE_INTERZISE.source, "i");
+export function faraFrazeInterzise(t: string) {
+  return t.split("\n").map((l) => {
+    if (!ARE_FRAZA_INTERZISA.test(l)) return l;
+    const r = l.replace(FRAZE_INTERZISE, "").replace(/\s{2,}/g, " ").trim();
+    return r === "" ? null : r;
+  }).filter((l): l is string => l !== null).join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 export function descriereHtml(p: Pick<Produs, "nume" | "stare_nota" | "compat" | "ani" | "oem" | "cod_intern">) {
   const bucati: string[] = [];
-  const text = curat(p.stare_nota ?? "");
+  const text = faraFrazeInterzise(curat(p.stare_nota ?? ""));
   const par = paragrafe(text);
   if (par.length) {
     for (const x of par) bucati.push(`<p>${x.split("\n").map((l) => html(l.trim())).filter(Boolean).join("<br>")}</p>`);
@@ -172,6 +194,7 @@ export async function citesteCatalogPieseauto(): Promise<{ randuri: RandPieseaut
     total_baza: produse.length, trimise: 0, in_stoc: 0, cantitate_zero: 0,
     excluse_ciorne: 0, excluse_fara_pret: 0, fara_poze: 0, id_de_la_pieseauto: 0, id_nou: 0,
     categorii: { anunt: 0, mapare: 0, nume: 0, apropiata: 0, neverificata: 0 }, neverificate: {},
+    din_titlu: 0, exemple_din_titlu: [], fraze_scoase: 0,
   };
 
   const tax = TAXONOMIE_SURSA as Record<string, { nume: string; grup: string }>;
@@ -240,6 +263,44 @@ export async function citesteCatalogPieseauto(): Promise<{ randuri: RandPieseaut
     return { nume: "Diverse", provenienta: "neverificata" };
   };
 
+  // CATEGORIA MAI PRECISĂ DIN TITLU (cerut de pieseauto.ro, 15 septembrie 2026:
+  // „motoras etrier" stătea la „Etriere", deși ei au „Motoraș etrier").
+  // Chiar și categoria anunțului original poate fi prea largă — o alesese omul, la
+  // publicare. O categorie de-a lor o înlocuiește pe cea aleasă doar dacă:
+  //   · e din ACEEAȘI grupă (nu sare din Frâne în Electrice);
+  //   · o conține pe cea aleasă („Motoraș etrier" conține „etrier"), deci e o
+  //     specializare, nu altă piesă;
+  //   · TITLUL ÎNCEPE cu primul ei cuvânt, iar toate cuvintele ei apar în titlu.
+  //     În română, piesa e primul substantiv: „Motoras cu etrier…" e un motoraș,
+  //     „Etrier cu motoras…" e un etrier și rămâne la „Etriere";
+  //   · e singura cea mai lungă potrivire — la egalitate nu se ghicește.
+  const OPRITE = new Set(["cu", "de", "si", "din", "la", "pe", "pentru", "fara", "sau"]);
+  const cuvinteTitlu = (t: string) => (normalizeaza(t) as string).split(" ").filter((c: string) => c.length >= 3 && !OPRITE.has(c));
+  const acelasi = (a: string, b: string) => a === b || (a.length >= 4 && b.length >= 4 && (a.startsWith(b) || b.startsWith(a)));
+  const grupeDupaNume = new Map<string, Set<string>>();
+  for (const x of Object.values(tax)) {
+    const g = grupeDupaNume.get(x.nume) ?? new Set<string>();
+    g.add(x.grup); grupeDupaNume.set(x.nume, g);
+  }
+  const precizeaza = (titlu: string, aleasa: string): string | null => {
+    const grupe = grupeDupaNume.get(aleasa);
+    if (!grupe) return null;
+    const tw = cuvinteTitlu(titlu);
+    const cw = cuvinteTitlu(aleasa);
+    if (!tw.length || !cw.length) return null;
+    let best: { nume: string; lung: number } | null = null, egal = false;
+    for (const x of lor) {
+      if (x.nume === aleasa || !grupe.has(x.grup)) continue;
+      const sw = cuvinteTitlu(x.nume);
+      if (sw.length <= cw.length || !acelasi(sw[0], tw[0])) continue;
+      if (!sw.every((w) => tw.some((t) => acelasi(w, t)))) continue;
+      if (!cw.every((w) => sw.some((v) => acelasi(w, v)))) continue;
+      if (!best || sw.length > best.lung) { best = { nume: x.nume, lung: sw.length }; egal = false; }
+      else if (sw.length === best.lung && x.nume !== best.nume) egal = true;
+    }
+    return best && !egal ? best.nume : null;
+  };
+
   const idVazute = new Set<string>();
   const randuri: RandPieseauto[] = [];
   for (const p of produse) {
@@ -250,6 +311,13 @@ export async function citesteCatalogPieseauto(): Promise<{ randuri: RandPieseaut
     idVazute.add(id);
 
     const cat = categoriaLor(p);
+    const precisa = precizeaza(p.nume, cat.nume);
+    if (precisa) {
+      raport.din_titlu++;
+      if (raport.exemple_din_titlu.length < 20) raport.exemple_din_titlu.push({ titlu: unRand(p.nume), din: cat.nume, in: precisa });
+      cat.nume = precisa;
+    }
+    if (p.stare_nota && ARE_FRAZA_INTERZISA.test(p.stare_nota)) raport.fraze_scoase++;
     const poze = (p.poze ?? []).filter(Boolean).map(pozaCsv);
     // Cantitatea: stocul, dar numai pentru piesele pe care operatorul le vrea pe site.
     const cantitate = p.publicat && p.stoc > 0 ? Math.max(0, Math.floor(p.stoc)) : 0;

@@ -30,6 +30,7 @@ type RaportPieseauto = {
   id_de_la_pieseauto: number; id_nou: number;
   categorii: { anunt: number; mapare: number; nume: number; apropiata: number; neverificata: number };
   neverificate: Record<string, number>;
+  din_titlu?: number; exemple_din_titlu?: { titlu: string; din: string; in: string }[]; fraze_scoase?: number;
 };
 
 /**
@@ -104,6 +105,13 @@ function CardPieseauto({ gazda, copiaza, copiat }: { gazda: string; copiaza: (t:
               {r.categorii.mapare} din maparea subcategoriei · {r.categorii.nume} după nume ·{" "}
               {r.categorii.apropiata} după categoria cea mai apropiată
               {r.categorii.neverificata > 0 && <> · <b className="text-red-600">{r.categorii.neverificata} nerecunoscute</b> ({Object.entries(r.neverificate).map(([k, n]) => `${k}: ${n}`).join(", ")})</>}.</li>
+            {!!r.din_titlu && (
+              <li><b className="text-ink">Categorie mai precisă din titlu:</b> {r.din_titlu} piese (de exemplu{" "}
+                {(r.exemple_din_titlu ?? []).slice(0, 3).map((e) => `„${e.titlu}": ${e.din} → ${e.in}`).join("; ")}).</li>
+            )}
+            {!!r.fraze_scoase && (
+              <li><b className="text-ink">Descrieri curățate:</b> din {r.fraze_scoase} s-a scos fraza „Pretul difera in functie de…", pe care regulile pieseauto.ro n-o acceptă.</li>
+            )}
             <li><b className="text-ink">Neincluse:</b> {r.excluse_ciorne} ciorne din „Piese noi din CSV" (fără poze și descriere — ar goli anunțurile lor)
               {r.excluse_fara_pret > 0 && <> · {r.excluse_fara_pret} fără preț</>}.</li>
           </ul>
