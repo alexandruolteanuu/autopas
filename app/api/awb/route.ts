@@ -14,7 +14,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { esteEchipa, sbAdmin } from "@/lib/supabase";
-import { genereazaAwb, etichetaAwb, stergeAwb, verificaConexiunea, EroareFan } from "@/lib/fancourier";
+import { genereazaAwb, etichetaAwb, stergeAwb, verificaConexiunea, tarifTransport, EroareFan } from "@/lib/fancourier";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +55,30 @@ export async function POST(req: Request) {
           ? "Contul n-are serviciul „Cont Colector”, deci rambursul nu poate intra în cont bancar. Debifează „Ramburs în cont bancar” sau cere-l de la FAN."
           : null,
       });
+    }
+
+    // ---------- calculatorul de transport ----------
+    // Merge și fără comandă (clientul sună și întreabă „cât costă la Cluj?"):
+    // atunci județul și localitatea vin din formular.
+    if (body.actiune === "tarif") {
+      const c = body.colet ?? {};
+      const colet = {
+        colete: Math.round(nr(c.colete)), greutate: nr(c.greutate),
+        lungime: Math.round(nr(c.lungime)), latime: Math.round(nr(c.latime)), inaltime: Math.round(nr(c.inaltime)),
+        cuRamburs: c.cu_ramburs !== false,
+      };
+      if (!(colet.colete >= 1) || !(colet.greutate > 0) || !(colet.lungime >= 1 && colet.latime >= 1 && colet.inaltime >= 1))
+        return NextResponse.json({ ok: false, eroare: "Completează coletele, greutatea și toate cele trei dimensiuni." });
+      let judet = String(body.destinatar?.judet ?? "").trim(), localitate = String(body.destinatar?.localitate ?? "").trim();
+      if (body.comanda_id) {
+        const { data: o } = await sb.from("orders").select("judet,oras,plata").eq("id", Number(body.comanda_id)).maybeSingle();
+        if (!o) return NextResponse.json({ ok: false, eroare: "Comanda nu există." });
+        judet = judet || o.judet; localitate = localitate || o.oras;
+        colet.cuRamburs = o.plata === "ramburs";
+      }
+      if (!judet || !localitate) return NextResponse.json({ ok: false, eroare: "Completează județul și localitatea." });
+      const tarif = await tarifTransport({ judet, localitate }, colet);
+      return NextResponse.json({ ok: true, tarif });
     }
 
     const id = Number(body.comanda_id);

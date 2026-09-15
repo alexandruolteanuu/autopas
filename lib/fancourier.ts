@@ -53,6 +53,11 @@ export async function configFan(): Promise<ConfigFan> {
   };
 }
 
+/** Județul și localitatea FĂRĂ diacritice. Nomenclatorul FAN le scrie așa
+ *  („Brosteni"), iar calculul de tarif respinge „Broșteni" ca localitate
+ *  inexistentă (măsurat 15 septembrie 2026). Clienții scriu des cu diacritice. */
+export const faraDiacritice = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
 export class EroareFan extends Error {
   stare: number;
   constructor(mesaj: string, stare = 0) { super(mesaj); this.stare = stare; }
@@ -181,7 +186,7 @@ export async function genereazaAwb(dest: Destinatar, colet: Colet, cfg?: ConfigF
           contactPerson: dest.persoana_contact ?? undefined,
           phone: dest.telefon,
           email: dest.email ?? undefined,
-          address: { county: dest.judet, locality: dest.localitate, street: dest.strada },
+          address: { county: faraDiacritice(dest.judet), locality: faraDiacritice(dest.localitate), street: dest.strada },
         },
       }],
     },
@@ -194,6 +199,64 @@ export async function genereazaAwb(dest: Destinatar, colet: Colet, cfg?: ConfigF
     tva: Number(r.vat) || 0,
     tracking: r.trackingUrl || `https://www.fancourier.ro/awb-tracking/?tracking=${r.awbNumber}`,
     serviciu,
+  };
+}
+
+export type Tarif = {
+  greutate: number; kmSuplimentari: number; combustibil: number; optiuni: number; asigurare: number;
+  faraTva: number; tva: number; total: number; serviciu: string;
+};
+
+/**
+ * Cât costă transportul, exact cum îl calculează FAN pentru contul nostru —
+ * pentru calculatorul din comandă, cu care operatorul sună clientul.
+ *
+ * Măsurat pe contul real (15 septembrie 2026): suma rambursului NU schimbă
+ * prețul (400 sau 1.500 lei dau același total), dar serviciul, opțiunile,
+ * greutatea, dimensiunile și localitatea da. Deci se trimite ACELAȘI serviciu
+ * și ACEEAȘI opțiune de deschidere care vor pleca și pe AWB — altfel prețul spus
+ * clientului n-ar fi cel facturat de FAN.
+ * `returnPayment` e cerut de ei când există ramburs, chiar dacă nu schimbă suma.
+ */
+export async function tarifTransport(
+  dest: Pick<Destinatar, "judet" | "localitate">,
+  colet: Pick<Colet, "colete" | "greutate" | "lungime" | "latime" | "inaltime"> & { cuRamburs: boolean },
+): Promise<Tarif> {
+  const cfg = await configFan();
+  if (!cfg.clientId || !cfg.user || !cfg.parola)
+    throw new EroareFan("FAN Courier nu e configurat. Completează contul în Admin → Integrări.");
+  const serviciu = colet.cuRamburs && cfg.rambursInCont ? "Cont Colector" : "Standard";
+  const query: Record<string, string | string[]> = {
+    clientId: cfg.clientId,
+    "info[service]": serviciu,
+    "info[payment]": "sender",
+    "info[packages][parcel]": String(colet.colete),
+    "info[packages][envelope]": "0",
+    "info[weight]": String(colet.greutate),
+    "info[dimensions][length]": String(colet.lungime),
+    "info[dimensions][width]": String(colet.latime),
+    "info[dimensions][height]": String(colet.inaltime),
+    "recipient[county]": faraDiacritice(dest.judet),
+    "recipient[locality]": faraDiacritice(dest.localitate),
+  };
+  if (colet.cuRamburs) { query["info[cod]"] = "1"; query["info[returnPayment]"] = "sender"; }
+  if (cfg.deschidereLaLivrare) query["info[options][]"] = ["A"];
+  let d: any;
+  try {
+    d = await cere(cfg, "/reports/awb/internal-tariff", { query });
+  } catch (e) {
+    // Tariful dă 422 cu errors.recipient.locality când localitatea nu există.
+    if (e instanceof EroareFan && /localit/i.test(e.message))
+      throw new EroareFan(traduce({ locality: [e.message] }, { ...dest, nume: "", telefon: "", strada: "" }), 422);
+    throw e;
+  }
+  const t = d?.data;
+  if (!t || !(Number(t.total) > 0))
+    throw new EroareFan("FAN n-a putut calcula tariful pentru adresa și coletul ăsta. Verifică localitatea și dimensiunile.");
+  return {
+    greutate: Number(t.weightCost) || 0, kmSuplimentari: Number(t.extraKmCost) || 0,
+    combustibil: Number(t.fuelCost) || 0, optiuni: Number(t.optionsCost) || 0, asigurare: Number(t.insuranceCost) || 0,
+    faraTva: Number(t.costNoVAT) || 0, tva: Number(t.vat) || 0, total: Number(t.total) || 0, serviciu,
   };
 }
 

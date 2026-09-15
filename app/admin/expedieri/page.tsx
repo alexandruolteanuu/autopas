@@ -6,6 +6,7 @@ import { sbBrowser, scrieVerificat, citesteTot } from "@/lib/supabase";
 import { lei } from "@/lib/format";
 import { getSetariBrowser, type Curier } from "@/lib/settings";
 import type { OrderFull } from "@/lib/types";
+import { CalculatorTransport } from "@/components/admin/LivrareFan";
 
 export default function Expedieri() {
   const [orders, setOrders] = useState<OrderFull[]>([]);
@@ -86,6 +87,13 @@ export default function Expedieri() {
         <p className="text-sm text-mut mt-1">AWB-ul se generează din pagina fiecărei comenzi. Aici: bifează coletele predate azi → printează borderoul → marchează-le expediate dintr-o mișcare.</p></div>
 
       {msg && <div className="card p-3 text-sm">{msg}</div>}
+
+      {/* Pentru clientul care sună ÎNAINTE să comande: „cât costă transportul la Cluj?".
+          Același calcul ca în comandă, cu prețul FAN pentru contul firmei. */}
+      <details className="card p-4 max-w-xl">
+        <summary className="cursor-pointer font-disp font-semibold text-[13px]">🧮 Calculator transport FAN (fără comandă)</summary>
+        <div className="mt-3"><CalculatorTransport /></div>
+      </details>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="card p-4"><span className="text-xs text-mut">De predat azi</span>

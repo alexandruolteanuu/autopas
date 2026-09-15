@@ -9,7 +9,7 @@ import { sbBrowser, scrieVerificat } from "@/lib/supabase";
 import { lei } from "@/lib/format";
 import { getSetariBrowser, waLinkCu, CURIERI_IMPLICITI, type Curier, type Firma, FIRMA_IMPLICITA } from "@/lib/settings";
 import { SITE_DOMENIU } from "@/lib/config";
-import AwbFan from "@/components/admin/AwbFan";
+import LivrareFan from "@/components/admin/LivrareFan";
 import type { OrderFull, OrderEvent } from "@/lib/types";
 
 type Item = { id: number; nume: string; pret: number; cantitate: number; product_id: number | null;
@@ -79,27 +79,6 @@ export default function DetaliuComanda() {
     router.push("/admin/comenzi");
   }
 
-  // Costul livrării se calculează pe server (funcția seteaza_cost_livrare), ca să
-  // recalculeze el totalul comenzii — nu acceptăm un total trimis din browser.
-  async function salveazaCostLivrare(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault(); setMsg("");
-    const f = new FormData(e.currentTarget);
-    const nr = (k: string) => { const v = String(f.get(k) ?? "").replace(",", ".").trim(); return v === "" ? null : Number(v); };
-    const baza = nr("baza");
-    if (baza === null || Number.isNaN(baza)) { setMsg("Completează costul de transport de bază."); return; }
-    const sb = sbBrowser()!;
-    const { data, error } = await sb.rpc("seteaza_cost_livrare", {
-      p_order_id: Number(id), p_baza: baza,
-      p_km_extra: nr("km_extra") ?? 0, p_alte: nr("alte") ?? 0,
-      p_greutate: nr("greutate"), p_dimensiuni: String(f.get("dimensiuni") ?? "").trim() || null,
-      p_nota: String(f.get("nota_livrare") ?? "").trim() || null,
-    });
-    if (error) { setMsg("Eroare: " + error.message); return; }
-    const r = data as { ok: boolean; mesaj?: string };
-    if (!r?.ok) { setMsg(r?.mesaj ?? "Nu am putut salva costul livrării."); return; }
-    incarca();
-  }
-
   if (!gata) return <div className="text-mut">Se încarcă…</div>;
   if (!o) return <div className="card p-8 text-center"><b>Comanda nu există.</b> <Link href="/admin/comenzi" className="text-acc font-semibold block mt-2">← Înapoi la comenzi</Link></div>;
 
@@ -127,7 +106,7 @@ export default function DetaliuComanda() {
         <div className="rounded-xl border-2 border-yellow-300 bg-yellow-50 px-4 py-3 text-sm">
           <b className="text-yellow-800">Costul livrării nu e stabilit.</b>
           <span className="text-yellow-800"> Clientul a comandat fără să știe cât plătește transportul.
-            Completează datele în „Cost livrare", sună-l cu totalul, apoi expediază.</span>
+            Calculează transportul în cardul „Livrare — FAN Courier", sună-l cu totalul, apoi generează AWB-ul.</span>
         </div>
       )}
 
@@ -234,6 +213,11 @@ export default function DetaliuComanda() {
             </div>
           </div>
 
+          {/* Livrare — calculatorul de transport FAN + AWB-ul, într-un singur card */}
+          <LivrareFan o={o} laSchimbare={incarca}
+            continut={items.map((i) => i.nume).join(", ").slice(0, 200)}
+            salveazaManual={(v) => salveaza({ awb: v, awb_generat_la: new Date().toISOString() }, `AWB ${v} introdus manual`)} />
+
           {/* Facturare — fluxul Saga */}
           <div className="card p-5 text-sm">
             <b className="font-disp font-semibold text-[13px]">Facturare (Saga)</b>
@@ -249,52 +233,6 @@ export default function DetaliuComanda() {
             <span className={`inline-block mt-2 px-2 py-0.5 rounded-full text-[11px] font-bold ${o.factura_status === "emisa" ? "bg-ok/10 text-ok" : "bg-paper text-mut"}`}>
               {o.factura_status === "emisa" ? `Emisă — ${o.factura_serie}` : "De emis"}</span>
           </div>
-
-          {/* Cost livrare — configuratorul: completezi datele din calculatorul FAN */}
-          <div className={`card p-5 text-sm ${!livrareStabilita ? "border-2 border-yellow-300" : ""}`}>
-            <b className="font-disp font-semibold text-[13px]">Cost livrare</b>
-            <p className="text-xs text-mut mt-1">
-              Completează datele coletului, exact ca în calculatorul FAN. La salvare, totalul
-              comenzii se recalculează automat și intră în jurnal.
-            </p>
-            <form onSubmit={salveazaCostLivrare} className="mt-3 space-y-2">
-              <div className="grid grid-cols-2 gap-2">
-                <label className="text-[11px] text-mut">Greutate (kg)
-                  <input name="greutate" inputMode="decimal" defaultValue={o.livrare_greutate_kg ?? ""} placeholder="cântărit"
-                    className="w-full mt-0.5 rounded-lg border-2 border-line px-2.5 py-1.5 text-sm text-ink outline-none focus:border-acc" /></label>
-                <label className="text-[11px] text-mut">Dimensiuni (L×l×h cm)
-                  <input name="dimensiuni" defaultValue={o.livrare_dimensiuni ?? ""} placeholder="ex. 40×30×25"
-                    className="w-full mt-0.5 rounded-lg border-2 border-line px-2.5 py-1.5 text-sm text-ink outline-none focus:border-acc" /></label>
-              </div>
-              <label className="block text-[11px] text-mut">Transport de bază (lei) *
-                <input name="baza" inputMode="decimal" required defaultValue={o.livrare_baza ?? ""}
-                  className="w-full mt-0.5 rounded-lg border-2 border-line px-2.5 py-1.5 text-sm text-ink outline-none focus:border-acc" /></label>
-              <div className="grid grid-cols-2 gap-2">
-                <label className="text-[11px] text-mut">Km suplimentari (lei)
-                  <input name="km_extra" inputMode="decimal" defaultValue={o.livrare_km_extra ?? ""} placeholder="0"
-                    className="w-full mt-0.5 rounded-lg border-2 border-line px-2.5 py-1.5 text-sm text-ink outline-none focus:border-acc" /></label>
-                <label className="text-[11px] text-mut">Alte taxe (lei)
-                  <input name="alte" inputMode="decimal" defaultValue={o.livrare_alte ?? ""} placeholder="0"
-                    className="w-full mt-0.5 rounded-lg border-2 border-line px-2.5 py-1.5 text-sm text-ink outline-none focus:border-acc" /></label>
-              </div>
-              <label className="block text-[11px] text-mut">Explicații pentru client
-                <textarea name="nota_livrare" rows={2} defaultValue={o.livrare_nota ?? ""}
-                  placeholder="ex. colet 18 kg, localitate izolată — 15 lei km suplimentari"
-                  className="w-full mt-0.5 rounded-lg border-2 border-line px-2.5 py-1.5 text-sm text-ink outline-none focus:border-acc" /></label>
-              <button className="btn-acc w-full !py-2 text-xs">
-                {livrareStabilita ? "Recalculează costul livrării" : "Salvează costul livrării"}</button>
-            </form>
-            {livrareStabilita && (
-              <p className="text-[11px] text-ok mt-2">
-                ✓ Stabilit la {new Date(o.livrare_stabilit_la!).toLocaleString("ro-RO")} — {lei(Number(o.livrare))}
-              </p>
-            )}
-          </div>
-
-          {/* Expediere — AWB FAN Courier, cu greutatea și dimensiunile scrise la fiecare colet */}
-          <AwbFan o={o} laSchimbare={incarca}
-            continut={items.map((i) => i.nume).join(", ").slice(0, 200)}
-            salveazaManual={(v) => salveaza({ awb: v, awb_generat_la: new Date().toISOString() }, `AWB ${v} introdus manual`)} />
 
           {/* Notă internă */}
           <div className="card p-5 text-sm">
