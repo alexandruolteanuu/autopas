@@ -77,10 +77,11 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 33. `masuratori-publice.sql` -> 34. `piese-compatibile-masini.sql` -> 35. `superb-1.sql` ->
 36. `email-automat.sql` -> 37. `dezro.sql` -> 38. `piesa-vanduta-ramane.sql` ->
 39. `dezro-automat.sql` -> 40. `senzori-auto-despartire.sql` -> 41. `observatii-comanda.sql` ->
-42. `sugestie-clasificare.sql` -> 43. `awb-fancourier.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9–43.
+42. `sugestie-clasificare.sql` -> 43. `awb-fancourier.sql` -> 44. `nomenclator-fan.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9–44.
 NU sunt încă idempotente: 1–5, 8.
-**Aplicate pe producție: 1–43.**
+**Aplicate pe producție: 1–44.**
+44 (15 septembrie 2026) creează `fan_localitati`, `fan_strazi` și view-ul `fan_judete` — nomenclatorul de adrese FAN, citibil public, scris doar de `scripts/actualizeaza-nomenclator-fan.mjs`.
 43 (15 septembrie 2026) adaugă `orders.awb_date` (jsonb): ce s-a declarat la FAN la AWB și ce a răspuns.
 42 (15 septembrie 2026) creează `sugestie_clasificare(text[])`: numără categoriile pieselor
 care se potrivesc pe tiparele de căutare, pentru completarea automată din „Adaugă piesă".
@@ -267,6 +268,24 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
     km suplimentari; suma rambursului NU schimbă prețul. Cu ramburs, FAN cere `info[returnPayment]`.
   · **Județul și localitatea pleacă fără diacritice** (`faraDiacritice`): tariful respinge
     „Broșteni" ca localitate inexistentă și acceptă „Brosteni".
+- **Adresa de la checkout se alege din nomenclatorul FAN** (15 septembrie 2026, cerut de proprietar,
+  `components/AlegeAdresa.tsx`, migrarea 44). Județ din listă (afișat cu diacritice, salvat „Neamț"),
+  localitate tastată și aleasă din listă (obligatoriu din listă — altfel FAN o refuză la AWB și la
+  tarif), stradă cu sugestii din nomenclator (NU obligatorie și nici obligatoriu din listă: FAN are „străzi"
+  pentru 13.827 din 13.833 de localități, dar la satele mici e doar „Strada Principala" de umplutură,
+  iar adresa reală e „nr. 181"), apoi număr/bloc/ap. (obligatoriu). `orders.adresa` rămâne un singur text:
+  „stradă, număr".
+  · Datele vin din API-ul FAN, NU din CSV-urile primite: „Streets Bucuresti.csv" are doar Bucureștiul,
+    API-ul are străzi pentru toate orașele. Măsurat: 42 de județe, 13.833 de localități (8.350 cu km
+    suplimentari), 148.419 rânduri de „străzi", din care se păstrează 121.744: se sar cele 13.833 goale
+    (una pe localitate), 9.530 de PayPoint-uri și 3.311 lockere — altfel apăreau la checkout ca străzi.
+    Se reface cu `scripts/actualizeaza-nomenclator-fan.mjs`.
+  · Dacă nomenclatorul nu se poate citi, câmpurile devin text liber: o comandă pierdută costă mai mult
+    decât o adresă corectată la AWB.
+  · Aceeași componentă (fără stradă, `stil="admin"`) alege județul și localitatea în panoul de adresă
+    al comenzii și în calculatorul din „Expedieri".
+  · Serverul (`plaseaza_comanda`) NU verifică localitatea în nomenclator — intenționat, din același
+    motiv: un checkout vechi rămas deschis nu trebuie să piardă comanda.
   · **AWB-ul NU cheamă curierul, și nici nu trebuie**: firma lucrează de ani de zile cu FAN, iar
     curierul vine zilnic la depozit. Decizie a proprietarului: fără buton de „comandă curier".
 - **Plata e EXCLUSIV ramburs la livrare** (decizie 7 septembrie 2026, care înlocuiește
@@ -1113,6 +1132,7 @@ Niciuna nu e dependință a site-ului și niciuna nu rulează la build. Se cheam
 | `verifica-feed.mjs` | **după orice modificare în `lib/feed.ts` sau `lib/feed-formate.ts`.** Cere feed-urile de la un server care rulează (`BASE=…`) și verifică regulile Google (id ≤ 50 și unic, titlu ≤ 150, descriere ≤ 5.000, link și imagine absolute, preț `123.45 RON`, disponibilitate și stare din listele închise), antetul CSV-ului Meta și — cel mai important — că **cele două feed-uri conțin exact aceleași id-uri**. Iese cu cod 1 dacă pică ceva |
 | `publica-dezro.mjs` | **prima publicare mare pe dez.ro**, și oricând vrei o rulare lungă fără browser. `--catalog` aduce catalogul lor, `--potriveste` rulează potrivirea automată, `--uscat` arată ce s-ar trimite fără să trimită (merge și fără cont), `--limita=N` se oprește după N piese |
 | `verifica-dezro.mjs` | **după orice modificare în `lib/dezro/`.** 77 de verificări pe regulile publicării — invariantul de timp al unui lot, potrivirea modelelor, traducerile aprobate, ce se trimite într-un anunț, amprenta, diferența de poze, retragerea, coada automată și plasa ei de 20%. Fără rețea și fără bază de date |
+| `actualizeaza-nomenclator-fan.mjs` | **periodic (FAN recomandă), de exemplu lunar.** Reface județele, localitățile (cu agenția și km suplimentari) și străzile din API-ul FAN în `fan_localitati` / `fan_strazi`. ~5 minute. Contul FAN îl ia din `settings`. Nu scrie și nu șterge nimic dacă FAN întoarce sub 90% din ce avem. `--uscat` doar numără |
 | `curata-orfani.mjs` | **periodic**, mai ales după sesiuni lungi de lucru pe produse. Găsește fișierele din `poze-piese` spre care nu mai arată niciun rând din `products` SAU din `vehicles`. Implicit doar raportează; șterge numai cu `--sterge` și numai fișiere mai vechi de 24h (`--ore=N`). Peste 5% orfani refuză să șteargă și cere `--confirm-stergere-mare`: atâția deodată înseamnă de obicei o citire incompletă, nu formulare abandonate. Raportează și cazul invers, mai grav: adrese din bază fără fișier în stocare |
 
 **De ce apar orfani** (tipar structural, găsit la 25 august 2026): `components/admin/PhotoUploader.tsx`

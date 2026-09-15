@@ -18,6 +18,7 @@ import { useState } from "react";
 import { sbBrowser } from "@/lib/supabase";
 import { lei } from "@/lib/format";
 import type { OrderFull } from "@/lib/types";
+import AlegeAdresa from "@/components/AlegeAdresa";
 
 type Tarif = { greutate: number; kmSuplimentari: number; combustibil: number; optiuni: number; asigurare: number;
   faraTva: number; tva: number; total: number; serviciu: string };
@@ -94,8 +95,8 @@ export function CalculatorTransport() {
   return (
     <form onSubmit={calculeaza} className="space-y-2 text-sm">
       <div className="grid grid-cols-2 gap-2">
-        <label className="text-[11px] text-mut">Județ<input value={judet} onChange={(e) => schimba(() => setJudet(e.target.value))} required className={camp} /></label>
-        <label className="text-[11px] text-mut">Localitate<input value={localitate} onChange={(e) => schimba(() => setLocalitate(e.target.value))} required className={camp} /></label>
+        <AlegeAdresa stil="admin" cuStrada={false} value={{ judet, localitate, strada: "", numar: "" }}
+          onChange={(a) => schimba(() => { setJudet(a.judet); setLocalitate(a.localitate); })} />
       </div>
       <CampuriColet v={c} set={(v) => schimba(() => setC(v))} />
       <label className="flex items-center gap-2 text-xs cursor-pointer">
@@ -124,7 +125,8 @@ export default function LivrareFan({ o, continut, laSchimbare, salveazaManual }:
   const [msg, setMsg] = useState<{ text: string; bun: boolean } | null>(null);
 
   const livrareStabilita = Boolean(o.livrare_stabilit_la);
-  const adresaModificata = adresa.telefon !== o.telefon || adresa.judet !== o.judet || adresa.localitate !== o.oras || adresa.strada !== o.adresa;
+  const la = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const adresaModificata = adresa.telefon !== o.telefon || la(adresa.judet) !== la(o.judet) || la(adresa.localitate) !== la(o.oras) || adresa.strada !== o.adresa;
   // Orice schimbare în colet sau adresă face prețul calculat vechi: altfel s-ar
   // putea salva un preț calculat pentru alte kilograme decât cele scrise acum.
   const schimbaColet = (c: Colet) => { setColet(c); setTarif(null); };
@@ -217,8 +219,9 @@ export default function LivrareFan({ o, continut, laSchimbare, salveazaManual }:
         {adresaDeschisa ? "▾" : "▸"} Adresa: {adresa.localitate}, jud. {adresa.judet}{adresaModificata ? " (corectată)" : ""}</button>
       {adresaDeschisa && (
         <div className="grid grid-cols-2 gap-2 rounded-lg bg-paper p-2.5">
-          <label className="text-[11px] text-mut">Județ<input value={adresa.judet} onChange={(e) => schimbaAdresa("judet", e.target.value)} className={camp} /></label>
-          <label className="text-[11px] text-mut">Localitate<input value={adresa.localitate} onChange={(e) => schimbaAdresa("localitate", e.target.value)} className={camp} /></label>
+          {/* Din nomenclatorul FAN: o localitate aleasă de aici nu mai poate fi refuzată la AWB. */}
+          <AlegeAdresa stil="admin" cuStrada={false} value={{ judet: adresa.judet, localitate: adresa.localitate, strada: "", numar: "" }}
+            onChange={(a) => { setAdresa((v) => ({ ...v, judet: a.judet, localitate: a.localitate })); setTarif(null); }} />
           <label className="text-[11px] text-mut col-span-2">Strada, număr, bloc<input value={adresa.strada} onChange={(e) => schimbaAdresa("strada", e.target.value)} className={camp} /></label>
           <label className="text-[11px] text-mut col-span-2">Telefon<input value={adresa.telefon} onChange={(e) => schimbaAdresa("telefon", e.target.value)} className={camp} /></label>
         </div>

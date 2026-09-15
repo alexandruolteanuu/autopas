@@ -15,12 +15,16 @@ import Link from "next/link";
 import { useVacanta } from "@/components/VacantaContext";
 import { VacantaBanner } from "@/components/VacantaNota";
 import StareGoala from "@/components/StareGoala";
+import AlegeAdresa, { adresaText, type Adresa } from "@/components/AlegeAdresa";
 
 export default function Checkout() {
   const { items, total, clear } = useCart();
   const router = useRouter();
   const vacanta = useVacanta();
   const [tip, setTip] = useState<"pf" | "firma">("pf");
+  // Adresa se alege din nomenclatorul FAN (components/AlegeAdresa.tsx), ca AWB-ul
+  // și calculul de transport să n-o poată refuza.
+  const [adresa, setAdresa] = useState<Adresa>({ judet: "", localitate: "", strada: "", numar: "" });
   // Coșul NU e gata la montare: `CartContext` îl citește din `localStorage`
   // într-un efect, deci la prima randare `items` e gol. Un efect cu lista de
   // dependențe goală ar rula exact atunci și n-ar trimite nimic — verificat în
@@ -68,7 +72,7 @@ export default function Checkout() {
         nume: f.get("nume"), email: f.get("email"), telefon: f.get("telefon"),
         firma: tip === "firma" ? f.get("firma") : null,
         cui: tip === "firma" ? f.get("cui") : null,
-        adresa: f.get("adresa"), oras: f.get("oras"), judet: f.get("judet"),
+        adresa: adresaText(adresa), oras: adresa.localitate, judet: adresa.judet,
         gdpr: f.get("gdpr") === "on",
         // Opțional. Serverul îl taie la 1.000 de caractere și îl salvează în
         // `orders.observatii` (supabase/observatii-comanda.sql).
@@ -152,9 +156,7 @@ export default function Checkout() {
                 <div className="fld"><label>Denumirea firmei *</label><input name="firma" required autoComplete="organization" /></div>
                 <div className="fld"><label>CUI * <span className="font-normal text-textSecundar">(nu cerem CNP)</span></label><input name="cui" required placeholder="RO…" autoComplete="off" /></div>
               </>)}
-              <div className="fld sm:col-span-2"><label>Adresa de livrare *</label><input name="adresa" required autoComplete="address-line1" /></div>
-              <div className="fld"><label>Oraș *</label><input name="oras" required autoComplete="address-level2" /></div>
-              <div className="fld"><label>Județ *</label><input name="judet" required autoComplete="address-level1" /></div>
+              <AlegeAdresa value={adresa} onChange={setAdresa} />
             </div>
           </div>
           {/* 2. Livrarea — un singur curier, cost stabilit ulterior */}
