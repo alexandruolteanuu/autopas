@@ -70,6 +70,9 @@ export default function Checkout() {
         cui: tip === "firma" ? f.get("cui") : null,
         adresa: f.get("adresa"), oras: f.get("oras"), judet: f.get("judet"),
         gdpr: f.get("gdpr") === "on",
+        // Opțional. Serverul îl taie la 1.000 de caractere și îl salvează în
+        // `orders.observatii` (supabase/observatii-comanda.sql).
+        observatii: String(f.get("observatii") ?? "").trim() || null,
       },
       p_items: items.map((i) => ({ id: i.id, cantitate: i.cantitate })),
       p_curier: curier,
@@ -195,7 +198,22 @@ export default function Checkout() {
                 </span></span>
             </div>
           </div>
-          {/* 4. GDPR */}
+          {/* Observații — pentru piesele scrise ca un singur produs pe ambele
+              părți („Oglindă stânga/dreapta", „Far stânga/dreapta"): altfel
+              echipa nu știe ce parte vrea clientul. Opțional, cu plafon și în bază. */}
+          <div className="card p-5">
+            <label htmlFor="observatii" className="font-disp font-semibold text-[13px]">
+              4 · Observații pentru comandă <span className="font-normal text-textSecundar">(opțional)</span></label>
+            <p className="text-[13px] text-textSecundar mt-1">
+              Dacă piesa e scrisă „stânga/dreapta", spune-ne ce parte vrei. Poți nota și orice altceva
+              ne ajută: seria de caroserie, codul de pe piesa veche, când ești de găsit la telefon.
+            </p>
+            <div className="fld mt-3">
+              <textarea id="observatii" name="observatii" rows={3} maxLength={1000}
+                placeholder="ex. Vreau oglinda pe partea stângă (șofer)." />
+            </div>
+          </div>
+          {/* 5. GDPR */}
           <div className="card p-5 space-y-2 text-sm">
             <label className="flex gap-3 items-start min-h-[44px] py-2 cursor-pointer"><input type="checkbox" required className="w-5 h-5 shrink-0 mt-0.5 accent-[rgb(var(--accent))]" />
               <span>Am citit și sunt de acord cu <Link href="/legal/termeni-si-conditii" className="accentuat font-semibold">Termenii și condițiile</Link> și cu <Link href="/legal/politica-de-retur" className="accentuat font-semibold">Politica de retur</Link>. *</span></label>

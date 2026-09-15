@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { sbBrowser, scrieVerificat, citesteTot } from "@/lib/supabase";
-import { lei } from "@/lib/format";
+import { lei, tipareCautare } from "@/lib/format";
 
 type Prod = { id: number; nume: string; oem: string | null; cod_intern: string | null; poze: string[] | null; pret_lei: number; stoc: number; publicat: boolean; slug: string;
   vizualizari: number; stare: string; stare_nota: string | null; ani: string | null; art: string;
@@ -37,7 +37,10 @@ function ProduseInner() {
   const incarca = useCallback(async () => {
     const sb = sbBrowser(); if (!sb) return;
     let query = sb.from("products").select("*", { count: "exact" }).order("created_at", { ascending: false });
-    if (q.trim()) query = query.or(`oem.ilike.%${q}%,nume.ilike.%${q}%,cod_intern.ilike.%${q}%`);
+    // Pe cuvinte, cu sinonime și plural (vezi `tipareCautare`): „portiera skoda"
+    // găsește „Usa stanga fata Skoda Octavia". Coloana `cautare` ține deja
+    // numele, codul OEM și codul intern, fără diacritice.
+    for (const tipar of tipareCautare(q)) query = query.filter("cautare", "imatch", tipar);
     if (filtruCat) query = query.or(`categorie_id.eq.${filtruCat},subcategorie_id.eq.${filtruCat}`);
     if (filtruStare === "publicat") query = query.eq("publicat", true);
     if (filtruStare === "ascuns") query = query.eq("publicat", false);

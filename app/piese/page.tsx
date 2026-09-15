@@ -9,7 +9,7 @@ import SortSelect from "@/components/SortSelect";
 import FiltreSertar from "@/components/FiltreSertar";
 import StareGoala from "@/components/StareGoala";
 import { IconLupa } from "@/components/Icoane";
-import { counturiPeModel, marciCuPiese, textCautare, numerePaginare } from "@/lib/format";
+import { counturiPeModel, marciCuPiese, tipareCautare, numerePaginare } from "@/lib/format";
 import { getVacanta } from "@/lib/settings";
 import { VacantaStareGoala } from "@/components/VacantaNota";
 import Link from "next/link";
@@ -192,9 +192,9 @@ export default async function Piese({ searchParams }: { searchParams: SP }) {
       // „Turbină Garrett — Ford Focus 3".
       // Bonus: textul merge ca valoare, nu lipit într-un filtru `or`, unde o
       // virgulă din căutare strica întreaga expresie.
-      for (const cuvant of textCautare(text).split(/\s+/).filter(Boolean).slice(0, 6)) {
-        q = q.ilike("cautare", `%${cuvant}%`);
-      }
+      // Din 14 septembrie 2026 fiecare cuvânt se caută cu formele lui (plural,
+      // articulat) și cu sinonimele măsurate — „portiera" găsește „Usa".
+      for (const tipar of tipareCautare(text)) q = q.filter("cautare", "imatch", tipar);
       titlu = `Rezultate pentru „${text}”`;
     }
 

@@ -194,6 +194,12 @@ export async function construieste(tip: string, referintaId: number, cfg: Config
     const { data: linii } = await sb.from("order_items").select("nume,pret,cantitate").eq("order_id", referintaId);
     const items = (linii ?? []) as { nume: string; pret: number; cantitate: number }[];
     const numar = String((c as any).numar ?? "");
+    // Ce a scris clientul la checkout („vreau oglinda stângă"). Apare în ambele
+    // e-mailuri: clientul își vede cererea confirmată, echipa o vede înainte să sune.
+    const obs = String((c as any).observatii ?? "").trim();
+    const obsHtml = obs
+      ? `<p style="font-size:14px;line-height:1.6;margin:14px 0;padding:10px 14px;background:#f4f4f5;border-radius:6px"><b>Observații:</b><br>${esc(obs).replace(/\n/g, "<br>")}</p>`
+      : "";
 
     if (tip === "comanda_client") {
       const email = String((c as any).email ?? "").trim();
@@ -215,6 +221,7 @@ export async function construieste(tip: string, referintaId: number, cfg: Config
          </div>
          <p style="font-size:14px;line-height:1.6;color:#444">Livrare la: ${esc((c as any).adresa)}, ${esc((c as any).oras)}, ${esc((c as any).judet)}.<br>
          Plată: ${esc((c as any).plata)}.</p>
+         ${obsHtml}
          <p style="font-size:14px;line-height:1.6;color:#444">Ai întrebări? Răspunde la acest mesaj sau sună-ne la ${esc(firma.telefon)}.</p>`,
         subsolFirma(firma));
       const text = `Bună, ${(c as any).nume},\n\nÎți mulțumim pentru comandă. Am înregistrat-o cu numărul ${numar}.\n\n`
@@ -223,7 +230,9 @@ export async function construieste(tip: string, referintaId: number, cfg: Config
         + `TRANSPORTUL NU E INCLUS în suma de mai sus. Piesele auto diferă mult ca greutate și gabarit, `
         + `așa că îl calculăm după ce cântărim coletul și te sunăm la ${(c as any).telefon} ca să ți-l comunicăm `
         + `înainte de expediere.\n\nLivrare la: ${(c as any).adresa}, ${(c as any).oras}, ${(c as any).judet}\n`
-        + `Plată: ${(c as any).plata}\n\n${firma.denumire}\n${firma.adresa}\nTelefon ${firma.telefon}`;
+        + `Plată: ${(c as any).plata}\n`
+        + (obs ? `\nObservații: ${obs}\n` : "")
+        + `\n${firma.denumire}\n${firma.adresa}\nTelefon ${firma.telefon}`;
       return { catre: email, subiect: `Comanda ${numar} a fost înregistrată · AUTOPAS`, html, text };
     }
 
@@ -234,6 +243,7 @@ export async function construieste(tip: string, referintaId: number, cfg: Config
       `<p style="font-size:15px;line-height:1.6"><b>${esc((c as any).nume)}</b> · ${esc((c as any).telefon)}${(c as any).email ? ` · ${esc((c as any).email)}` : ""}</p>
        ${tabelPiese(items)}
        <p style="font-size:16px"><b>Total piese: ${lei(Number((c as any).total))}</b> · plată: ${esc((c as any).plata)}</p>
+       ${obsHtml}
        <p style="font-size:14px;line-height:1.6">Livrare: ${esc((c as any).adresa)}, ${esc((c as any).oras)}, ${esc((c as any).judet)}</p>
        <p style="font-size:14px;line-height:1.6;color:#444">Transportul nu e calculat încă — se completează în panou, la comandă.</p>
        <p style="margin-top:20px"><a href="${SITE_URL || "https://autopas-dezmembrari.ro"}/admin/comenzi"
@@ -242,6 +252,7 @@ export async function construieste(tip: string, referintaId: number, cfg: Config
     const text = `Comandă nouă: ${numar}\n\n${(c as any).nume} · ${(c as any).telefon}${(c as any).email ? ` · ${(c as any).email}` : ""}\n\n`
       + items.map((i) => `- ${i.nume}${i.cantitate > 1 ? ` x${i.cantitate}` : ""}: ${lei(Number(i.pret) * i.cantitate)}`).join("\n")
       + `\n\nTotal piese: ${lei(Number((c as any).total))} · plată: ${(c as any).plata}\n`
+      + (obs ? `Observații: ${obs}\n` : "")
       + `Livrare: ${(c as any).adresa}, ${(c as any).oras}, ${(c as any).judet}\n\n`
       + `Transportul nu e calculat încă.\n${SITE_URL || "https://autopas-dezmembrari.ro"}/admin/comenzi`;
     return {

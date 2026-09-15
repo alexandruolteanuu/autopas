@@ -305,6 +305,26 @@ sectiune("9. Coada automată (migrarea 39)");
     c3r.retrase === 1 && c3r.publicate === 0, JSON.stringify(c3r));
   cer("s-a chemat DELETE /ads/{id}", j3.some((x) => x.startsWith("DELETE /ads/")), j3.join(" | "));
 
+  // Comanda s-a ANULAT, piesa e iar în stoc: anunțul nou pleacă CU POZE.
+  // Defectul din 14 septembrie 2026: `poze_trimise` rămânea lista anunțului
+  // șters, deci toate pozele păreau deja trimise și anunțul nou pleca fără ele.
+  st.piese = [piesaFalsa];
+  // Ca în producție: anunțul șters avusese pozele trimise, iar lista lor rămăsese pe rând.
+  st.anunturi[1] = { ...st.anunturi[1], poze_trimise: [...piesaFalsa.poze], poze_dezro: [{ id: 1 }, { id: 2 }] };
+  const fetchVechi = globalThis.fetch;
+  globalThis.fetch = async () => new Response(new Uint8Array([1, 2, 3]), { headers: { "content-type": "image/webp" } });
+  try {
+    const j3b = [];
+    const c3b = await lotCoada({ depozit: d, sesiune: sesiuneFalsa(j3b), context,
+      randuri: [{ id: 6, product_id: 1, motiv: "piesă modificată" }] });
+    cer("piesa revenită în stoc => anunț nou", c3b.publicate === 1 && j3b.includes("POST /ads"), j3b.join(" | "));
+    cer("anunțul nou pleacă cu TOATE pozele, nu cu zero", c3b.poze === piesaFalsa.poze.length, `poze: ${c3b.poze}`);
+  } finally {
+    globalThis.fetch = fetchVechi;
+  }
+  st.piese = [];
+  st.anunturi[1] = { ...st.anunturi[1], status: "retras" };
+
   // Piesa ȘTEARSĂ din bază: rândul din `dezro_anunturi` a plecat cu ea, deci
   // singura urmă a anunțului e `ad_id`-ul copiat în coadă de trigger.
   const j4 = [];

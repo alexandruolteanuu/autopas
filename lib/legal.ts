@@ -147,7 +147,7 @@ export function getLegalDocs(firma: Firma = FIRMA_IMPLICITA): LegalDoc[] {
       { h: "Ce date colectăm prin site, concret", p: [
         "Nu îți cerem mai mult decât ne trebuie. În funcție de ce faci pe site:",
       ], lista: [
-        "când plasezi o comandă: nume și prenume (sau datele firmei), telefon, e-mail, adresa de livrare, localitatea și județul, metoda de plată aleasă;",
+        "când plasezi o comandă: nume și prenume (sau datele firmei), telefon, e-mail, adresa de livrare, localitatea și județul, metoda de plată aleasă și, opțional, observațiile pe care ni le scrii la comandă;",
         "când îți faci cont: e-mail și parolă (parola este stocată criptat, nu o vedem nici noi), plus numele și telefonul, dacă le completezi;",
         "când trimiți o cerere prin formularele site-ului (piesă căutată, predarea unei mașini la dezmembrat, retur, contact): datele de contact și informațiile pe care le scrii tu în cerere;",
         "la formularul de predare a mașinii, opțional, seria de șasiu completă (VIN) — vizibilă doar echipei noastre, niciodată public;",

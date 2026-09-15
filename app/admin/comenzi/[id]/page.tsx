@@ -213,6 +213,15 @@ export default function DetaliuComanda() {
             <p className="mt-2"><b>{o.firma ?? o.nume}</b> · {o.tip_client === "firma" ? `firmă (CUI ${o.cui})` : "persoană fizică"}</p>
             <p className="text-mut">{o.adresa}, {o.oras}, jud. {o.judet}</p>
             <p className="mt-1">{o.telefon} · {o.email}</p>
+            {/* Ce a scris clientul la checkout. Scos în evidență fiindcă schimbă
+                ce se împachetează: „Oglindă stânga/dreapta" e o singură piesă pe
+                site, iar partea o află echipa doar de aici. */}
+            {o.observatii && (
+              <div className="mt-3 rounded-lg border-l-4 border-amber-400 bg-amber-50 px-3 py-2">
+                <b className="text-[12px]">Observațiile clientului</b>
+                <p className="whitespace-pre-line break-words mt-0.5">{o.observatii}</p>
+              </div>
+            )}
             <div className="flex flex-wrap gap-2 mt-3">
               {/* Mesajul de confirmare include defalcarea transportului — e suma pe care
                   clientul o acceptă înainte de expediere.

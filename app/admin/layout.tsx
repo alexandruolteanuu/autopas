@@ -10,6 +10,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { sbBrowser } from "@/lib/supabase";
+import { tipareCautare } from "@/lib/format";
 import NewOrderAlert from "@/components/admin/NewOrderAlert";
 import Logo from "@/components/Logo";
 
@@ -101,8 +102,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       const [o, pr] = await Promise.all([
         sb.from("orders").select("id,numar,nume,telefon,total,status")
           .or(`numar.ilike.%${q}%,nume.ilike.%${q}%,telefon.ilike.%${q}%,email.ilike.%${q}%`).limit(5),
-        sb.from("products").select("id,slug,nume,oem,pret_lei,stoc")
-          .or(`oem.ilike.%${q}%,nume.ilike.%${q}%`).limit(5),
+        tipareCautare(q).reduce((cerere, tipar) => cerere.filter("cautare", "imatch", tipar),
+          sb.from("products").select("id,slug,nume,oem,pret_lei,stoc")).limit(5),
       ]);
       const r: Cauta[] = [];
       (o.data ?? []).forEach((x: any) => r.push({ tip: "Comandă", titlu: `${x.numar} · ${x.nume}`, sub: `${x.telefon} · ${x.total} lei · ${x.status}`, href: `/admin/comenzi/${x.id}` }));

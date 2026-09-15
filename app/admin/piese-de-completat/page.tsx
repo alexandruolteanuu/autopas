@@ -16,7 +16,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { sbBrowser, scrieVerificat } from "@/lib/supabase";
-import { lei } from "@/lib/format";
+import { lei, tipareCautare } from "@/lib/format";
 
 type Piesa = {
   id: number; nume: string; slug: string; cod_intern: string | null; pret_lei: number;
@@ -76,7 +76,8 @@ export default function PieseDeCompletat() {
       .not("sursa", "is", null)
       .or("poze.eq.{},categorie_id.is.null,greutate_estimata.eq.true,model_ids.eq.{},publicat.eq.false")
       .order("created_at", { ascending: false }).limit(500);
-    if (q.trim()) query = query.or(`nume.ilike.%${q}%,cod_intern.ilike.%${q}%`);
+    // Aceeași căutare pe cuvinte ca în Produse și pe site (`tipareCautare`).
+    for (const tipar of tipareCautare(q)) query = query.filter("cautare", "imatch", tipar);
     const { data, count } = await query;
     setPiese((data ?? []) as Piesa[]); setTotal(count ?? 0); setSel([]);
   }, [q]);

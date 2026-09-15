@@ -9,7 +9,7 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import FavButton from "@/components/FavButton";
 import BackLink from "@/components/BackLink";
 import { TrustIcon } from "@/components/TrustBar";
-import { lei } from "@/lib/format";
+import { lei, paragrafe } from "@/lib/format";
 import EvenimentGa from "@/components/EvenimentGa";
 import { piesaGa, MONEDA } from "@/lib/analytics";
 import { getSetariServer, waLinkCu } from "@/lib/settings";
@@ -275,7 +275,15 @@ export default async function Produs({ params }: { params: { slug: string } }) {
           {prod.stare_nota && (
             <div className="card p-4 mt-3 text-[13.5px]">
               <b className="font-disp font-semibold text-[13px] block mb-1.5">Descriere</b>
-              <p className="text-text">{prod.stare_nota}</p>
+              {/* Textul de la sursă are paragrafe (rând gol între ele) și rânduri
+                  („COD: …" sub titlu). HTML-ul le lipea pe toate într-un singur
+                  bloc; acum un rând gol face paragraf nou, iar un rând simplu
+                  rămâne rând nou în același paragraf, ca în editorul din admin. */}
+              <div className="text-text space-y-2.5">
+                {paragrafe(prod.stare_nota).map((p, i) => (
+                  <p key={i} className="whitespace-pre-line break-words">{p}</p>
+                ))}
+              </div>
             </div>
           )}
 

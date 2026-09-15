@@ -35,6 +35,94 @@ export function textCautare(t: string) {
   return t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
+/**
+ * Sinonime pentru căutare: cuvinte diferite pentru ACEEAȘI piesă. Fiecare
+ * intrare e un început de cuvânt, deja fără diacritice.
+ *
+ * MĂSURATE pe titlurile reale (14 septembrie 2026), nu scrise din memorie:
+ *   · „portieră" nu apare în NICIUN titlu, iar „Usa" în 572 — fără rândul ăsta,
+ *     „portiera skoda" dădea zero rezultate;
+ *   · sursa scrie „Vw" aproape mereu, clientul scrie și „Volkswagen";
+ *   · „oglinzi", „roți", „uși" sunt plurale neregulate, pe care regula de
+ *     terminații de mai jos nu le poate prinde.
+ * Se adaugă un rând doar după ce s-a numărat că titlurile scriu altfel decât
+ * caută omul.
+ */
+const SINONIME_CAUTARE: string[][] = [
+  ["usa", "usi", "portier"],
+  ["oglind", "oglinzi"],
+  ["roat", "roti"],
+  ["vw", "volkswagen"],
+  ["calculator", "ecu"],
+  ["turbin", "turbo"],
+  ["electromotor", "demaror"],
+  ["haion", "portbagaj"],
+];
+
+/** Formele sub care poate apărea un cuvânt, ca începuturi de cuvânt:
+ *  „faruri" -> „far", „portiera" -> „portier" (prinde și „portiere"),
+ *  „injectoare" <-> „injector". Nu e o gramatică, doar terminațiile care
+ *  despart singularul de plural și forma articulată în titlurile noastre. */
+function formeCuvant(cuvant: string): string[] {
+  const forme = new Set([cuvant]);
+  let r = cuvant;
+  // Forma articulată: „farurile", „motorul", „usile".
+  for (const s of ["urilor", "urile", "ilor", "elor", "ului", "ele", "ile", "ul", "le"]) {
+    if (r.endsWith(s) && r.length - s.length >= 3) { r = r.slice(0, -s.length); forme.add(r); break; }
+  }
+  if (r.endsWith("uri") && r.length > 5) { r = r.slice(0, -3); forme.add(r); }
+  // „injectoare" <-> „injector", „radiatoare" <-> „radiator".
+  if (r.endsWith("oare") && r.length > 6) forme.add(r.slice(0, -4) + "or");
+  if (r.endsWith("or") && r.length >= 6) forme.add(r.slice(0, -2) + "oare");
+  // Vocala finală desparte singularul de plural: „aripa/aripi", „bara/bare".
+  if (/[aeiu]$/.test(r) && r.length >= 4) forme.add(r.slice(0, -1));
+
+  for (const grup of SINONIME_CAUTARE) {
+    const lovit = grup.some((s) => Array.from(forme).some((f) => f === s || (s.length >= 5 && f.startsWith(s))));
+    if (lovit) grup.forEach((s) => forme.add(s));
+  }
+  // O formă care începe cu alta e redundantă: „portiera" e acoperit de „portier".
+  const lista = Array.from(forme);
+  return lista.filter((f) => !lista.some((g) => g !== f && f.startsWith(g)));
+}
+
+/**
+ * Tiparele de căutare pentru coloana `products.cautare`, câte unul pe cuvânt.
+ * Fiecare tipar se aplică cu `.filter("cautare", "imatch", tipar)`, iar tiparele se
+ * adună cu ȘI: toate cuvintele trebuie să apară, dar nu neapărat lipite și nu
+ * în ordinea tastată. „portiera skoda" găsește „Usa stanga fata Skoda Octavia".
+ *
+ * DE CE EXISTĂ (14 septembrie 2026): adminul căuta tot textul ca un singur șir
+ * (`nume.ilike.%portiera skoda%`), deci găsea doar titlurile care conțineau
+ * exact literele astea, lipite. Iar „portieră" nu apare în niciun titlu.
+ *
+ * · Cuvintele din LITERE se caută la ÎNCEPUT de cuvânt: „far" găsește „Far" și
+ *   „Faruri", dar nu „Farfurie" din mijlocul altui cuvânt, și nici „usa" din „husa".
+ * · Cuvintele cu CIFRE se caută oriunde: un cod OEM se tastează adesea pe
+ *   jumătate („805915" din „5H0805915P").
+ * · Se păstrează doar litere, cifre și cratimă. Restul devine spațiu, deci
+ *   niciun caracter din căutare nu poate strica expresia trimisă la server.
+ */
+export function tipareCautare(text: string, maxCuvinte = 6): string[] {
+  const cuvinte = textCautare(text).replace(/[^a-z0-9-]+/g, " ").split(/\s+/)
+    .map((c) => c.replace(/^-+|-+$/g, "")).filter(Boolean).slice(0, maxCuvinte);
+  return cuvinte.map((c) => {
+    if (/\d/.test(c)) return c;
+    return `(^|[^a-z0-9])(${formeCuvant(c).join("|")})`;
+  });
+}
+
+/**
+ * Un text scris pe rânduri, împărțit în paragrafe: rândul gol desparte
+ * paragrafele, rândurile simple rămân în paragraf (se afișează cu
+ * `whitespace-pre-line`). Descrierile importate au exact forma asta:
+ * titlu, rând gol, „COD: …", rând gol, textul vânzătorului.
+ */
+export function paragrafe(text: string): string[] {
+  return text.replace(/\r\n?/g, "\n").split(/\n[ \t]*\n+/)
+    .map((p) => p.replace(/[ \t]+$/gm, "").trim()).filter(Boolean);
+}
+
 // Numărătorile pentru filtru: câte piese publicate există per model ("m<id>") și per marcă ("b<id>").
 import type { Brand, Model } from "./types";
 

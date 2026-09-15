@@ -76,10 +76,18 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 30. `ga4-public.sql` -> 31. `categorii-numar-rapid.sql` -> 32. `piese-marca-categorie.sql` ->
 33. `masuratori-publice.sql` -> 34. `piese-compatibile-masini.sql` -> 35. `superb-1.sql` ->
 36. `email-automat.sql` -> 37. `dezro.sql` -> 38. `piesa-vanduta-ramane.sql` ->
-39. `dezro-automat.sql` -> 40. `senzori-auto-despartire.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9–40.
+39. `dezro-automat.sql` -> 40. `senzori-auto-despartire.sql` -> 41. `observatii-comanda.sql` ->
+42. `sugestie-clasificare.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9–42.
 NU sunt încă idempotente: 1–5, 8.
-**Aplicate pe producție: 1–40.**
+**Aplicate pe producție: 1–42.**
+42 (15 septembrie 2026) creează `sugestie_clasificare(text[])`: numără categoriile pieselor
+care se potrivesc pe tiparele de căutare, pentru completarea automată din „Adaugă piesă".
+Doar echipa: revocată de la PUBLIC ȘI de la `anon` — pe Supabase funcțiile noi primesc drept
+DIRECT pentru `anon`, deci `revoke ... from public` singur NU ajunge (verificat la rulare).
+41 (15 septembrie 2026) adaugă `orders.observatii` (≤ 1.000 de caractere) și înlocuiește
+`plaseaza_comanda`, copiată din PRODUCȚIE (identică cu 27, în afara unui comentariu) plus
+observațiile, primite în `p_client`. Semnătura nu s-a schimbat. De acum sursa funcției e 41.
 40 e o migrare de DATE, nu de schemă (10 septembrie 2026): desparte categoria-sac
 „Senzori auto" (id 196) în opt subcategorii — radar distronic, impact pietoni, unghi
 mort, impact airbag, unghi volan, nivel faruri, nivel suspensie, deschidere haion —
@@ -162,6 +170,41 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
   · Pașii, în ordine: **`docs/dez.ro.md`**.
 
 ## Decizii deja luate (nu le schimba fără să întrebi)
+- **Căutarea pieselor e pe cuvinte, cu plural și sinonime, peste tot** (15 septembrie 2026,
+  `tipareCautare` din `lib/format.ts`, folosită în `/piese`, Admin → Produse, Piese de completat
+  și căutarea globală din admin). Adminul căuta tot textul ca un singur șir, deci „portiera skoda"
+  nu găsea nimic.
+  · Fiecare cuvânt devine un tipar `imatch` pe `products.cautare`, iar tiparele se adună cu ȘI.
+    Cuvintele din litere se caută la ÎNCEPUT de cuvânt, cu formele lor („faruri" → „far",
+    „injectoare" ↔ „injector"); cele cu cifre, oriunde (coduri OEM tastate pe jumătate).
+  · **Sinonimele sunt măsurate** (`SINONIME_CAUTARE`): „portieră" nu apare în NICIUN titlu, „Usa"
+    în 572; sursa scrie „Vw", clientul și „Volkswagen". Se adaugă un rând doar după numărare.
+  · Se aplică cu `.filter("cautare", "imatch", tipar)`: versiunea de supabase-js din proiect
+    n-are `.imatch()` în tipuri. Măsurat: „portiera skoda" 0 → 32 de piese, ~0,2 s.
+- **„Adaugă piesă" își completează singură câmpurile GOALE din titlu** (15 septembrie 2026,
+  `lib/sugestie-piesa.ts`): marca, modelul, anii, compatibilitatea afișată, categoria,
+  subcategoria, ilustrația. La piesă nouă pornește la ieșirea din câmpul de titlu; la editare doar
+  din butonul „↻ Completează din titlu". Ce a ales omul nu se suprascrie; nimic nu se salvează
+  fără „Publică piesa", iar formularul spune ce a completat.
+  · Marca/modelul/anii vin din `sugestieDinTitlu` din `lib/import/potrivire.mjs` — regulile
+    importului, nu o a doua potrivire. Nu contrazice interdicția de a deduce din titlu de piesă:
+    aceea privește scrieri fără confirmare; aici confirmă omul. Capacitatea cilindrică („1.6") se
+    scoate înainte, iar un model care arată a an („Peugeot 2008") nu se ia când e printre anii
+    titlului. **Măsurat pe 8.687 de piese: sugerează la 91,4%, precizie 99,5%.**
+  · Categoria vine din VOTUL pieselor existente cu aceleași cuvinte de piesă (fără marcă, model,
+    ani, motorizare), numărat în bază (`sugestie_clasificare`). Dacă sunt sub 3 piese, se renunță
+    la ultimul cuvânt. **Măsurat pe 700 de piese, fără piesa testată: categoria 95,3%,
+    subcategoria 90,3%.**
+- **„Cost intern" a fost scos din formularul de piesă** (15 septembrie 2026, cerut de proprietar).
+  `cost_lei` NU se mai trimite deloc la salvare — un `null` ar fi șters tăcut costul pieselor care
+  îl au. Coloana rămâne în bază.
+- **Clientul poate lăsa observații la comandă** (15 septembrie 2026, migrarea 41). Motivul: piese
+  scrise ca un singur produs pentru ambele părți („Oglindă stânga/dreapta"). Câmpul „4 ·
+  Observații" din checkout e opțional; textul apare în detaliul comenzii (scos în evidență), în
+  listă („✎ are observații") și în ambele e-mailuri. Politica de confidențialitate îl numește.
+- **Descrierea piesei se afișează pe paragrafe** (15 septembrie 2026, `paragrafe()` din
+  `lib/format.ts`): rândul gol face paragraf nou, rândul simplu rămâne rând nou. Textul din bază
+  era deja structurat (8.509 din 8.806 descrieri au rânduri); doar HTML-ul le lipea.
 - Logo = imagine PNG (roată dințată + siluetă de mașină + „AUTOPAS DEZMEMBRĂRI", metalic cu
   portocaliu #FF6B1A), pusă din 10 august 2026 în locul vechiului logo scris cu text. Se afișează
   prin `components/Logo.tsx` — singura sursă; îi dai înălțimea din `className`. Originalul netăiat
@@ -895,6 +938,12 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
     puse direct în coadă: `insert into dezro_coada (product_id, motiv) select … on conflict
     (product_id) do update …` și apoi `select dezro_trezeste(true)`. Așa au rămas netrimise 396 de
     piese o zi întreagă, la 10 septembrie 2026.
+  · **Un anunț RETRAS nu mai are poze la ei, deci pozele se compară cu o listă goală**
+    (defect reparat la 15 septembrie 2026, `publicaPiesa` din `lib/dezro/motor.mjs`). La vânzare
+    anunțul se șterge la ei, dar `poze_trimise` rămânea lista veche; la anularea comenzii se crea
+    un anunț nou, pozele păreau „deja trimise" și plecau zero. Găsite 5 anunțuri așa, puse înapoi
+    în coadă. Tot atunci: o recreare eșuată lasă rândul „retras", nu „eroare" — altfel încercarea
+    următoare ar fi actualizat un anunț inexistent.
   · Ruta refuză să lucreze cât timp există un job de publicare activ: doi scriitori pe aceleași
     anunțuri ar putea trimite aceeași piesă de două ori, iar la ei un anunț dublat nu se poate uni.
 - Roluri: `client`, `operator`, `contabil`, `admin` (coloana `role` în `profiles`, controlată prin RLS).
@@ -1018,7 +1067,7 @@ Niciuna nu e dependință a site-ului și niciuna nu rulează la build. Se cheam
 | `reconverteste-poze.mjs` | **rar, la nevoie.** Trece în WebP pozele rămase JPEG în bucket. A fost scris fiindcă primele piese importate au ajuns JPEG, când `sharp` nu era încă instalat, iar `lib/import/imagini.mjs` urcă originalul dacă lipsește codecul. Dacă apar iar JPEG-uri în bucket, ori a picat `sharp`, ori conversia a preferat originalul (poză deja bine comprimată) — scriptul spune care din două. Idempotent, cu `--uscat` |
 | `verifica-feed.mjs` | **după orice modificare în `lib/feed.ts` sau `lib/feed-formate.ts`.** Cere feed-urile de la un server care rulează (`BASE=…`) și verifică regulile Google (id ≤ 50 și unic, titlu ≤ 150, descriere ≤ 5.000, link și imagine absolute, preț `123.45 RON`, disponibilitate și stare din listele închise), antetul CSV-ului Meta și — cel mai important — că **cele două feed-uri conțin exact aceleași id-uri**. Iese cu cod 1 dacă pică ceva |
 | `publica-dezro.mjs` | **prima publicare mare pe dez.ro**, și oricând vrei o rulare lungă fără browser. `--catalog` aduce catalogul lor, `--potriveste` rulează potrivirea automată, `--uscat` arată ce s-ar trimite fără să trimită (merge și fără cont), `--limita=N` se oprește după N piese |
-| `verifica-dezro.mjs` | **după orice modificare în `lib/dezro/`.** 75 de verificări pe regulile publicării — invariantul de timp al unui lot, potrivirea modelelor, traducerile aprobate, ce se trimite într-un anunț, amprenta, diferența de poze, retragerea, coada automată și plasa ei de 20%. Fără rețea și fără bază de date |
+| `verifica-dezro.mjs` | **după orice modificare în `lib/dezro/`.** 77 de verificări pe regulile publicării — invariantul de timp al unui lot, potrivirea modelelor, traducerile aprobate, ce se trimite într-un anunț, amprenta, diferența de poze, retragerea, coada automată și plasa ei de 20%. Fără rețea și fără bază de date |
 | `curata-orfani.mjs` | **periodic**, mai ales după sesiuni lungi de lucru pe produse. Găsește fișierele din `poze-piese` spre care nu mai arată niciun rând din `products` SAU din `vehicles`. Implicit doar raportează; șterge numai cu `--sterge` și numai fișiere mai vechi de 24h (`--ore=N`). Peste 5% orfani refuză să șteargă și cere `--confirm-stergere-mare`: atâția deodată înseamnă de obicei o citire incompletă, nu formulare abandonate. Raportează și cazul invers, mai grav: adrese din bază fără fișier în stocare |
 
 **De ce apar orfani** (tipar structural, găsit la 25 august 2026): `components/admin/PhotoUploader.tsx`

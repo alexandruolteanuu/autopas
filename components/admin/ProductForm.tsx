@@ -1,11 +1,13 @@
 "use client";
 // FORMULARUL COMPLET DE PIESĂ — pagină separată, pentru adăugare și editare.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { sbBrowser, scrieVerificat, citesteTot } from "@/lib/supabase";
 import PhotoUploader from "./PhotoUploader";
 import type { Category, Vehicle, Brand, Model, Product } from "@/lib/types";
+import { numeModelFaraAni } from "@/lib/format";
+import { sugereaza } from "@/lib/sugestie-piesa";
 
 export default function ProductForm({ produs }: { produs?: Product }) {
   const router = useRouter();
@@ -21,6 +23,15 @@ export default function ProductForm({ produs }: { produs?: Product }) {
   const [vehiculId, setVehiculId] = useState<string>(String(produs?.vehicul_id ?? ""));
   const [msg, setMsg] = useState("");
   const [salvez, setSalvez] = useState(false);
+  // Câmpuri controlate, ca sugestia din titlu să le poată completa.
+  const [ani, setAni] = useState(produs?.ani ?? "");
+  const [compat, setCompat] = useState((produs?.compat ?? []).join("\n"));
+  const [art, setArt] = useState(produs?.art ?? "engine");
+  // „engine" e doar valoarea de pornire a listei; cât timp omul n-a atins-o,
+  // sugestia are voie s-o schimbe.
+  const [artAtins, setArtAtins] = useState(!!produs);
+  const [sugestie, setSugestie] = useState<{ stare: "" | "caut" | "gata"; text: string[] }>({ stare: "", text: [] });
+  const titluSugerat = useRef("");
 
   useEffect(() => {
     const sb = sbBrowser(); if (!sb) return;
@@ -55,6 +66,49 @@ export default function ProductForm({ produs }: { produs?: Product }) {
     if (v?.model_id && !modeleSel.includes(v.model_id)) setModeleSel([...modeleSel, v.model_id]);
   }
 
+  /** Completează din titlu câmpurile GOALE: marca (filtrul de modele), modelul
+   *  compatibil, anii, compatibilitatea afișată, categoria, subcategoria și
+   *  ilustrația. Ce a ales deja omul nu se atinge. Regulile stau în
+   *  lib/sugestie-piesa.ts; aici doar se aplică.
+   *
+   *  La o piesă NOUĂ pornește singură când omul iese din câmpul de titlu; la
+   *  editare doar din buton, ca o piesă existentă să nu se schimbe sub ochii
+   *  cuiva care doar corectează o literă. */
+  async function completeazaDinTitlu(titlu: string, dinButon = false) {
+    const t = titlu.trim();
+    if (t.length < 4 || !models.length) return;
+    if (!dinButon && t === titluSugerat.current) return;
+    titluSugerat.current = t;
+    const sb = sbBrowser(); if (!sb) return;
+    setSugestie({ stare: "caut", text: [] });
+    const s = await sugereaza(sb, t, { brands, models });
+    const facute: string[] = [];
+
+    if (s.model && modeleSel.length === 0) {
+      setModeleSel([s.model.id]);
+      if (!marcaFiltru) setMarcaFiltru(String(s.model.brand_id));
+      facute.push(`model ${s.brand?.nume ?? ""} ${s.model.nume}`.replace(/\s+/g, " "));
+    } else if (s.brand && !marcaFiltru && modeleSel.length === 0) {
+      setMarcaFiltru(String(s.brand.id));
+      facute.push(`marca ${s.brand.nume} (modelul n-a putut fi ales — bifează-l)`);
+    }
+    if (s.ani && !ani.trim()) { setAni(s.ani); facute.push(`anii ${s.ani}`); }
+    if (s.model && s.brand && !compat.trim()) {
+      setCompat(`${s.brand.nume} ${numeModelFaraAni(s.model.nume)}${s.ani ? ` · ${s.ani}` : ""}`);
+      facute.push("compatibilitatea afișată");
+    }
+    if (s.categorie_id && !catId) {
+      setCatId(String(s.categorie_id));
+      setSubcatId(s.subcategorie_id ? String(s.subcategorie_id) : "");
+      const numeCat = [s.categorie_id, s.subcategorie_id].filter(Boolean)
+        .map((id) => cats.find((c) => c.id === id)?.nume).filter(Boolean).join(" › ");
+      facute.push(`categoria ${numeCat}` + (s.voturi ? ` (aleasă de ${s.voturi.categoria} din ${s.voturi.total} piese asemănătoare)` : ""));
+    }
+    if (s.art && !artAtins) setArt(s.art);
+
+    setSugestie({ stare: "gata", text: facute });
+  }
+
   async function salveaza(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault(); setMsg(""); setSalvez(true);
     const f = new FormData(e.currentTarget); const sb = sbBrowser()!;
@@ -63,7 +117,10 @@ export default function ProductForm({ produs }: { produs?: Product }) {
       nume, oem: String(f.get("oem") || "") || null,
       pret_lei: Number(f.get("pret")), pret_sufix: String(f.get("sufix") || "") || null,
       ani: String(f.get("ani") || "") || null, art: f.get("art"),
-      greutate_kg: Number(f.get("greutate")) || null, cost_lei: Number(f.get("cost")) || null,
+      // `cost_lei` NU se mai trimite: câmpul „Cost intern" a fost scos din formular
+      // (15 septembrie 2026), iar un `null` scris de aici ar șterge tăcut costul
+      // pieselor care îl au deja completat. Coloana rămâne în bază.
+      greutate_kg: Number(f.get("greutate")) || null,
       // Orice greutate salvată din formular e una cântărită de om, deci steagul
       // de „estimată" cade. Piesele importate intră cu 1 kg estimat; din momentul
       // în care operatorul atinge câmpul, valoarea devine de încredere.
@@ -117,21 +174,32 @@ export default function ProductForm({ produs }: { produs?: Product }) {
           <div className="card p-5 grid gap-3 text-sm">
             <b className="font-disp font-semibold text-[13px]">Informații de bază</b>
             <div className="fld"><label>Denumirea piesei *</label>
-              <input name="nume" required defaultValue={produs?.nume} placeholder="ex. Far stânga xenon — BMW Seria 3 F30" /></div>
+              <input name="nume" required defaultValue={produs?.nume} placeholder="ex. Far stânga xenon — BMW Seria 3 F30"
+                onBlur={(e) => { if (!produs) completeazaDinTitlu(e.currentTarget.value); }} /></div>
+            {/* Ce s-a completat din titlu, ca omul să verifice înainte să publice. */}
+            <div className="flex flex-wrap items-start gap-x-3 gap-y-1 -mt-1 text-[12px]">
+              <button type="button" className="text-acc font-semibold"
+                onClick={(e) => completeazaDinTitlu(String((e.currentTarget.form?.elements.namedItem("nume") as HTMLInputElement | null)?.value ?? ""), true)}>
+                ↻ Completează din titlu</button>
+              {sugestie.stare === "caut" && <span className="text-mut">se caută piese asemănătoare…</span>}
+              {sugestie.stare === "gata" && (sugestie.text.length
+                ? <span className="text-mut">Completat automat: {sugestie.text.join(" · ")}. <b>Verifică înainte de publicare.</b></span>
+                : <span className="text-mut">Nimic de completat — câmpurile sunt deja alese sau titlul nu spune destul.</span>)}
+            </div>
             <div className="grid md:grid-cols-3 gap-3">
               <div className="fld"><label>Cod OEM</label><input name="oem" defaultValue={produs?.oem ?? ""} placeholder="ex. 63117338709" /></div>
               <div className="fld"><label>Preț (lei) *</label><input name="pret" type="number" step="0.01" required defaultValue={produs?.pret_lei} /></div>
               <div className="fld"><label>Sufix preț</label><input name="sufix" defaultValue={produs?.pret_sufix ?? ""} placeholder="ex. / set" /></div>
             </div>
             <div className="fld"><label>Descriere / observații</label>
-              <textarea name="descriere" rows={3} defaultValue={produs?.stare_nota ?? ""} placeholder="ex. testat pe stand, sticlă impecabilă" /></div>
+              <textarea name="descriere" rows={6} defaultValue={produs?.stare_nota ?? ""} placeholder="ex. testat pe stand, sticlă impecabilă" /></div>
           </div>
 
           <div className="card p-5 grid gap-3 text-sm">
             <b className="font-disp font-semibold text-[13px]">Fotografii reale</b>
             <PhotoUploader poze={poze} setPoze={setPoze} />
             <div className="fld"><label>Ilustrație de rezervă <span className="font-normal text-mut">(se afișează doar dacă nu ai poze)</span></label>
-              <select name="art" defaultValue={produs?.art ?? "engine"}>
+              <select name="art" value={art} onChange={(e) => { setArt(e.target.value); setArtAtins(true); }}>
                 {["engine","alternator","headlight","gearbox","turbo","mirror","egr","compressor","wheel","suspension","brake","seat","panel"].map((a) => <option key={a}>{a}</option>)}
               </select></div>
           </div>
@@ -144,7 +212,7 @@ export default function ProductForm({ produs }: { produs?: Product }) {
                   <option value="">Toate mărcile</option>
                   {brands.map((b) => <option key={b.id} value={b.id}>{b.nume}</option>)}
                 </select></div>
-              <div className="fld"><label>Ani</label><input name="ani" defaultValue={produs?.ani ?? ""} placeholder="ex. 2012–2015" /></div>
+              <div className="fld"><label>Ani</label><input name="ani" value={ani} onChange={(e) => setAni(e.target.value)} placeholder="ex. 2012–2015" /></div>
             </div>
             <div>
               <label className="block text-[12px] font-semibold text-steel mb-1">Modele compatibile <span className="font-normal text-mut">(bifează — alimentează filtrul de pe site)</span></label>
@@ -163,7 +231,7 @@ export default function ProductForm({ produs }: { produs?: Product }) {
               <p className="text-[11px] text-mut mt-1">{modeleSel.length} modele bifate · lipsește un model? <Link href="/admin/marci" className="text-acc font-semibold">adaugă-l aici</Link></p>
             </div>
             <div className="fld"><label>Compatibilitate afișată pe site <span className="font-normal text-mut">(un rând pe model)</span></label>
-              <textarea name="compat" rows={3} defaultValue={(produs?.compat ?? []).join("\n")} placeholder="BMW Seria 3 F30 / F31 · 2012–2015" /></div>
+              <textarea name="compat" rows={3} value={compat} onChange={(e) => setCompat(e.target.value)} placeholder="BMW Seria 3 F30 / F31 · 2012–2015" /></div>
           </div>
         </div>
 
@@ -207,8 +275,6 @@ export default function ProductForm({ produs }: { produs?: Product }) {
               <div className="fld"><label>Stoc (buc)</label><input name="stoc" type="number" defaultValue={produs?.stoc ?? 1} /></div>
               <div className="fld"><label>Greutate (kg)</label><input name="greutate" type="number" step="0.1" defaultValue={produs?.greutate_kg ?? ""} placeholder="pt. AWB" /></div>
             </div>
-            <div className="fld"><label>Cost intern (lei) <span className="font-normal text-mut">— nu apare pe site</span></label>
-              <input name="cost" type="number" step="0.01" defaultValue={produs?.cost_lei ?? ""} /></div>
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" name="originala" defaultChecked={produs?.originala ?? true} />
               <span>Piesă auto <b>originală</b> din dezmembrări</span></label>

@@ -118,7 +118,9 @@ function ComenziInner() {
               <tr key={o.id} className="hover:bg-paper">
                 <td data-eticheta="Comandă" className="px-4 py-3"><b className="font-disp">{o.numar}</b>
                   <div className="text-[11px] text-mut">{new Date(o.created_at).toLocaleString("ro-RO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</div></td>
-                <td data-eticheta="Client" className="px-4 py-3">{o.firma ?? o.nume}<div className="text-[11px] text-mut">{o.oras} · {o.telefon}</div></td>
+                <td data-eticheta="Client" className="px-4 py-3">{o.firma ?? o.nume}<div className="text-[11px] text-mut">{o.oras} · {o.telefon}</div>
+                  {/* Semn că clientul a lăsat observații (ex. partea stângă/dreaptă) — se citesc în detaliu. */}
+                  {o.observatii && <div className="text-[11px] font-semibold text-amber-700">✎ are observații</div>}</td>
                 <td data-eticheta="Piese" className="celula-bloc px-4 py-3 md:min-w-[240px] md:max-w-[320px]">
                   {(() => {
                     const linii = piese[o.id];
