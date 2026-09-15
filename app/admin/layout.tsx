@@ -22,6 +22,7 @@ const MENIU = [
   { href: "/admin/comenzi", t: "Comenzi", ic: "⬚", roluri: ["admin", "operator", "contabil"], badge: "comenzi" },
   { href: "/admin/cereri", t: "Cereri (Inbox)", ic: "✉", roluri: ["admin", "operator"], badge: "cereri" },
   { href: "/admin/produse", t: "Produse / Inventar", ic: "⚙", roluri: ["admin", "operator"] },
+  { href: "/admin/piese-noi", t: "Piese noi din CSV", ic: "✚", roluri: ["admin", "operator"], badge: "noi" },
   { href: "/admin/piese-de-completat", t: "Piese de completat", ic: "◪", roluri: ["admin", "operator"], badge: "completat" },
   { href: "/admin/import", t: "Import pieseauto.ro", ic: "⇩", roluri: ["admin", "operator"] },
   { href: "/admin/dezro", t: "Anunțuri dez.ro", ic: "⇧", roluri: ["admin", "operator"] },
@@ -41,7 +42,7 @@ const MENIU = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [rol, setRol] = useState<Rol>("verific");
   const [email, setEmail] = useState("");
-  const [badges, setBadges] = useState<{ comenzi: number; cereri: number; completat: number }>({ comenzi: 0, cereri: 0, completat: 0 });
+  const [badges, setBadges] = useState<{ comenzi: number; cereri: number; completat: number; noi: number }>({ comenzi: 0, cereri: 0, completat: 0, noi: 0 });
   // Modul vacanță: banda de avertizare din tot panoul. Motivul e practic, nu
   // estetic — cineva îl activează, pleacă în concediu, se întoarce și uită. O
   // lună fără comenzi, fără ca nimeni să înțeleagă de ce. Trebuie să fie
@@ -56,7 +57,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const incarcaContor = useCallback(async () => {
     const sb = sbBrowser(); if (!sb) return;
-    const [o, p1, p2, p3, p4, pc] = await Promise.all([
+    const [o, p1, p2, p3, p4, pc, pn] = await Promise.all([
       sb.from("orders").select("id", { count: "exact", head: true }).eq("status", "noua"),
       sb.from("part_requests").select("id", { count: "exact", head: true }).eq("status", "noua"),
       sb.from("car_intake_requests").select("id", { count: "exact", head: true }).eq("status", "noua"),
@@ -65,17 +66,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       // Piese importate cărora le lipsește ceva: poză, categorie sau greutate
       // cântărită. Din 25 august 2026 ecranul nu mai e o poartă înainte de
       // publicare — piesele sunt deja pe site — ci o listă de lucru.
+      // Ciornele din sincronizarea CSV au lista lor („Piese noi din CSV"), deci nu
+      // se mai numără și aici.
       sb.from("products").select("id", { count: "exact", head: true }).not("sursa", "is", null)
-        .or("poze.eq.{},categorie_id.is.null,greutate_estimata.eq.true"),
+        .or("poze.eq.{},categorie_id.is.null,greutate_estimata.eq.true")
+        .or("import_erori.is.null,import_erori->>ciorna.is.null"),
+      // Piesele noi din CSV, nepublicate, care așteaptă poze și descriere.
+      sb.from("products").select("id", { count: "exact", head: true }).eq("sursa", "pieseauto.ro")
+        .eq("sursa_activ", true).filter("import_erori->>ciorna", "eq", "true"),
     ]);
     const cereri = (p1.count ?? 0) + (p2.count ?? 0) + (p3.count ?? 0) + (p4.count ?? 0);
-    setBadges({ comenzi: o.count ?? 0, cereri, completat: pc.count ?? 0 });
+    setBadges({ comenzi: o.count ?? 0, cereri, completat: pc.count ?? 0, noi: pn.count ?? 0 });
     const a: { t: string; href: string }[] = [];
     if (o.count) a.push({ t: `${o.count} comenzi noi de confirmat`, href: "/admin/comenzi?f=noua" });
     if (p1.count) a.push({ t: `${p1.count} cereri „caut o piesă" nerezolvate`, href: "/admin/cereri?tab=piese" });
     if (p2.count) a.push({ t: `${p2.count} cereri de predare / Rabla`, href: "/admin/cereri?tab=predare" });
     if (p3.count) a.push({ t: `${p3.count} cereri de retur în așteptare`, href: "/admin/cereri?tab=retur" });
     if (p4.count) a.push({ t: `${p4.count} mesaje de contact necitite`, href: "/admin/cereri?tab=contact" });
+    if (pn.count) a.push({ t: `${pn.count} piese noi din CSV așteaptă poze și descriere`, href: "/admin/piese-noi" });
     setAlerte(a);
 
     const { data: v } = await sb.rpc("vacanta_publica");
@@ -147,7 +155,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <nav className="flex lg:flex-col flex-1 lg:py-3">
           {meniu.map((m) => {
             const activ = m.href === "/admin" ? path === "/admin" : path.startsWith(m.href);
-            const b = m.badge ? badges[m.badge as "comenzi" | "cereri" | "completat"] : 0;
+            const b = m.badge ? badges[m.badge as "comenzi" | "cereri" | "completat" | "noi"] : 0;
             return (
               <Link key={m.href} href={m.href}
                 className={`flex items-center gap-3 px-5 py-3 text-sm whitespace-nowrap ${activ ? "bg-acc text-white" : "text-white/75 hover:bg-white/10"}`}>

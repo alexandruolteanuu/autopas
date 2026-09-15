@@ -363,6 +363,28 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
   acceptă comentarii, de asta explicația stă aici.
 - Indexarea în Google e **oprită** până la lansare; se activează cu `PERMITE_INDEXARE=da` în Vercel.
   Domeniul ales: `autopas-dezmembrari.ro` (neînregistrat încă la 7 aug 2026).
+- **Sincronizarea cu pieseauto.ro se face DOAR din CSV, fără pagini** (15 septembrie 2026, cerut de
+  proprietar: „ne blochează dacă băgăm CSV-ul"). Modul implicit din `/admin/import` și
+  `scripts/import-pieseauto.mjs --fara-pagini`; opțiunea `faraPagini` a motorului
+  (`proceseazaRanduri`), jobul poartă `optiuni.fara_pagini`.
+  · Zero cereri la pieseauto.ro: prețurile se actualizează din CSV, piesele lipsă se depublică (plasa
+    de 20% rămâne), iar piesele NOI intră ca **ciorne nepublicate** — titlu, preț, `sursa_url`, plus
+    modelul și anii deduși din titlu cu `sugestieDinTitlu` (`construiesteCiorna` din `lib/import/rand.mjs`).
+  · Ciornele se văd în **Admin → „Piese noi din CSV"** (`/admin/piese-noi`, cu număr în meniu): link
+    la anunțul lor (operatorul ia pozele și descrierea din browserul LUI, pe care nu-l blochează) și
+    „Completează". Formularul completează singur categoria la deschidere și cere confirmare dacă
+    publici fără poze. Salvată publicată, piesa iese din listă. „Piese de completat" nu le mai arată.
+  · **Marcajul e `import_erori.ciorna = true`, într-o coloană jsonb EXISTENTĂ, nu o coloană nouă** —
+    ales intenționat: conectorul Supabase era deconectat, iar o coloană nouă ar fi stricat inserarea
+    până la rularea manuală a migrării. Filtrul REST: `import_erori->>ciorna=eq.true`. Dacă se
+    mută vreodată într-o coloană, se schimbă `construiesteCiorna`, `esteCiorna`, `/admin/piese-noi`,
+    meniul din `app/admin/layout.tsx`, `piese-de-completat` și `ProductForm`.
+  · Piesele vândute NU se șterg din bază, se depublică (`publicat = false`, `sursa_activ = false`):
+    dispar de pe site și de pe dez.ro (triggerul din migrarea 39), dar rămân legate de comenzile din
+    istoric, iar o piesă care reapare în CSV redevine activă. O ciornă vândută înainte de completare
+    iese singură din listă (lista cere `sursa_activ = true`).
+  · Verificat: `verifica-import.mjs` are 12 verificări pe ciorne (139 în total); o rulare pe uscat pe
+    baza reală a dat 0 pagini cerute, 2 ciorne, 2 prețuri actualizate.
 - **Importul din pieseauto.ro rulează din `/admin/import`**, în loturi cerute de browser, cu starea
   în `import_jobs` și fișierul CSV într-un bucket privat. Scriptul `scripts/import-pieseauto.mjs`
   rămâne, pentru rulări fără browser. AMÂNDOUĂ folosesc același motor, din `lib/import/` — nicio
@@ -1126,7 +1148,7 @@ Niciuna nu e dependință a site-ului și niciuna nu rulează la build. Se cheam
 | `verifica-vacanta.mjs` | după orice atingere a modului vacanță. **Rulează pe baza reală** și comută vacanța câteva secunde, apoi o lasă dezactivată. Verifică cele 7 puncte din sarcină: amprenta catalogului înainte/după ciclu, refuzul lui `plaseaza_comanda`, ordinea gărzii. Nu creează nicio comandă |
 | `verifica-seo.mjs` | **după orice modificare a metadatelor, a șabloanelor de titlu sau a datelor structurate.** Cere paginile de la un server care rulează (`BASE=…`) și verifică: titlu ≤ 65, descriere ≤ 165 și prezentă, **marca apare exact o dată în titlu**, descrieri unice, un singur `canonical`. Iese cu cod 1 dacă pică ceva |
 | `completeaza-oem.mjs` | **o singură dată**, ca să completeze `oem` și să repare descrierile tăiate ale pieselor importate ÎNAINTE de 7 septembrie 2026. Recitește pagina fiecărei piese (~2s), deci ~5 ore la 8.965 de piese; `--de-la=<id>` reia de unde a rămas, `--limita=N` face o probă. Doar raportează; scrie cu `--scrie` |
-| `verifica-import.mjs` | după orice modificare în `lib/import/`. 78 de verificări pe regulile importului — protecția de 20%, reluarea din poziția salvată, canarul, ce are voie să atingă un re-import. Fără rețea și fără bază de date: sursa și depozitul sunt false, deci se poate rula oricând |
+| `verifica-import.mjs` | după orice modificare în `lib/import/`. 139 de verificări pe regulile importului — protecția de 20%, reluarea din poziția salvată, canarul, ce are voie să atingă un re-import. Fără rețea și fără bază de date: sursa și depozitul sunt false, deci se poate rula oricând |
 | `scan-responsive.mjs` | după modificări de așezare. 19 pagini × 13 lățimi; `TEMA=luminos` schimbă tema. Cere `playwright-core` legat în `node_modules` — vezi antetul fișierului |
 | `reconverteste-poze.mjs` | **rar, la nevoie.** Trece în WebP pozele rămase JPEG în bucket. A fost scris fiindcă primele piese importate au ajuns JPEG, când `sharp` nu era încă instalat, iar `lib/import/imagini.mjs` urcă originalul dacă lipsește codecul. Dacă apar iar JPEG-uri în bucket, ori a picat `sharp`, ori conversia a preferat originalul (poză deja bine comprimată) — scriptul spune care din două. Idempotent, cu `--uscat` |
 | `verifica-feed.mjs` | **după orice modificare în `lib/feed.ts` sau `lib/feed-formate.ts`.** Cere feed-urile de la un server care rulează (`BASE=…`) și verifică regulile Google (id ≤ 50 și unic, titlu ≤ 150, descriere ≤ 5.000, link și imagine absolute, preț `123.45 RON`, disponibilitate și stare din listele închise), antetul CSV-ului Meta și — cel mai important — că **cele două feed-uri conțin exact aceleași id-uri**. Iese cu cod 1 dacă pică ceva |

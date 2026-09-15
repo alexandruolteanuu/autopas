@@ -32,6 +32,10 @@ export default function ProductForm({ produs }: { produs?: Product }) {
   const [artAtins, setArtAtins] = useState(!!produs);
   const [sugestie, setSugestie] = useState<{ stare: "" | "caut" | "gata"; text: string[] }>({ stare: "", text: [] });
   const titluSugerat = useRef("");
+  // Ciornă = piesă nouă din sincronizarea CSV (lib/import/rand.mjs): nepublicată,
+  // fără poze și descriere. Formularul e locul unde se completează și se publică.
+  const esteCiorna = produs?.import_erori?.ciorna === true;
+  const ciornaCompletata = useRef(false);
 
   useEffect(() => {
     const sb = sbBrowser(); if (!sb) return;
@@ -109,9 +113,20 @@ export default function ProductForm({ produs }: { produs?: Product }) {
     setSugestie({ stare: "gata", text: facute });
   }
 
+  // La o ciornă, câmpurile goale (categoria, subcategoria, ilustrația) se completează
+  // singure la deschidere: operatorul vine aici tocmai ca s-o termine.
+  useEffect(() => {
+    if (!esteCiorna || ciornaCompletata.current || !models.length || !cats.length || !produs) return;
+    ciornaCompletata.current = true;
+    completeazaDinTitlu(produs.nume, true);
+  }, [esteCiorna, models.length, cats.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function salveaza(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault(); setMsg(""); setSalvez(true);
+    e.preventDefault(); setMsg("");
     const f = new FormData(e.currentTarget); const sb = sbBrowser()!;
+    if (esteCiorna && f.get("publicat") === "on" && !poze.length
+        && !confirm("Piesa n-are nicio poză. O publici așa pe site?")) return;
+    setSalvez(true);
     const nume = String(f.get("nume"));
     const date = {
       nume, oem: String(f.get("oem") || "") || null,
@@ -136,6 +151,10 @@ export default function ProductForm({ produs }: { produs?: Product }) {
       stoc: Number(f.get("stoc") || 1),
       publicat: f.get("publicat") === "on",
       stare_nota: String(f.get("descriere") || "") || null,
+      // O ciornă publicată nu mai e ciornă: iese din „Piese noi din CSV". Nepublicată,
+      // rămâne acolo, cu ce s-a completat până acum.
+      ...(esteCiorna && f.get("publicat") === "on"
+        ? { import_erori: { revizuire: produs?.import_erori?.revizuire ?? [] } } : {}),
     };
     let eroare: string | undefined;
     if (produs) {
@@ -162,6 +181,13 @@ export default function ProductForm({ produs }: { produs?: Product }) {
           <Link href="/admin/produse" className="text-sm text-mut hover:text-acc">← Produse</Link>
           <h1 className="font-disp font-bold text-2xl">{produs ? "Editează piesa" : "Adaugă o piesă nouă"}</h1>
           {produs?.cod_intern && <span className="text-sm text-mut">Cod intern: <b>{produs.cod_intern}</b></span>}
+          {esteCiorna && (
+            <div className="mt-2 rounded-lg border-2 border-amber-300 bg-amber-50 px-3 py-2 text-sm max-w-2xl">
+              <b>Piesă nouă din CSV — încă nu e pe site.</b> Adaugă pozele și descrierea
+              {produs?.sursa_url && <> (le găsești în <a href={produs.sursa_url} target="_blank" rel="noopener noreferrer" className="text-acc font-semibold">anunțul de pe pieseauto.ro ↗</a>)</>},
+              verifică ce s-a completat din titlu, bifează „Publicată pe site" și salvează.
+            </div>
+          )}
         </div>
         <div className="flex gap-2">
           <Link href="/admin/produse" className="rounded-xl border-2 border-line px-4 py-2 text-sm font-semibold">Renunț</Link>

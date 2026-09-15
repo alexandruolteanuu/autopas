@@ -18,6 +18,12 @@
 //   lot            — procesează următoarea felie și întoarce progresul
 //   pauza / reia / anuleaza — comenzi asupra jobului
 //   reia-esecuri   — job nou, doar cu rândurile care au eșuat
+//
+// SINCRONIZAREA FĂRĂ PAGINI (`faraPagini`, implicită din 15 septembrie 2026)
+// pieseauto.ro blochează cererile de pagini. În modul ăsta nu li se cere nimic:
+// prețurile se actualizează din CSV, piesele lipsă se depublică, iar piesele noi
+// intră ca CIORNE nepublicate (fără poze și descriere), listate în
+// Admin → „Piese noi din CSV". Vezi `construiesteCiorna` din lib/import/rand.mjs.
 // ============================================================
 import { NextResponse } from "next/server";
 import { esteEchipa } from "@/lib/supabase";
@@ -102,7 +108,7 @@ async function previzualizare(depozit: any, corp: any) {
   if (problema) return eroare(problema);
 
   const existente = await depozit.citesteToateDeLaSursa(SURSA);
-  const plan = planifica(randuri, existente);
+  const plan = planifica(randuri, existente, { faraPagini: corp.faraPagini !== false });
 
   return raspuns({
     ok: true,
@@ -139,8 +145,9 @@ async function start(depozit: any, corp: any) {
   const activ = await depozit.jobActiv(SURSA);
   if (activ) return eroare(`Există deja un import ${activ.status === "in_pauza" ? "în pauză" : "în curs"} (#${activ.id}, ${activ.procesate} din ${activ.total}). Continuă-l sau anulează-l înainte de a porni altul.`, 409);
 
+  const faraPagini = corp.faraPagini !== false;
   const existente = await depozit.citesteToateDeLaSursa(SURSA);
-  const plan = planifica(randuri, existente);
+  const plan = planifica(randuri, existente, { faraPagini });
   const depublica = corp.depublica !== false;
 
   // Protecția anti-fișier-trunchiat (A.3.2). Sub prag se aplică fără întrebări;
@@ -163,8 +170,10 @@ async function start(depozit: any, corp: any) {
     erori: [],
     cale_csv: cale,
     nume_fisier: String(corp.numeFisier ?? "feed.csv").slice(0, 200),
-    optiuni: { depublica, confirmatTrunchiat: !!corp.confirmatTrunchiat },
-    jurnal: [{ la: acum, text: `Import pornit · ${randuri.length} rânduri în fișier · ${plan.noi.length} piese noi de descărcat` }],
+    optiuni: { depublica, confirmatTrunchiat: !!corp.confirmatTrunchiat, fara_pagini: faraPagini },
+    jurnal: [{ la: acum, text: faraPagini
+      ? `Sincronizare pornită (fără pagini) · ${randuri.length} rânduri în fișier · ${plan.noi.length} piese noi intră ca ciorne de completat`
+      : `Import pornit · ${randuri.length} rânduri în fișier · ${plan.noi.length} piese noi de descărcat` }],
     inceput_la: acum,
     actualizat_la: acum,
   });
@@ -206,6 +215,8 @@ async function lot(depozit: any, corp: any) {
 
   const rez = await proceseazaRanduri({
     depozit, randuri: felie, taxonomie,
+    // Joburile vechi n-au opțiunea: ele au pornit ca import complet, cu pagini.
+    faraPagini: job.optiuni?.fara_pagini === true,
     canar: { total: job.canar_total ?? 0, faraPoze: job.canar_fara_poze ?? 0 },
     bugetMs: BUGET_MS, maxPagini: LOT_PAGINI, maxRanduri: LOT_RANDURI,
     laProgres: (ev: any) => {
@@ -266,7 +277,7 @@ async function incheie(depozit: any, job: any, randuri: any[]) {
 
   const jurnal = [...(job.jurnal ?? []), {
     la: acum,
-    text: `Import încheiat · ${job.noi} piese noi · ${job.actualizate} actualizate · ${disparute} depublicate · ` +
+    text: `${job.optiuni?.fara_pagini ? "Sincronizare încheiată" : "Import încheiat"} · ${job.noi} piese noi${job.optiuni?.fara_pagini ? " (ciorne de completat)" : ""} · ${job.actualizate} actualizate · ${disparute} depublicate · ` +
           `${job.poze_salvate ?? 0} poze (${((Number(job.octeti_poze ?? 0)) / 1024 / 1024).toFixed(1)} MB)`,
   }];
 
@@ -313,7 +324,7 @@ async function reiaEsecuri(depozit: any, corp: any) {
     cale_csv: vechi.cale_csv,
     nume_fisier: vechi.nume_fisier,
     // Fără depublicare: fișierul e complet, dar jobul ăsta atinge doar o parte din el.
-    optiuni: { depublica: false, doar_ids: ids },
+    optiuni: { depublica: false, doar_ids: ids, fara_pagini: vechi.optiuni?.fara_pagini === true },
     jurnal: [{ la: acum, text: `Reluare: ${ids.length} rânduri eșuate la importul #${vechi.id}` }],
     inceput_la: acum, actualizat_la: acum,
   });

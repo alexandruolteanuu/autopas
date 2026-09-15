@@ -24,6 +24,8 @@
 //   --depublica     depublică piesele care nu mai apar în feed (doar la feed complet)
 //   --forteaza      trece peste protecția de 20% la depublicare
 //   --json=CALE     scrie rezultatul brut într-un fișier
+//   --fara-pagini   sincronizare doar din CSV: nicio cerere la pieseauto.ro; piesele
+//                   noi intră nepublicate, ca ciorne în „Piese noi din CSV"
 // ============================================================
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
@@ -46,6 +48,7 @@ const RELUARE = !!arg("reia");
 const DEPUBLICA = !!arg("depublica");
 const FORTEAZA = !!arg("forteaza");
 const CALE_JSON = arg("json");
+const FARA_PAGINI = !!arg("fara-pagini");
 const CALE_STARE = "import/stare.json";
 
 if (!CALE_FEED) {
@@ -96,10 +99,12 @@ async function main() {
 
   // ---------- planul, calculat doar din CSV și din bază ----------
   const existente = await depozit.citesteToateDeLaSursa(SURSA);
-  const plan = planifica(lista, existente);
+  const plan = planifica(lista, existente, { faraPagini: FARA_PAGINI });
   console.log(`\nPLAN`);
   console.log(`  în bază de la sursă      ${plan.inBaza}`);
-  console.log(`  noi (cer descărcare)     ${plan.noi.length}  ≈ ${plan.minuteEstimate < 1 ? "sub un minut" : plan.minuteEstimate + " minute"}`);
+  console.log(FARA_PAGINI
+    ? `  noi (ciorne din CSV)     ${plan.noi.length}  instant, nepublicate`
+    : `  noi (cer descărcare)     ${plan.noi.length}  ≈ ${plan.minuteEstimate < 1 ? "sub un minut" : plan.minuteEstimate + " minute"}`);
   console.log(`  de actualizat (preț)     ${plan.deActualizat.length}  instant`);
   console.log(`  neschimbate              ${plan.neschimbate}`);
   console.log(`  dispărute din feed       ${plan.disparute.length}  (${(plan.procentDisparute * 100).toFixed(1)}%)`);
@@ -115,7 +120,7 @@ async function main() {
   const taxonomie = await depozit.citesteTaxonomia();
   let i = 0;
   const rez = await proceseazaRanduri({
-    depozit, randuri: deFacut, taxonomie, uscat: USCAT,
+    depozit, randuri: deFacut, taxonomie, uscat: USCAT, faraPagini: FARA_PAGINI,
     laProgres: (ev) => {
       i++;
       const cap = `[${i}/${deFacut.length}] ${ev.rand.ID} `;

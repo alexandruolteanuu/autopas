@@ -57,6 +57,9 @@ export default function ImportPieseauto() {
   const [fisier, setFisier] = useState<{ nume: string; text: string } | null>(null);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [depublica, setDepublica] = useState(true);
+  // Sincronizarea fără pagini e modul implicit (15 septembrie 2026): pieseauto.ro
+  // blochează cererile de pagini, deci piesele noi intră ca ciorne de completat.
+  const [faraPagini, setFaraPagini] = useState(true);
   const [job, setJob] = useState<Job | null>(null);
   const [istoric, setIstoric] = useState<Job[]>([]);
   const [lucru, setLucru] = useState(false);
@@ -155,7 +158,7 @@ export default function ImportPieseauto() {
   async function previzualizeaza() {
     if (!fisier || lucru) return;
     setLucru(true); setMsg("");
-    const j = await cere({ actiune: "previzualizare", csv: fisier.text });
+    const j = await cere({ actiune: "previzualizare", csv: fisier.text, faraPagini });
     setLucru(false);
     if (!j.ok) { setMsg(j.eroare); return; }
     setPlan(j.plan);
@@ -167,7 +170,7 @@ export default function ImportPieseauto() {
     setLucru(true); setMsg(""); setConfirmare(null);
     const j = await cere({
       actiune: "start", csv: fisier.text, numeFisier: fisier.nume,
-      depublica, confirmatTrunchiat,
+      depublica, confirmatTrunchiat, faraPagini,
     });
     setLucru(false);
     if (!j.ok) {
@@ -211,15 +214,15 @@ export default function ImportPieseauto() {
     <div className="space-y-4">
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 className="font-disp font-bold text-xl">Import din pieseauto.ro</h1>
+          <h1 className="font-disp font-bold text-xl">Sincronizare cu pieseauto.ro</h1>
           <p className="text-sm text-mut mt-1 max-w-2xl">
-            Încarcă feed-ul complet exportat din pieseauto.ro. Piesele noi se descarcă de la sursă,
-            cu poze, și intră publicate pe site. Prețurile pieselor deja importate se actualizează
-            instant, din fișier. Piesele care nu mai apar în feed se depublică.
+            Încarci CSV-ul exportat din pieseauto.ro, așa cum e. Prețurile se actualizează, piesele
+            care nu mai sunt în fișier (vândute) dispar de pe site, iar piesele noi apar în
+            „Piese noi din CSV", unde le pui poza și descrierea și le publici.
           </p>
         </div>
-        <Link href="/admin/piese-de-completat" className="rounded-lg border-2 border-line px-3 py-2 text-sm font-semibold hover:border-acc">
-          Piese de completat
+        <Link href="/admin/piese-noi" className="rounded-lg border-2 border-line px-3 py-2 text-sm font-semibold hover:border-acc">
+          Piese noi din CSV
         </Link>
       </div>
 
@@ -380,6 +383,21 @@ export default function ImportPieseauto() {
             </p>
           </div>
 
+          {/* Modul. Sincronizarea nu cere nicio pagină de la pieseauto.ro, deci nu
+              poate fi blocată. Importul complet rămâne pentru ziua în care nu blochează. */}
+          <div className="grid sm:grid-cols-2 gap-2 text-sm">
+            <label className={`rounded-lg border-2 p-3 cursor-pointer ${faraPagini ? "border-acc bg-acc/5" : "border-line"}`}>
+              <input type="radio" name="mod" checked={faraPagini} onChange={() => { setFaraPagini(true); setPlan(null); }} className="mr-2" />
+              <b>Sincronizare (recomandat)</b>
+              <span className="block text-xs text-mut mt-1">Doar din CSV, în câteva secunde. Piesele noi intră nepublicate, de completat cu poze și descriere.</span>
+            </label>
+            <label className={`rounded-lg border-2 p-3 cursor-pointer ${!faraPagini ? "border-acc bg-acc/5" : "border-line"}`}>
+              <input type="radio" name="mod" checked={!faraPagini} onChange={() => { setFaraPagini(false); setPlan(null); }} className="mr-2" />
+              <b>Import complet cu poze</b>
+              <span className="block text-xs text-mut mt-1">Descarcă pagina fiecărei piese noi de pe pieseauto.ro. Ei îl pot bloca.</span>
+            </label>
+          </div>
+
           {fisier && !plan && (
             <button onClick={previzualizeaza} disabled={lucru}
               className="rounded-lg bg-acc text-white px-5 min-h-[44px] text-sm font-bold disabled:opacity-40">
@@ -404,8 +422,10 @@ export default function ImportPieseauto() {
                 <div className="rounded-lg border-2 border-acc p-3">
                   <div className="font-disp font-bold text-lg text-acc">{plan.noi} noi</div>
                   <div className="text-xs text-mut">
-                    necesită descărcarea paginii și a pozelor ·{" "}
-                    {plan.minuteEstimate < 1 ? "sub un minut" : `~${plan.minuteEstimate} minute`}
+                    {faraPagini
+                      ? "intră nepublicate în „Piese noi din CSV”, de completat cu poze și descriere"
+                      : <>necesită descărcarea paginii și a pozelor ·{" "}
+                        {plan.minuteEstimate < 1 ? "sub un minut" : `~${plan.minuteEstimate} minute`}</>}
                   </div>
                   {plan.exempleNoi.length > 0 && (
                     <ul className="mt-2 text-[11px] text-mut space-y-0.5">
@@ -423,9 +443,10 @@ export default function ImportPieseauto() {
               <label className="flex items-start gap-2 text-sm cursor-pointer">
                 <input type="checkbox" checked={depublica} onChange={(e) => setDepublica(e.target.checked)} className="w-4 h-4 mt-0.5" />
                 <span>
-                  Depublică cele <b>{plan.disparute}</b> piese care nu mai apar în feed ({plan.procentDisparute}%)
+                  Scoate de pe site cele <b>{plan.disparute}</b> piese care nu mai apar în fișier ({plan.procentDisparute}%)
                   <span className="block text-xs text-mut">
-                    Rândurile rămân în bază, cu istoricul lor — se sting doar de pe site.
+                    Dispar de pe site și de pe dez.ro. Rândurile rămân în bază, cu comenzile lor din istoric,
+                    iar dacă o piesă reapare în fișier, se reactivează.
                   </span>
                 </span>
               </label>
@@ -441,7 +462,7 @@ export default function ImportPieseauto() {
               <div className="flex gap-2 flex-wrap">
                 <button onClick={() => porneste(false)} disabled={lucru}
                   className="rounded-lg bg-acc text-white px-5 min-h-[44px] text-sm font-bold disabled:opacity-40">
-                  {lucru ? "Se pornește…" : "Pornește importul"}
+                  {lucru ? "Se pornește…" : faraPagini ? "Pornește sincronizarea" : "Pornește importul"}
                 </button>
                 <button onClick={() => { setPlan(null); setFisier(null); }}
                   className="rounded-lg border-2 border-line px-4 min-h-[44px] text-sm font-semibold hover:border-acc">

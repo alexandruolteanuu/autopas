@@ -23,6 +23,10 @@ export type Product  = {
   cost_lei?: number | null; vizualizari?: number; subcategorie_id?: number | null; cod_intern?: string | null;
   originala?: boolean; poze?: string[] | null; created_at?: string;
   categories?: Category | null; vehicles?: Vehicle | null;
+  // Proveniența din pieseauto.ro. `import_erori.ciorna` = piesă nouă din sincronizarea
+  // CSV, nepublicată, fără poze și descriere (lib/import/rand.mjs, „Piese noi din CSV").
+  sursa?: string | null; sursa_url?: string | null;
+  import_erori?: { ciorna?: boolean; revizuire?: string[] } | null;
 };
 // `poza` = prima poză a piesei, memorată în coș ca să nu fie nevoie de o
 // interogare pentru fiecare rând la fiecare afișare a coșului.

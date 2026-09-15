@@ -41,3 +41,10 @@ plus.
 
 Orice regulă nouă de import se scrie **aici**. Dacă te trezești copiind cod din
 `scripts/` în `app/api/`, sau invers, e semn că locul lui e în modulul comun.
+
+## Sincronizarea fără pagini
+
+Din 15 septembrie 2026, modul implicit nu mai cere nicio pagină de la pieseauto.ro
+(ne blochează): `proceseazaRanduri({ faraPagini: true })`. Piesele noi intră ca
+ciorne nepublicate (`construiesteCiorna` din `rand.mjs`, marcaj `import_erori.ciorna`)
+și se completează din Admin → „Piese noi din CSV". Scriptul: `--fara-pagini`.

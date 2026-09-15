@@ -737,5 +737,37 @@ sectiune("14. Descrierea întreagă și codul piesei");
   cer("descriere goală => null", codOem(null) === null);
 }
 
+// ============================================================
+// SINCRONIZAREA FĂRĂ PAGINI (15 septembrie 2026)
+// pieseauto.ro blochează cererile de pagini. Piesele noi intră ca ciorne din CSV,
+// fără NICIO cerere către ei, iar restul importului rămâne neschimbat.
+// ============================================================
+sectiune("Sincronizarea fără pagini (ciorne din CSV)");
+{
+  const feed = feedFals(3);
+  // piesa 1 există deja, cu alt preț; 2 și 3 sunt noi
+  const dep = depozitFals([{ id: 1, sursa_id: "1", nume: feed[0].Titlu, pret_lei: 300, editat_manual: false, publicat: true, sursa_activ: true }]);
+  let cereriSursa = 0;
+  const rez = await proceseazaRanduri({
+    depozit: dep, randuri: feed, taxonomie: taxonomieFalsa, faraPagini: true,
+    adu: async () => { cereriSursa++; return { ok: false, eroare: "n-are voie" }; },
+    pauza: async () => {},
+  });
+  cer("nicio cerere către pieseauto.ro", cereriSursa === 0, `${cereriSursa} cereri`);
+  cer("piesele noi intră ca ciorne", rez.noi === 2 && dep.scrise.inserate.length === 2, JSON.stringify(rez));
+  cer("prețul piesei existente se actualizează tot din CSV", rez.actualizate === 1 && dep.scrise.actualizate[0]?.patch.pret_lei === 350);
+  const c = dep.scrise.inserate[0];
+  cer("ciorna e NEPUBLICATĂ", c.publicat === false);
+  cer("ciorna e marcată `import_erori.ciorna`", c.import_erori?.ciorna === true);
+  cer("ciorna n-are poze și n-are descriere", Array.isArray(c.poze) && !c.poze.length && c.stare_nota === null);
+  cer("titlul și prețul vin din CSV", c.nume === feed[1].Titlu && c.pret_lei === 350);
+  cer("sursa rămâne legată (pentru depublicare la vânzare)", c.sursa === "pieseauto.ro" && c.sursa_id === "2" && c.sursa_activ === true);
+  cer("modelul se deduce din titlu, cu regulile importului", c.model_ids?.[0] === 10, JSON.stringify(c.model_ids));
+  cer("anii se deduc din titlu", c.ani === "2008", String(c.ani));
+  cer("slug unic, cu ID-ul sursei", c.slug.endsWith("-2"));
+  cer("planul fără pagini nu estimează minute de descărcare",
+    planifica(feed, [], { faraPagini: true }).minuteEstimate === 0);
+}
+
 console.log(`\n=== ${treceri} verificări trec · ${picate} pică ===`);
 if (picate) process.exit(1);

@@ -75,6 +75,8 @@ export default function PieseDeCompletat() {
     let query = sb.from("products").select("*", { count: "exact" })
       .not("sursa", "is", null)
       .or("poze.eq.{},categorie_id.is.null,greutate_estimata.eq.true,model_ids.eq.{},publicat.eq.false")
+      // Ciornele din sincronizarea CSV au rubrica lor, „Piese noi din CSV".
+      .or("import_erori.is.null,import_erori->>ciorna.is.null")
       .order("created_at", { ascending: false }).limit(500);
     // Aceeași căutare pe cuvinte ca în Produse și pe site (`tipareCautare`).
     for (const tipar of tipareCautare(q)) query = query.filter("cautare", "imatch", tipar);
