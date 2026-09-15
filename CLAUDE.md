@@ -162,6 +162,12 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
     Nu mai e o sarcină de pregătire, e una restantă.
   · Pașii, scriși pe îndelete: **`docs/email.md`**. Codul de trimitere e gata și așteaptă
     doar cheia din Admin → Integrări.
+- **pieseauto.ro — de trimis adresa `https://autopas-dezmembrari.ro/feed/pieseauto.csv`** (15
+  septembrie 2026) și de confirmat cu ei, ÎNAINTE de importul zilnic: (1) importul leagă după ID-ul
+  anunțului existent sau creează anunțuri noi? — dacă le dublează, se face întâi proba cu `?test=5`;
+  (2) ce fac cu cantitatea 0 (ascund / șterg); (3) ce fac cu un rând care lipsește din fișier
+  (o piesă ȘTEARSĂ din bază dispare din fișier — de preferat vândută, cu stoc 0, nu ștearsă);
+  (4) categoria trebuie să fie exact numele lor.
 - ~~Contul FAN Courier~~ — **REZOLVAT la 15 septembrie 2026.** Client ID 7108882, utilizatorul
   `pieseautopas`, parola în `settings.integrari.fancourier`. Testat pe contul REAL: un AWB de
   verificare (7000166182434, ramburs 1 leu) a ieșit cu expeditorul „PIESE AUTO PAS SRL", serviciul
@@ -177,6 +183,37 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
   · Pașii, în ordine: **`docs/dez.ro.md`**.
 
 ## Decizii deja luate (nu le schimba fără să întrebi)
+- **SITE-UL E SURSA: pieseauto.ro importă zilnic din `/feed/pieseauto.csv`** (15 septembrie 2026,
+  cerut de proprietar, după instrucțiunile pieseauto.ro). Piesele se pun întâi pe site; dez.ro le
+  primește prin coada automată (migrarea 39), pieseauto.ro prin fișierul ăsta. Tot conținutul și
+  regulile: `lib/feed-pieseauto.ts`. Raportul: Admin → Feed și export (`/api/feed-pieseauto`).
+  · **Formatul lor** (verificat pe `exemplu-import-piese.csv`): fără antet, `;`, ghilimele dublate,
+    CRLF, 8 coloane — ID (întreg 64 biți ≠ 0) · titlu · categorie · descriere HTML · RON · preț ·
+    cantitate · poze separate prin `[,]`. Un singur fișier cu tot.
+  · **ID-ul**: piesele venite de la ei trimit `sursa_id` (ID-ul anunțului lor, 243.160 … 2,1 mld.),
+    ca importul să nu dubleze cele ~8.800 de anunțuri existente; cele create pe site trimit
+    1.000.000.000.000 + `products.id` — plajă în care un ID de-al lor nu poate cădea. NU se schimbă
+    niciodată formula: un ID schimbat = anunț nou la ei.
+  · **Categoria e textul categoriei LOR** (`taxonomie-sursa.mjs`), în trepte: (1) categoria din
+    adresa anunțului original (8.785 de piese); (2) maparea măsurată subcategorie → categoria-sursă
+    cea mai frecventă, recalculată la fiecare generare; (3) nume identic; (4) categoria cea mai
+    apropiată după cuvinte, preferând grupa care corespunde părintelui nostru („Stop stânga" →
+    „Stopuri"); (5) numele nostru, numărat în panou ca „nerecunoscut". Măsurat la generare: toate
+    cele 290 de categorii din fișier există în catalogul lor.
+  · **Cantitatea**: `stoc` dacă piesa e publicată și are stoc, altfel 0. Vândutele și ascunsele
+    PLEACĂ cu 0 (113 la generare), nu lipsesc: nu știm dacă importul lor șterge rândurile lipsă.
+    Citirea se face cu `sbAdmin`, fiindcă anonimul nu vede piesele ascunse.
+  · **Ciornele NU pleacă** (`import_erori.ciorna`): n-au poze și descriere și ar goli anunțurile lor.
+  · **Pozele pleacă ca JPEG**, prin `/feed/poze/<cale din bucket>.jpg` (conversie cu `sharp`, cache
+    CDN un an). 20.147 din 20.220 sunt WebP în bucket, iar exemplul lor are `.jpg`. Ruta acceptă
+    doar căi din `poze-piese`, fără „..". Bara dublă din adresele vechi se scoate la scriere.
+  · **Textul**: backslash-ul se înlocuiește (escape în `fgetcsv`), caracterele de control se scot,
+    rândurile noi din descriere devin `<br>`/`<p>`. Fără link către site-ul nostru în descriere.
+  · **Verificat**: fișierul real citit cu `fgetcsv($f, 0, ';', '"')` din PHP — 8.804 rânduri, 8
+    coloane fiecare, 0 erori, ID-uri unice, 20.220 de poze `.jpg`, fără BOM, 6,7 MB, ~3 s.
+    `?test=5` dă 5 piese cu stoc și poze, pentru prima probă la ei.
+  · **Importul DIN pieseauto.ro e acum ascuns după o confirmare** (`/admin/import`): un CSV de la ei
+    are datele de ieri ale site-ului și ar suprascrie prețurile de azi.
 - **Căutarea pieselor e pe cuvinte, cu plural și sinonime, peste tot** (15 septembrie 2026,
   `tipareCautare` din `lib/format.ts`, folosită în `/piese`, Admin → Produse, Piese de completat
   și căutarea globală din admin). Adminul căuta tot textul ca un singur șir, deci „portiera skoda"

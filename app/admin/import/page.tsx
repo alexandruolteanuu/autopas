@@ -60,6 +60,7 @@ export default function ImportPieseauto() {
   // Sincronizarea fără pagini e modul implicit (15 septembrie 2026): pieseauto.ro
   // blochează cererile de pagini, deci piesele noi intră ca ciorne de completat.
   const [faraPagini, setFaraPagini] = useState(true);
+  const [stiuFluxul, setStiuFluxul] = useState(false);
   const [job, setJob] = useState<Job | null>(null);
   const [istoric, setIstoric] = useState<Job[]>([]);
   const [lucru, setLucru] = useState(false);
@@ -370,8 +371,29 @@ export default function ImportPieseauto() {
         </div>
       )}
 
+      {/* ===== Fluxul s-a întors (15 septembrie 2026) =====
+          Site-ul e acum sursa, iar pieseauto.ro importă zilnic din /feed/pieseauto.csv.
+          Un CSV exportat de la ei are datele de IERI ale site-ului nostru: încărcat aici,
+          ar suprascrie prețurile schimbate azi și ar scoate de pe site piesele create pe
+          site pe care ei încă nu le-au importat. Formularul rămâne, dar ascuns după o
+          confirmare explicită. */}
+      {!activ && !stiuFluxul && (
+        <div className="rounded-xl border-2 border-amber-400 bg-amber-50 p-4 text-sm space-y-2">
+          <b className="block">Nu mai e nevoie de importul din pieseauto.ro.</b>
+          <p>
+            De acum piesele se adaugă pe site, iar pieseauto.ro le preia singur, zilnic, din fișierul
+            din <a href="/admin/feed" className="text-acc font-semibold underline underline-offset-2">Feed și export</a>.
+            Un CSV descărcat de la ei are datele de ieri: încărcat aici, ar strica prețurile schimbate azi
+            și ar putea scoate de pe site piese pe care ei încă nu le au.
+          </p>
+          <button onClick={() => setStiuFluxul(true)} className="rounded-lg border-2 border-amber-400 px-3 min-h-[40px] text-xs font-bold bg-white">
+            Știu, vreau totuși să încarc un CSV de la ei
+          </button>
+        </div>
+      )}
+
       {/* ===== Fișier nou ===== */}
-      {!activ && (
+      {!activ && stiuFluxul && (
         <div className="card p-5 space-y-4">
           <div>
             <label className="block text-sm font-semibold mb-1">Fișierul CSV exportat din pieseauto.ro</label>

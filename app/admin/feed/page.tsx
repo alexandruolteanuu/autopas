@@ -24,6 +24,95 @@ import { csvGeneric, csvMeta, xmlGeneric, xmlGoogle } from "@/lib/feed-formate";
 
 type Cuprindere = "reclame" | "vandabile" | "tot";
 
+type RaportPieseauto = {
+  total_baza: number; trimise: number; in_stoc: number; cantitate_zero: number;
+  excluse_ciorne: number; excluse_fara_pret: number; fara_poze: number;
+  id_de_la_pieseauto: number; id_nou: number;
+  categorii: { anunt: number; mapare: number; nume: number; apropiata: number; neverificata: number };
+  neverificate: Record<string, number>;
+};
+
+/**
+ * pieseauto.ro importă zilnic din `/feed/pieseauto.csv` (15 septembrie 2026:
+ * site-ul nostru a devenit sursa). Cardul arată adresa de trimis la ei, adresa de
+ * probă și raportul fișierului, calculat pe server de ACELAȘI cod care îl scrie
+ * (lib/feed-pieseauto.ts), prin /api/feed-pieseauto.
+ */
+function CardPieseauto({ gazda, copiaza, copiat }: { gazda: string; copiaza: (t: string, c: string) => void; copiat: string }) {
+  const [r, setR] = useState<RaportPieseauto | null>(null);
+  const [eroare, setEroare] = useState("");
+  useEffect(() => {
+    (async () => {
+      const sb = sbBrowser();
+      const token = sb ? (await sb.auth.getSession()).data.session?.access_token : null;
+      const res = await fetch("/api/feed-pieseauto", { headers: { Authorization: `Bearer ${token ?? ""}` } });
+      const j = await res.json().catch(() => null);
+      if (j?.ok) setR(j.raport); else setEroare(j?.eroare ?? "Raportul nu s-a putut calcula.");
+    })();
+  }, []);
+  const adresa = `${gazda}/feed/pieseauto.csv`;
+  const test = `${gazda}/feed/pieseauto.csv?test=5`;
+  const camp = (val: string, cheie: string) => (
+    <div className="mt-2 flex gap-2">
+      <input readOnly value={val} onFocus={(e) => e.currentTarget.select()}
+        className="flex-1 min-w-0 rounded-lg border-2 border-line px-2.5 py-1.5 text-xs font-mono bg-paper" />
+      <button onClick={() => copiaza(val, cheie)}
+        className="rounded-lg border-2 border-line px-3 py-1.5 text-xs font-semibold hover:border-acc whitespace-nowrap">
+        {copiat === cheie ? "Copiat ✓" : "Copiază"}</button>
+    </div>
+  );
+  return (
+    <div className="card p-5 border-2 border-acc/40">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <b className="font-disp text-base">pieseauto.ro — import automat zilnic</b>
+          <p className="text-sm text-mut mt-1 max-w-3xl">
+            Site-ul e sursa: pieseauto.ro citește în fiecare zi fișierul de mai jos și își actualizează
+            anunțurile (preț, stoc, piese noi, piese vândute). Adresa se trimite o singură dată la pieseauto.ro,
+            care o alocă pe cont. Formatul lor: fără antet, „;", ID · titlu · categorie · descriere HTML ·
+            monedă · preț · cantitate · poze.
+          </p>
+        </div>
+        <a href="/feed/pieseauto.csv?test=5" target="_blank" rel="noreferrer" className="text-xs text-acc underline underline-offset-2 whitespace-nowrap">Deschide proba ↗</a>
+      </div>
+      <p className="text-xs text-steel mt-3">Adresa pentru importul zilnic:</p>
+      {camp(adresa, "pieseauto")}
+      <p className="text-xs text-steel mt-3">Adresa de probă (5 piese) — pentru primul import de test la ei:</p>
+      {camp(test, "pieseauto-test")}
+
+      {eroare && <p className="text-sm text-red-600 mt-3">{eroare}</p>}
+      {!r && !eroare && <p className="text-sm text-mut mt-3">Se calculează raportul fișierului…</p>}
+      {r && (
+        <div className="mt-4 space-y-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-center">
+            {([
+              ["Piese în fișier", r.trimise],
+              ["Cu stoc (active la ei)", r.in_stoc],
+              ["Cantitate 0 (vândute/ascunse)", r.cantitate_zero],
+              ["Fără poze", r.fara_poze],
+            ] as [string, number][]).map(([t, n]) => (
+              <div key={t} className="rounded-lg bg-paper p-2.5">
+                <b className="font-disp text-lg">{n.toLocaleString("ro-RO")}</b>
+                <span className="block text-[11px] text-mut">{t}</span>
+              </div>
+            ))}
+          </div>
+          <ul className="text-xs text-mut space-y-1">
+            <li><b className="text-ink">ID-uri:</b> {r.id_de_la_pieseauto.toLocaleString("ro-RO")} păstrează ID-ul anunțului lor (piese venite de la ei) ·{" "}
+              {r.id_nou.toLocaleString("ro-RO")} create pe site, cu ID din plaja 1.000.000.000.000+.</li>
+            <li><b className="text-ink">Categoria lor:</b> {r.categorii.anunt.toLocaleString("ro-RO")} din anunțul original ·{" "}
+              {r.categorii.mapare} din maparea subcategoriei · {r.categorii.nume} după nume ·{" "}
+              {r.categorii.apropiata} după categoria cea mai apropiată
+              {r.categorii.neverificata > 0 && <> · <b className="text-red-600">{r.categorii.neverificata} nerecunoscute</b> ({Object.entries(r.neverificate).map(([k, n]) => `${k}: ${n}`).join(", ")})</>}.</li>
+            <li><b className="text-ink">Neincluse:</b> {r.excluse_ciorne} ciorne din „Piese noi din CSV" (fără poze și descriere — ar goli anunțurile lor)
+              {r.excluse_fara_pret > 0 && <> · {r.excluse_fara_pret} fără preț</>}.</li>
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const FEEDURI = [
   { cale: "/feed/google.xml", nume: "Google Merchant Center",
     unde: "Merchant Center → Produse → Feeduri → Adaugă → „Preluare programată”",
@@ -188,6 +277,9 @@ export default function FeedExport() {
           </p>
         </div>
       )}
+
+      {/* ---------- PIESEAUTO.RO ---------- */}
+      <CardPieseauto gazda={gazda} copiaza={copiaza} copiat={copiat} />
 
       {/* ---------- ADRESELE ---------- */}
       <div>
