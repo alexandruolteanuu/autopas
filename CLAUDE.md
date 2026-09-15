@@ -451,27 +451,36 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
   · Verificat: `verifica-import.mjs` are 12 verificări pe ciorne (139 în total); o rulare pe uscat pe
     baza reală a dat 0 pagini cerute, 2 ciorne, 2 prețuri actualizate.
 - **Ciornele se completează din BROWSERUL operatorului, cu butonul „Preia în Autopas"** (15 septembrie
-  2026, cerut de proprietar; `app/admin/preia-anunt/page.tsx`, `app/api/preia-anunt/route.ts`, butonul
+  2026, cerut de proprietar; `app/api/preia-anunt/route.ts`, `app/admin/preia-anunt/page.tsx`, butonul
   generat de `codButon` în `/admin/piese-noi`). pieseauto.ro refuză serverul nostru („sorry" din prima
   cerere, verificat în aceeași zi pe AP-009045).
   · **NU le ocolim blocarea**: fără alt IP, proxy sau antete de browser — cerut explicit și refuzat.
-    Anunțul îl deschide omul, în browserul lui; un bookmarklet trimite prin `postMessage` HTML-ul
-    paginii și pozele (luate din browser, de pe aceeași pagină) către un tab nou `/admin/preia-anunt`.
-    Serverul nostru nu face NICIO cerere la pieseauto.ro.
+    Anunțul îl deschide omul, în browserul lui; butonul (bookmarklet) ia HTML-ul paginii și pozele de
+    acolo. Serverul nostru nu face NICIO cerere la pieseauto.ro.
+  · **Drumul datelor e PRIN SERVER, nu între taburi.** Prima variantă (`window.opener` + `postMessage`)
+    n-a primit nimic la proprietar: pieseauto.ro trimite `Cross-Origin-Opener-Policy: same-origin`
+    (verificat pe antetele lor), care taie legătura cu orice tab deschis de pe pagina lor. Acum butonul
+    deschide `/admin/preia-anunt#p=<cod aleator>` și trimite cu `fetch` + CORS (doar origini
+    `*.pieseauto.ro`) pagina, pozele și „gata" într-un depozit TEMPORAR, `import-csv/preluari/<cod>/`
+    (bucket privat); tabul întreabă serverul la 1,5 s, cu sesiunea echipei, arată ce a sosit, iar
+    „Preia și publică" completează piesa din depozit și îl golește. Depunerile mai vechi de o zi se
+    șterg la următoarea trimitere (momentul e în cod).
+  · **Cheia butonului** stă în `settings.integrari.preluare.cheie` (creată la 15 septembrie 2026; o
+    creează și ruta, la cererea echipei) și e scrisă în bookmarklet. Dă voie DOAR să depui date pentru
+    o ciornă existentă; scrierea piesei cere sesiunea echipei. Dacă se schimbă cheia, butoanele vechi
+    răspund „Butonul e vechi" și se trag din nou din „Piese noi din CSV".
   · **Aceleași reguli ca importul**: bucla din `proceseazaRanduri` a fost scoasă în `piesaDinPagina`
     (extragere, model, categorie, poze, `construiesteRand`) și `urcaPozaImport`, folosite de ambele.
-    `verifica-import.mjs` trece 139/139 după mutare. ID-ul anunțului din adresă: `idAnuntDinAdresa`.
-  · Gărzi: tabul primește mesaje DOAR de la fereastra care l-a deschis și doar de pe `*.pieseauto.ro`;
-    butonul răspunde doar site-ului nostru și dă doar poze de pe pieseauto.ro; ruta cere echipă,
-    verifică poza după octeți (≤ 4 MB, browserul micșorează ce e mai mare), cere ca ID-ul din adresă
-    ȘI din `og:url` să fie `sursa_id`-ul piesei și scrie doar dacă piesa e ÎNCĂ ciornă (condiție în
-    UPDATE). La salvare eșuată, pozele urcate se șterg (`renunta`).
-  · Piesa se publică doar dacă a primit cel puțin o poză; altfel rămâne ciornă, cu descrierea și
-    categoria puse. Tab nou la fiecare apăsare, intenționat: un tab refolosit ar păstra ca deschizător
-    anunțul de data trecută.
-  · Testat într-un Chromium de test cu pieseauto.ro și Supabase INTERCEPTATE (nicio cerere reală):
-    protocolul, refuzul adreselor străine, pagina reală de admin cap-coadă. NETESTAT pe un anunț real —
-    prima probă o face operatorul (de exemplu pe AP-009045).
+    `verifica-import.mjs` trece 139/139 după mutare. Lista pozelor o dă tot serverul (`extragePoze`);
+    butonul doar le aduce. ID-ul anunțului din adresă: `idAnuntDinAdresa`.
+  · Gărzi: poza verificată după octeți (≤ 4 MB, butonul micșorează ce e mai mare), ID-ul din adresă ȘI
+    din `og:url` = `sursa_id`-ul piesei, scriere doar dacă piesa e ÎNCĂ ciornă (condiție în UPDATE),
+    pozele urcate se șterg dacă salvarea pică. Se publică doar cu cel puțin o poză; altfel rămâne
+    ciornă, cu descrierea și categoria puse. Codul butonului se pune codificat în `href` și nu are
+    voie să conțină `%` (browserul decodează adresele `javascript:`).
+  · Testat: pagină falsă cu antetul COOP real al pieseauto.ro + serverul nostru real (next start) +
+    stocarea reală, apoi tabul cu API-ul simulat. NETESTAT încă pe un anunț real — prima probă o face
+    operatorul (AP-009045).
 - **Importul din pieseauto.ro rulează din `/admin/import`**, în loturi cerute de browser, cu starea
   în `import_jobs` și fișierul CSV într-un bucket privat. Scriptul `scripts/import-pieseauto.mjs`
   rămâne, pentru rulări fără browser. AMÂNDOUĂ folosesc același motor, din `lib/import/` — nicio

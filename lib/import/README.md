@@ -52,8 +52,8 @@ ciorne nepublicate (`construiesteCiorna` din `rand.mjs`, marcaj `import_erori.ci
 ## Preluarea din browser
 
 Tot din 15 septembrie 2026: ciornele își pot lua pozele și descrierea din browserul
-operatorului, cu butonul „Preia în Autopas" (`/admin/piese-noi` → `/admin/preia-anunt` →
-`app/api/preia-anunt`). Ruta nu cere nimic de la pieseauto.ro; primește pagina și pozele
+operatorului, cu butonul „Preia în Autopas" (`/admin/piese-noi` → `app/api/preia-anunt` →
+`/admin/preia-anunt`). Ruta nu cere nimic de la pieseauto.ro; primește pagina și pozele
 și cheamă `piesaDinPagina` + `urcaPozaImport` din `motor.mjs` — aceleași funcții pe care
 le folosește bucla importului clasic, deci piesa iese identică.
 

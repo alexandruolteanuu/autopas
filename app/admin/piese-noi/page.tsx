@@ -17,7 +17,8 @@
 //
 // Din 15 septembrie 2026 pașii 1–3 se fac dintr-un clic: butonul „Preia în Autopas"
 // (un bookmarklet pus o dată în bara de favorite) trimite pagina anunțului și pozele
-// din browserul operatorului către /admin/preia-anunt. Vezi `codButon` mai jos.
+// din browserul operatorului la /api/preia-anunt, iar /admin/preia-anunt le completează
+// în piesă. Vezi `codButon` mai jos.
 //
 // O ciornă care dispare din CSV înainte de a fi completată (vândută între timp)
 // iese singură din listă: sincronizarea îi pune `sursa_activ = false`.
@@ -38,29 +39,46 @@ type Ciorna = {
 /**
  * Codul butonului din bara de favorite („bookmarklet"). Rulează pe pagina anunțului
  * de pe pieseauto.ro, în browserul operatorului, și:
- *   · deschide `/admin/preia-anunt` într-un tab nou (tab nou la fiecare apăsare —
- *     un tab refolosit ar păstra ca „deschizător" anunțul de data trecută);
- *   · la „autopas-gata" venit de pe site-ul NOSTRU, răspunde cu adresa și HTML-ul paginii;
- *   · la „autopas-poza", ia poza cerută (doar de pe pieseauto.ro; e deja în memoria
- *     browserului, fiindcă pagina a afișat-o) și o trimite înapoi.
- * Nu ocolește nimic: e exact pagina pe care omul o vede. Regulile de extragere NU
- * sunt aici, ci în `lib/import/extragere.mjs`, rulate de tabul nostru.
+ *   · deschide `/admin/preia-anunt#p=<cod>` într-un tab nou, cu un cod aleator;
+ *   · trimite la `/api/preia-anunt` (fetch + CORS, cu cheia butonului) HTML-ul paginii,
+ *     primește înapoi lista pozelor (extrasă pe server, cu regula importului), le ia
+ *     din browser una câte una și le trimite, apoi anunță „gata";
+ *   · arată pe pagina anunțului, în colț, ce face și dacă a reușit.
+ * NU prin `window.opener`/`postMessage`: pieseauto.ro trimite
+ * `Cross-Origin-Opener-Policy: same-origin`, care taie legătura cu tabul deschis.
+ * Codul nu conține `%` și se pune în `href` codificat, ca browserul să nu-l strice.
  */
-function codButon(site: string) {
-  const S = JSON.stringify(site);
-  return "javascript:(function(){var S=" + S + ";" +
-    "if(!/(^|\\.)pieseauto\\.ro$/.test(location.hostname)){alert('Butonul merge doar pe o pagină de anunț de pe pieseauto.ro.');return}" +
-    "var w=window.open(S+'/admin/preia-anunt','_blank');" +
-    "if(!w){alert('Browserul a blocat tabul nou. Permite ferestrele pop-up pentru pieseauto.ro și apasă din nou.');return}" +
-    "if(window.__autopasPreia)return;window.__autopasPreia=1;" +
-    "window.addEventListener('message',function(e){if(e.origin!==S||!e.data||!e.source)return;var d=e.data,r=e.source;" +
-    "if(d.tip==='autopas-gata'){r.postMessage({tip:'autopas-anunt',url:location.href,html:document.documentElement.outerHTML},S)}" +
-    "else if(d.tip==='autopas-poza'){var t=function(m){r.postMessage({tip:'autopas-poza',k:d.k,i:d.i,eroare:m},S)},u;" +
-    "try{u=new URL(d.url,location.href)}catch(x){t('adresă greșită');return}" +
-    "if(!/(^|\\.)pieseauto\\.ro$/.test(u.hostname)){t('adresă din afara pieseauto.ro');return}" +
-    "fetch(u.href).then(function(x){if(!x.ok)throw new Error('HTTP '+x.status);return x.blob()})" +
-    ".then(function(b){r.postMessage({tip:'autopas-poza',k:d.k,i:d.i,blob:b},S)})" +
-    ".catch(function(x){t(String(x&&x.message||x))})}})})();";
+function codButon(site: string, cheie: string) {
+  const cod = `(function(){
+var S=${JSON.stringify(site)},K=${JSON.stringify(cheie)},A=S+'/api/preia-anunt';
+if(!/(^|\\.)pieseauto\\.ro$/.test(location.hostname)){alert('Butonul merge doar pe o pagină de anunț de pe pieseauto.ro.');return}
+var o=new Uint8Array(16);crypto.getRandomValues(o);
+var P=Date.now().toString(36)+'-'+Array.prototype.map.call(o,function(x){return x.toString(36)}).join('');
+var T=S+'/admin/preia-anunt#p='+P;
+var w=window.open(T,'_blank');
+var b=document.createElement('div');
+b.style.cssText='position:fixed;z-index:2147483647;top:12px;right:12px;max-width:380px;color:#fff;font:14px/1.45 system-ui,sans-serif;padding:12px 14px;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.35);background:#111';
+document.body.appendChild(b);
+function m(t,c,l){b.textContent=t;b.style.background=c||'#111';if(l){var a=document.createElement('a');a.href=T;a.target='_blank';a.textContent=' Deschide tabul Autopas';a.style.cssText='color:#fff;font-weight:700;text-decoration:underline';b.appendChild(a)}}
+function cere(q,corp,tip){return fetch(A+'?actiune='+q+'&p='+P,{method:'POST',headers:{'x-autopas-cheie':K,'content-type':tip},body:corp}).then(function(x){return x.json().catch(function(){return{ok:false,eroare:'HTTP '+x.status}})}).then(function(j){if(!j.ok)throw new Error(j.eroare||'eroare necunoscută');return j})}
+function mic(x){if(x.size<=3500000)return x;return createImageBitmap(x).then(function(im){var f=Math.min(1,2000/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*f);c.height=Math.round(im.height*f);c.getContext('2d').drawImage(im,0,0,c.width,c.height);return new Promise(function(ok){c.toBlob(ok,'image/jpeg',0.88)})})}
+m('Autopas: se trimite anunțul…');
+var er=[],n=0;
+cere('trimite',JSON.stringify({url:location.href,html:document.documentElement.outerHTML}),'text/plain').then(function(j){
+var poze=j.poze||[];
+return poze.reduce(function(pr,u,i){return pr.then(function(){
+m('Autopas ('+j.piesa+'): poza '+(i+1)+' din '+poze.length+'…');
+var x;try{x=new URL(u,location.href)}catch(e){er.push('poza '+(i+1)+': adresă greșită');return}
+if(!/(^|\\.)pieseauto\\.ro$/.test(x.hostname)){er.push('poza '+(i+1)+': adresă din afara pieseauto.ro');return}
+return fetch(x.href).then(function(y){if(!y.ok)throw new Error('HTTP '+y.status);return y.blob()}).then(mic)
+.then(function(z){return cere('trimite-poza&i='+i,z,'application/octet-stream')}).then(function(){n++})
+.catch(function(e){er.push('poza '+(i+1)+': '+(e&&e.message||e))})})},Promise.resolve())
+.then(function(){return cere('trimite-gata',JSON.stringify({erori:er}),'text/plain')})
+.then(function(){m('✓ '+j.piesa+' trimisă la Autopas: '+n+' din '+poze.length+' poze'+(er.length?' ('+er.length+' cu probleme)':'')+'. Continuă în tabul Autopas.','#15803d',!w)})
+}).catch(function(e){m('✗ Autopas: '+(e&&e.message||e),'#b91c1c')});
+})();`;
+  if (cod.includes("%")) throw new Error("codul butonului nu are voie să conțină %");
+  return "javascript:" + encodeURIComponent(cod.replace(/\n/g, ""));
 }
 
 export default function PieseNoi() {
@@ -70,7 +88,21 @@ export default function PieseNoi() {
   // `href` pus din efect, nu din JSX: React avertizează la adrese `javascript:`,
   // iar adresa site-ului se află abia în browser (merge și pe localhost).
   const buton = useRef<HTMLAnchorElement>(null);
-  useEffect(() => { buton.current?.setAttribute("href", codButon(window.location.origin)); }, []);
+  const [butonGata, setButonGata] = useState<"" | "da" | string>("");
+  useEffect(() => {
+    // Cheia butonului o dă serverul, doar echipei; fără ea butonul n-are ce trimite.
+    (async () => {
+      const sb = sbBrowser(); if (!sb) return;
+      const token = (await sb.auth.getSession()).data.session?.access_token;
+      try {
+        const r = await fetch("/api/preia-anunt", { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ actiune: "buton" }) });
+        const j = await r.json();
+        if (!j.ok) throw new Error(j.eroare);
+        buton.current?.setAttribute("href", codButon(window.location.origin, j.cheie));
+        setButonGata("da");
+      } catch (e: any) { setButonGata(`Butonul nu s-a putut pregăti: ${e?.message ?? e}`); }
+    })();
+  }, []);
 
   const incarca = useCallback(async () => {
     const sb = sbBrowser(); if (!sb) return;
@@ -124,15 +156,19 @@ export default function PieseNoi() {
             pieseauto.ro blochează serverul nostru, dar nu browserul tău. Butonul de mai jos ia din anunțul deschis
             la tine pozele și descrierea și le pune în piesa potrivită, cu categoria și modelele completate ca la import.
           </p>
+          <p className="text-xs font-semibold">
+            Ai pus deja butonul înainte de 15 septembrie seara? Șterge-l din bara de favorite și trage-l din nou — varianta veche nu merge.
+          </p>
+          {butonGata && butonGata !== "da" && <p className="text-red-700">{butonGata}</p>}
           <div className="flex items-center gap-3 flex-wrap">
             <a ref={buton} onClick={(e) => { e.preventDefault(); alert("Nu-l apăsa aici: trage-l cu mouse-ul în bara de favorite a browserului."); }}
-              className="btn-acc cursor-grab select-none" draggable>⭳ Preia în Autopas</a>
+              className={`btn-acc cursor-grab select-none ${butonGata === "da" ? "" : "opacity-40 pointer-events-none"}`} draggable>⭳ Preia în Autopas</a>
             <span className="text-xs text-mut">← trage-l cu mouse-ul în bara de favorite (o singură dată)</span>
           </div>
           <ol className="list-decimal pl-5 space-y-1 max-w-2xl">
             <li>Dacă nu vezi bara de favorite: <b>Ctrl+Shift+B</b> (pe Mac <b>Cmd+Shift+B</b>).</li>
             <li>La o piesă de mai jos apasă „Vezi pe pieseauto.ro ↗".</li>
-            <li>Pe anunțul lor, apasă „Preia în Autopas" din bara de favorite. Se deschide un tab cu ce s-a găsit.</li>
+            <li>Pe anunțul lor, apasă „Preia în Autopas" din bara de favorite. În colțul paginii lor vezi cum se trimit pozele; se deschide și un tab Autopas care le așteaptă.</li>
             <li>Verifici și apeși „Preia și publică". De acolo, „Următorul anunț" te duce la piesa următoare.</li>
           </ol>
           <p className="text-xs text-mut">Dacă browserul spune că a blocat o fereastră pop-up, permite-le pentru pieseauto.ro.</p>
