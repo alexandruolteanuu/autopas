@@ -81,10 +81,9 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 45. `transport-incasat-de-fan.sql`
 Idempotente (se pot re-rula oricând): 6, 7, 9–45.
 NU sunt încă idempotente: 1–5, 8.
-**Aplicate pe producție: 1–44. 45 NU e aplicată** — se rulează DUPĂ ce codul din același commit e
-publicat (a fost rulată și apoi dată înapoi la 15 septembrie 2026, fiindcă build-ul și push-ul nu
-se puteau face în sesiune, iar codul vechi de pe site, cu `payment: "sender"`, ar fi generat AWB-uri
-cu transportul plătit de firmă și nerecuperat).
+**Aplicate pe producție: 1–45.** 45 a fost rulată la 15 septembrie 2026 abia DUPĂ ce codul din
+același commit (c45162c) a apărut pe site — rulată mai devreme, codul vechi, cu `payment: "sender"`,
+ar fi generat AWB-uri cu transportul plătit de firmă și nerecuperat.
 45 (15 septembrie 2026) înlocuiește `seteaza_cost_livrare` (copiată din producție): transportul se
 salvează în `orders.livrare`, dar NU mai intră în `orders.total` — îl încasează FAN direct de la
 client. Nu atinge comenzile vechi (2 au transportul inclus în total și rămân așa).
