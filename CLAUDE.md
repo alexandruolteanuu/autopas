@@ -161,8 +161,11 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
     Nu mai e o sarcină de pregătire, e una restantă.
   · Pașii, scriși pe îndelete: **`docs/email.md`**. Codul de trimitere e gata și așteaptă
     doar cheia din Admin → Integrări.
-- **Contul FAN Courier din Admin → Integrări e gol** (15 septembrie 2026): Client ID, utilizator,
-  parolă de pe selfawb.ro, apoi „Verifică conexiunea". Și ridicarea zilnică (vezi decizia AWB).
+- ~~Contul FAN Courier~~ — **REZOLVAT la 15 septembrie 2026.** Client ID 7108882, utilizatorul
+  `pieseautopas`, parola în `settings.integrari.fancourier`. Testat pe contul REAL: un AWB de
+  verificare (7000166182434, ramburs 1 leu) a ieșit cu expeditorul „PIESE AUTO PAS SRL", serviciul
+  Cont Colector cu IBAN-ul firmei, „Deschidere la livrare", transport plătit de expeditor, eticheta
+  PDF în 2 exemplare pe pagină (setarea contului lor), apoi a fost șters la FAN.
 - ~~Contul de pe dez.ro~~ — **REZOLVAT la 7 septembrie 2026.** Utilizatorul `autopas` și parola
   sunt în `settings.integrari.dezro`, integrarea e pornită, autentificarea verificată.
   · Adresa din profilul lor, pusă de proprietar: „Strada Bistritei 181, loc. Piatra-Neamț, jud.
@@ -251,8 +254,8 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
   · AWB-ul se scrie în comandă DE RUTĂ, imediat după răspunsul FAN — nu de browser. Dacă scrierea
     pică, ruta întoarce numărul, ca să nu existe un AWB la FAN necunoscut nouă.
   · Rămâne regula din 7 august: fără cost de livrare stabilit, AWB-ul nu se generează.
-  · **AWB-ul NU cheamă curierul.** Ridicarea se cere separat: comandă zilnică automată prin
-    comenzi@fancourier.ro, sau din selfawb.ro. Nu s-a construit buton de „comandă curier".
+  · **AWB-ul NU cheamă curierul, și nici nu trebuie**: firma lucrează de ani de zile cu FAN, iar
+    curierul vine zilnic la depozit. Decizie a proprietarului: fără buton de „comandă curier".
 - **Plata e EXCLUSIV ramburs la livrare** (decizie 7 septembrie 2026, care înlocuiește
   „butonul de card e vizibil, activarea vine cu procesatorul"). Cardul și transferul bancar
   au fost scoase din checkout, din FAQ, din subsolul care afișa „VISA · Mastercard" și din
