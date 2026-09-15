@@ -254,6 +254,19 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
   · AWB-ul se scrie în comandă DE RUTĂ, imediat după răspunsul FAN — nu de browser. Dacă scrierea
     pică, ruta întoarce numărul, ca să nu existe un AWB la FAN necunoscut nouă.
   · Rămâne regula din 7 august: fără cost de livrare stabilit, AWB-ul nu se generează.
+  · **Calculatorul de transport** (15 septembrie 2026, cerut de proprietar: „nu stabilesc eu costul").
+    Cardul „Livrare — FAN Courier" din comandă are trei pași: (1) colete + kg + dimensiuni →
+    „Calculează transportul" → prețul FAN defalcat (greutate, km suplimentari, combustibil,
+    deschidere colet, TVA) și totalul de plată; operatorul sună clientul; (2) „Clientul a acceptat"
+    → `seteaza_cost_livrare`, cu km suplimentari și deschiderea separat, cu TVA; (3) „Generează AWB"
+    cu aceleași kg/dimensiuni (avertisment dacă diferă de calcul). Suma pentru client rămâne
+    editabilă (rotunjire, 0 la ridicare personală). Cardul manual „Cost livrare" a fost scos.
+    Același calculator, fără comandă, stă în „Expedieri", pentru clientul care sună înainte să comande.
+  · Tariful vine din `GET /reports/awb/internal-tariff`, cu ACELAȘI serviciu și aceeași opțiune „A"
+    ca AWB-ul. Măsurat pe contul real: Cluj 5 kg 40×30×20 = 36,18 lei cu TVA; Broșteni (SV) +15 lei
+    km suplimentari; suma rambursului NU schimbă prețul. Cu ramburs, FAN cere `info[returnPayment]`.
+  · **Județul și localitatea pleacă fără diacritice** (`faraDiacritice`): tariful respinge
+    „Broșteni" ca localitate inexistentă și acceptă „Brosteni".
   · **AWB-ul NU cheamă curierul, și nici nu trebuie**: firma lucrează de ani de zile cu FAN, iar
     curierul vine zilnic la depozit. Decizie a proprietarului: fără buton de „comandă curier".
 - **Plata e EXCLUSIV ramburs la livrare** (decizie 7 septembrie 2026, care înlocuiește
@@ -292,9 +305,10 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
   alerta te prinde când ești. Decizia veche „fără e-mail, utilizatorul a refuzat Resend" a
   fost răsturnată de utilizator; furnizorul ales acum e Brevo, nu Resend.
 - **Costul livrării NU se afișează la checkout** (decizie 7 aug 2026). Piesele diferă prea mult ca
-  greutate și gabarit ca să existe un tarif fix. Clientul comandă doar produsele; echipa completează
-  în `/admin/comenzi/[id]` greutatea, dimensiunile, transportul de bază, km suplimentari și alte taxe,
-  iar funcția `seteaza_cost_livrare` recalculează totalul. Generarea AWB e blocată până atunci.
+  greutate și gabarit ca să existe un tarif fix. Clientul comandă doar produsele; echipa scrie în
+  `/admin/comenzi/[id]` coletele, kg și dimensiunile, iar **prețul îl calculează FAN** (vezi
+  „Calculatorul de transport" la decizia AWB). `seteaza_cost_livrare` recalculează totalul.
+  Generarea AWB e blocată până atunci.
   Costul se comunică telefonic + pe WhatsApp. E-mail automat: refuzat deocamdată.
 - **Prețurile și totalurile se calculează exclusiv pe server** (`plaseaza_comanda`). Browserul trimite
   doar id-urile pieselor. Nu adăuga niciodată `insert` direct în `orders`/`order_items` — politicile
