@@ -35,6 +35,11 @@ export default function Expedieri() {
     const kg = Number(o.awb_date?.greutate ?? o.livrare_greutate_kg);
     return kg > 0 ? `${kg} kg` : "—";
   };
+  // Rambursul = ce încasează curierul PENTRU NOI: cel declarat pe AWB, altfel valoarea
+  // pieselor. NU `total`: transportul îl încasează FAN direct (15 septembrie 2026), iar
+  // comenzile mai vechi au transportul inclus în total.
+  const ramburs = (o: OrderFull) => o.awb_date ? Number(o.awb_date.ramburs)
+    : Math.round((Number(o.subtotal) - Number(o.discount_valoare || 0)) * 100) / 100;
 
   function borderou() {
     const alese = orders.filter((o) => sel.includes(o.id));
@@ -54,7 +59,7 @@ export default function Expedieri() {
       ${alese.map((o, i) => `<tr><td>${i + 1}</td><td>${o.awb ?? "—"}</td><td>${o.numar}</td>
         <td>${o.firma ?? o.nume}<br><small>${o.telefon}</small></td><td>${o.oras}, ${o.judet}</td>
         <td>${numeCurier(o.curier)}</td><td>${greutate(o)}</td>
-        <td>${o.plata === "ramburs" ? Number(o.total).toFixed(2) + " lei" : "—"}</td></tr>`).join("")}</table>
+        <td>${o.plata === "ramburs" ? ramburs(o).toFixed(2) + " lei" : "—"}</td></tr>`).join("")}</table>
       <div class="semn"><span>Predat (Autopas): ______________________</span><span>Primit (curier): ______________________</span></div>
       </body></html>`);
     // Tipărirea o pornește `onload` din pagina scrisă mai sus, nu o chemăm aici:
@@ -136,7 +141,7 @@ export default function Expedieri() {
                 <td data-eticheta="Client" className="px-4 py-3">{o.firma ?? o.nume}<div className="text-[11px] text-mut">{o.oras}, {o.judet} · {o.telefon}</div></td>
                 <td data-eticheta="Curier" className="px-4 py-3">{numeCurier(o.curier)}</td>
                 <td data-eticheta="Greutate" className="px-4 py-3">{greutate(o)}</td>
-                <td data-eticheta="Ramburs" className="px-4 py-3">{o.plata === "ramburs" ? <b>{lei(Number(o.total))}</b> : <span className="text-mut">—</span>}</td>
+                <td data-eticheta="Ramburs" className="px-4 py-3">{o.plata === "ramburs" ? <b>{lei(ramburs(o))}</b> : <span className="text-mut">—</span>}</td>
               </tr>
             ))}
           </tbody>

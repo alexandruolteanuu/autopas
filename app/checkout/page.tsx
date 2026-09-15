@@ -239,7 +239,7 @@ export default function Checkout() {
           <p className="text-[12px] text-textSecundar text-center">Comanda se salvează securizat. Nu cerem date de card.</p>
           <p className="text-[12px] text-textSecundar text-center leading-relaxed">
             La suma de mai sus se adaugă transportul, pe care ți-l comunicăm telefonic
-            înainte de expediere.
+            înainte de expediere și îl plătești direct curierului, la livrare.
           </p>
           {/* Mențiunile legale obligatorii înainte de plasarea comenzii */}
           <p className="text-[12px] text-textSecundar text-center leading-relaxed">

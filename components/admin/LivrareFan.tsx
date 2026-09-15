@@ -108,9 +108,13 @@ export function CalculatorTransport() {
   );
 }
 
-type Props = { o: OrderFull; continut: string; laSchimbare: () => void; salveazaManual: (awb: string) => void };
+type Props = { o: OrderFull; laSchimbare: () => void; salveazaManual: (awb: string) => void };
 
-export default function LivrareFan({ o, continut, laSchimbare, salveazaManual }: Props) {
+// TRANSPORTUL ÎL ÎNCASEAZĂ FAN, NU FIRMA (decizia proprietarului, 15 septembrie 2026).
+// Operatorul calculează transportul și îl spune clientului, dar pe AWB rambursul e
+// DOAR valoarea pieselor, iar transportul îl plătește destinatarul direct la FAN
+// (`payment: "recipient"` în lib/fancourier.ts). Rubrica „Conținut" rămâne goală.
+export default function LivrareFan({ o, laSchimbare, salveazaManual }: Props) {
   const [L, l, h] = dimensiuni(o.livrare_dimensiuni);
   const [colet, setColet] = useState<Colet>({ colete: "1", greutate: o.livrare_greutate_kg ? String(o.livrare_greutate_kg) : "", lungime: L, latime: l, inaltime: h });
   const [adresaDeschisa, setAdresaDeschisa] = useState(false);
@@ -118,8 +122,9 @@ export default function LivrareFan({ o, continut, laSchimbare, salveazaManual }:
   const [tarif, setTarif] = useState<Tarif | null>(null);
   const [pret, setPret] = useState("");
   const [recalculez, setRecalculez] = useState(false);
-  const [continutAwb, setContinutAwb] = useState(continut);
   const [observatii, setObservatii] = useState("");
+  // După un refuz al FAN la ștergere: operatorul poate scoate AWB-ul doar din admin.
+  const [potDoarAdmin, setPotDoarAdmin] = useState(false);
   const [ramburs, setRamburs] = useState<string | null>(null);
   const [lucru, setLucru] = useState<"" | "tarif" | "accept" | "awb" | "eticheta" | "sterge">("");
   const [msg, setMsg] = useState<{ text: string; bun: boolean } | null>(null);
@@ -131,6 +136,7 @@ export default function LivrareFan({ o, continut, laSchimbare, salveazaManual }:
   // putea salva un preț calculat pentru alte kilograme decât cele scrise acum.
   const schimbaColet = (c: Colet) => { setColet(c); setTarif(null); };
   const schimbaAdresa = (k: keyof typeof adresa, v: string) => { setAdresa({ ...adresa, [k]: v }); setTarif(null); };
+  // Valoarea pieselor = ce încasează firma = rambursul de pe AWB.
   const produse = Number(o.subtotal) - Number(o.discount_valoare || 0);
 
   async function calculeaza() {
@@ -142,8 +148,9 @@ export default function LivrareFan({ o, continut, laSchimbare, salveazaManual }:
     else setMsg({ text: j.eroare ?? "Nu s-a putut calcula transportul.", bun: false });
   }
 
-  /** Costul acceptat de client intră în comandă prin `seteaza_cost_livrare`, care
-   *  recalculează totalul pe server. Suma se împarte pe rubricile existente, cu TVA:
+  /** Costul acceptat de client se salvează în comandă prin `seteaza_cost_livrare`,
+   *  doar ca informație: totalul comenzii rămâne valoarea pieselor (migrarea 45),
+   *  fiindcă transportul îl încasează FAN. Suma se împarte pe rubricile existente, cu TVA:
    *  km suplimentari separat (clientul întreabă de ei), eventualele opțiuni FAN la
    *  „alte taxe", restul la transport. */
   async function accepta() {
@@ -168,7 +175,7 @@ export default function LivrareFan({ o, continut, laSchimbare, salveazaManual }:
     const r = data as { ok: boolean; mesaj?: string } | null;
     if (error || !r?.ok) { setMsg({ text: error?.message ?? r?.mesaj ?? "Nu s-a salvat costul.", bun: false }); return; }
     setTarif(null); setRecalculez(false); setRamburs(null);
-    setMsg({ text: "✓ Costul transportului a intrat în comandă. Poți genera AWB-ul.", bun: true });
+    setMsg({ text: "✓ Transportul a fost salvat în comandă (îl încasează FAN de la client). Poți genera AWB-ul.", bun: true });
     laSchimbare();
   }
 
@@ -176,7 +183,8 @@ export default function LivrareFan({ o, continut, laSchimbare, salveazaManual }:
     setLucru("awb"); setMsg(null);
     const j = await cere({
       actiune: "genereaza", comanda_id: o.id,
-      colet: { ...colet, ramburs: ramburs ?? (o.plata === "ramburs" ? Number(o.total) : 0), continut: continutAwb, observatii },
+      // Rambursul implicit = doar piesele; conținutul pleacă gol.
+      colet: { ...colet, ramburs: ramburs ?? (o.plata === "ramburs" ? produse : 0), continut: "", observatii },
       destinatar: adresaModificata ? adresa : undefined,
     });
     setLucru("");
@@ -204,13 +212,23 @@ export default function LivrareFan({ o, continut, laSchimbare, salveazaManual }:
     else { const a = document.createElement("a"); a.href = url; a.download = `AWB-${o.awb}.pdf`; a.click(); }
   }
 
-  async function sterge() {
-    if (!confirm(`Ștergi AWB-ul ${o.awb} la FAN Courier? Poți genera altul după.`)) return;
+  async function sterge(doarAdmin = false) {
+    const intrebare = doarAdmin
+      ? `Scoți AWB-ul ${o.awb} doar din admin? La FAN rămâne cum e — șterge-l acolo din selfawb.ro dacă mai există.`
+      : `Ștergi AWB-ul ${o.awb} la FAN Courier și din comandă? Poți genera altul după.`;
+    if (!confirm(intrebare)) return;
     setLucru("sterge"); setMsg(null);
-    const j = await cere({ actiune: "sterge", comanda_id: o.id });
+    const j = await cere({ actiune: "sterge", comanda_id: o.id, doar_admin: doarAdmin });
     setLucru("");
-    if (j.ok) { setMsg({ text: "✓ AWB șters.", bun: true }); laSchimbare(); }
-    else setMsg({ text: j.eroare ?? "Nu s-a putut șterge.", bun: false });
+    if (j.ok) {
+      setPotDoarAdmin(false);
+      setMsg({ text: j.rezultat === "nu_exista" ? "✓ AWB-ul nu mai exista la FAN; a fost scos din comandă."
+        : j.rezultat === "doar_admin" ? "✓ AWB-ul a fost scos din admin." : "✓ AWB șters la FAN și din comandă.", bun: true });
+      laSchimbare();
+    } else {
+      setPotDoarAdmin(!!j.poate_doar_admin);
+      setMsg({ text: j.eroare ?? "Nu s-a putut șterge.", bun: false });
+    }
   }
 
   const panouAdresa = (
@@ -256,9 +274,9 @@ export default function LivrareFan({ o, continut, laSchimbare, salveazaManual }:
               <label className="block text-[11px] text-mut">Transport pentru client (lei) <span>— poți rotunji, sau 0 dacă ridică personal</span>
                 <input inputMode="decimal" value={pret} onChange={(e) => setPret(e.target.value)} className={camp} /></label>
               <div className="rounded-lg bg-ink/5 px-3 py-2 text-[13px]">
-                <div className="flex justify-between text-mut"><span>Piese</span><span>{bani(produse)}</span></div>
-                <div className="flex justify-between text-mut"><span>Transport</span><span>{bani(Number(pret.replace(",", ".")) || 0)}</span></div>
-                <div className="flex justify-between font-bold text-ink text-base"><span>{o.plata === "ramburs" ? "De plată la livrare" : "Total"}</span>
+                <div className="flex justify-between text-mut"><span>Piese — ramburs, încasați voi</span><span>{bani(produse)}</span></div>
+                <div className="flex justify-between text-mut"><span>Transport — îl încasează FAN</span><span>{bani(Number(pret.replace(",", ".")) || 0)}</span></div>
+                <div className="flex justify-between font-bold text-ink text-base"><span>Clientul plătește curierului</span>
                   <span>{bani(produse + (Number(pret.replace(",", ".")) || 0))}</span></div>
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -277,8 +295,9 @@ export default function LivrareFan({ o, continut, laSchimbare, salveazaManual }:
       {pasAwb && (
         <div className="mt-3 space-y-2">
           <div className="rounded-lg bg-ok/5 border border-ok/30 px-3 py-2 text-[13px]">
-            <div className="flex justify-between"><span className="text-mut">Transport acceptat de client</span><b>{lei(Number(o.livrare))}</b></div>
-            <div className="flex justify-between"><span className="text-mut">{o.plata === "ramburs" ? "De plată la livrare" : "Total"}</span><b>{lei(Number(o.total))}</b></div>
+            <div className="flex justify-between"><span className="text-mut">Piese — ramburs pe AWB</span><b>{lei(produse)}</b></div>
+            <div className="flex justify-between"><span className="text-mut">Transport acceptat — îl încasează FAN</span><b>{lei(Number(o.livrare))}</b></div>
+            <div className="flex justify-between"><span className="text-mut">Clientul plătește curierului</span><b>{lei(produse + Number(o.livrare))}</b></div>
             {o.livrare_nota && <div className="text-[11px] text-mut mt-0.5">{o.livrare_nota}</div>}
             <button type="button" onClick={() => setRecalculez(true)} className="text-[12px] text-acc font-semibold mt-1">↺ Recalculează transportul</button>
           </div>
@@ -287,10 +306,8 @@ export default function LivrareFan({ o, continut, laSchimbare, salveazaManual }:
             <p className="text-[12px] text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-lg px-2.5 py-1.5">
               Coletul diferă de cel din calcul ({o.livrare_greutate_kg} kg, {o.livrare_dimensiuni} cm). FAN va factura după ce scrii aici — recalculează dacă prețul se schimbă.</p>
           )}
-          <label className="block text-[11px] text-mut">Ramburs (lei) — ce încasează curierul
-            <input inputMode="decimal" value={ramburs ?? (o.plata === "ramburs" ? String(Number(o.total)) : "0")} onChange={(e) => setRamburs(e.target.value)} className={camp} /></label>
-          <label className="block text-[11px] text-mut">Conținut (apare pe AWB)
-            <input value={continutAwb} onChange={(e) => setContinutAwb(e.target.value)} maxLength={200} className={camp} /></label>
+          <label className="block text-[11px] text-mut">Ramburs (lei) — doar piesele; transportul îl plătește clientul direct la FAN
+            <input inputMode="decimal" value={ramburs ?? (o.plata === "ramburs" ? String(produse) : "0")} onChange={(e) => setRamburs(e.target.value)} className={camp} /></label>
           <label className="block text-[11px] text-mut">Observații pentru curier (opțional)
             <input value={observatii} onChange={(e) => setObservatii(e.target.value)} maxLength={200} placeholder="ex. sunați înainte cu 30 de minute" className={camp} /></label>
           {panouAdresa}
@@ -327,8 +344,15 @@ export default function LivrareFan({ o, continut, laSchimbare, salveazaManual }:
             <a href={d?.tracking ?? `https://www.fancourier.ro/awb-tracking/?tracking=${o.awb}`} target="_blank" rel="noopener noreferrer"
               className="rounded-xl border-2 border-line px-3 py-2 text-xs font-bold text-center hover:border-acc">Urmărește coletul</a>
           </div>
-          <button type="button" onClick={sterge} disabled={!!lucru} className="text-[12px] text-red-600 font-semibold">
-            {lucru === "sterge" ? "Se șterge…" : "Șterge AWB-ul (greșit)"}</button>
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            <button type="button" onClick={() => sterge(false)} disabled={!!lucru} className="text-[12px] text-red-600 font-semibold">
+              {lucru === "sterge" ? "Se șterge…" : "Șterge AWB-ul (greșit)"}</button>
+            {/* Apare doar după ce FAN a refuzat ștergerea (ex. AWB de pe alt cont). */}
+            {potDoarAdmin && (
+              <button type="button" onClick={() => sterge(true)} disabled={!!lucru} className="text-[12px] text-steel font-semibold underline underline-offset-2">
+                Scoate AWB-ul doar din admin</button>
+            )}
+          </div>
         </div>
       )}
 

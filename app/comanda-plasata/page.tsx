@@ -15,8 +15,9 @@ export default function ComandaPlasata({ searchParams }: { searchParams: { nr?: 
         {[
           ["1","Verificăm piesa încă o dată și calculăm costul transportului, în funcție de greutatea și dimensiunile ei."],
           ["2","Te sunăm cu totalul final — piese plus transport. Nu expediem nimic până nu ești de acord cu suma."],
+          // Transportul îl încasează direct FAN Courier (decizie 15 septembrie 2026).
           ["3","Primești pe e-mail" + (searchParams.email ? ` (${searchParams.email})` : "") + " factura și numărul AWB pentru urmărirea coletului."],
-          ["4","Curierul livrează în 1–3 zile lucrătoare. Plătești ramburs la primire (dacă ai ales ramburs)."],
+          ["4","Curierul livrează în 1–3 zile lucrătoare. La primire îi plătești piesele (ramburs) și transportul."],
         ].map(([n,t]) => (
           <div key={n} className="flex gap-3"><span className="w-6 h-6 rounded-full bg-accent text-accentContrast grid place-items-center text-xs font-bold shrink-0">{n}</span><span>{t}</span></div>
         ))}

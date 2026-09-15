@@ -83,7 +83,11 @@ function ComenziInner() {
     const rows = [["Numar comanda","Data","Client","CUI","Adresa","Oras","Judet","Email","Telefon","Produs","Cant","Pret cu TVA","Baza (fara TVA)","TVA 19%","Curier","Cost livrare","Plata","Serie factura"]];
     for (const o of de) for (const i of items.filter((x: any) => x.order_id === o.id)) {
       const brut = Number(i.pret) * i.cantitate, baza = brut / 1.19;
-      rows.push([o.numar, new Date(o.created_at).toLocaleDateString("ro-RO"), o.firma ?? o.nume, o.cui ?? "-", o.adresa, o.oras, o.judet, o.email, o.telefon, i.nume, String(i.cantitate), brut.toFixed(2), baza.toFixed(2), (brut - baza).toFixed(2), o.curier, Number(o.livrare).toFixed(2), o.plata, o.factura_serie ?? ""]);
+      rows.push([o.numar, new Date(o.created_at).toLocaleDateString("ro-RO"), o.firma ?? o.nume, o.cui ?? "-", o.adresa, o.oras, o.judet, o.email, o.telefon, i.nume, String(i.cantitate), brut.toFixed(2), baza.toFixed(2), (brut - baza).toFixed(2), o.curier,
+        // Transportul doar dacă l-am încasat noi (inclus în total, comenzile vechi);
+        // din 15 septembrie 2026 îl încasează FAN direct de la client.
+        (Number(o.total) > Number(o.subtotal) - Number(o.discount_valoare || 0) + 0.009 ? Number(o.livrare) : 0).toFixed(2),
+        o.plata, o.factura_serie ?? ""]);
     }
     const csv = "\uFEFF" + rows.map((r) => r.map((c) => `"${String(c).replaceAll('"', '""')}"`).join(";")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));

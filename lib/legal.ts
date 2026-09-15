@@ -89,11 +89,12 @@ export function getLegalDocs(firma: Firma = FIRMA_IMPLICITA): LegalDoc[] {
       ]},
       { h: "7. Costul livrării nu apare la finalizarea comenzii", p: [
         "Piesele auto diferă enorm ca greutate și gabarit — de la un senzor de câteva sute de grame până la o cutie de viteze de zeci de kilograme. Curierul taxează după greutate, dimensiuni și destinație, așa că un tarif fix afișat automat ar fi, în multe cazuri, greșit.",
-        "De aceea, când trimiți comanda vezi doar valoarea produselor. După ce o primim, cântărim și măsurăm coletul, calculăm transportul și te contactăm cu totalul exact, explicat pe componente.",
+        "De aceea, când trimiți comanda vezi doar valoarea produselor. După ce o primim, cântărim și măsurăm coletul, calculăm transportul și te contactăm cu costul exact, explicat pe componente.",
+        "Costul transportului nu îl încasăm noi: îl plătești direct curierului FAN Courier, la livrare. Nouă ne plătești doar valoarea produselor, prin ramburs.",
         "Nu expediem nimic până nu ești de acord cu totalul. Dacă suma nu îți convine, anulezi comanda fără niciun cost. Detalii complete în pagina Livrare.",
       ]},
       { h: "8. Plata", p: [
-        "Plata se face exclusiv ramburs, la primirea coletului: plătești curierului, după ce ai verificat ce ai primit.",
+        "Plata se face exclusiv ramburs, la primirea coletului: plătești curierului valoarea produselor. Costul transportului se achită tot curierului, la livrare, și este încasat direct de FAN Courier.",
         "Nu îți cerem date de card, nu îți cerem plată în avans și nu procesăm plăți online.",
         "Emitem factură pentru fiecare comandă. Pentru facturarea pe firmă, completează datele societății în formularul de comandă.",
       ]},
@@ -357,7 +358,8 @@ export function getLegalDocs(firma: Firma = FIRMA_IMPLICITA): LegalDoc[] {
       ]},
       { h: "2. Cum se calculează costul livrării", p: [
         "Piesele auto diferă mult ca greutate și gabarit — de la un senzor de câteva sute de grame până la o cutie de viteze de zeci de kilograme. Curierul taxează în funcție de greutatea și dimensiunile coletului, plus eventuale taxe pentru localitățile izolate, așa că nu putem afișa un tarif fix, valabil pentru orice piesă.",
-        "De aceea, la plasarea comenzii vezi doar valoarea produselor. După ce primim comanda, cântărim și măsurăm coletul, calculăm transportul și te sunăm cu totalul exact: produse plus transport, cu explicația din ce se compune suma.",
+        "De aceea, la plasarea comenzii vezi doar valoarea produselor. După ce primim comanda, cântărim și măsurăm coletul, calculăm transportul și te sunăm cu suma exactă: produse plus transport, cu explicația din ce se compune.",
+        "La livrare plătești curierului două sume: valoarea produselor (rambursul, care ajunge la noi) și costul transportului, care este încasat direct de FAN Courier.",
         "Nu expediem nimic până nu ești de acord cu totalul. Dacă suma nu îți convine, poți anula comanda fără niciun cost.",
       ]},
       { h: "3. Piese voluminoase (motoare, cutii de viteze, caroserie mare)", p: [

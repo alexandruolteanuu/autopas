@@ -47,6 +47,12 @@ export default function Facturi() {
     incarca();
   }
 
+  // Transportul intră pe factura NOASTRĂ doar dacă l-am încasat noi, adică dacă e
+  // inclus în totalul comenzii. Din 15 septembrie 2026 îl încasează FAN direct de la
+  // client, deci pe comenzile noi e 0; comenzile mai vechi îl au inclus și rămân așa.
+  const livrareFacturabila = (o: any) =>
+    Number(o.total) > Number(o.subtotal) - Number(o.discount_valoare || 0) + 0.009 ? Number(o.livrare) : 0;
+
   async function exportSaga() {
     const sb = sbBrowser()!;
     // În loturi: `.in()` pune fiecare id în URL, iar la câteva mii de comenzi
@@ -60,7 +66,7 @@ export default function Facturi() {
       const brut = Number(i.pret) * i.cantitate, baza = brut / 1.19;
       rows.push([o.numar, new Date(o.created_at).toLocaleDateString("ro-RO"), o.factura_serie ?? "", o.firma ?? o.nume, o.cui ?? "-",
         o.adresa, o.oras, o.judet, o.email, o.telefon, i.nume, i.cantitate, brut.toFixed(2), baza.toFixed(2), (brut - baza).toFixed(2),
-        o.curier, Number(o.livrare).toFixed(2), o.plata]);
+        o.curier, livrareFacturabila(o).toFixed(2), o.plata]);
     }
     const csv = "\uFEFF" + rows.map((r) => r.map((c) => `"${String(c).replaceAll('"', '""')}"`).join(";")).join("\n");
     const a = document.createElement("a");

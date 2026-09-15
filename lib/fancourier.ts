@@ -167,13 +167,15 @@ export async function genereazaAwb(dest: Destinatar, colet: Colet, cfg?: ConfigF
           service: serviciu,
           packages: { parcel: colet.colete, envelope: 0 },
           weight: colet.greutate,
+          // Rambursul = DOAR valoarea pieselor: firma încasează numai piesa livrată.
           cod: colet.ramburs,
           declaredValue: 0,
-          // Transportul îl plătim NOI la FAN: clientul îl plătește în ramburs,
-          // fiindcă totalul comenzii îl include după „Cost livrare".
-          payment: "sender",
+          // Transportul îl plătește DESTINATARUL, direct la FAN (decizia proprietarului,
+          // 15 septembrie 2026 — așa lucrează și din eAWB). Nu trece prin ramburs.
+          payment: "recipient",
           observation: colet.observatii.slice(0, 200),
-          content: colet.continut.slice(0, 200),
+          // Rubrica „Conținut" de pe AWB rămâne goală, la cererea proprietarului.
+          content: "",
           dimensions: { length: colet.lungime, width: colet.latime, height: colet.inaltime },
           // Apare în borderoul de pe selfawb.ro: așa se regăsește comanda noastră.
           costCenter: colet.referinta,
@@ -228,7 +230,8 @@ export async function tarifTransport(
   const query: Record<string, string | string[]> = {
     clientId: cfg.clientId,
     "info[service]": serviciu,
-    "info[payment]": "sender",
+    // Același plătitor ca pe AWB: destinatarul plătește transportul la FAN.
+    "info[payment]": "recipient",
     "info[packages][parcel]": String(colet.colete),
     "info[packages][envelope]": "0",
     "info[weight]": String(colet.greutate),
@@ -264,9 +267,30 @@ export async function etichetaAwb(awb: string): Promise<ArrayBuffer> {
   return cere(cfg, "/awb/label", { query: { clientId: cfg.clientId, "awbs[]": [awb], pdf: "1" }, binar: true });
 }
 
-export async function stergeAwb(awb: string): Promise<void> {
+/**
+ * Șterge AWB-ul la FAN. Întoarce:
+ *   · "sters"        — FAN a confirmat ștergerea („The AWB was deleted successfully.");
+ *   · "nu_exista"    — FAN spune că AWB-ul nu (mai) există în cont: șters deja din
+ *                      selfawb.ro, scris greșit de mână, sau de pe alt cont. Rezultatul dorit
+ *                      e oricum atins, deci comanda se poate curăța.
+ * Orice alt refuz (AWB deja ridicat de curier, sesiune, rețea) aruncă eroarea, cu mesajul lor.
+ */
+export async function stergeAwb(awb: string): Promise<"sters" | "nu_exista"> {
   const cfg = await configFan();
-  await cere(cfg, "/awb", { metoda: "DELETE", query: { clientId: cfg.clientId, awb } });
+  const nuExista = (m: string) => /not\s*found|nu\s*exist|does\s*not\s*exist|invalid|inexistent|already|deja|deleted|sters|șters/i.test(m);
+  try {
+    const d = await cere(cfg, "/awb", { metoda: "DELETE", query: { clientId: cfg.clientId, awb } });
+    // Un 200 cu `status: "fail"` e tot un refuz, nu o ștergere.
+    if (d?.status && d.status !== "success") {
+      const m = mesajFan(d) ?? String(d?.data ?? "");
+      if (nuExista(m)) return "nu_exista";
+      throw new EroareFan(`FAN Courier n-a șters AWB-ul: ${m || "motiv necunoscut"}.`, 422);
+    }
+    return "sters";
+  } catch (e) {
+    if (e instanceof EroareFan && (e.stare === 404 || nuExista(e.message))) return "nu_exista";
+    throw e;
+  }
 }
 
 /** Butonul „Verifică conexiunea" din Integrări: autentificarea + serviciile contului. */

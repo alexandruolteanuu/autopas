@@ -86,6 +86,9 @@ export default function DetaliuComanda() {
   const pasCurent = PASI.indexOf(o.status);
   // Cât timp costul livrării nu e stabilit, comanda nu are un total real și nu se expediază.
   const livrareStabilita = Boolean(o.livrare_stabilit_la);
+  // Ce încasează firma: DOAR piesele. Transportul îl încasează FAN (15 septembrie 2026).
+  // Calculat din subtotal, nu din `total`: comenzile mai vechi au transportul inclus în total.
+  const pieseDeIncasat = Math.round((Number(o.subtotal) - Number(o.discount_valoare || 0)) * 100) / 100;
 
   return (
     <div className="space-y-4">
@@ -146,13 +149,15 @@ export default function DetaliuComanda() {
             <div className="px-5 py-3.5 border-t border-line text-sm space-y-1">
               <div className="flex justify-between text-mut"><span>Subtotal</span><span>{lei(Number(o.subtotal))}</span></div>
               {Number(o.discount_valoare) > 0 && <div className="flex justify-between text-ok"><span>Reducere {o.discount_cod}</span><span>−{lei(Number(o.discount_valoare))}</span></div>}
+              {/* Transportul îl încasează FAN direct de la client (15 septembrie 2026): de
+                  aceea NU intră în totalul de încasat. Se afișează separat, ca informație. */}
+              <div className="flex justify-between text-base"><b>De încasat {o.plata === "ramburs" ? "(ramburs pe AWB)" : ""}</b>
+                <b className="font-disp text-xl text-acc">{lei(pieseDeIncasat)}</b></div>
               {livrareStabilita ? (
-                <div className="flex justify-between text-mut"><span>Livrare — {curier?.nume ?? o.curier}</span><span>{lei(Number(o.livrare))}</span></div>
+                <div className="flex justify-between text-mut"><span>Transport — îl plătește clientul la {curier?.nume ?? o.curier}</span><span>{lei(Number(o.livrare))}</span></div>
               ) : (
-                <div className="flex justify-between text-yellow-700"><span>Livrare — {curier?.nume ?? o.curier}</span><span className="font-semibold">necalculată</span></div>
+                <div className="flex justify-between text-yellow-700"><span>Transport — {curier?.nume ?? o.curier}</span><span className="font-semibold">necalculat</span></div>
               )}
-              <div className="flex justify-between text-base"><b>Total {o.plata === "ramburs" ? "(ramburs la livrare)" : "(transfer bancar)"}</b>
-                <b className="font-disp text-xl text-acc">{lei(Number(o.total))}{!livrareStabilita && <span className="text-xs text-yellow-700 font-normal"> + transport</span>}</b></div>
             </div>
           </div>
 
@@ -198,11 +203,12 @@ export default function DetaliuComanda() {
                 items.map((i) => `• ${i.nume} — ${Number(i.pret)} lei`).join("\n") +
                 (Number(o.discount_valoare) > 0 ? `\nReducere ${o.discount_cod}: −${Number(o.discount_valoare)} lei` : "") +
                 (livrareStabilita
-                  ? `\nTransport: ${Number(o.livrare)} lei` +
+                  ? `\nPiese (ramburs): ${pieseDeIncasat} lei` +
+                    `\nTransport FAN Courier: ${Number(o.livrare)} lei` +
                     (o.livrare_greutate_kg ? ` (colet ${Number(o.livrare_greutate_kg)} kg)` : "") +
                     (o.livrare_nota ? `\n${o.livrare_nota}` : "") +
-                    `\nTOTAL DE PLATĂ: ${Number(o.total)} lei (${o.plata === "ramburs" ? "ramburs la livrare" : "transfer bancar"}).`
-                  : `\nTotal produse: ${Number(o.total)} lei. Vă comunicăm costul transportului imediat ce îl calculăm.`) +
+                    `\nTOTAL DE PLATĂ LA LIVRARE: ${Math.round((pieseDeIncasat + Number(o.livrare)) * 100) / 100} lei, achitați curierului (piesele prin ramburs, transportul direct către FAN Courier).`
+                  : `\nTotal produse: ${pieseDeIncasat} lei. Vă comunicăm costul transportului imediat ce îl calculăm.`) +
                 `\nLivrare prin ${curier?.nume ?? o.curier} în 1–3 zile lucrătoare. Vă mulțumim!`)}
                 target="_blank" rel="noopener noreferrer" className="rounded-xl bg-[#25D366] text-white px-3.5 py-2 text-xs font-bold">
                 {livrareStabilita ? "Trimite totalul pe WhatsApp" : "Trimite confirmarea pe WhatsApp"}</a>
@@ -215,7 +221,6 @@ export default function DetaliuComanda() {
 
           {/* Livrare — calculatorul de transport FAN + AWB-ul, într-un singur card */}
           <LivrareFan o={o} laSchimbare={incarca}
-            continut={items.map((i) => i.nume).join(", ").slice(0, 200)}
             salveazaManual={(v) => salveaza({ awb: v, awb_generat_la: new Date().toISOString() }, `AWB ${v} introdus manual`)} />
 
           {/* Facturare — fluxul Saga */}

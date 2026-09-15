@@ -77,10 +77,17 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 33. `masuratori-publice.sql` -> 34. `piese-compatibile-masini.sql` -> 35. `superb-1.sql` ->
 36. `email-automat.sql` -> 37. `dezro.sql` -> 38. `piesa-vanduta-ramane.sql` ->
 39. `dezro-automat.sql` -> 40. `senzori-auto-despartire.sql` -> 41. `observatii-comanda.sql` ->
-42. `sugestie-clasificare.sql` -> 43. `awb-fancourier.sql` -> 44. `nomenclator-fan.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9–44.
+42. `sugestie-clasificare.sql` -> 43. `awb-fancourier.sql` -> 44. `nomenclator-fan.sql` ->
+45. `transport-incasat-de-fan.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9–45.
 NU sunt încă idempotente: 1–5, 8.
-**Aplicate pe producție: 1–44.**
+**Aplicate pe producție: 1–44. 45 NU e aplicată** — se rulează DUPĂ ce codul din același commit e
+publicat (a fost rulată și apoi dată înapoi la 15 septembrie 2026, fiindcă build-ul și push-ul nu
+se puteau face în sesiune, iar codul vechi de pe site, cu `payment: "sender"`, ar fi generat AWB-uri
+cu transportul plătit de firmă și nerecuperat).
+45 (15 septembrie 2026) înlocuiește `seteaza_cost_livrare` (copiată din producție): transportul se
+salvează în `orders.livrare`, dar NU mai intră în `orders.total` — îl încasează FAN direct de la
+client. Nu atinge comenzile vechi (2 au transportul inclus în total și rămân așa).
 44 (15 septembrie 2026) creează `fan_localitati`, `fan_strazi` și view-ul `fan_judete` — nomenclatorul de adrese FAN, citibil public, scris doar de `scripts/actualizeaza-nomenclator-fan.mjs`.
 43 (15 septembrie 2026) adaugă `orders.awb_date` (jsonb): ce s-a declarat la FAN la AWB și ce a răspuns.
 42 (15 septembrie 2026) creează `sugestie_clasificare(text[])`: numără categoriile pieselor
@@ -283,11 +290,29 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
     piese** (decizia proprietarului: piesele au 1 kg pus automat). Câmpurile pornesc doar de la ce
     s-a scris la „Cost livrare" pentru comanda ASTA. Avertismentul „greutate estimată" din comandă
     și estimarea de 5 kg/piesă din „Expedieri" au fost scoase; borderoul scrie greutatea declarată.
-  · Restul vine din comandă, citit pe SERVER: destinatarul (firma + persoana de contact), rambursul
-    = totalul comenzii (include transportul), conținutul = numele pieselor, `costCenter` = numărul
-    comenzii (se regăsește pe selfawb.ro). Adresa se poate corecta dintr-un panou pliat.
-  · Transportul îl plătește firma (`payment: "sender"`). Serviciul: „Cont Colector" dacă e ramburs
-    și bifa „ramburs în cont" e pusă, altfel „Standard".
+  · Restul vine din comandă, citit pe SERVER: destinatarul (firma + persoana de contact),
+    `costCenter` = numărul comenzii (se regăsește pe selfawb.ro). Adresa se poate corecta dintr-un
+    panou pliat.
+  · **TRANSPORTUL ÎL ÎNCASEAZĂ FAN, NU FIRMA** (decizia proprietarului, 15 septembrie 2026 — așa
+    lucra și din eAWB): AWB-ul și tariful pleacă cu `payment: "recipient"`; **rambursul = DOAR
+    valoarea pieselor** (`subtotal − reducere`); rubrica **„Conținut" pleacă GOALĂ** (`content: ""`,
+    câmpul a dispărut din admin). Operatorul tot calculează transportul și îl spune clientului, dar
+    `seteaza_cost_livrare` (migrarea 45) nu-l mai adaugă la `orders.total`. Consecințe aplicate:
+    detaliul comenzii arată „De încasat (ramburs pe AWB)" și transportul separat; mesajul WhatsApp
+    desparte piesele de transport; Expedieri/borderoul arată rambursul de pe AWB (sau piesele);
+    exporturile Saga pun transportul pe factură doar când e inclus în total (comenzile vechi);
+    Termenii (7, 8), Livrarea (2), FAQ, checkout și pagina de mulțumire spun că transportul se
+    plătește curierului. Comenzile vechi au `total` cu transport — de aceea codul calculează
+    rambursul din `subtotal − reducere`, NU din `total`.
+  · Serviciul: „Cont Colector" dacă e ramburs și bifa „ramburs în cont" e pusă, altfel „Standard".
+    NEVERIFICAT pe API la schimbarea spre `recipient` (apelurile externe erau blocate în sesiune):
+    de confirmat la primul AWB real că eticheta scrie „Plata transport: destinatar", ramburs = piesele,
+    conținut gol, și că tariful din calculator e același cu cel facturat.
+  · **„Șterge AWB-ul" îl scoate ȘI la FAN, ȘI din comandă** (`stergeAwb` + acțiunea `sterge` din
+    `app/api/awb/route.ts`). Dacă FAN spune că AWB-ul nu (mai) există — șters din selfawb.ro, scris
+    greșit de mână — comanda se curăță oricum. La orice alt refuz, AWB-ul NU se scoate, iar în admin
+    apare „Scoate AWB-ul doar din admin" (cu confirmare). O comandă „expediată" revine la
+    „confirmată". Totul intră în jurnal.
   · **Fără „Deschidere la livrare", nicăieri** (decizia proprietarului, 15 septembrie 2026): AWB-ul și
     tariful pleacă cu `options: []`, bifa din Integrări a fost scoasă, iar textele care promiteau
     plata „după ce ai verificat coletul" (checkout, FAQ) au fost scurtate. Politica de livrare cere

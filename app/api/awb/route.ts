@@ -85,13 +85,43 @@ export async function POST(req: Request) {
     const { data: o } = await sb.from("orders").select("*").eq("id", id).maybeSingle();
     if (!o) return NextResponse.json({ ok: false, eroare: "Comanda nu există." });
 
+    // ---------- ștergerea AWB-ului: la FAN ȘI din comandă ----------
+    // Cele trei situații, toate cu același rezultat în admin — AWB-ul dispare din
+    // comandă, din „Expedieri" și din borderou:
+    //   · FAN confirmă ștergerea;
+    //   · FAN spune că AWB-ul nu (mai) există (șters din selfawb.ro, scris greșit de
+    //     mână): nu mai e nimic de șters acolo, deci doar se curăță comanda;
+    //   · `doar_admin: true` — operatorul a ales explicit, după un refuz al FAN, să-l
+    //     scoată doar din admin (ex. AWB de pe alt cont). Butonul apare doar după refuz.
+    // O comandă „expediată" revine la „confirmată": fără AWB nu poate fi în tranzit.
     if (body.actiune === "sterge") {
-      if (!o.awb) return NextResponse.json({ ok: false, eroare: "Comanda n-are AWB." });
-      await stergeAwb(o.awb);
-      const { error } = await sb.from("orders").update({ awb: null, awb_generat_la: null, awb_date: null }).eq("id", id);
-      if (error) return NextResponse.json({ ok: false, eroare: `AWB-ul s-a șters la FAN, dar comanda nu s-a actualizat: ${error.message}` });
-      await sb.from("order_events").insert({ order_id: id, tip: "awb", mesaj: `AWB ${o.awb} șters la FAN Courier`, autor: await autor(req) });
-      return NextResponse.json({ ok: true });
+      if (!o.awb) return NextResponse.json({ ok: true, deja: true });
+      let rezultat: "sters" | "nu_exista" | "doar_admin";
+      if (body.doar_admin === true) {
+        rezultat = "doar_admin";
+      } else {
+        try {
+          rezultat = await stergeAwb(o.awb);
+        } catch (e) {
+          return NextResponse.json({
+            ok: false, poate_doar_admin: true,
+            eroare: `${e instanceof EroareFan ? e.message : String(e)} AWB-ul NU a fost scos din comandă.`,
+          });
+        }
+      }
+      const patch: Record<string, unknown> = { awb: null, awb_generat_la: null, awb_date: null };
+      if (o.status === "expediata") patch.status = "confirmata";
+      const { data: scrise, error } = await sb.from("orders").update(patch).eq("id", id).select("id");
+      if (error || !scrise?.length)
+        return NextResponse.json({ ok: false, eroare: `${rezultat === "sters" ? "AWB-ul s-a șters la FAN, dar" : "AWB-ul"} n-a putut fi scos din comandă: ${error?.message ?? "niciun rând actualizat"}` });
+      const mesaj = rezultat === "sters" ? `AWB ${o.awb} șters la FAN Courier și din comandă`
+        : rezultat === "nu_exista" ? `AWB ${o.awb} scos din comandă (la FAN nu mai exista)`
+        : `AWB ${o.awb} scos doar din admin, la cererea operatorului (FAN refuzase ștergerea)`;
+      await sb.from("order_events").insert({
+        order_id: id, tip: "awb", autor: await autor(req),
+        mesaj: mesaj + (patch.status ? " · comanda revine la „confirmată”" : ""),
+      });
+      return NextResponse.json({ ok: true, rezultat });
     }
 
     if (body.actiune !== "genereaza") return NextResponse.json({ ok: false, eroare: "Acțiune necunoscută." }, { status: 400 });
