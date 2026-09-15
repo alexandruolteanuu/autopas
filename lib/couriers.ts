@@ -1,37 +1,11 @@
 // ============================================================
 // CURIER — FAN Courier (SelfAWB). Este singurul curier al firmei.
-// Credențialele se citesc mai întâi din Setări → Integrări (baza de date),
-// iar dacă acolo nu e nimic, din variabilele Vercel.
+// Toată legătura cu FAN stă în lib/fancourier.ts; aici rămâne doar întrebarea
+// „e configurat?", folosită de ecranul Integrări.
 // ============================================================
-import { sbAdmin } from "./supabase";
-import type { Integrari } from "./settings";
-
-export type AwbCerere = {
-  numar_comanda: string; nume: string; telefon: string; email: string;
-  adresa: string; oras: string; judet: string;
-  ramburs: number; greutate_kg?: number;
-};
-export type AwbRaspuns = { ok: boolean; awb?: string; eroare?: string };
-
-async function integrariDinDb(): Promise<Integrari> {
-  const sb = sbAdmin(); if (!sb) return {};
-  const { data } = await sb.from("settings").select("valoare").eq("cheie", "integrari").single();
-  return (data?.valoare as Integrari) ?? {};
-}
+import { configFan } from "./fancourier";
 
 export async function credentialeFan() {
-  const i = await integrariDinDb();
-  return {
-    clientId: i.fancourier?.client_id || process.env.FANCOURIER_CLIENT_ID || "",
-    user: i.fancourier?.user || process.env.FANCOURIER_USER || "",
-    parola: i.fancourier?.parola || process.env.FANCOURIER_PASS || "",
-  };
-}
-export async function genereazaAwbFan(c: AwbCerere): Promise<AwbRaspuns> {
-  const cred = await credentialeFan();
-  if (!cred.clientId || !cred.user || !cred.parola)
-    return { ok: false, eroare: "FAN Courier neconfigurat. Completează Client ID, utilizator și parolă în Admin → Integrări (sau în variabilele Vercel), după semnarea contractului FAN." };
-  // La activare: 1) POST https://api.fancourier.ro/login → token
-  //              2) POST https://api.fancourier.ro/intern-awb cu datele din `c` → { awbNumber }
-  return { ok: false, eroare: "Credențiale găsite, dar apelul către FAN nu e încă activat. Anunță-ne și îl pornim (10 minute)." };
+  const c = await configFan();
+  return { clientId: c.clientId, user: c.user, parola: c.parola };
 }

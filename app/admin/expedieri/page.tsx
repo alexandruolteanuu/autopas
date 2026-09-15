@@ -2,14 +2,13 @@
 // EXPEDIERI — ecranul de depozit: ce colete predau azi curierului + borderoul printabil.
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { sbBrowser, scrieVerificat, citesteTot, citesteDupaIduri } from "@/lib/supabase";
+import { sbBrowser, scrieVerificat, citesteTot } from "@/lib/supabase";
 import { lei } from "@/lib/format";
 import { getSetariBrowser, type Curier } from "@/lib/settings";
 import type { OrderFull } from "@/lib/types";
 
 export default function Expedieri() {
   const [orders, setOrders] = useState<OrderFull[]>([]);
-  const [greutati, setGreutati] = useState<Record<number, number>>({});
   const [curieri, setCurieri] = useState<Curier[]>([]);
   const [sel, setSel] = useState<number[]>([]);
   const [lucru, setLucru] = useState(false);
@@ -23,21 +22,18 @@ export default function Expedieri() {
       () => sb.from("orders").select("*", { count: "exact" }).eq("status", stat).order("id"),
       { eticheta: "comenzile de expediat" });
     setOrders(list); setSel([]);
-    if (list.length) {
-      // În loturi + paginat: borderoul dat curierului se calculează de aici.
-      const it = await citesteDupaIduri<any>(list.map((o) => o.id),
-        (lot) => sb.from("order_items").select("order_id,cantitate,products(greutate_kg)", { count: "exact" })
-          .in("order_id", lot).order("id"),
-        { eticheta: "liniile comenzilor" });
-      const g: Record<number, number> = {};
-      it.forEach((i) => { g[i.order_id] = (g[i.order_id] ?? 0) + (Number(i.products?.greutate_kg) || 5) * i.cantitate; });
-      setGreutati(g);
-    }
   }, [tab]);
   useEffect(() => { incarca(); }, [incarca]);
   useEffect(() => { getSetariBrowser().then((s) => setCurieri(s.curieri)); }, []);
 
   const numeCurier = (id: string) => curieri.find((c) => c.id === id)?.nume ?? id;
+  // Greutatea e cea DECLARATĂ la FAN la generarea AWB-ului (sau, până atunci, cea
+  // scrisă la „Cost livrare"). Nu se mai estimează din piese: acolo stă 1 kg pus
+  // automat la import, iar estimarea veche punea 5 kg oricărei piese fără greutate.
+  const greutate = (o: OrderFull) => {
+    const kg = Number(o.awb_date?.greutate ?? o.livrare_greutate_kg);
+    return kg > 0 ? `${kg} kg` : "—";
+  };
 
   function borderou() {
     const alese = orders.filter((o) => sel.includes(o.id));
@@ -56,7 +52,7 @@ export default function Expedieri() {
       <table><tr><th>#</th><th>AWB</th><th>Comandă</th><th>Destinatar</th><th>Localitate</th><th>Curier</th><th>Greutate</th><th>Ramburs</th></tr>
       ${alese.map((o, i) => `<tr><td>${i + 1}</td><td>${o.awb ?? "—"}</td><td>${o.numar}</td>
         <td>${o.firma ?? o.nume}<br><small>${o.telefon}</small></td><td>${o.oras}, ${o.judet}</td>
-        <td>${numeCurier(o.curier)}</td><td>${(greutati[o.id] ?? 5).toFixed(1)} kg</td>
+        <td>${numeCurier(o.curier)}</td><td>${greutate(o)}</td>
         <td>${o.plata === "ramburs" ? Number(o.total).toFixed(2) + " lei" : "—"}</td></tr>`).join("")}</table>
       <div class="semn"><span>Predat (Autopas): ______________________</span><span>Primit (curier): ______________________</span></div>
       </body></html>`);
@@ -87,7 +83,7 @@ export default function Expedieri() {
   return (
     <div className="space-y-4">
       <div><div className="dim">Administrare</div><h1 className="font-disp font-bold text-2xl mt-1">Expedieri (AWB)</h1>
-        <p className="text-sm text-mut mt-1">Bifează coletele predate azi → printează borderoul → marchează-le expediate dintr-o mișcare.</p></div>
+        <p className="text-sm text-mut mt-1">AWB-ul se generează din pagina fiecărei comenzi. Aici: bifează coletele predate azi → printează borderoul → marchează-le expediate dintr-o mișcare.</p></div>
 
       {msg && <div className="card p-3 text-sm">{msg}</div>}
 
@@ -131,7 +127,7 @@ export default function Expedieri() {
                 <td data-eticheta="Comandă" className="px-4 py-3"><Link href={`/admin/comenzi/${o.id}`} className="font-disp font-semibold hover:text-acc">{o.numar}</Link></td>
                 <td data-eticheta="Client" className="px-4 py-3">{o.firma ?? o.nume}<div className="text-[11px] text-mut">{o.oras}, {o.judet} · {o.telefon}</div></td>
                 <td data-eticheta="Curier" className="px-4 py-3">{numeCurier(o.curier)}</td>
-                <td data-eticheta="Greutate" className="px-4 py-3">{(greutati[o.id] ?? 5).toFixed(1)} kg</td>
+                <td data-eticheta="Greutate" className="px-4 py-3">{greutate(o)}</td>
                 <td data-eticheta="Ramburs" className="px-4 py-3">{o.plata === "ramburs" ? <b>{lei(Number(o.total))}</b> : <span className="text-mut">—</span>}</td>
               </tr>
             ))}

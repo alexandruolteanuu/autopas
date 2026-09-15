@@ -21,9 +21,11 @@ const INTEGRARI: Stare[] = [
     desc: "Saga nu are API public; fluxul standard e importul de fișiere. Exportul CSV conține clientul, CUI-ul, produsele și prețurile defalcate bază + TVA 19%.",
     pasi: ["Admin → Facturi → alegi intervalul → Export Saga (CSV)", "În Saga: Operații → Import → alegi fișierul", "Notezi seria facturii înapoi în comandă"] },
   { nume: "FAN Courier (SelfAWB)", grup: "Curieri", stare: "pregatit",
-    desc: "Butonul de generare AWB și ruta de server există; se activează la primirea contului de la FAN.",
-    pasi: ["Clientul semnează contractul FAN și primește client ID, user, parolă (selfawb.ro)",
-           "Adaugi în Vercel: FANCOURIER_CLIENT_ID, FANCOURIER_USER, FANCOURIER_PASS", "Ne anunți — activăm apelul API (10 minute)"] },
+    desc: "Generezi AWB-ul direct din pagina comenzii: scrii câte colete, kilogramele și cele trei dimensiuni, apeși „Generează AWB”. Destinatarul, rambursul și conținutul vin singure din comandă. Eticheta se printează din același loc, iar AWB-ul apare și pe selfawb.ro, în Borderou. Transportul îl plătește firma la FAN (clientul îl plătește în ramburs, fiindcă e inclus în totalul comenzii).",
+    pasi: ["Pe selfawb.ro: Client ID-ul e în dreapta sus → Editare cont → Opțiuni sucursală",
+           "Completezi mai jos Client ID, utilizatorul și parola de pe selfawb.ro, salvezi",
+           "Apeși „Verifică conexiunea” — trebuie să apară serviciile contului",
+           "⚠ AWB-ul singur nu cheamă curierul: ori ceri la comenzi@fancourier.ro o ridicare zilnică automată, ori comanzi curierul din selfawb.ro"] },
   { nume: "Plată cu cardul (Netopia / Stripe)", grup: "Plăți", stare: "viitor",
     desc: "Acum: ramburs și transfer bancar. Cardul online necesită contract cu procesatorul și verificare KYC.",
     pasi: ["Clientul deschide cont la procesator", "Primim cheile API", "Adăugăm pasul de plată în checkout"] },
@@ -66,7 +68,12 @@ const CULORI = { activ: ["bg-ok/10 text-ok border-ok/30", "Activ ✓"], pregatit
 const CAMPURI: Record<string, { k: string; l: string; tip?: string }[]> = {
   "WhatsApp Business": [{ k: "numar", l: "Număr WhatsApp (format 40722…)" }],
   "Saga — facturare": [{ k: "serie", l: "Seria facturilor (ex. AUTP)" }],
-  "FAN Courier (SelfAWB)": [{ k: "client_id", l: "Client ID" }, { k: "user", l: "Utilizator" }, { k: "parola", l: "Parolă", tip: "password" }],
+  "FAN Courier (SelfAWB)": [{ k: "client_id", l: "Client ID" }, { k: "user", l: "Utilizator selfawb.ro" }, { k: "parola", l: "Parolă selfawb.ro", tip: "password" },
+    // Bife: nesalvate încă înseamnă „da" (vezi `configFan` din lib/fancourier.ts).
+    { k: "ramburs_cont", l: "Rambursul intră în contul bancar (serviciul Cont Colector). Debifat = ramburs în plic.", tip: "bifa" },
+    // Checkout-ul îi spune clientului că plătește „după ce a verificat coletul";
+    // fără opțiunea asta pe AWB, curierul nu are voie să-l lase să deschidă.
+    { k: "deschidere_livrare", l: "Deschidere colet la livrare (clientul verifică piesa înainte să plătească — așa promite checkout-ul)", tip: "bifa" }],
   "Plată cu cardul (Netopia / Stripe)": [{ k: "pos_id", l: "POS Signature / ID" }, { k: "signature", l: "Cheie privată", tip: "password" }],
   "E-mail automat (Brevo)": [
     { k: "cheie", l: "Cheie API Brevo", tip: "password" },
@@ -103,6 +110,35 @@ const CHEI: Record<string, string> = {
   "Google Merchant Center": "merchant", "Google Ads": "google_ads",
   "Meta — Facebook și Instagram": "meta", "dez.ro — anunțuri": "dezro",
 };
+
+/**
+ * „Verifică conexiunea" pentru FAN Courier: se autentifică cu datele SALVATE și
+ * cere serviciile contului. Merge pe aceeași rută ca generarea AWB-ului, deci un
+ * test reușit înseamnă că și AWB-ul va putea pleca.
+ */
+function UneltFan() {
+  const [lucru, setLucru] = useState(false);
+  const [rez, setRez] = useState<{ bun: boolean; text: string } | null>(null);
+  async function verifica() {
+    setLucru(true); setRez(null);
+    const sb = sbBrowser();
+    const token = sb ? (await sb.auth.getSession()).data.session?.access_token : null;
+    const r = await fetch("/api/awb", { method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+      body: JSON.stringify({ actiune: "verifica" }) });
+    const j = await r.json().catch(() => null);
+    setLucru(false);
+    if (j?.ok) setRez({ bun: !j.avertisment, text: `✓ Conectat. Serviciile contului: ${j.servicii.join(", ")}.${j.avertisment ? ` ⚠ ${j.avertisment}` : ""}` });
+    else setRez({ bun: false, text: j?.eroare ?? "Nu s-a putut verifica." });
+  }
+  return (
+    <div className="mt-3 text-sm">
+      <button type="button" onClick={verifica} disabled={lucru} className="rounded-xl border-2 border-line px-3 py-1.5 text-xs font-bold hover:border-acc">
+        {lucru ? "Se verifică…" : "Verifică conexiunea"}</button>
+      {rez && <p className={`mt-2 text-xs ${rez.bun ? "text-ok" : "text-red-600"}`}>{rez.text}</p>}
+    </div>
+  );
+}
 
 /**
  * Testul și golirea manuală a cozii.
@@ -277,6 +313,7 @@ export default function Integrari() {
                     {i.pasi.map((p, n) => <li key={n} className="flex gap-2"><span className="text-acc font-bold">{n + 1}.</span>{p}</li>)}
                   </ol>
                   {i.nume === "E-mail automat (Brevo)" && <UneltEmail implicit={conf.email?.notificari ?? ""} />}
+                  {i.nume === "FAN Courier (SelfAWB)" && <UneltFan />}
                   {CAMPURI[i.nume] && (
                     <form onSubmit={(e) => { e.preventDefault();
                       const f = new FormData(e.currentTarget);
@@ -287,7 +324,12 @@ export default function Integrari() {
                       salveaza(cheie, v); }}
                       autoComplete="off"
                       className="mt-4 pt-3 border-t border-line grid gap-2 text-sm">
-                      {CAMPURI[i.nume].map((c) => (
+                      {CAMPURI[i.nume].map((c) => c.tip === "bifa" ? (
+                        <label key={c.k} className="flex items-start gap-2 text-xs cursor-pointer">
+                          <input type="checkbox" name={c.k} className="mt-0.5"
+                            defaultChecked={(conf[CHEI[i.nume]]?.[c.k] ?? "on") === "on"} />
+                          {c.l}</label>
+                      ) : (
                         <div className="fld" key={c.k}><label>{c.l}</label>
                           {/* `autoComplete` NU e cosmetică aici (7 septembrie 2026).
                               Chrome vede un câmp `password` lângă unul text, hotărăște

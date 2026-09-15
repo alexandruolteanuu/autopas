@@ -48,7 +48,12 @@ export type OrderFull = { id: number; numar: string; tip_client: string; nume: s
   livrare_greutate_kg: number | null; livrare_dimensiuni: string | null;
   livrare_nota: string | null; livrare_stabilit_la: string | null;
   // Ce a scris clientul la checkout (supabase/observatii-comanda.sql). Opțional.
-  observatii: string | null };
+  observatii: string | null;
+  // Ce s-a declarat la FAN și ce a răspuns (supabase/awb-fancourier.sql). Null = AWB scris de mână.
+  awb_date?: AwbDate | null };
+export type AwbDate = { colete: number; greutate: number; lungime: number; latime: number; inaltime: number;
+  ramburs: number; serviciu: string; tarif: number; tva: number; tracking: string;
+  destinatar: { telefon: string; judet: string; localitate: string; strada: string } };
 export type Discount = { id: number; cod: string; tip: "procent" | "fix"; valoare: number;
   minim_comanda: number; expira_la: string | null; activ: boolean; folosiri: number };
 export type VehiculAdmin = { id: number; slug: string; nume: string; an: number | null; vin_masca: string | null;

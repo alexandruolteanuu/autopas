@@ -9,6 +9,7 @@ import { sbBrowser, scrieVerificat } from "@/lib/supabase";
 import { lei } from "@/lib/format";
 import { getSetariBrowser, waLinkCu, CURIERI_IMPLICITI, type Curier, type Firma, FIRMA_IMPLICITA } from "@/lib/settings";
 import { SITE_DOMENIU } from "@/lib/config";
+import AwbFan from "@/components/admin/AwbFan";
 import type { OrderFull, OrderEvent } from "@/lib/types";
 
 type Item = { id: number; nume: string; pret: number; cantitate: number; product_id: number | null;
@@ -99,24 +100,9 @@ export default function DetaliuComanda() {
     incarca();
   }
 
-  async function genereazaAwb() {
-    if (!o) return; setMsg("");
-    // Ruta /api/awb acceptă doar echipa, așa că îi trimitem token-ul sesiunii.
-    const sb = sbBrowser();
-    const token = sb ? (await sb.auth.getSession()).data.session?.access_token : null;
-    if (!token) { setMsg("Sesiunea a expirat. Autentifică-te din nou."); return; }
-    const r = await fetch("/api/awb", { method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ curier: o.curier, cerere: { numar_comanda: o.numar, nume: o.firma ?? o.nume, telefon: o.telefon, email: o.email, adresa: o.adresa, oras: o.oras, judet: o.judet, ramburs: o.plata === "ramburs" ? Number(o.total) : 0, greutate_kg: Number(o.livrare_greutate_kg) || greutate } }) });
-    const j = await r.json();
-    if (j.ok && j.awb) { await salveaza({ awb: j.awb, awb_generat_la: new Date().toISOString() }, `AWB ${j.awb} generat la ${o.curier}`); }
-    else setMsg(j.eroare ?? "Eroare la AWB.");
-  }
-
   if (!gata) return <div className="text-mut">Se încarcă…</div>;
   if (!o) return <div className="card p-8 text-center"><b>Comanda nu există.</b> <Link href="/admin/comenzi" className="text-acc font-semibold block mt-2">← Înapoi la comenzi</Link></div>;
 
-  const greutate = Math.max(1, items.reduce((s, i) => s + (Number(i.products?.greutate_kg) || 5) * i.cantitate, 0));
   const curier = curieri.find((c) => c.id === o.curier);
   const pasCurent = PASI.indexOf(o.status);
   // Cât timp costul livrării nu e stabilit, comanda nu are un total real și nu se expediază.
@@ -271,25 +257,10 @@ export default function DetaliuComanda() {
               Completează datele coletului, exact ca în calculatorul FAN. La salvare, totalul
               comenzii se recalculează automat și intră în jurnal.
             </p>
-            {/* Piesele importate intră cu 1 kg pus automat, nu cântărit. Dacă vreuna
-                dintre ele e în comanda asta, avertismentul trebuie să sară în ochi:
-                un AWB emis pe o greutate presupusă înseamnă diferență de plată la
-                curier, suportată de firmă. */}
-            {items.some((i) => i.products?.greutate_estimata) && (
-              <div className="mt-3 rounded-lg bg-yellow-100 border-2 border-yellow-400 p-3 flex gap-2.5">
-                <span aria-hidden="true" className="text-xl leading-none">⚠</span>
-                <div>
-                  <b className="block text-[13px] text-ink">Greutate estimată — cântărește coletul înainte de a genera AWB.</b>
-                  <span className="text-[11px] text-ink/70">
-                    {items.filter((i) => i.products?.greutate_estimata).length} din {items.length} piese au primit 1 kg automat la import, nu o valoare cântărită.
-                  </span>
-                </div>
-              </div>
-            )}
             <form onSubmit={salveazaCostLivrare} className="mt-3 space-y-2">
               <div className="grid grid-cols-2 gap-2">
                 <label className="text-[11px] text-mut">Greutate (kg)
-                  <input name="greutate" inputMode="decimal" defaultValue={o.livrare_greutate_kg ?? greutate.toFixed(1)}
+                  <input name="greutate" inputMode="decimal" defaultValue={o.livrare_greutate_kg ?? ""} placeholder="cântărit"
                     className="w-full mt-0.5 rounded-lg border-2 border-line px-2.5 py-1.5 text-sm text-ink outline-none focus:border-acc" /></label>
                 <label className="text-[11px] text-mut">Dimensiuni (L×l×h cm)
                   <input name="dimensiuni" defaultValue={o.livrare_dimensiuni ?? ""} placeholder="ex. 40×30×25"
@@ -320,31 +291,10 @@ export default function DetaliuComanda() {
             )}
           </div>
 
-          {/* Expediere */}
-          <div className="card p-5 text-sm">
-            <b className="font-disp font-semibold text-[13px]">Expediere</b>
-            <div className="mt-2 space-y-1 text-mut">
-              <div className="flex justify-between"><span>Curier</span><b className="text-ink">{curier?.nume ?? o.curier}{o.plata === "ramburs" ? " — ramburs" : ""}</b></div>
-              <div className="flex justify-between"><span>Greutate {o.livrare_greutate_kg ? "(din cost livrare)" : "estimată (din piese)"}</span>
-                <b className="text-ink">{(Number(o.livrare_greutate_kg) || greutate).toFixed(1)} kg</b></div>
-              <div className="flex justify-between"><span>AWB</span>{o.awb ? <b className="text-ok">{o.awb}</b> : <span>negenerat</span>}</div>
-            </div>
-            {!o.awb && !livrareStabilita && (
-              <p className="mt-3 rounded-lg bg-yellow-50 border border-yellow-200 px-3 py-2 text-xs text-yellow-800">
-                Stabilește întâi costul livrării și confirmă-l cu clientul. Altfel rambursul de pe AWB
-                ar fi altul decât suma pe care a acceptat-o.
-              </p>
-            )}
-            {!o.awb && livrareStabilita && (<>
-              <button onClick={genereazaAwb} className="btn-acc w-full mt-3 !py-2.5 text-sm">Generează AWB automat</button>
-              <form onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); const v = String(f.get("awb") || "").trim();
-                if (v) salveaza({ awb: v, awb_generat_la: new Date().toISOString() }, `AWB ${v} introdus manual`); }}
-                className="mt-2 flex gap-2">
-                <input name="awb" placeholder="…sau scrie AWB-ul manual" className="flex-1 rounded-xl border-2 border-line px-3 py-2 outline-none focus:border-acc" />
-                <button className="rounded-xl border-2 border-line px-3 text-xs font-bold hover:border-acc">OK</button>
-              </form>
-            </>)}
-          </div>
+          {/* Expediere — AWB FAN Courier, cu greutatea și dimensiunile scrise la fiecare colet */}
+          <AwbFan o={o} laSchimbare={incarca}
+            continut={items.map((i) => i.nume).join(", ").slice(0, 200)}
+            salveazaManual={(v) => salveaza({ awb: v, awb_generat_la: new Date().toISOString() }, `AWB ${v} introdus manual`)} />
 
           {/* Notă internă */}
           <div className="card p-5 text-sm">

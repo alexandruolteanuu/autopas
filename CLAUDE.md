@@ -77,10 +77,11 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 33. `masuratori-publice.sql` -> 34. `piese-compatibile-masini.sql` -> 35. `superb-1.sql` ->
 36. `email-automat.sql` -> 37. `dezro.sql` -> 38. `piesa-vanduta-ramane.sql` ->
 39. `dezro-automat.sql` -> 40. `senzori-auto-despartire.sql` -> 41. `observatii-comanda.sql` ->
-42. `sugestie-clasificare.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9–42.
+42. `sugestie-clasificare.sql` -> 43. `awb-fancourier.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9–43.
 NU sunt încă idempotente: 1–5, 8.
-**Aplicate pe producție: 1–42.**
+**Aplicate pe producție: 1–43.**
+43 (15 septembrie 2026) adaugă `orders.awb_date` (jsonb): ce s-a declarat la FAN la AWB și ce a răspuns.
 42 (15 septembrie 2026) creează `sugestie_clasificare(text[])`: numără categoriile pieselor
 care se potrivesc pe tiparele de căutare, pentru completarea automată din „Adaugă piesă".
 Doar echipa: revocată de la PUBLIC ȘI de la `anon` — pe Supabase funcțiile noi primesc drept
@@ -160,6 +161,8 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
     Nu mai e o sarcină de pregătire, e una restantă.
   · Pașii, scriși pe îndelete: **`docs/email.md`**. Codul de trimitere e gata și așteaptă
     doar cheia din Admin → Integrări.
+- **Contul FAN Courier din Admin → Integrări e gol** (15 septembrie 2026): Client ID, utilizator,
+  parolă de pe selfawb.ro, apoi „Verifică conexiunea". Și ridicarea zilnică (vezi decizia AWB).
 - ~~Contul de pe dez.ro~~ — **REZOLVAT la 7 septembrie 2026.** Utilizatorul `autopas` și parola
   sunt în `settings.integrari.dezro`, integrarea e pornită, autentificarea verificată.
   · Adresa din profilul lor, pusă de proprietar: „Strada Bistritei 181, loc. Piatra-Neamț, jud.
@@ -223,8 +226,33 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
 - Număr comandă = generat pe server, din contorul `nr_comanda_seq`, format `AP-2026-01000`.
 - Facturare prin **Saga** = export CSV (Saga nu are API public); statusul e-Factura îl gestionează Saga.
 - Curier = **doar FAN Courier** (decizie 7 aug 2026). Cargus și Sameday au fost scoase complet
-  din cod, din texte și din `settings.curieri`. Scheletul SelfAWB se activează la primirea
-  credențialelor (Admin -> Integrări).
+  din cod, din texte și din `settings.curieri`.
+- **AWB-ul FAN se generează din pagina comenzii, prin API-ul public v2** (15 septembrie 2026,
+  `lib/fancourier.ts`, `app/api/awb/route.ts`, `components/admin/AwbFan.tsx`).
+  · **Nu pluginul de WooCommerce** primit de la FAN: acela vorbește cu un intermediar
+    (`ecommerce.fancourier.ro`) la care magazinul se înregistrează după domeniu, cu
+    `platform: "WooCommerce"`. API-ul public (`api.fancourier.ro`) folosește aceleași date
+    selfAWB. Pluginul a servit doar ca listă a ce cere FAN la un AWB.
+  · **Verificat pe API-ul real** cu contul de test din ghidul lor (clientId 7032158,
+    `clienttest`/`testing`): login JSON → token 24h; `POST /intern-awb` → `awbNumber`, `tariff`
+    (fără TVA), `vat`, `trackingUrl`; `GET /awb/label?pdf=1` → PDF; `DELETE /awb`; localitate
+    inexistentă → `errors.locality`. Opțiunea „A" = Deschidere la livrare. Greutatea cu zecimale e
+    rotunjită în sus de FAN. AWB-urile de test au fost șterse.
+  · **Operatorul scrie la fiecare AWB colete, kg și cele trei dimensiuni — greutatea NU se ia din
+    piese** (decizia proprietarului: piesele au 1 kg pus automat). Câmpurile pornesc doar de la ce
+    s-a scris la „Cost livrare" pentru comanda ASTA. Avertismentul „greutate estimată" din comandă
+    și estimarea de 5 kg/piesă din „Expedieri" au fost scoase; borderoul scrie greutatea declarată.
+  · Restul vine din comandă, citit pe SERVER: destinatarul (firma + persoana de contact), rambursul
+    = totalul comenzii (include transportul), conținutul = numele pieselor, `costCenter` = numărul
+    comenzii (se regăsește pe selfawb.ro). Adresa se poate corecta dintr-un panou pliat.
+  · Transportul îl plătește firma (`payment: "sender"`). Serviciul: „Cont Colector" dacă e ramburs
+    și bifa „ramburs în cont" e pusă, altfel „Standard". „Deschidere la livrare" e pusă implicit:
+    checkout-ul promite că clientul plătește „după ce a verificat coletul".
+  · AWB-ul se scrie în comandă DE RUTĂ, imediat după răspunsul FAN — nu de browser. Dacă scrierea
+    pică, ruta întoarce numărul, ca să nu existe un AWB la FAN necunoscut nouă.
+  · Rămâne regula din 7 august: fără cost de livrare stabilit, AWB-ul nu se generează.
+  · **AWB-ul NU cheamă curierul.** Ridicarea se cere separat: comandă zilnică automată prin
+    comenzi@fancourier.ro, sau din selfawb.ro. Nu s-a construit buton de „comandă curier".
 - **Plata e EXCLUSIV ramburs la livrare** (decizie 7 septembrie 2026, care înlocuiește
   „butonul de card e vizibil, activarea vine cu procesatorul"). Cardul și transferul bancar
   au fost scoase din checkout, din FAQ, din subsolul care afișa „VISA · Mastercard" și din
