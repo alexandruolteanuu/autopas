@@ -14,7 +14,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { esteEchipa, sbAdmin } from "@/lib/supabase";
-import { genereazaAwb, etichetaAwb, stergeAwb, verificaConexiunea, tarifTransport, EroareFan } from "@/lib/fancourier";
+import { genereazaAwb, etichetaAwb, stergeAwb, verificaConexiunea, tarifTransport, EroareFan, areDimensiuni } from "@/lib/fancourier";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +36,13 @@ const eroare = (e: unknown) => NextResponse.json({
 
 /** Un număr din formular: virgula românească acceptată, gol = NaN. */
 const nr = (v: unknown) => Number(String(v ?? "").replace(",", ".").trim() || NaN);
+/** O dimensiune a coletului: centimetri întregi, sau `null` dacă e goală (opțională). */
+const dim = (v: unknown) => { const n = Math.round(nr(v)); return n >= 1 ? n : null; };
+/** Unele dimensiuni scrise, altele nu — probabil o greșeală de tastare, nu o alegere. */
+const dimensiuniPartiale = (c: { lungime: number | null; latime: number | null; inaltime: number | null }) => {
+  const n = [c.lungime, c.latime, c.inaltime].filter((x) => x !== null).length;
+  return n > 0 && n < 3;
+};
 
 export async function POST(req: Request) {
   if (!(await esteEchipa(req))) return nuAi();
@@ -64,11 +71,13 @@ export async function POST(req: Request) {
       const c = body.colet ?? {};
       const colet = {
         colete: Math.round(nr(c.colete)), greutate: nr(c.greutate),
-        lungime: Math.round(nr(c.lungime)), latime: Math.round(nr(c.latime)), inaltime: Math.round(nr(c.inaltime)),
+        lungime: dim(c.lungime), latime: dim(c.latime), inaltime: dim(c.inaltime),
         cuRamburs: c.cu_ramburs !== false,
       };
-      if (!(colet.colete >= 1) || !(colet.greutate > 0) || !(colet.lungime >= 1 && colet.latime >= 1 && colet.inaltime >= 1))
-        return NextResponse.json({ ok: false, eroare: "Completează coletele, greutatea și toate cele trei dimensiuni." });
+      if (!(colet.colete >= 1) || !(colet.greutate > 0))
+        return NextResponse.json({ ok: false, eroare: "Completează coletele și greutatea." });
+      if (dimensiuniPartiale(colet))
+        return NextResponse.json({ ok: false, eroare: "Dimensiunile sunt opționale: scrie-le pe toate trei sau lasă-le pe toate goale." });
       let judet = String(body.destinatar?.judet ?? "").trim(), localitate = String(body.destinatar?.localitate ?? "").trim();
       if (body.comanda_id) {
         const { data: o } = await sb.from("orders").select("judet,oras,plata").eq("id", Number(body.comanda_id)).maybeSingle();
@@ -136,14 +145,15 @@ export async function POST(req: Request) {
     const c = body.colet ?? {};
     const colet = {
       colete: Math.round(nr(c.colete)), greutate: nr(c.greutate),
-      lungime: Math.round(nr(c.lungime)), latime: Math.round(nr(c.latime)), inaltime: Math.round(nr(c.inaltime)),
+      lungime: dim(c.lungime), latime: dim(c.latime), inaltime: dim(c.inaltime),
       ramburs: nr(c.ramburs), continut: String(c.continut ?? "").trim(), observatii: String(c.observatii ?? "").trim(),
       referinta: o.numar as string,
     };
     const lipsa: string[] = [];
     if (!(colet.colete >= 1)) lipsa.push("numărul de colete");
     if (!(colet.greutate > 0)) lipsa.push("greutatea");
-    if (!(colet.lungime >= 1 && colet.latime >= 1 && colet.inaltime >= 1)) lipsa.push("toate cele trei dimensiuni");
+    // Dimensiunile sunt opționale (16 septembrie 2026), dar ori toate trei, ori niciuna.
+    if (dimensiuniPartiale(colet)) lipsa.push("toate cele trei dimensiuni (sau lasă-le pe toate goale)");
     if (!(colet.ramburs >= 0)) lipsa.push("rambursul (0 dacă nu e cazul)");
     if (lipsa.length) return NextResponse.json({ ok: false, eroare: `Completează ${lipsa.join(", ")}.` });
 
@@ -174,7 +184,7 @@ export async function POST(req: Request) {
     }
     await sb.from("order_events").insert({
       order_id: id, tip: "awb", autor: await autor(req),
-      mesaj: `AWB ${r.awb} generat la FAN Courier · ${colet.colete} colet(e), ${colet.greutate} kg, ${colet.lungime}×${colet.latime}×${colet.inaltime} cm · ramburs ${colet.ramburs} lei`,
+      mesaj: `AWB ${r.awb} generat la FAN Courier · ${colet.colete} colet(e), ${colet.greutate} kg${areDimensiuni(colet) ? `, ${colet.lungime}×${colet.latime}×${colet.inaltime} cm` : ", fără dimensiuni"} · ramburs ${colet.ramburs} lei`,
     });
     return NextResponse.json({ ok: true, awb: r.awb, tarif: r.tarif, tva: r.tva, tracking: r.tracking });
   } catch (e) {

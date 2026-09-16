@@ -2,7 +2,7 @@
 // LIVRARE — FAN COURIER: calculatorul de transport + AWB-ul, într-un singur card.
 //
 // Pașii, în ordinea în care îi face omul:
-//   1. scrie câte colete, kilogramele și dimensiunile -> „Calculează transportul"
+//   1. scrie câte colete, kilogramele și (opțional) dimensiunile -> „Calculează transportul"
 //      -> vede prețul FAN defalcat (greutate, km suplimentari, combustibil,
 //      TVA);
 //   2. sună clientul și îi spune totalul; dacă acceptă -> „Clientul a acceptat"
@@ -42,6 +42,12 @@ function dimensiuni(text: string | null | undefined) {
   return [n[0] ?? "", n[1] ?? "", n[2] ?? ""];
 }
 
+/** „40×30×25" dacă sunt scrise toate trei, altfel `null` (coletul pleacă fără dimensiuni). */
+function textDimensiuni(c: Colet) {
+  const v = [c.lungime, c.latime, c.inaltime].map((x) => x.trim());
+  return v.every((x) => Number(x.replace(",", ".")) >= 1) ? v.join("×") : null;
+}
+
 function CampuriColet({ v, set }: { v: Colet; set: (c: Colet) => void }) {
   const f = (k: keyof Colet) => (e: React.ChangeEvent<HTMLInputElement>) => set({ ...v, [k]: e.target.value });
   return (<>
@@ -51,6 +57,9 @@ function CampuriColet({ v, set }: { v: Colet; set: (c: Colet) => void }) {
       <label className="text-[11px] text-mut">Greutate totală (kg)
         <input inputMode="decimal" value={v.greutate} onChange={f("greutate")} placeholder="ex. 4.5" className={camp} /></label>
     </div>
+    {/* Dimensiunile sunt OPȚIONALE (16 septembrie 2026): așa lucrează firma și în selfAWB.
+        Ori toate trei, ori niciuna — serverul refuză doar un set pe jumătate. */}
+    <p className="text-[11px] text-mut -mb-1">Dimensiuni colet <span className="italic">(opțional)</span></p>
     <div className="grid grid-cols-3 gap-2">
       <label className="text-[11px] text-mut">Lungime (cm)<input inputMode="numeric" value={v.lungime} onChange={f("lungime")} className={camp} /></label>
       <label className="text-[11px] text-mut">Lățime (cm)<input inputMode="numeric" value={v.latime} onChange={f("latime")} className={camp} /></label>
@@ -162,8 +171,8 @@ export default function LivrareFan({ o, laSchimbare, salveazaManual }: Props) {
     let km = r2(tarif.kmSuplimentari * cuTva), alte = r2((tarif.optiuni + tarif.asigurare) * cuTva);
     let baza = r2(sumaClient - km - alte);
     if (baza < 0) { baza = sumaClient; km = 0; alte = 0; } // sumă rotunjită mult în jos sau 0
-    const dim = `${colet.lungime}×${colet.latime}×${colet.inaltime}`;
-    const nota = `${colet.colete} ${colet.colete === "1" ? "colet" : "colete"}, ${colet.greutate} kg, ${dim} cm` +
+    const dim = textDimensiuni(colet);
+    const nota = `${colet.colete} ${colet.colete === "1" ? "colet" : "colete"}, ${colet.greutate} kg${dim ? `, ${dim} cm` : ""}` +
       (km > 0 ? ` · include ${bani(km)} km suplimentari` : "");
     setLucru("accept"); setMsg(null);
     const sb = sbBrowser()!;
@@ -253,7 +262,7 @@ export default function LivrareFan({ o, laSchimbare, salveazaManual }: Props) {
   // Kilogramele de la AWB trebuie să fie cele din calcul, altfel FAN facturează
   // altceva decât i s-a spus clientului.
   const altaGreutate = pasAwb && (Number(colet.greutate.replace(",", ".")) !== Number(o.livrare_greutate_kg)
-    || `${colet.lungime}×${colet.latime}×${colet.inaltime}` !== (o.livrare_dimensiuni ?? ""));
+    || (textDimensiuni(colet) ?? "") !== (o.livrare_dimensiuni ?? ""));
 
   return (
     <div className={`card p-5 text-sm ${pasCalcul && !recalculez ? "border-2 border-yellow-300" : ""}`}>
@@ -304,7 +313,7 @@ export default function LivrareFan({ o, laSchimbare, salveazaManual }: Props) {
           <CampuriColet v={colet} set={setColet} />
           {altaGreutate && (
             <p className="text-[12px] text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-lg px-2.5 py-1.5">
-              Coletul diferă de cel din calcul ({o.livrare_greutate_kg} kg, {o.livrare_dimensiuni} cm). FAN va factura după ce scrii aici — recalculează dacă prețul se schimbă.</p>
+              Coletul diferă de cel din calcul ({o.livrare_greutate_kg} kg{o.livrare_dimensiuni ? `, ${o.livrare_dimensiuni} cm` : ", fără dimensiuni"}). FAN va factura după ce scrii aici — recalculează dacă prețul se schimbă.</p>
           )}
           <label className="block text-[11px] text-mut">Ramburs (lei) — doar piesele; transportul îl plătește clientul direct la FAN
             <input inputMode="decimal" value={ramburs ?? (o.plata === "ramburs" ? String(produse) : "0")} onChange={(e) => setRamburs(e.target.value)} className={camp} /></label>
@@ -333,7 +342,7 @@ export default function LivrareFan({ o, laSchimbare, salveazaManual }: Props) {
             <b className="font-disp text-lg text-ok tracking-wide">{o.awb}</b>
             {d && (
               <span className="block text-[12px] text-mut mt-1">
-                {d.colete} {d.colete === 1 ? "colet" : "colete"} · {d.greutate} kg · {d.lungime}×{d.latime}×{d.inaltime} cm
+                {d.colete} {d.colete === 1 ? "colet" : "colete"} · {d.greutate} kg{d.lungime ? <> · {d.lungime}×{d.latime}×{d.inaltime} cm</> : null}
                 · ramburs {lei(Number(d.ramburs))}{d.tarif > 0 && <> · FAN a taxat {bani(d.tarif + d.tva)}</>}
               </span>
             )}

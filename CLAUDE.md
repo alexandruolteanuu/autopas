@@ -298,8 +298,11 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
     (fără TVA), `vat`, `trackingUrl`; `GET /awb/label?pdf=1` → PDF; `DELETE /awb`; localitate
     inexistentă → `errors.locality`. Greutatea cu zecimale e
     rotunjită în sus de FAN. AWB-urile de test au fost șterse.
-  · **Operatorul scrie la fiecare AWB colete, kg și cele trei dimensiuni — greutatea NU se ia din
-    piese** (decizia proprietarului: piesele au 1 kg pus automat). Câmpurile pornesc doar de la ce
+  · **Operatorul scrie la fiecare AWB colete și kg — greutatea NU se ia din piese** (decizia
+    proprietarului: piesele au 1 kg pus automat). **Dimensiunile sunt OPȚIONALE** (16 septembrie 2026,
+    cerut de proprietar — așa lucrează și în selfAWB): ori toate trei, ori niciuna; goale, câmpul
+    `dimensions` nu pleacă deloc la FAN (`areDimensiuni`). Verificat pe contul de test FAN: AWB-ul se
+    generează fără ele, iar tariful la 5 kg Cluj a ieșit identic cu și fără 40×30×20 (49,55 lei). Câmpurile pornesc doar de la ce
     s-a scris la „Cost livrare" pentru comanda ASTA. Avertismentul „greutate estimată" din comandă
     și estimarea de 5 kg/piesă din „Expedieri" au fost scoase; borderoul scrie greutatea declarată.
   · Restul vine din comandă, citit pe SERVER: destinatarul (firma + persoana de contact),

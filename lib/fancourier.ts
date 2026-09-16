@@ -145,10 +145,17 @@ export type Destinatar = {
   nume: string; persoana_contact?: string | null; telefon: string; email?: string | null;
   judet: string; localitate: string; strada: string;
 };
+/** Dimensiunile sunt OPȚIONALE (cerut de proprietar, 16 septembrie 2026 — așa lucrează și în
+ *  selfAWB): `null` = nu se trimit la FAN. Verificat pe API: AWB-ul și tariful merg fără ele,
+ *  iar la un colet de 5 kg prețul a ieșit identic cu și fără 40×30×20. */
 export type Colet = {
-  colete: number; greutate: number; lungime: number; latime: number; inaltime: number;
+  colete: number; greutate: number; lungime: number | null; latime: number | null; inaltime: number | null;
   ramburs: number; continut: string; observatii: string; referinta: string;
 };
+/** Toate trei dimensiunile completate (≥ 1 cm). Altfel coletul pleacă fără dimensiuni. */
+export const areDimensiuni = (c: { lungime: number | null; latime: number | null; inaltime: number | null }) =>
+  !!(c.lungime && c.latime && c.inaltime && c.lungime >= 1 && c.latime >= 1 && c.inaltime >= 1);
+
 export type AwbGenerat = { awb: string; tarif: number; tva: number; tracking: string; serviciu: string };
 
 export async function genereazaAwb(dest: Destinatar, colet: Colet, cfg?: ConfigFan): Promise<AwbGenerat> {
@@ -176,7 +183,8 @@ export async function genereazaAwb(dest: Destinatar, colet: Colet, cfg?: ConfigF
           observation: colet.observatii.slice(0, 200),
           // Rubrica „Conținut" de pe AWB rămâne goală, la cererea proprietarului.
           content: "",
-          dimensions: { length: colet.lungime, width: colet.latime, height: colet.inaltime },
+          // Doar dacă operatorul le-a scris pe toate trei; altfel câmpul nu pleacă deloc.
+          ...(areDimensiuni(colet) ? { dimensions: { length: colet.lungime, width: colet.latime, height: colet.inaltime } } : {}),
           // Apare în borderoul de pe selfawb.ro: așa se regăsește comanda noastră.
           costCenter: colet.referinta,
           // Fără opțiuni: coletul nu se deschide la livrare (decizie 15 septembrie 2026).
@@ -235,12 +243,14 @@ export async function tarifTransport(
     "info[packages][parcel]": String(colet.colete),
     "info[packages][envelope]": "0",
     "info[weight]": String(colet.greutate),
-    "info[dimensions][length]": String(colet.lungime),
-    "info[dimensions][width]": String(colet.latime),
-    "info[dimensions][height]": String(colet.inaltime),
     "recipient[county]": faraDiacritice(dest.judet),
     "recipient[locality]": faraDiacritice(dest.localitate),
   };
+  if (areDimensiuni(colet)) {
+    query["info[dimensions][length]"] = String(colet.lungime);
+    query["info[dimensions][width]"] = String(colet.latime);
+    query["info[dimensions][height]"] = String(colet.inaltime);
+  }
   if (colet.cuRamburs) { query["info[cod]"] = "1"; query["info[returnPayment]"] = "sender"; }
   let d: any;
   try {
@@ -253,7 +263,7 @@ export async function tarifTransport(
   }
   const t = d?.data;
   if (!t || !(Number(t.total) > 0))
-    throw new EroareFan("FAN n-a putut calcula tariful pentru adresa și coletul ăsta. Verifică localitatea și dimensiunile.");
+    throw new EroareFan("FAN n-a putut calcula tariful pentru adresa și coletul ăsta. Verifică localitatea, greutatea și dimensiunile (dacă le-ai scris).");
   return {
     greutate: Number(t.weightCost) || 0, kmSuplimentari: Number(t.extraKmCost) || 0,
     combustibil: Number(t.fuelCost) || 0, optiuni: Number(t.optionsCost) || 0, asigurare: Number(t.insuranceCost) || 0,

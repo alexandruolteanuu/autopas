@@ -55,7 +55,7 @@ export type OrderFull = { id: number; numar: string; tip_client: string; nume: s
   observatii: string | null;
   // Ce s-a declarat la FAN și ce a răspuns (supabase/awb-fancourier.sql). Null = AWB scris de mână.
   awb_date?: AwbDate | null };
-export type AwbDate = { colete: number; greutate: number; lungime: number; latime: number; inaltime: number;
+export type AwbDate = { colete: number; greutate: number; lungime: number | null; latime: number | null; inaltime: number | null;
   ramburs: number; serviciu: string; tarif: number; tva: number; tracking: string;
   destinatar: { telefon: string; judet: string; localitate: string; strada: string } };
 export type Discount = { id: number; cod: string; tip: "procent" | "fix"; valoare: number;
