@@ -222,6 +222,13 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
     (AP-000014, AP-000015). Doar în fișier; textul din bază rămâne cum l-a scris omul.
   · **Confirmat de pieseauto.ro (15 septembrie 2026)**: structura fișierului e corectă; ID-ul inițial nu
     se schimbă niciodată, produsele noi se ADAUGĂ, nu iau locul celor existente — exact formula de mai sus.
+  · **Răspunsurile lor din 16 septembrie 2026**: (a) cantitate 0 = anunțul devine INVIZIBIL, nu se
+    șterge, și redevine activ la importul de după ce cantitatea crește — deci regula „vândutele și
+    ascunsele pleacă cu 0" e exact cea bună; (b) importul rulează O SINGURĂ DATĂ pe zi, peste noapte,
+    NU se poate mai des; îl pornește echipa lor tehnică pe cont, la cerere. Consecință: o piesă vândută
+    ziua rămâne vizibilă la ei până la importul de noapte. Încă NEÎNTREBAT: ce fac cu un rând care
+    lipsește din fișier (piesă ȘTEARSĂ din bază) — până atunci, piesele venite de la ei se marchează
+    vândute/ascunse, nu se șterg.
   · **Ciornele NU pleacă** (`import_erori.ciorna`): n-au poze și descriere și ar goli anunțurile lor.
   · **Pozele pleacă ca JPEG**, prin `/feed/poze/<cale din bucket>.jpg` (conversie cu `sharp`, cache
     CDN un an). 20.147 din 20.220 sunt WebP în bucket, iar exemplul lor are `.jpg`. Ruta acceptă
