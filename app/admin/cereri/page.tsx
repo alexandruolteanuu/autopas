@@ -4,6 +4,7 @@
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { sbBrowser, scrieVerificat } from "@/lib/supabase";
+import { telefonWhatsapp } from "@/lib/format";
 
 type Tab = "piese" | "predare" | "retur" | "contact";
 const TABURI: { id: Tab; t: string; tabel: string }[] = [
@@ -76,7 +77,7 @@ function CereriInner() {
       <div className="space-y-3">
         {rows.map((r) => {
           const [sT, sC] = ST[r.status] ?? [r.status, "bg-paper"];
-          const tel = (r.telefon ?? "").replace(/\D/g, "");
+          const tel = telefonWhatsapp(r.telefon);
           return (
             <div key={r.id} className="card p-4">
               <div className="flex items-start gap-3 flex-wrap">
@@ -95,7 +96,7 @@ function CereriInner() {
                 </div>
                 <div className="flex flex-col gap-2 items-end">
                   <div className="flex gap-1.5">
-                    {tel && <a href={`https://wa.me/4${tel}`} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-[#25D366] text-white px-2.5 py-1.5 text-[11px] font-bold">WhatsApp</a>}
+                    {tel && <a href={`https://wa.me/${tel}`} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-[#25D366] text-white px-2.5 py-1.5 text-[11px] font-bold">WhatsApp</a>}
                     {tel && <a href={`tel:${r.telefon}`} className="rounded-lg border-2 border-line px-2.5 py-1.5 text-[11px] font-bold">Sună</a>}
                     {r.email && <a href={`mailto:${r.email}`} className="rounded-lg bg-ink text-white px-2.5 py-1.5 text-[11px] font-bold">E-mail</a>}
                   </div>

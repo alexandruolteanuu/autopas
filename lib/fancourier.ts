@@ -22,6 +22,7 @@
 // ============================================================
 import { sbAdmin } from "./supabase";
 import type { Integrari } from "./settings";
+import { telefonNational } from "./format";
 
 const BAZA = "https://api.fancourier.ro";
 const TIMEOUT_MS = 30_000;
@@ -193,7 +194,8 @@ export async function genereazaAwb(dest: Destinatar, colet: Colet, cfg?: ConfigF
         recipient: {
           name: dest.nume,
           contactPerson: dest.persoana_contact ?? undefined,
-          phone: dest.telefon,
+          // „+40734…" ar ieși pe AWB „40734…": FAN scoate doar „+".
+          phone: telefonNational(dest.telefon),
           email: dest.email ?? undefined,
           address: { county: faraDiacritice(dest.judet), locality: faraDiacritice(dest.localitate), street: dest.strada },
         },

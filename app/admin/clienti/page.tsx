@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { sbBrowser, citesteTot } from "@/lib/supabase";
-import { lei } from "@/lib/format";
+import { lei, telefonWhatsapp } from "@/lib/format";
 
 type Client = { email: string; nume: string; telefon: string; oras: string; tip: string; cui: string | null;
   comenzi: number; valoare: number; ultima: string; ids: { id: number; numar: string; total: number; status: string; created_at: string }[] };
@@ -77,7 +77,7 @@ export default function Clienti() {
             {deschis === c.email && (
               <div className="px-4 pb-4 space-y-1.5">
                 <div className="flex gap-2 mb-2">
-                  <a href={`https://wa.me/4${c.telefon.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-[#25D366] text-white px-3 py-1.5 text-[11px] font-bold">WhatsApp</a>
+                  <a href={`https://wa.me/${telefonWhatsapp(c.telefon)}`} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-[#25D366] text-white px-3 py-1.5 text-[11px] font-bold">WhatsApp</a>
                   <a href={`mailto:${c.email}`} className="rounded-lg bg-ink text-white px-3 py-1.5 text-[11px] font-bold">E-mail</a>
                 </div>
                 {c.ids.map((o) => (

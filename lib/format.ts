@@ -332,3 +332,23 @@ export function ghicesteMarcaModel(
   }
   return { marca, model };
 }
+
+// Telefonul scris de client vine în orice formă: „0734 248 231", „(0771) 272 869",
+// „+40734248231", „0040734248231". FAN tipărește pe AWB exact cifrele primite, iar
+// „+40…" iese „40734248231" (scoate doar „+"). Numerele românești se aduc la forma
+// națională „0734248231"; orice altceva (număr străin) rămâne neatins, doar cu
+// spațiile scoase.
+export function telefonNational(t: string | null | undefined): string {
+  const brut = (t ?? "").trim();
+  const cifre = brut.replace(/\D/g, "");
+  const m = cifre.match(/^(?:0040|40)(\d{9})$/);
+  if (m) return "0" + m[1];
+  if (/^0\d{9}$/.test(cifre)) return cifre;
+  return brut.replace(/[\s().-]/g, "");
+}
+
+// Același număr pentru wa.me: prefixul țării fără „+" („40734248231").
+export function telefonWhatsapp(t: string | null | undefined): string {
+  const n = telefonNational(t);
+  return /^0\d{9}$/.test(n) ? "4" + n : n.replace(/\D/g, "");
+}

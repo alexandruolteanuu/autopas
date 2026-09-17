@@ -6,7 +6,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { sbBrowser, scrieVerificat } from "@/lib/supabase";
-import { lei } from "@/lib/format";
+import { lei, telefonWhatsapp } from "@/lib/format";
 import { getSetariBrowser, waLinkCu, CURIERI_IMPLICITI, type Curier, type Firma, FIRMA_IMPLICITA } from "@/lib/settings";
 import { SITE_DOMENIU } from "@/lib/config";
 import LivrareFan from "@/components/admin/LivrareFan";
@@ -198,7 +198,7 @@ export default function DetaliuComanda() {
                   Domeniul vine din SITE_DOMENIU (lib/config.ts), nu scris de mână: mesajul
                   ăsta pleacă direct la client, iar aici scria „autopas.ro", care nu e
                   domeniul firmei. */}
-              <a href={waLinkCu(o.telefon.replace(/^0/, "4"),
+              <a href={waLinkCu(telefonWhatsapp(o.telefon),
                 `Bună ziua, ${o.nume}! Confirmăm comanda ${o.numar}${SITE_DOMENIU ? ` de pe ${SITE_DOMENIU}` : ""}:\n` +
                 items.map((i) => `• ${i.nume} — ${Number(i.pret)} lei`).join("\n") +
                 (Number(o.discount_valoare) > 0 ? `\nReducere ${o.discount_cod}: −${Number(o.discount_valoare)} lei` : "") +
@@ -212,7 +212,7 @@ export default function DetaliuComanda() {
                 `\nLivrare prin ${curier?.nume ?? o.curier} în 1–3 zile lucrătoare. Vă mulțumim!`)}
                 target="_blank" rel="noopener noreferrer" className="rounded-xl bg-[#25D366] text-white px-3.5 py-2 text-xs font-bold">
                 {livrareStabilita ? "Trimite totalul pe WhatsApp" : "Trimite confirmarea pe WhatsApp"}</a>
-              <a href={`https://wa.me/4${o.telefon.replace(/\D/g, "")}?text=${encodeURIComponent(`Bună ziua! Vă contactăm de la Autopas Dezmembrări în legătură cu comanda ${o.numar}.`)}`}
+              <a href={`https://wa.me/${telefonWhatsapp(o.telefon)}?text=${encodeURIComponent(`Bună ziua! Vă contactăm de la Autopas Dezmembrări în legătură cu comanda ${o.numar}.`)}`}
                 target="_blank" rel="noopener noreferrer" className="rounded-xl bg-[#25D366] text-white px-3.5 py-2 text-xs font-bold">WhatsApp</a>
               <a href={`mailto:${o.email}?subject=Comanda ${o.numar} — Autopas Dezmembrări`} className="rounded-xl bg-ink text-white px-3.5 py-2 text-xs font-bold">E-mail</a>
               <a href={`tel:${o.telefon}`} className="rounded-xl border-2 border-line px-3.5 py-2 text-xs font-bold">Sună</a>
