@@ -272,6 +272,12 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
   scrise ca un singur produs pentru ambele părți („Oglindă stânga/dreapta"). Câmpul „4 ·
   Observații" din checkout e opțional; textul apare în detaliul comenzii (scos în evidență), în
   listă („✎ are observații") și în ambele e-mailuri. Politica de confidențialitate îl numește.
+- **Butonul de distribuire de pe pagina de piesă** (21 septembrie 2026, cerut de proprietar,
+  `components/DistribuiePiesa.tsx`). Pe telefon stă peste colțul din dreapta-sus al pozei principale
+  (vizibil fără defilare), pe desktop lângă titlu. Unde există meniul sistemului (`navigator.share`:
+  telefoane, Safari, Edge) îl deschide pe acela; altfel o listă: copiază linkul, WhatsApp, Facebook,
+  e-mail. Se trimite adresa CANONICĂ a piesei, cu titlul și prețul. Evenimentul GA4 e `share`
+  (standard), prin `ev()`. Facebook apare ca text, nu cu sigla lor (regula despre mărci).
 - **Descrierea piesei se afișează pe paragrafe** (15 septembrie 2026, `paragrafe()` din
   `lib/format.ts`): rândul gol face paragraf nou, rândul simplu rămâne rând nou. Textul din bază
   era deja structurat (8.509 din 8.806 descrieri au rânduri); doar HTML-ul le lipea.

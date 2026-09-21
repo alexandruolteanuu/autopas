@@ -7,6 +7,7 @@ import ProductCard from "@/components/ProductCard";
 import ProductGallery from "@/components/ProductGallery";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import FavButton from "@/components/FavButton";
+import DistribuiePiesa from "@/components/DistribuiePiesa";
 import BackLink from "@/components/BackLink";
 import { TrustIcon } from "@/components/TrustBar";
 import { lei, paragrafe } from "@/lib/format";
@@ -187,12 +188,27 @@ export default async function Produs({ params }: { params: { slug: string } }) {
         date={{ currency: MONEDA, value: Number(prod.pret_lei), items: [piesaGa(prod)] }} />
 
       <div className="grid lg:grid-cols-2 gap-8">
-        <ProductGallery poze={prod.poze ?? []} art={prod.art} nume={prod.nume} />
+        {/* Pe telefon butonul de distribuire stă peste colțul pozei: e primul lucru de pe
+            ecran, deci la îndemâna degetului fără defilare. Pe desktop stă lângă titlu. */}
+        <div className="relative min-w-0">
+          <ProductGallery poze={prod.poze ?? []} art={prod.art} nume={prod.nume} />
+          <div className="absolute top-3 right-3 z-10 lg:hidden">
+            <DistribuiePiesa varianta="peste-poza" url={`${SITE_URL}/piese/${prod.slug}`} titlu={prod.nume}
+              pret={lei(Number(prod.pret_lei), prod.pret_sufix)} codIntern={prod.cod_intern} />
+          </div>
+        </div>
 
         <div>
           {/* Ordinea pe telefon: denumire, cod intern, preț, stoc, apoi butonul
               principal pe toată lățimea — ca să fie vizibil fără defilare. */}
-          <h1 className="t-sectiune">{prod.nume}</h1>
+          {/* Pe desktop butonul de distribuire stă lângă titlu (pe telefon: peste poză). */}
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="t-sectiune min-w-0">{prod.nume}</h1>
+            <div className="hidden lg:block">
+              <DistribuiePiesa url={`${SITE_URL}/piese/${prod.slug}`} titlu={prod.nume}
+                pret={lei(Number(prod.pret_lei), prod.pret_sufix)} codIntern={prod.cod_intern} />
+            </div>
+          </div>
 
           <div className="mt-2 text-[13px] text-textSecundar">Cod intern: {prod.cod_intern ?? "—"}</div>
 

@@ -34,3 +34,10 @@ export const IconLupa = (p: Props) => (
 export const IconMesaj = (p: Props) => (
   <Svg {...p}><path {...baza} d="M20.5 12.5c0 3.9-3.8 7-8.5 7-1 0-2-.1-2.9-.4L4 21l1.2-3.6C4.1 16.1 3.5 14.4 3.5 12.5c0-3.9 3.8-7 8.5-7s8.5 3.1 8.5 7z" /></Svg>
 );
+// Distribuire: trei noduri legate — semnul generic, nu al vreunei platforme.
+export const IconDistribuie = (p: Props) => (
+  <Svg {...p}><g {...baza}><circle cx="18" cy="5.5" r="2.5" /><circle cx="6" cy="12" r="2.5" /><circle cx="18" cy="18.5" r="2.5" /><path d="M8.2 10.8l7.6-4.1M8.2 13.2l7.6 4.1" /></g></Svg>
+);
+export const IconLink = (p: Props) => (
+  <Svg {...p}><g {...baza}><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" /><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" /></g></Svg>
+);
