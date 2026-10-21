@@ -33,8 +33,13 @@ export type Product  = {
 // `null` înseamnă „am verificat, piesa n-are poză" — DIFERIT de cheia lipsă,
 // care înseamnă „coș salvat înainte de 7 septembrie 2026, încă neverificat".
 // CartContext se bazează pe distincția asta ca să nu reinterogheze la infinit.
+// `stoc` = câte bucăți avea piesa la ultima reîmprospătare a coșului. E un
+// PLAFON pentru selectorul de cantitate, nu un adevăr: coșul trăiește în
+// localStorage, iar stocul se schimbă între timp. De asta `/cos` îl recitește
+// la fiecare deschidere, iar decizia finală rămâne a lui `plaseaza_comanda`,
+// pe server. Cheia lipsă = coș salvat înainte de 20 octombrie 2026.
 export type CartItem = { id: number; slug: string; nume: string; pret: number; art: string; oem: string;
-  cantitate: number; poza?: string | null };
+  cantitate: number; poza?: string | null; stoc?: number };
 export type Brand = { id: number; slug: string; nume: string; ordine: number };
 // an_start / an_final = anii generației, ca date (supabase/ani-generatie.sql).
 // an_final null = model încă în producție. Numele rămâne doar pentru afișare.

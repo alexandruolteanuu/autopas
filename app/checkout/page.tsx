@@ -226,8 +226,13 @@ export default function Checkout() {
         {/* Sumar */}
         <div className="card p-5 space-y-3 text-sm lg:sticky lg:top-24">
           <b className="font-disp font-semibold text-[13px]">Comanda ta</b>
+          {/* Cantitatea se scrie pe rând, altfel sumarul se contrazice: 4
+              injectoare × 450 lei arătau „450 lei" pe rând și 1.800 la total. */}
           {items.map((i) => (
-            <div key={i.id} className="flex justify-between gap-3"><span className="text-textSecundar">{i.nume.slice(0, 42)}…</span><b className="whitespace-nowrap">{lei(i.pret)}</b></div>
+            <div key={i.id} className="flex justify-between gap-3">
+              <span className="text-textSecundar">{i.nume.slice(0, 42)}…{i.cantitate > 1 ? ` × ${i.cantitate}` : ""}</span>
+              <b className="whitespace-nowrap">{lei(i.pret * i.cantitate)}</b>
+            </div>
           ))}
           <DiscountBox subtotal={total} reducere={reducere} setReducere={setReducere} />
           {reducereVal > 0 && <div className="flex justify-between text-ok"><span>Reducere {reducere?.cod}</span><b>−{lei(reducereVal)}</b></div>}

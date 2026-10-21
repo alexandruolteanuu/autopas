@@ -221,7 +221,15 @@ export default async function Produs({ params }: { params: { slug: string } }) {
             {/* „Vândută", nu „Stoc epuizat": la dezmembrări fiecare piesă e unicat,
                 deci nu se reaprovizionează niciodată. „Epuizat" lasă impresia că
                 merită să revii peste o săptămână. */}
-            {prod.stoc > 0
+            {/* Numărul de bucăți se scrie doar când sunt mai multe (decizia
+                proprietarului, 20 octombrie 2026): e argumentul de vânzare
+                pentru arcuri, injectoare, bobine și capace de jante — clientul
+                vede dintr-o privire că poate lua setul întreg. La o singură
+                bucată rămâne „În stoc", fără cifră: „1 buc. pe stoc" ar suna
+                a inventar pe terminate, nu a piesă unicat. */}
+            {prod.stoc > 1
+              ? <span className="px-2.5 py-1 rounded-full bg-ok/10 text-ok">{prod.stoc} buc. pe stoc</span>
+              : prod.stoc === 1
               ? <span className="px-2.5 py-1 rounded-full bg-ok/10 text-ok">În stoc</span>
               : <span className="px-2.5 py-1 rounded-full bg-chenar text-text">Vândută</span>}
             {prod.originala !== false && (
@@ -243,7 +251,13 @@ export default async function Produs({ params }: { params: { slug: string } }) {
 
           {vacanta.activ && <VacantaBanner vacanta={vacanta} className="mt-4" />}
 
-          <div className="mt-4 grid gap-2.5 sm:grid-cols-[minmax(0,1fr),auto]">
+          {/* Pe desktop butonul principal stă lângă WhatsApp/Favorite. La o
+              piesă cu mai multe bucăți NU: acolo intră și selectorul de
+              cantitate, iar celula de `1fr` se strânge până la 125px la 1024px
+              (coloana cu WhatsApp e `auto`, deci își ia cât cere). Selectorul,
+              lat de 144px, ieșea peste WhatsApp — măsurat pe 11 lățimi. Atunci
+              butonul primește rândul lui, iar butoanele secundare trec dedesubt. */}
+          <div className={`mt-4 grid gap-2.5 ${prod.stoc > 1 ? "" : "sm:grid-cols-[minmax(0,1fr),auto]"}`}>
             {vacanta.activ
               ? <div className="rounded-xl bg-chenar text-text px-5 min-h-[44px] grid place-items-center text-sm font-medium text-center">
                   Comenzile sunt oprite temporar

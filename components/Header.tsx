@@ -39,7 +39,7 @@ function Ic({ kind, className = "w-[22px] h-[22px]" }: { kind: string; className
 
 export default function Header({ vacanta }: { vacanta?: Vacanta }) {
   const path = usePathname();
-  const { items } = useCart();
+  const { bucati } = useCart();
   const { nr } = useFavorites();
   const [open, setOpen] = useState(false);
   const [staff, setStaff] = useState(false);
@@ -194,7 +194,10 @@ export default function Header({ vacanta }: { vacanta?: Vacanta }) {
           <ComutatorTema />
           <IconLink href="/favorite" kind="inima" eticheta="Favorite" badge={nr} />
           <IconLink href={logat ? "/cont" : "/autentificare"} kind="cont" eticheta="Contul meu" />
-          <IconLink href="/cos" kind="cos" eticheta="Coșul meu" badge={items.length} />
+          {/* BUCĂȚI, nu rânduri (20 octombrie 2026). De când coșul acceptă cantități,
+              4 injectoare dintr-o piesă sunt 4 bucăți: `items.length` ar fi scris „1",
+              contrazicând „· 4 piese" din titlul coșului. */}
+          <IconLink href="/cos" kind="cos" eticheta="Coșul meu" badge={bucati} />
           <button onClick={() => setOpen(!open)} aria-label="meniu"
             className="md:hidden grid place-items-center min-w-[44px] min-h-[44px] rounded-lg hover:bg-white/10"><Ic kind="meniu" /></button>
         </nav>

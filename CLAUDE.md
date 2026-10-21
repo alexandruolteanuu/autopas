@@ -240,6 +240,38 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
     `?test=5` dă 5 piese cu stoc și poze, pentru prima probă la ei.
   · **Importul DIN pieseauto.ro e acum ascuns după o confirmare** (`/admin/import`): un CSV de la ei
     are datele de ieri ale site-ului și ar suprascrie prețurile de azi.
+- **Coșul acceptă CANTITĂȚI, plafonate la stoc** (20 octombrie 2026, cerut de proprietar).
+  Până atunci `CartContext.add` ignora tăcut a doua adăugare a aceleiași piese („piesele sunt
+  unicate"). Măsurat atunci: **84 de piese publicate din 9.582 au stoc peste 1** — arcuri,
+  injectoare, bobine, capace de jante, adică exact ce se cumpără în set. Un client care voia
+  4 injectoare putea comanda unul.
+  · **Serverul știa deja**: `plaseaza_comanda` înmulțea, verifica `stoc < cantitate` și scria
+    `order_items.cantitate`; triggerul scădea `stoc - cantitate`, anularea îl punea înapoi;
+    adminul, e-mailurile, feed-ul pieseauto.ro și `qty` de la dez.ro afișau cantitatea.
+    **Nicio migrare nu a fost nevoie** — blocajul era o singură linie în browser.
+  · **Plafonul din browser e comoditate, nu adevăr.** Coșul trăiește în `localStorage`, deci
+    `CartItem.stoc` poate fi vechi; `/cos` îl recitește la fiecare deschidere
+    (`reimprospateazaStoc`), taie cantitățile peste stoc și marchează piesele vândute ÎNAINTE de
+    checkout. Decizia finală rămâne a serverului. Cheia `stoc` lipsă = coș salvat înainte de
+    schimbare, ca `poza`.
+  · **Selectorul apare DOAR pe pagina piesei și în coș, și doar la stoc peste 1.** Pe cardurile
+    din grilă nu: sunt 24 pe pagină, iar cazul atinge sub 1% din piese. De acolo se adaugă o
+    bucată. La o piesă unicat un „− 1 +" cu ambele butoane stinse ar arăta a defect.
+  · **Pe pagina piesei, cantitatea și „Adaugă în coș" stau pe UN rând, WhatsApp și Favorite
+    dedesubt** (cerut de proprietar). De aceea grila de butoane trece pe o singură coloană când
+    stocul e peste 1: în forma cu două coloane, celula `minmax(0,1fr)` se strânge la 125px la
+    1024px (coloana cu WhatsApp e `auto`), iar selectorul, lat de 144px, **ieșea peste WhatsApp**.
+    Găsit de proprietar în browser, nu de verificarea de depășire orizontală — de atunci
+    suprapunerile se măsoară în `verifica-cantitati.mjs`. Sub 360px butonul coboară singur
+    (`flex-wrap`), iar cuvântul „Cantitate" dispare sub 480px, ca butonul să încapă.
+  · **Numărul de bucăți se scrie clientului** („10 buc. pe stoc" pe pagina piesei, „maximum" în
+    selector): e argumentul de vânzare pentru seturi. La o singură bucată rămâne „În stoc", fără
+    cifră — „1 buc. pe stoc" ar suna a inventar pe terminate, nu a piesă unicat.
+  · Badge-ul coșului din header numără BUCĂȚI, nu rânduri; la fel titlul din `/cos`. Altfel 4
+    injectoare ar fi scris „1" în header și „4 piese" în titlu.
+  · `add_to_cart` raportează cantitatea CHIAR adăugată (după plafonare), iar schimbarea din
+    selector nu trimite niciun eveniment: GA4 n-are unul pentru „am schimbat cantitatea", iar
+    unul inventat ar umfla numărul de adăugări.
 - **Căutarea pieselor e pe cuvinte, cu plural și sinonime, peste tot** (15 septembrie 2026,
   `tipareCautare` din `lib/format.ts`, folosită în `/piese`, Admin → Produse, Piese de completat
   și căutarea globală din admin). Adminul căuta tot textul ca un singur șir, deci „portiera skoda"
@@ -1280,6 +1312,7 @@ Niciuna nu e dependință a site-ului și niciuna nu rulează la build. Se cheam
 | `publica-dezro.mjs` | **prima publicare mare pe dez.ro**, și oricând vrei o rulare lungă fără browser. `--catalog` aduce catalogul lor, `--potriveste` rulează potrivirea automată, `--uscat` arată ce s-ar trimite fără să trimită (merge și fără cont), `--limita=N` se oprește după N piese |
 | `verifica-dezro.mjs` | **după orice modificare în `lib/dezro/`.** 77 de verificări pe regulile publicării — invariantul de timp al unui lot, potrivirea modelelor, traducerile aprobate, ce se trimite într-un anunț, amprenta, diferența de poze, retragerea, coada automată și plasa ei de 20%. Fără rețea și fără bază de date |
 | `actualizeaza-nomenclator-fan.mjs` | **periodic (FAN recomandă), de exemplu lunar.** Reface județele, localitățile (cu agenția și km suplimentari) și străzile din API-ul FAN în `fan_localitati` / `fan_strazi`. ~5 minute. Contul FAN îl ia din `settings`. Nu scrie și nu șterge nimic dacă FAN întoarce sub 90% din ce avem. `--uscat` doar numără |
+| `verifica-cantitati.mjs` | **după orice modificare a coșului, a selectorului de cantitate sau a lui `plaseaza_comanda`.** 23 de verificări pe piese REALE, alese din bază (nu slug-uri scrise de mână): selectorul și plafonul, subtotalurile, coșul după reîncărcare, sumarul din checkout, așezarea pe 11 lățimi (suprapuneri, text tăiat, ținte de 44px) și faptul că serverul înmulțește și refuză peste stoc. Cere un server pornit (`BASE=…`) **pe build-ul de producție** — în `npm run dev` coșul se golește la reîncărcare — plus `playwright-core`, ca `scan-responsive.mjs`. Proba de server trimite intenționat un total greșit, deci se oprește înainte de orice scriere: nicio comandă creată |
 | `curata-orfani.mjs` | **periodic**, mai ales după sesiuni lungi de lucru pe produse. Găsește fișierele din `poze-piese` spre care nu mai arată niciun rând din `products` SAU din `vehicles`. Implicit doar raportează; șterge numai cu `--sterge` și numai fișiere mai vechi de 24h (`--ore=N`). Peste 5% orfani refuză să șteargă și cere `--confirm-stergere-mare`: atâția deodată înseamnă de obicei o citire incompletă, nu formulare abandonate. Raportează și cazul invers, mai grav: adrese din bază fără fișier în stocare |
 
 **De ce apar orfani** (tipar structural, găsit la 25 august 2026): `components/admin/PhotoUploader.tsx`
