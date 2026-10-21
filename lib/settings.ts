@@ -9,10 +9,21 @@ export type Firma = { denumire: string; cui: string; reg_com: string; adresa: st
   serie_factura: string; telefon: string; email: string; whatsapp: string };
 export type Curier = { id: string; nume: string; detalii: string; pret: number };
 export type Integrari = {
-  // `ramburs_cont` e o bifă salvată ca text („on" / ""), citită de `configFan`
-  // din lib/fancourier.ts; nesalvată încă = „da".
+  // `ramburs_cont` e o bifă salvată ca text („on” / ""), citită de `configFan`
+  // din lib/fancourier.ts; nesalvată încă = „da”.
   fancourier?: { client_id?: string; user?: string; parola?: string; activ?: boolean;
                  ramburs_cont?: string | boolean };
+  // Contul selfAWB OCAZIONAL (client fără contract), cerut de FAN pentru AWB-urile
+  // de RETUR — ridicarea se face de la adresa clientului, nu de la noi. Are alt
+  // Client ID, alt utilizator și altă parolă decât contul de livrare de mai sus;
+  // cele două nu se amestecă niciodată (vezi `configFanRetur` din lib/fancourier.ts).
+  // `payment` e valoarea pe care o transmite FAN după ce mapează contul ocazional
+  // la contul cu contract — nu se ghicește, fiindcă API-ul acceptă orice valoare.
+  // Câmpurile `depozit_*` suprascriu adresa la care vine coletul returnat.
+  fancourier_retur?: { client_id?: string; user?: string; parola?: string; activ?: boolean;
+                       payment?: string;
+                       depozit_nume?: string; depozit_telefon?: string; depozit_contact?: string;
+                       depozit_judet?: string; depozit_localitate?: string; depozit_strada?: string };
   netopia?: { pos_id?: string; signature?: string; activ?: boolean };
   saga?: { serie?: string; activ?: boolean };
   ga4?: { id?: string; activ?: boolean };
@@ -82,7 +93,7 @@ const vacantaDin = (d: any): Vacanta => ({
 });
 
 /** Starea vacanței pentru site-ul public (server). Dacă apelul cade din orice
- *  motiv, se întoarce „inactiv": un magazin care nu poate citi comutatorul
+ *  motiv, se întoarce „inactiv”: un magazin care nu poate citi comutatorul
  *  trebuie să vândă mai departe, nu să se închidă singur. */
 export async function getVacanta(): Promise<Vacanta> {
   const sb = sbServer();
@@ -140,7 +151,7 @@ export const waLinkCu = (numar: string, text = "Bună! Am o întrebare despre o 
  *
  * Vine prin `masuratori_publice()` (migrarea 33), nu dintr-o citire a rândului
  * `integrari`: acolo stau parola FAN Courier și cheia privată Netopia, iar o
- * politică lărgită „ca să ajungem la codul ăsta" le-ar deschide și pe acelea.
+ * politică lărgită „ca să ajungem la codul ăsta” le-ar deschide și pe acelea.
  *
  * Se pune în `<head>`-ul site-ului. Fără el, Meta nu acceptă catalogul de
  * produse legat de domeniu și nu se pot configura evenimentele agregate — adică

@@ -26,6 +26,13 @@ const INTEGRARI: Stare[] = [
            "Completezi mai jos Client ID, utilizatorul și parola de pe selfawb.ro, salvezi",
            "Apeși „Verifică conexiunea” — trebuie să apară serviciile contului",
            "⚠ AWB-ul singur nu cheamă curierul: ori ceri la comenzi@fancourier.ro o ridicare zilnică automată, ori comanzi curierul din selfawb.ro"] },
+  { nume: "FAN Courier — retururi", grup: "Curieri", stare: "viitor",
+    desc: "AWB de RETUR: curierul merge la client și aduce coletul la depozit. Se generează din Admin → Cereri → Retururi, direct pe cererea clientului — adresa vine singură din comanda lui. Pe lângă AWB se plasează automat și comanda de curier (fără ea nu vine nimeni), iar eticheta o aduce curierul printată: clientul care returnează o piesă n-are de ce să aibă imprimantă. Codul e gata și testat pe contul de probă al FAN; așteaptă doar contul vostru.",
+    pasi: ["Creezi în SelfAWB un cont de client OCAZIONAL (fără contract) — e altul decât contul de livrare",
+           "Trimiți la cristian.branzan@fancourier.ro adresa de e-mail a contului și numele clientului cu contract de care se asociază plata",
+           "FAN îți răspunde cu Client ID-ul contului ocazional și cu valoarea pentru câmpul „payment” — le pui mai jos",
+           "Apeși „Verifică retururile” — trebuie să apară serviciile contului",
+           "⚠ Valoarea „payment” NU se ghicește: API-ul acceptă orice valoare fără să dea eroare, dar plata ajunge pe cine nu trebuie. Se pune exact ce transmite FAN"] },
   { nume: "Plată cu cardul (Netopia / Stripe)", grup: "Plăți", stare: "viitor",
     desc: "Acum: ramburs și transfer bancar. Cardul online necesită contract cu procesatorul și verificare KYC.",
     pasi: ["Clientul deschide cont la procesator", "Primim cheile API", "Adăugăm pasul de plată în checkout"] },
@@ -71,6 +78,20 @@ const CAMPURI: Record<string, { k: string; l: string; tip?: string }[]> = {
   "FAN Courier (SelfAWB)": [{ k: "client_id", l: "Client ID" }, { k: "user", l: "Utilizator selfawb.ro" }, { k: "parola", l: "Parolă selfawb.ro", tip: "password" },
     // Bifă: nesalvată încă înseamnă „da" (vezi `configFan` din lib/fancourier.ts).
     { k: "ramburs_cont", l: "Rambursul intră în contul bancar (serviciul Cont Colector). Debifat = ramburs în plic.", tip: "bifa" }],
+  // Contul OCAZIONAL, pentru retururi. E ALTUL decât cel de livrare de mai sus:
+  // contul cu contract poate trimite doar expediții care pleacă de la noi.
+  "FAN Courier — retururi": [
+    { k: "client_id", l: "Client ID al contului ocazional (îl dă FAN, după mapare)" },
+    { k: "user", l: "Utilizator (adresa de e-mail cu care s-a creat contul ocazional)" },
+    { k: "parola", l: "Parola contului ocazional", tip: "password" },
+    // Nu se ghicește: verificat pe API, și „sender” și „recipient” generează AWB,
+    // cu același tarif. Singura sursă adevărată e ce transmite FAN.
+    { k: "payment", l: "Câmpul „payment”, exact cum îl transmite FAN (implicit: sender)" },
+    { k: "depozit_judet", l: "Retururile vin în județul (ca la FAN, fără diacritice — implicit Neamt)" },
+    { k: "depozit_localitate", l: "…localitatea (implicit Bistrita)" },
+    { k: "depozit_strada", l: "…strada și numărul (implicit Str. Petru Rares nr. 181)" },
+    { k: "depozit_contact", l: "Persoana de contact la recepția retururilor" },
+  ],
   "Plată cu cardul (Netopia / Stripe)": [{ k: "pos_id", l: "POS Signature / ID" }, { k: "signature", l: "Cheie privată", tip: "password" }],
   "E-mail automat (Brevo)": [
     { k: "cheie", l: "Cheie API Brevo", tip: "password" },
@@ -103,6 +124,7 @@ const CAMPURI: Record<string, { k: string; l: string; tip?: string }[]> = {
 };
 const CHEI: Record<string, string> = {
   "WhatsApp Business": "whatsapp", "Saga — facturare": "saga", "FAN Courier (SelfAWB)": "fancourier",
+  "FAN Courier — retururi": "fancourier_retur",
   "Plată cu cardul (Netopia / Stripe)": "netopia", "Google Analytics 4": "ga4", "E-mail automat (Brevo)": "email",
   "Google Merchant Center": "merchant", "Google Ads": "google_ads",
   "Meta — Facebook și Instagram": "meta", "dez.ro — anunțuri": "dezro",
@@ -132,6 +154,35 @@ function UneltFan() {
     <div className="mt-3 text-sm">
       <button type="button" onClick={verifica} disabled={lucru} className="rounded-xl border-2 border-line px-3 py-1.5 text-xs font-bold hover:border-acc">
         {lucru ? "Se verifică…" : "Verifică conexiunea"}</button>
+      {rez && <p className={`mt-2 text-xs ${rez.bun ? "text-ok" : "text-red-600"}`}>{rez.text}</p>}
+    </div>
+  );
+}
+
+/** „Verifică retururile”: se autentifică pe contul OCAZIONAL și cere serviciile
+ *  lui. Merge pe aceeași rută ca AWB-ul de retur, deci un test reușit înseamnă
+ *  că și AWB-ul de retur va putea pleca. Arată și adresa la care vor veni
+ *  coletele, ca o greșeală în ea să se vadă înainte de primul retur, nu după. */
+function UneltFanRetur() {
+  const [lucru, setLucru] = useState(false);
+  const [rez, setRez] = useState<{ bun: boolean; text: string } | null>(null);
+  async function verifica() {
+    setLucru(true); setRez(null);
+    const sb = sbBrowser();
+    const token = sb ? (await sb.auth.getSession()).data.session?.access_token : null;
+    const r = await fetch("/api/awb-retur", { method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+      body: JSON.stringify({ actiune: "verifica" }) });
+    const j = await r.json().catch(() => null);
+    setLucru(false);
+    if (j?.ok) setRez({ bun: true,
+      text: `✓ Contul de retur merge. Servicii: ${j.servicii.join(", ")}. Coletele vin la ${j.depozit.strada}, ${j.depozit.localitate}, jud. ${j.depozit.judet}.` });
+    else setRez({ bun: false, text: j?.eroare ?? "Nu s-a putut verifica." });
+  }
+  return (
+    <div className="mt-3 text-sm">
+      <button type="button" onClick={verifica} disabled={lucru} className="rounded-xl border-2 border-line px-3 py-1.5 text-xs font-bold hover:border-acc">
+        {lucru ? "Se verifică…" : "Verifică retururile"}</button>
       {rez && <p className={`mt-2 text-xs ${rez.bun ? "text-ok" : "text-red-600"}`}>{rez.text}</p>}
     </div>
   );
@@ -311,6 +362,7 @@ export default function Integrari() {
                   </ol>
                   {i.nume === "E-mail automat (Brevo)" && <UneltEmail implicit={conf.email?.notificari ?? ""} />}
                   {i.nume === "FAN Courier (SelfAWB)" && <UneltFan />}
+                  {i.nume === "FAN Courier — retururi" && <UneltFanRetur />}
                   {CAMPURI[i.nume] && (
                     <form onSubmit={(e) => { e.preventDefault();
                       const f = new FormData(e.currentTarget);

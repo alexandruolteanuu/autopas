@@ -4,6 +4,7 @@
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { sbBrowser, scrieVerificat } from "@/lib/supabase";
+import AwbReturFan from "@/components/admin/AwbReturFan";
 import { telefonWhatsapp } from "@/lib/format";
 
 type Tab = "piese" | "predare" | "retur" | "contact";
@@ -111,6 +112,13 @@ function CereriInner() {
               <input defaultValue={r.nota ?? ""} onBlur={(e) => salveazaNota(r.id, e.target.value)}
                 placeholder="Notă internă (se salvează automat la ieșirea din câmp)…"
                 className="mt-3 w-full rounded-xl border-2 border-line px-3 py-2 text-sm outline-none focus:border-acc bg-paper/50" />
+              {/* AWB-ul de retur: coletul se ridică de la client, pe contul FAN
+                  ocazional. Doar la retururi — celelalte cereri n-au colet. */}
+              {tab === "retur" && (
+                <div className="mt-3">
+                  <AwbReturFan cerere={r} onSchimbare={incarca} />
+                </div>
+              )}
             </div>
           );
         })}

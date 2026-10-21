@@ -78,10 +78,13 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 36. `email-automat.sql` -> 37. `dezro.sql` -> 38. `piesa-vanduta-ramane.sql` ->
 39. `dezro-automat.sql` -> 40. `senzori-auto-despartire.sql` -> 41. `observatii-comanda.sql` ->
 42. `sugestie-clasificare.sql` -> 43. `awb-fancourier.sql` -> 44. `nomenclator-fan.sql` ->
-45. `transport-incasat-de-fan.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9–45.
+45. `transport-incasat-de-fan.sql` -> 46. `retur-fan.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9–46.
 NU sunt încă idempotente: 1–5, 8.
-**Aplicate pe producție: 1–45.** 45 a fost rulată la 15 septembrie 2026 abia DUPĂ ce codul din
+**Aplicate pe producție: 1–45. 46 e scrisă, NErulată** (așteaptă contul ocazional FAN).
+46 (21 octombrie 2026) pregătește AWB-ul de RETUR: adaugă pe `return_requests` legătura cu
+comanda (`order_id`), adresa de ridicare (`ridicare` jsonb) și câmpurile AWB-ului
+(`awb`, `awb_curier_id`, `awb_generat_la`, `awb_date`). Nu atinge niciun rând și nicio politică. 45 a fost rulată la 15 septembrie 2026 abia DUPĂ ce codul din
 același commit (c45162c) a apărut pe site — rulată mai devreme, codul vechi, cu `payment: "sender"`,
 ar fi generat AWB-uri cu transportul plătit de firmă și nerecuperat.
 45 (15 septembrie 2026) înlocuiește `seteaza_cost_livrare` (copiată din producție): transportul se
@@ -300,6 +303,42 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
 - **„Cost intern" a fost scos din formularul de piesă** (15 septembrie 2026, cerut de proprietar).
   `cost_lei` NU se mai trimite deloc la salvare — un `null` ar fi șters tăcut costul pieselor care
   îl au. Coloana rămâne în bază.
+- **RETURURILE au AWB propriu, pe alt cont FAN** (21 octombrie 2026, documentație primită de la
+  ei; `docs/fancourier-retur.md`, migrarea 46). **Codul e gata și verificat pe API-ul lor real;
+  contul ocazional încă nu e creat** — până atunci panoul spune că nu e configurat și nu cheamă
+  pe nimeni.
+  · **De ce alt cont**: contul cu contract poate trimite doar colete care pleacă de la NOI. Pentru
+    ridicarea de la adresa clientului, FAN cere un cont selfAWB **ocazional** (fără contract),
+    mapat de ei la cel cu contract, de care se asociază plata. Alt `clientId`, alt utilizator,
+    altă parolă — de asta funcțiile de retur primesc `ConfigFan` ca parametru, iar `login()`
+    memorează token-ul după utilizator, nu global.
+  · **`sender` = CLIENTUL, `recipient` = depozitul** — exact invers față de AWB-ul de livrare,
+    unde `sender` nu se trimite deloc (expeditorul e contul).
+  · **Fiecare AWB de retur are nevoie de o COMANDĂ DE CURIER** (`POST /order`), altfel nimeni nu
+    trece pe la client. La livrări nu e nevoie: curierul vine zilnic la depozit. Se plasează
+    automat, odată cu AWB-ul. Dacă pică doar ea, **AWB-ul NU se anulează** (există la FAN), iar
+    panoul cere comandarea din selfawb.ro.
+  · **`awbNumber` pleacă în comanda de curier**, ca eticheta s-o printeze și s-o aducă CURIERUL:
+    clientul care returnează o piesă n-are de ce să aibă imprimantă.
+  · **`payment` NU e hardcodat.** FAN transmite valoarea corectă după ce mapează contul. Măsurat
+    pe API-ul lor: și „sender", și „recipient" generează AWB, cu ACELAȘI tarif — deci API-ul nu
+    ne apără de o valoare greșită, iar plata ar ajunge tăcut pe cine nu trebuie. E câmp în
+    Admin → Integrări, cu rezervă pe variabile de mediu (ca la contul de livrare).
+  · **Dimensiunile sunt OBLIGATORII la retur**, spre deosebire de AWB-ul de livrare (unde sunt
+    opționale din 16 septembrie 2026): `/order` fără ele răspunde 422. Măsurat: la 2 kg
+    Cluj→Bistrița tariful e 39,36 lei fără dimensiuni și 47,18 cu 40×30×20 — deci contează și la preț.
+  · **Intervalul de ridicare e 09:00–14:00**, singurul valid oriunde: documentația lor dă patru
+    intervale, după localitate (București 09–19, restul 09–17, localitate exterioară fără km
+    09–15, cu km taxabili 09–14), iar noi nu știm dinainte unde cade clientul. Minimum 2 ore între
+    capete — verificat: un interval de o oră dă 422. Data nu poate fi în trecut, iar „azi" se ia
+    pe fusul României: serverul e la Frankfurt.
+  · **Adresa vine din COMANDĂ**: formularul de retur nu cere adresa, iar `numar_comanda` e text
+    scris de client. Legătura se caută după număr (și după cifrele lui), se salvează în
+    `order_id`, iar ce corectează operatorul rămâne în `ridicare`.
+  · **Verificarea e `scripts/verifica-retur-fan.mjs`**, care rulează pe CONTUL DE PROBĂ al FAN din
+    anexa lor — deci merge și fără contul nostru. Cheamă funcțiile reale din `lib/fancourier.ts`
+    (compilate într-un `.tmp-fan/` temporar), nu o copie a payload-ului: o copie ar trece testul
+    și ar lăsa codul greșit. Creează un AWB și o comandă de curier, apoi le șterge pe amândouă.
 - **Clientul poate lăsa observații la comandă** (15 septembrie 2026, migrarea 41). Motivul: piese
   scrise ca un singur produs pentru ambele părți („Oglindă stânga/dreapta"). Câmpul „4 ·
   Observații" din checkout e opțional; textul apare în detaliul comenzii (scos în evidență), în
@@ -1193,7 +1232,7 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
 
 ## Cele 18 module de admin
 Dashboard · Comenzi (+detaliu cu jurnal, cost livrare, anulare cu restoc, ștergere) ·
-Cereri (inbox 4 taburi) · Produse (pagină de editare cu poze reale) · Piese de completat ·
+Cereri (inbox 4 taburi, cu AWB de retur pe fiecare cerere) · Produse (pagină de editare cu poze reale) · Piese de completat ·
 Import pieseauto.ro · Anunțuri dez.ro · Categorii (+subcategorii) · Mărci și modele · Mașini la dezmembrat
 (profit/amortizare) · Expedieri (AWB) · Clienți · Facturi (export Saga) · Rapoarte ·
 Marketing (coduri reducere) · Feed și export · Setări (firmă, curier, roluri) · Integrări.
@@ -1313,6 +1352,7 @@ Niciuna nu e dependință a site-ului și niciuna nu rulează la build. Se cheam
 | `verifica-dezro.mjs` | **după orice modificare în `lib/dezro/`.** 77 de verificări pe regulile publicării — invariantul de timp al unui lot, potrivirea modelelor, traducerile aprobate, ce se trimite într-un anunț, amprenta, diferența de poze, retragerea, coada automată și plasa ei de 20%. Fără rețea și fără bază de date |
 | `actualizeaza-nomenclator-fan.mjs` | **periodic (FAN recomandă), de exemplu lunar.** Reface județele, localitățile (cu agenția și km suplimentari) și străzile din API-ul FAN în `fan_localitati` / `fan_strazi`. ~5 minute. Contul FAN îl ia din `settings`. Nu scrie și nu șterge nimic dacă FAN întoarce sub 90% din ce avem. `--uscat` doar numără |
 | `verifica-cantitati.mjs` | **după orice modificare a coșului, a selectorului de cantitate sau a lui `plaseaza_comanda`.** 23 de verificări pe piese REALE, alese din bază (nu slug-uri scrise de mână): selectorul și plafonul, subtotalurile, coșul după reîncărcare, sumarul din checkout, așezarea pe 11 lățimi (suprapuneri, text tăiat, ținte de 44px) și faptul că serverul înmulțește și refuză peste stoc. Cere un server pornit (`BASE=…`) **pe build-ul de producție** — în `npm run dev` coșul se golește la reîncărcare — plus `playwright-core`, ca `scan-responsive.mjs`. Proba de server trimite intenționat un total greșit, deci se oprește înainte de orice scriere: nicio comandă creată |
+| `verifica-retur-fan.mjs` | **după orice modificare a fluxului de retur** (`lib/fancourier.ts`, `app/api/awb-retur/`). 15 verificări pe API-ul REAL al FAN, implicit pe contul lor de probă din anexă — merge și fără contul nostru ocazional. Compilează `lib/fancourier.ts` într-un `.tmp-fan/` temporar și cheamă funcțiile adevărate; creează un AWB de retur și o comandă de curier, apoi le șterge. Pe contul propriu: `FANCOURIER_RETUR_CLIENT_ID=… FANCOURIER_RETUR_USER=… FANCOURIER_RETUR_PASS=… node scripts/verifica-retur-fan.mjs` |
 | `curata-orfani.mjs` | **periodic**, mai ales după sesiuni lungi de lucru pe produse. Găsește fișierele din `poze-piese` spre care nu mai arată niciun rând din `products` SAU din `vehicles`. Implicit doar raportează; șterge numai cu `--sterge` și numai fișiere mai vechi de 24h (`--ore=N`). Peste 5% orfani refuză să șteargă și cere `--confirm-stergere-mare`: atâția deodată înseamnă de obicei o citire incompletă, nu formulare abandonate. Raportează și cazul invers, mai grav: adrese din bază fără fișier în stocare |
 
 **De ce apar orfani** (tipar structural, găsit la 25 august 2026): `components/admin/PhotoUploader.tsx`

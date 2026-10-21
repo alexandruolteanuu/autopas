@@ -17,3 +17,8 @@ dbg*.mjs
 .dezro-in-lucru
 .dezro-publicare.log
 .taxo.log
+
+# Folderul în care `scripts/verifica-retur-fan.mjs` compilează lib/fancourier.ts
+# ca să-l poată rula din Node. Scriptul îl șterge singur; tiparul e pentru cazul
+# în care rularea e întreruptă la mijloc.
+.tmp-fan/
