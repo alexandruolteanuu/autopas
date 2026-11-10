@@ -1571,9 +1571,27 @@ Pasul 5 — potrivirea articolelor (`saga_articole`) și articolul implicit „A
 
 ### Pasul 5 — potrivirea pieselor cu articolele din gestiunea SAGA (migrarea 50)
 
-**Stare: gata, în commit pe `saga-integrare`, 10 noiembrie 2026. Fără push. Migrarea 50 e
-scrisă, NErulată pe producție — o rulează proprietarul, cu pașii de mai jos; apoi confirmarea
-lui.**
+**Stare: gata, în commit pe `saga-integrare` (`e0f8913`), 10 noiembrie 2026. Fără push.
+Migrarea 50 e scrisă, NErulată pe producție — o rulează proprietarul, cu pașii de mai jos; apoi
+confirmarea lui.**
+
+Înainte de pas, în același schimb de mesaje: serverul local oprit la cererea proprietarului;
+migrarea 49 notată ca rulată în jurnalul pasului 4 și în CLAUDE.md (commit `1b932bd`), cu două
+observații: pagina `/admin/facturi/setari` nu a fost raportată (în mesaj a rămas textul-șablon
+„[scrie ce ai văzut]”), iar copiile zilnice Supabase există doar pe planurile plătite — de
+verificat în Database → Backups; pe Free, singura plasă e scriptul de anulare.
+
+**Rezumatul trimis proprietarului** (detaliile în secțiunile de mai jos):
+- pasul 5 rescrie o singură funcție existentă, `emite_factura` (de la pasul 4), cu gardă pe
+  amprentă — verificată local; adaugă tabela `saga_articole` (cascadă la ștergerea categoriei);
+  în cod: cardul Saga din Integrări, un link în Facturi, pagina nouă „Articole SAGA”;
+- teste: 13 noi pe producție (tranzacție anulată), testul pasului 4 golește potrivirile în
+  tranzacția lui; local trec toate (33 / 15 / 41 / 13), iar un defect introdus intenționat e prins;
+- anularea pune înapoi exact funcția din 49; verificată local, cu re-rulare;
+- pe producție: pre-verificarea (mai ales `emite_factura_ca_in_49`), migrarea, ambele teste,
+  verificarea că n-a rămas nimic, paginile; nicio potrivire nu e obligatorie dacă toate piesele
+  merg pe „ACCESORII AUTO”; codul articolului implicit se completează când îl dă contabila;
+- pasul 6 începe doar după confirmare.
 
 #### Modifică ceva existent? (răspuns dat înainte de cod)
 
