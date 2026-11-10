@@ -50,6 +50,12 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
   firmei doar din câmpurile lui și ar șterge câmpurile noi — capital, bancă, localitate, județ,
   țară —, salvate la 10 noiembrie 2026 din serverul local al ramurii. Se salvează doar din
   serverul local al ramurii, până la unire.
+- **Admin → Integrări: reîncarcă pagina ÎNAINTE de a salva un card** (10 noiembrie 2026). Orice
+  salvare rescrie TOT rândul `settings.integrari` cu ce era încărcat la deschiderea paginii — o
+  pagină rămasă deschisă dinaintea unei schimbări, salvată apoi pe ORICE card (FAN, Brevo…),
+  readuce valorile vechi pe toate, inclusiv pe Saga. Valabil și pe site-ul live, și pe ramură.
+  Cardul Saga salvat din site-ul LIVE (cod vechi) NU șterge câmpurile noi — pornește din
+  configurarea existentă și suprascrie doar `serie` și `activ` (verificat în codul de pe `main`).
 - **Serverul local se oprește ÎNAINTE de `npm run build`** (10 noiembrie 2026). Un `next start`
   rămas pornit își reîmprospătează paginile (`revalidate = 300`) și poate rescrie în `.next` o
   pagină VECHE peste build-ul nou — s-a întâmplat cu `/admin/setari`, care arăta formularul vechi.
@@ -103,7 +109,7 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 45. `transport-incasat-de-fan.sql` -> 46. `retur-fan.sql` -> 47. `saga-calcul.sql` -> 48. `saga-export.sql` -> 49. `saga-facturi.sql` -> 50. `saga-articole.sql`
 Idempotente (se pot re-rula oricând): 6, 7, 9–50.
 NU sunt încă idempotente: 1–5, 8.
-**Aplicate pe producție: 1–45, 47, 48 și 49. 46 e scrisă, NErulată** (așteaptă contul ocazional FAN).
+**Aplicate pe producție: 1–45 și 47–50. 46 e scrisă, NErulată** (așteaptă contul ocazional FAN).
 **47 e RULATĂ pe producție la 10 noiembrie 2026**, de proprietar, din SQL Editor; testele
 (`scripts/verifica-saga-calcul.sql`) au dat „REZULTAT OK: toate cele 33 de verificări au trecut”
 (scrisă în aceeași zi, ramura `saga-integrare`, pasul 1 din
@@ -130,9 +136,10 @@ fix: seria („PAP FE”) și numărul de start se pun abia în ziua pornirii, d
 `emite_factura` refuză tot fără `settings.integrari.saga.data_start_facturare` și refuză comenzile
 plasate înaintea ei (ora României). Anularea: `scripts/anuleaza-saga-facturi.sql` (refuză dacă există facturi).
 Copia de siguranță cu `pg_dump`, în `/.backup/` (ignorat de git), NU a fost făcută (decizia proprietarului);
-pașii ei rămân în jurnalul pasului 4. Copiile zilnice Supabase există doar pe planurile plătite — de verificat
-în Database → Backups.
-**50 e scrisă, NErulată pe producție** (10 noiembrie 2026, pasul 5): tabela `saga_articole` (categorie /
+pașii ei rămân în jurnalul pasului 4. Proiectul e pe un plan cu backup zilnic Supabase (verificat de proprietar
+în Database → Backups, 10 noiembrie 2026).
+**50 e RULATĂ pe producție la 10 noiembrie 2026** (pre-verificarea fără `\r`: 5 × true; testele: 13 și 41
+OK; după ele: 0 potriviri, 0 facturi, 0 serii). Pasul 5: tabela `saga_articole` (categorie /
 subcategorie → articol SAGA, `ON DELETE CASCADE` din `categories`) și **rescrierea lui `emite_factura`**
 (din 49): linia piesei ia articolul subcategoriei → al categoriei → implicitul. Migrarea are o GARDĂ:
 compară amprenta (`md5(prosrc)`) lui `emite_factura` din bază cu versiunea din git (49:
