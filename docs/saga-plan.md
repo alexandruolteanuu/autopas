@@ -188,6 +188,14 @@ mic sau egal cu cel mai mare număr deja emis în seria aceea (altfel ar ieși d
 - Formatul e o setare, `settings.integrari.saga.format_numar`: `serie_lipita` / `serie_spatiu` /
   `doar_numar`, **fără valoare implicită** — trimiterea refuză până e aleasă, după răspunsul
   contabilei (ideal, după XML-ul-model exportat din SAGA, vezi întrebarea 1).
+- **Formatul DATEI, cu aceeași regulă** (adăugat la 10 noiembrie 2026): setarea
+  `settings.integrari.saga.format_data` — `zi-luna-an` („10-11-2026”) / `zi.luna.an`
+  („10.11.2026”) / `an-luna-zi` („2026-11-10”) —, **fără valoare implicită**; trimiterea refuză
+  până e aleasă. O singură funcție o aplică, `dataPentruSaga(data)` din `lib/saga-xml.ts`, pentru
+  `FacturaData` și `FacturaScadenta`. Data din numele FIȘIERULUI de import urmează separat
+  exemplul din documentația API („F_123123_15_09_2026.xml”, cu „_”).
+- **Indicii (nu confirmări), la întrebarea 1**: numărul ca „PAP FE 14188” (`serie_spatiu`) și
+  data zi-lună-an sunt cele mai probabile. Nu devin implicite: se confirmă la pasul 6 (D.4).
 - Recunoașterea din raport e toleranță: compară după eliminarea spațiilor și a majusculelor,
   iar dacă `NR_DOC` conține doar cifre, potrivește după număr ÎN cadrul fișierului trimis (un
   fișier conține o singură serie). Ce nu se potrivește → „raport neînțeles”, nu `trimisa`.
@@ -433,12 +441,12 @@ ca azi). Valorile le scrie proprietarul din formular — **nu se pun în cod și
 
 | fișier | ce se schimbă |
 |---|---|
-| `lib/settings.ts` | tipul `Integrari.saga`: `cota_tva`, `regim_tva`, `preturi_cu_tva`, `url_api`, `format_numar`, `mentiune_plata`, `cif_persoana_fizica`, `articol_implicit` (+ denumire, UM), `articol_reducere`, `articol_transport`, `activ` — fără cheie și fără serie. Tipul `Firma`: `capital`, `banca`, `localitate`, `judet`, `tara`. `serie_factura: "AUTP"` scos din `FIRMA_IMPLICITA` |
+| `lib/settings.ts` | tipul `Integrari.saga`: `cota_tva`, `regim_tva`, `preturi_cu_tva`, `url_api`, `format_numar`, `format_data`, `mentiune_plata`, `cif_persoana_fizica`, `articol_implicit` (+ denumire, UM), `articol_reducere`, `articol_transport`, `activ` — fără cheie și fără serie. Tipul `Firma`: `capital`, `banca`, `localitate`, `judet`, `tara`. `serie_factura: "AUTP"` scos din `FIRMA_IMPLICITA` |
 | `app/admin/setari/page.tsx` | „Date firmă”: câmpurile noi (capital, bancă, localitate, județ, țară); câmpul „Serie facturi” scos |
 | `lib/supabase.ts` | `esteFacturare(req)`, gemenele lui `esteEchipa()`, pe `is_facturare()` |
 | `app/admin/facturi/page.tsx` | lista de documente cu filtre pe `saga_status`, acțiuni în masă („Trimite selectate”), export CSV prin `export_saga_linii`, textul despre „Saga nu are API public” rescris |
 | `app/admin/comenzi/[id]/page.tsx` | caseta „Facturare (Saga)” înlocuită de `FacturaSaga` |
-| `app/admin/integrari/page.tsx` | cardul „Saga — facturare”: TVA, adresa API-ului, formatul numărului, mențiunea de plată, `ClientCIF` pentru persoane fizice, articole implicite, cheia (doar câmp de scriere, niciodată afișată), „Testează conexiunea”; câmpul „Seria facturilor” scos (seria e în Facturi → Setări serie); descrierea și pașii rescriși; cardul „e-Factura ANAF” — formularea despre „import de fișiere” |
+| `app/admin/integrari/page.tsx` | cardul „Saga — facturare”: TVA, adresa API-ului, formatul numărului și al datei, mențiunea de plată, `ClientCIF` pentru persoane fizice, articole implicite, cheia (doar câmp de scriere, niciodată afișată), „Testează conexiunea”; câmpul „Seria facturilor” scos (seria e în Facturi → Setări serie); descrierea și pașii rescriși; cardul „e-Factura ANAF” — formularea despre „import de fișiere” |
 | `app/admin/layout.tsx` | `MENIU`: „Facturi” rămâne `admin` + `contabil`; sub-pagina de articole |
 | `lib/types.ts` | `Factura`, `FacturaLinie`, `SagaStatus` |
 | `CLAUDE.md` | migrarea 47 în ordine, decizia SAGA în blocul de decizii, `verifica-saga*.mjs` în tabelul de unelte, `facturi*` în tabelele cheie |
@@ -476,7 +484,7 @@ la confirmarea proprietarului.
 7. **Clientul API** — `saga_cheie`, `saga_blocare`, `saga_trimiteri`, `lib/saga.ts`,
    „Testează conexiunea” și „Salvează cheia” în Integrări. Prima atingere a SAGA, pe instanța de test.
 8. **Trimiterea** — „Trimite în SAGA”, „Reîncearcă”, parsarea raportului, „Marchează confirmată”,
-   jurnalul în detaliu, acțiunea în masă. **Blocată până e ales `format_numar`.**
+   jurnalul în detaliu, acțiunea în masă. **Blocată până sunt alese `format_numar` și `format_data`.**
 9. **Verificarea articolelor** prin `GetArticol` în pagina de potrivire.
 10. **Stornarea** — `storneaza_factura` + butonul.
 11. **Textele** — Integrări, Facturi, pagina comenzii; `CLAUDE.md`.
@@ -517,6 +525,8 @@ Aceeași formă ca `dezro_coada` și `email_coada`:
   fiecare dintre cele trei variante.
 - Formatul numărului: seria „PAP WEB” / „PAP FE” cu numărul 14191 în toate cele trei formate;
   fără `format_numar` ales → refuz.
+- Formatul datei: 10 noiembrie 2026 → „10-11-2026”, „10.11.2026”, „2026-11-10”; o zi sub 13
+  (3 noiembrie) ca să se vadă inversarea zi/lună; fără `format_data` ales → refuz.
 - Raportul: exemplul din documentație, raport cu un singur succes, cu „importata … deja”, gol,
   cu CRLF, cu `NR_DOC` „PAP FE14191”, „PAP FE 14191”, „14191” — toate recunoscute pentru
   factura PAP FE 14191, niciuna pentru 14192.
@@ -623,8 +633,27 @@ obișnuite.
    pasul 7 (clientul API) nu poate începe.
 6. **Formatul numărului necunoscut** — o factură trimisă cu `FacturaNumar` în forma greșită
    poate intra în SAGA cu alt număr decât crede aplicația, sau poate să nu fie recunoscută în
-   raport. Atenuare: formatul e o singură funcție + o setare fără valoare implicită; trimiterea
-   e blocată până e aleasă; prima probă (D.4) se face manual, cu XML descărcat.
+   raport. La fel o dată în alt format decât așteaptă SAGA (zi și lună inversate trec
+   neobservate până pe 13 ale lunii). Atenuare: formatul numărului și al datei sunt câte o
+   singură funcție + o setare fără valoare implicită; trimiterea e blocată până sunt alese
+   amândouă; prima probă (D.4, pasul 6) se face manual, cu XML descărcat, importat fără validare.
+
+   **Indicii găsite la 10 noiembrie 2026 — NU confirmări:**
+   1. Numele fișierului exportat din SAGA pentru factura PAP FE 14188 e
+      „f_131096_PAP_FE_14188_10-11-2026_...pdf”: SAGA ține seria și numărul împreună, cu spații
+      (devenite „_” în numele fișierului), iar data e zi-lună-an, cu cratimă. (E un PDF de
+      tipărire, nu fișierul de import: prefixul „131096” nu e CIF-ul firmei, deci numele lui nu se
+      copiază în numele XML-ului de import, care urmează documentația API.)
+   2. În exemplul oficial de raport din documentația API, `NR_DOC` apare ca „A100”, „A1002”:
+      seria face parte din număr.
+   3. Modulul Odoo de integrare SAGA folosește implicit, pentru XML, data `%d-%m-%Y`; pe forumul
+      SAGA apare și `dd.mm.yyyy`.
+   4. Manualul SAGA: articolele se identifică după codul de bare sau după codul propriu, dacă
+      apar în XML (relevant și pentru întrebarea 3).
+
+   **Concluzie provizorie**: `format_numar` cel mai probabil = `serie_spatiu` („PAP FE 14188”),
+   iar data = zi-lună-an. **Amândouă rămân NESETATE implicit**; se confirmă la proba manuală de
+   la pasul 6 (XML descărcat, importat în SAGA WEB fără validare — D.4), sau din XML-ul-model.
 
 ### Întrebări pentru contabilă
 
@@ -638,12 +667,32 @@ actuală („PAP FE”, ultimul număr 14190), capitalul social (200 RON) și ba
    PAP FE 14190**, exportat din SAGA (Ieșiri → tipărire → „Formular PDF” → fișierul din
    `TEMP\Facturi`). Din el aflăm deodată și formatul numărului, și câmpul în care stă mențiunea de
    plată, și cum e scris clientul persoană fizică. Se salvează ca `docs/factura-model.xml`.
+   Aceeași întrebare pentru **formatul datei** (`FacturaData`, `FacturaScadenta`).
+
+   **Indicii găsite la 10 noiembrie 2026 — NU confirmări:**
+   1. Numele fișierului exportat din SAGA pentru factura PAP FE 14188 e
+      „f_131096_PAP_FE_14188_10-11-2026_...pdf”: SAGA ține seria și numărul împreună, cu spații
+      (devenite „_” în numele fișierului), iar data e zi-lună-an, cu cratimă. (E un PDF de
+      tipărire, nu fișierul de import: prefixul „131096” nu e CIF-ul firmei, deci numele lui nu se
+      copiază în numele XML-ului de import, care urmează documentația API.)
+   2. În exemplul oficial de raport din documentația API, `NR_DOC` apare ca „A100”, „A1002”:
+      seria face parte din număr.
+   3. Modulul Odoo de integrare SAGA folosește implicit, pentru XML, data `%d-%m-%Y`; pe forumul
+      SAGA apare și `dd.mm.yyyy`.
+   4. Manualul SAGA: articolele se identifică după codul de bare sau după codul propriu, dacă
+      apar în XML (relevant și pentru întrebarea 3).
+
+   **Concluzie provizorie**: `format_numar` cel mai probabil = `serie_spatiu` („PAP FE 14188”),
+   iar data = zi-lună-an. **Amândouă rămân NESETATE implicit**; se confirmă la proba manuală de
+   la pasul 6 (XML descărcat, importat în SAGA WEB fără validare — D.4), sau din XML-ul-model.
 2. **Seria pentru site**: o serie nouă, dedicată, „PAP WEB” (propunerea noastră), de la 1 — sau
    continuăm „PAP FE” de la 14191, renunțând la facturarea manuală pe ea (riscul 4)? Seria nouă
    trebuie creată și în SAGA?
 3. **Codul articolului „ACCESORII AUTO”** din gestiune. Și: reducerea și transportul tot pe
    „ACCESORII AUTO” sau pe alte articole (cu ce coduri)? Vor fi vreodată articole pe categorii
-   (piese de motor, caroserie…), sau rămâne unul singur?
+   (piese de motor, caroserie…), sau rămâne unul singur? Indiciu (manualul SAGA, vezi indiciul 4
+   la întrebarea 1): articolele se recunosc după codul de bare sau codul propriu din XML — de
+   confirmat dacă `CodArticolClient` e „codul propriu” al articolului „ACCESORII AUTO”.
 4. **Persoanele fizice**: la `ClientCIF` trimitem gol (ca pe factura reală), „-” sau
    „0000000000000” (forma cerută de e-Factura pentru PF fără CNP)? Le identificăm cu
    `GUID_cod_client` sau lăsăm SAGA să le recunoască după nume?
