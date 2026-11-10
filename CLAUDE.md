@@ -103,7 +103,7 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 45. `transport-incasat-de-fan.sql` -> 46. `retur-fan.sql` -> 47. `saga-calcul.sql` -> 48. `saga-export.sql` -> 49. `saga-facturi.sql`
 Idempotente (se pot re-rula oricând): 6, 7, 9–49.
 NU sunt încă idempotente: 1–5, 8.
-**Aplicate pe producție: 1–45, 47 și 48. 46 e scrisă, NErulată** (așteaptă contul ocazional FAN).
+**Aplicate pe producție: 1–45, 47, 48 și 49. 46 e scrisă, NErulată** (așteaptă contul ocazional FAN).
 **47 e RULATĂ pe producție la 10 noiembrie 2026**, de proprietar, din SQL Editor; testele
 (`scripts/verifica-saga-calcul.sql`) au dat „REZULTAT OK: toate cele 33 de verificări au trecut”
 (scrisă în aceeași zi, ramura `saga-integrare`, pasul 1 din
@@ -118,7 +118,9 @@ exportul CSV probat local dă 200 → 165,29 + 34,71 și 350 → 289,26 + 60,74 
 folosită de exportul CSV din Admin → Facturi. Doar adaugă două funcții; depinde de 47, nu de 46.
 Codul paginii Facturi din pasul 2 cheamă `export_saga_linii` — de aceea 48 a trebuit rulată ÎNAINTE
 ca ramura să ajungă pe `main` (condiție îndeplinită).
-**49 e scrisă, NErulată pe producție** (10 noiembrie 2026, pasul 4): facturile și numerotarea —
+**49 e RULATĂ pe producție la 10 noiembrie 2026** (pre-verificarea: 9 × true; testele: 41 OK, pe
+seria de probă „TEST 04730F37”; după ele: 0 facturi, 0 serii). Nicio serie salvată încă. Pasul 4:
+facturile și numerotarea —
 `facturi`, `facturi_linii`, `facturi_serii`, `facturi_serii_istoric`, `is_facturare`, `emite_factura`,
 `seteaza_serie_factura`, `retrage_factura` și două triggere de pază pe tabelele NOI. **Nu înlocuiește
 nicio funcție existentă și nu pune nimic pe tabelele existente**; singura legătură nouă e cheia străină
@@ -127,7 +129,9 @@ CU factură nu se mai poate șterge, pe nicio cale, inclusiv `sterge_comanda`. N
 fix: seria („PAP FE”) și numărul de start se pun abia în ziua pornirii, din Facturi → Setări serie.
 `emite_factura` refuză tot fără `settings.integrari.saga.data_start_facturare` și refuză comenzile
 plasate înaintea ei (ora României). Anularea: `scripts/anuleaza-saga-facturi.sql` (refuză dacă există facturi).
-Înainte de rulare: copia de siguranță cu `pg_dump`, în `/.backup/` (ignorat de git) — pașii în jurnalul pasului 4.
+Copia de siguranță cu `pg_dump`, în `/.backup/` (ignorat de git), NU a fost făcută (decizia proprietarului);
+pașii ei rămân în jurnalul pasului 4. Copiile zilnice Supabase există doar pe planurile plătite — de verificat
+în Database → Backups.
 46 (21 octombrie 2026) pregătește AWB-ul de RETUR: adaugă pe `return_requests` legătura cu
 comanda (`order_id`), adresa de ridicare (`ridicare` jsonb) și câmpurile AWB-ului
 (`awb`, `awb_curier_id`, `awb_generat_la`, `awb_date`). Nu atinge niciun rând și nicio politică. 45 a fost rulată la 15 septembrie 2026 abia DUPĂ ce codul din

@@ -1296,9 +1296,21 @@ RLS, pagina Facturi → Setări serie. Începe doar după confirmare.
 
 ### Pasul 4 — facturile și numerotarea (migrarea 49)
 
-**Stare: gata, în commit pe `saga-integrare` (`002d5b3`), 10 noiembrie 2026. Fără push.
-Migrarea 49 e scrisă, NErulată pe producție — o rulează proprietarul, după copia de siguranță,
-cu pașii de mai jos; apoi confirmarea lui.**
+**Stare: ÎNCHIS. Migrarea 49 e RULATĂ pe producție la 10 noiembrie 2026**, de proprietar, din
+SQL Editor (cod: commit `002d5b3` pe `saga-integrare`, fără push):
+- **copia de siguranță manuală NU a fost făcută** — decizia proprietarului, motivată prin
+  „backup zilnic Supabase și scriptul de anulare”. **De verificat**: după documentația Supabase
+  (citită la 10 noiembrie 2026), copiile zilnice există DOAR pe planurile Pro, Team și
+  Enterprise; pe planul Free nu există, iar Supabase recomandă export manual. Dacă proiectul e
+  pe Free, singura plasă e scriptul de anulare. Se vede în Supabase → Database → Backups;
+- pre-verificarea: toate cele 9 coloane `true` (inclusiv `sterge_comanda_ca_in_git`);
+- `supabase/saga-facturi.sql` → „Success. No rows returned.”;
+- `scripts/verifica-saga-facturi.sql` → „REZULTAT OK: toate cele 41 verificări au trecut (probă
+  pe comenzile AP-2026-01795 și AP-2026-01796, seria de probă „TEST 04730F37”).”;
+- verificarea finală: facturi 0, serii 0, oglinzi de probă 0;
+- pagina `/admin/facturi/setari`: **ce s-a văzut NU a fost raportat** (în mesajul proprietarului
+  a rămas textul-șablon „[scrie ce ai văzut]”). Nicio serie salvată.
+- Serverul local a fost oprit la cererea proprietarului.
 
 Commit-urile acestui schimb de mesaje: `ac1d140` (pasul 3 verificat și salvat; regulile din
 CLAUDE.md), `a51cd1e` (seria PAP FE, procedura de pornire, riscul 7), `002d5b3` (pasul 4).
