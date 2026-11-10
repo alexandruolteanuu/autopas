@@ -675,9 +675,15 @@ ce rezultat trebuie văzut. Pasul următor începe doar după confirmarea propri
 
 ### Pasul 1 — calculul TVA, codurile de județ, transportul facturabil
 
-**Stare: gata, în commit pe `saga-integrare`, 10 noiembrie 2026. Fără push. De rulat de
-proprietar pe PRODUCȚIE, din SQL Editor (fără bază de test — decizia din aceeași zi), cu pașii
-de mai jos; apoi confirmarea proprietarului.**
+**Stare: ÎNCHIS. Migrarea 47 e RULATĂ pe producție la 10 noiembrie 2026**, de proprietar, din
+SQL Editor:
+- `supabase/saga-calcul.sql` → „Success. No rows returned.”
+- `scripts/verifica-saga-calcul.sql` → „REZULTAT OK: toate cele 33 de verificări au trecut.”
+- **Pre-verificarea NU a fost rulată înainte.** Nu schimbă rezultatul: niciun obiect existent nu
+  purta numele noi (verificat în cod), iar testele trec doar dacă tabela are exact cele 42 de
+  județe și funcțiile se comportă exact ca în fișier — deci nu s-a înlocuit nimic străin. La
+  pașii următori, pre-verificarea se rulează ÎNAINTE.
+- Codul: commit pe `saga-integrare`, fără push. Pasul 2 a început după confirmarea proprietarului.
 
 #### Ce s-a făcut
 
