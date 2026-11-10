@@ -91,8 +91,8 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 36. `email-automat.sql` -> 37. `dezro.sql` -> 38. `piesa-vanduta-ramane.sql` ->
 39. `dezro-automat.sql` -> 40. `senzori-auto-despartire.sql` -> 41. `observatii-comanda.sql` ->
 42. `sugestie-clasificare.sql` -> 43. `awb-fancourier.sql` -> 44. `nomenclator-fan.sql` ->
-45. `transport-incasat-de-fan.sql` -> 46. `retur-fan.sql` -> 47. `saga-calcul.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9–47.
+45. `transport-incasat-de-fan.sql` -> 46. `retur-fan.sql` -> 47. `saga-calcul.sql` -> 48. `saga-export.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9–48.
 NU sunt încă idempotente: 1–5, 8.
 **Aplicate pe producție: 1–45 și 47. 46 e scrisă, NErulată** (așteaptă contul ocazional FAN).
 **47 e RULATĂ pe producție la 10 noiembrie 2026**, de proprietar, din SQL Editor; testele
@@ -102,6 +102,11 @@ NU sunt încă idempotente: 1–5, 8.
 `transport_facturabil`. Doar unelte de calcul — nu atinge niciun rând și nicio politică existentă.
 Nu depinde de 46 — de aceea a putut rula înaintea ei. Pașii: `docs/saga-plan.md`, jurnalul
 pasului 1; anularea: `scripts/anuleaza-saga-calcul.sql`.
+**48 e scrisă, NErulată pe producție** (10 noiembrie 2026, pasul 2): `saga_cota_tva()` (cota din
+`settings.integrari.saga.cota_tva`, gol = 21 — singurul loc cu implicitul) și `export_saga_linii(bigint[])`,
+folosită de exportul CSV din Admin → Facturi. Doar adaugă două funcții; depinde de 47, nu de 46.
+**Ordinea contează**: codul paginii Facturi din pasul 2 cheamă `export_saga_linii`, deci migrarea 48
+se rulează ÎNAINTE ca ramura să ajungă pe `main` — altfel exportul spune „Exportul NU s-a făcut”.
 46 (21 octombrie 2026) pregătește AWB-ul de RETUR: adaugă pe `return_requests` legătura cu
 comanda (`order_id`), adresa de ridicare (`ridicare` jsonb) și câmpurile AWB-ului
 (`awb`, `awb_curier_id`, `awb_generat_la`, `awb_date`). Nu atinge niciun rând și nicio politică. 45 a fost rulată la 15 septembrie 2026 abia DUPĂ ce codul din
@@ -1375,6 +1380,8 @@ Niciuna nu e dependință a site-ului și niciuna nu rulează la build. Se cheam
 | `verifica-retur-fan.mjs` | **după orice modificare a fluxului de retur** (`lib/fancourier.ts`, `app/api/awb-retur/`). 15 verificări pe API-ul REAL al FAN, implicit pe contul lor de probă din anexă — merge și fără contul nostru ocazional. Compilează `lib/fancourier.ts` într-un `.tmp-fan/` temporar și cheamă funcțiile adevărate; creează un AWB de retur și o comandă de curier, apoi le șterge. Pe contul propriu: `FANCOURIER_RETUR_CLIENT_ID=… FANCOURIER_RETUR_USER=… FANCOURIER_RETUR_PASS=… node scripts/verifica-retur-fan.mjs` |
 | `baza-test.sh` | **doar pe o bază Supabase de TEST** — nefolosit deocamdată: la 10 noiembrie 2026 s-a hotărât să nu existe bază de test. `migrari` aplică toate migrările în ordine (lista e copiată din CLAUDE.md — se ține la zi în ambele locuri), `--de-la=N` reia după o eroare; `teste` rulează `verifica-saga-*.sql`. Cere `DB_TEST_URL` (Session pooler) și **refuză adresa proiectului de producție** din `.env.local` |
 | `verifica-saga-calcul.sql` | după orice atingere a migrării 47 (calculul TVA, județele, transportul facturabil). 33 de verificări pe funcțiile REALE, inclusiv cazul de referință de pe factura din SAGA (200,00 → 165,29 + 34,71, unitar 165,2900) și stornarea lui. Nu lasă nimic în bază: stă între `begin` și `rollback` și se încheie MEREU cu o eroare — „REZULTAT OK: …” la reușită (căsuța roșie e intenționată), „VERIFICARE PICATĂ: …” la eșec. Se rulează pe producție, din SQL Editor |
+| `verifica-saga-export.sql` | după orice atingere a migrării 48 sau a exportului CSV. 15 verificări: cota din setări (gol = 21, „21,5”, „9%”), refuzul valorilor greșite și al regimului marjă, apoi exportul pe comenzile EXISTENTE (doar citite) comparat linie cu linie cu `calculeaza_linie_tva` și `transport_facturabil`. Schimbă setarea doar temporar; nu creează comenzi (ar consuma numere din `nr_comanda_seq`). Tranzacție anulată, rezultat în căsuța roșie, ca la pasul 1 |
+| `anuleaza-saga-export.sql` | **doar la nevoie**: anulează migrarea 48. După ea, butonul de export din Facturi nu mai merge până la re-rulare |
 | `anuleaza-saga-calcul.sql` | **doar la nevoie**: anulează migrarea 47 (trei funcții + `judete_coduri`). Fără `cascade` — se oprește dacă ceva depinde de ele |
 | `curata-orfani.mjs` | **periodic**, mai ales după sesiuni lungi de lucru pe produse. Găsește fișierele din `poze-piese` spre care nu mai arată niciun rând din `products` SAU din `vehicles`. Implicit doar raportează; șterge numai cu `--sterge` și numai fișiere mai vechi de 24h (`--ore=N`). Peste 5% orfani refuză să șteargă și cere `--confirm-stergere-mare`: atâția deodată înseamnă de obicei o citire incompletă, nu formulare abandonate. Raportează și cazul invers, mai grav: adrese din bază fără fișier în stocare |
 

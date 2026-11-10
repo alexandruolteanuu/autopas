@@ -1,6 +1,7 @@
 "use client";
-// FACTURI — registrul pentru fluxul real cu Saga (care nu are API public):
-// emiți factura în Saga, notezi seria aici, exporți CSV-ul pentru contabil.
+// FACTURI — registrul pentru fluxul cu Saga: emiți factura în Saga, notezi seria
+// aici, exporți CSV-ul pentru contabil. (Integrarea prin API-ul SAGA WEB e în
+// lucru, pe pași: docs/saga-plan.md.)
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { sbBrowser, scrieVerificat, citesteTot, citesteDupaIduri } from "@/lib/supabase";
@@ -47,26 +48,45 @@ export default function Facturi() {
     incarca();
   }
 
-  // Transportul intră pe factura NOASTRĂ doar dacă l-am încasat noi, adică dacă e
-  // inclus în totalul comenzii. Din 15 septembrie 2026 îl încasează FAN direct de la
-  // client, deci pe comenzile noi e 0; comenzile mai vechi îl au inclus și rămân așa.
-  const livrareFacturabila = (o: any) =>
-    Number(o.total) > Number(o.subtotal) - Number(o.discount_valoare || 0) + 0.009 ? Number(o.livrare) : 0;
-
+  // EXPORTUL PENTRU SAGA (pasul 2 din docs/saga-plan.md, 10 noiembrie 2026).
+  // Calculul NU se mai face aici. Până acum browserul împărțea la 1.19 — cota de
+  // 19% scrisă în cod, depășită din august 2025 — și nu rotunjea baza. Acum
+  // liniile vin gata calculate din `export_saga_linii` (migrarea 48): TVA-ul cu
+  // `calculeaza_linie_tva`, la cota din Admin → Integrări → Saga (gol = 21%), iar
+  // transportul facturabil cu `transport_facturabil` — aceleași funcții pe care le
+  // va folosi factura, deci CSV-ul și factura nu pot ajunge la cifre diferite.
+  //
+  // Coloanele rămân în ACEEAȘI ordine ca înainte (contabila poate avea un import
+  // configurat în Saga): doar „TVA 19%” devine „TVA”, iar „Cota TVA” se adaugă la
+  // final.
   async function exportSaga() {
-    const sb = sbBrowser()!;
-    // În loturi: `.in()` pune fiecare id în URL, iar la câteva mii de comenzi
-    // adresa depășește ce acceptă serverul. Fiecare lot e și paginat, fiindcă
-    // 200 de comenzi pot avea peste 1.000 de linii.
-    const items = await citesteDupaIduri<any>(orders.map((o) => o.id),
-      (lot) => sb.from("order_items").select("*", { count: "exact" }).in("order_id", lot).order("id"),
-      { eticheta: "liniile comenzilor" });
-    const rows: (string | number)[][] = [["Numar comanda","Data","Serie factura","Client","CUI","Adresa","Oras","Judet","Email","Telefon","Produs","Cant","Pret cu TVA","Baza fara TVA","TVA 19%","Curier","Cost livrare","Plata"]];
-    for (const o of orders) for (const i of items.filter((x: any) => x.order_id === o.id)) {
-      const brut = Number(i.pret) * i.cantitate, baza = brut / 1.19;
+    const sb = sbBrowser()!; setMsg("");
+    type Linie = { order_id: number; item_id: number; produs: string; cantitate: number;
+      pret_cu_tva: number; pret_fara_tva: number; valoare: number; tva: number; total: number;
+      cota: number; transport: number };
+    let linii: Linie[];
+    try {
+      // În loturi de 200 de comenzi, fiecare paginat: o funcție care întoarce
+      // rânduri e tăiată de PostgREST la 1.000, ca orice tabelă.
+      linii = await citesteDupaIduri<Linie>(orders.map((o) => o.id),
+        (lot) => sb.rpc("export_saga_linii", { p_order_ids: lot }, { count: "exact" }).order("item_id"),
+        { eticheta: "liniile pentru Saga" });
+    } catch (e: any) {
+      // Cota greșită în setări, regimul marjă, sau migrarea 48 nerulată: exportul
+      // se OPREȘTE cu motivul, nu pleacă un CSV calculat greșit.
+      setMsg(`Exportul NU s-a făcut: ${e?.message ?? e}`);
+      return;
+    }
+    const peComanda = new Map<number, Linie[]>();
+    for (const l of linii) peComanda.set(l.order_id, [...(peComanda.get(l.order_id) ?? []), l]);
+
+    const bani = (x: number) => Number(x).toFixed(2);
+    const rows: (string | number)[][] = [["Numar comanda","Data","Serie factura","Client","CUI","Adresa","Oras","Judet","Email","Telefon","Produs","Cant","Pret cu TVA","Baza fara TVA","TVA","Curier","Cost livrare","Plata","Cota TVA"]];
+    for (const o of orders) for (const l of peComanda.get(o.id) ?? []) {
+      // „Pret cu TVA” e, ca și până acum, totalul LINIEI (preț × cantitate).
       rows.push([o.numar, new Date(o.created_at).toLocaleDateString("ro-RO"), o.factura_serie ?? "", o.firma ?? o.nume, o.cui ?? "-",
-        o.adresa, o.oras, o.judet, o.email, o.telefon, i.nume, i.cantitate, brut.toFixed(2), baza.toFixed(2), (brut - baza).toFixed(2),
-        o.curier, livrareFacturabila(o).toFixed(2), o.plata]);
+        o.adresa, o.oras, o.judet, o.email, o.telefon, l.produs, l.cantitate, bani(l.total), bani(l.valoare), bani(l.tva),
+        o.curier, bani(l.transport), o.plata, String(Number(l.cota))]);
     }
     const csv = "\uFEFF" + rows.map((r) => r.map((c) => `"${String(c).replaceAll('"', '""')}"`).join(";")).join("\n");
     const a = document.createElement("a");

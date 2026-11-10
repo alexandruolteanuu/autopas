@@ -859,4 +859,131 @@ Proprietarul trimite rezultatele pașilor 1–3; pasul 2 din C începe doar dup�
 
 #### Următorul
 
-Pasul 2 — exportul CSV cu cota din setări, nu 19%. Începe doar după confirmare.
+Pasul 2 — exportul CSV cu cota din setări, nu 19%. **Confirmat de proprietar la 10 noiembrie
+2026; vezi intrarea pasului 2.**
+
+### Pasul 2 — exportul CSV cu cota din setări, nu 19%
+
+**Stare: gata, în commit pe `saga-integrare`, 10 noiembrie 2026. Fără push. Migrarea 48 e
+scrisă, NErulată pe producție — o rulează proprietarul, din SQL Editor, cu pașii de mai jos;
+apoi confirmarea lui.**
+
+#### Adaugă sau modifică ceva existent pe producție? (răspuns dat înainte de cod)
+
+- **În bază: doar ADAUGĂ.** Migrarea 48 creează două funcții noi (`saga_cota_tva`,
+  `export_saga_linii`). Nu modifică nicio tabelă, niciun rând, nicio politică, nicio funcție
+  existentă. Depinde de 47 (rulată), nu de 46.
+- **În cod: MODIFICĂ două pagini existente din admin** — Facturi (butonul „Export Saga (CSV)”)
+  și cardul „Saga — facturare” din Integrări. Pe site ajung doar după unirea ramurii în `main`
+  și push, adică doar cu aprobarea proprietarului.
+- **Setări**: nu se scrie nimic automat. Câmpurile noi (cotă, regim) sunt opționale; goale =
+  21%, regim normal.
+- **Formatul CSV-ului**: coloanele rămân în ACEEAȘI ordine (contabila poate avea un import
+  configurat în SAGA). Doar antetul „TVA 19%” devine „TVA”, iar „Cota TVA” se adaugă ultima.
+
+#### Ce s-a făcut
+
+**Migrarea 48, `supabase/saga-export.sql`** — idempotentă:
+- `saga_cota_tva()`: citește `settings.integrari.saga.cota_tva` și `regim_tva`. Gol = 21,
+  regim normal — **singurul loc din proiect cu implicitul de 21%**. Acceptă „21”, „ 21 ”,
+  „21,5”, „9%”. O valoare greșită („abc”, „2l”, „150”) NU cade tăcut pe 21: oprește exportul cu
+  mesajul „Cota TVA … nu e un număr”. Regimul „marjă” e refuzat (faza 1). `security invoker`:
+  setările se citesc cu drepturile celui care cheamă.
+- `export_saga_linii(id-urile comenzilor)`: o linie pe piesă, cu TVA-ul din
+  `calculeaza_linie_tva` la cota din setări și transportul din `transport_facturabil` — aceleași
+  funcții pe care le va folosi factura (pasul 4), deci CSV-ul și factura nu pot da cifre diferite.
+  Primește exact lista de comenzi văzută în pagină (interval + filtru + fără anulate), prin POST.
+  `security invoker`: RLS-ul pe comenzi se aplică normal.
+- Ambele: `anon` nu le poate chema.
+
+**`app/admin/facturi/page.tsx`**: exportul nu mai calculează nimic în browser (înainte:
+`brut / 1.19`, fără rotunjire). Ia liniile din `export_saga_linii`, în loturi de 200 de
+comenzi, fiecare paginat (o funcție care întoarce rânduri e tăiată și ea la 1.000). Dacă baza
+refuză (cotă greșită, regim marjă, migrarea 48 nerulată), exportul se OPREȘTE cu „Exportul NU
+s-a făcut: …” — nu pleacă un CSV calculat greșit. Copia din browser a regulii de transport
+(`livrareFacturabila`) a fost scoasă, cum prevedea pasul 1.
+
+**`app/admin/integrari/page.tsx`**: cardul „Saga — facturare” are două câmpuri noi — „Cota TVA,
+în procente (gol = 21)” și „Regimul TVA” —, verificate ÎNAINTE de salvare cu aceleași reguli
+ca în bază. Descrierea nu mai spune „TVA 19%”. (Restul textelor despre „Saga nu are API public”
+se rescriu la pasul 11, cum prevede planul; în antetul paginii Facturi s-a scos deja.)
+
+**Testele, `scripts/verifica-saga-export.sql`** — 15 verificări, în tranzacție anulată, rezultat
+în căsuța roșie, ca la pasul 1:
+- cota: gol și nesalvat → 21; „19”, „21”, „ 21 ”, „21,5”, „21.5”, „9%”, „0” citite corect;
+  „abc”, „2l”, „100”, „150”, „-5”, „21.5.1” refuzate; regimurile „marja”, „Marjă”, „special”
+  refuzate, „Normal” acceptat;
+- exportul pe **comenzile EXISTENTE, doar citite**: exact o linie pe piesă; fiecare linie
+  identică cu `calculeaza_linie_tva` la cota 21; valoare + TVA = total; transportul = regula;
+- cota 19 pusă în setări ajunge în export; listă goală / NULL → zero linii; cotă greșită →
+  exportul se oprește;
+- `anon` nu poate chema funcțiile.
+- Singura scriere e schimbarea TEMPORARĂ a setării, anulată. **Nu creează comenzi**: o comandă
+  de test ar consuma un număr real din `nr_comanda_seq` (secvențele nu se anulează la rollback).
+
+**`scripts/anuleaza-saga-export.sql`** — scoate cele două funcții, fără `cascade`.
+
+**Verificat local** (Postgres 17 în Docker, cu tabele minimale și comenzi FICTIVE, doar în
+container, șters după):
+- migrarea 48 rulată de două ori fără eroare; testele 47 (33) și 48 (15) trec; setarea
+  `integrari` identică după test;
+- exportul dă cifrele facturii reale: 200,00 → 165,29 + 34,71, unitar 165,2900;
+- trei defecte introduse intenționat, toate prinse: cotă greșită căzută tăcut pe 21 („cota „abc”
+  trebuia refuzată”), cotă 19 fixă în export (diferența apare linie cu linie), drept dat lui `anon`;
+- anularea scoate cele două funcții și lasă migrarea 47 neatinsă; re-rularea merge;
+- **apelul din pagină, prin PostgREST real** (v12) și biblioteca proiectului (`postgrest-js`),
+  cu plafonul de rânduri forțat la 2: paginarea a adus toate cele 5 linii, în ordine. (O primă
+  probă cu antetul `Range` a dat de două ori aceeași pagină — greșeala era a probei: la POST,
+  `supabase-js` paginează prin `offset`/`limit` în adresă, nu prin antet. Refăcută cu biblioteca.)
+- `npm run build`: „Compiled successfully”.
+
+**Lipsă știută, NErezolvată la pasul ăsta** (exista și înainte): reducerea (`discount_valoare`)
+nu apare în CSV — liniile au prețurile întregi. Se rezolvă odată cu întrebarea 6 pentru contabilă
+(linie negativă sau repartizare), la factură (pasul 4).
+
+#### Fișiere
+
+- create: `supabase/saga-export.sql`, `scripts/verifica-saga-export.sql`,
+  `scripts/anuleaza-saga-export.sql`
+- modificate: `app/admin/facturi/page.tsx`, `app/admin/integrari/page.tsx`, `scripts/baza-test.sh`
+  (lista migrărilor), `CLAUDE.md`, `docs/saga-plan.md`
+
+#### Cum se aplică — pe PRODUCȚIE, din SQL Editor
+
+**ORDINEA CONTEAZĂ: migrarea 48 se rulează ÎNAINTE ca ramura să ajungă pe `main`.** Codul nou
+al paginii Facturi cheamă `export_saga_linii`; fără ea, exportul ar spune „Exportul NU s-a
+făcut”. Invers nu strică nimic: funcțiile noi, nefolosite de codul vechi, stau liniștite.
+
+**1. Pre-verificarea (doar citire)** — toate coloanele `true`:
+```sql
+select
+  not exists (select 1 from pg_proc
+               where pronamespace = 'public'::regnamespace
+                 and proname in ('saga_cota_tva','export_saga_linii'))                 as functiile_noi_nu_exista,
+  to_regprocedure('public.calculeaza_linie_tva(numeric,numeric,numeric)') is not null as migrarea_47_calcul,
+  to_regprocedure('public.transport_facturabil(numeric,numeric,numeric,numeric)') is not null as migrarea_47_transport,
+  exists (select 1 from public.settings where cheie = 'integrari')                    as setarile_integrari_exista;
+```
+
+**2. Migrarea**: `supabase/saga-export.sql` → „Success. No rows returned”.
+
+**3. Testele**: `scripts/verifica-saga-export.sql` → în căsuța roșie, intenționat:
+> REZULTAT OK: toate cele 15 verificări au trecut (N comenzi, M linii de export verificate).
+
+N și M sunt numărul comenzilor și al pieselor din comenzile reale. „VERIFICARE PICATĂ” = defect,
+se trimite textul întreg.
+
+**4. Doar la nevoie — anularea**: `scripts/anuleaza-saga-export.sql` → 0 rânduri la final.
+
+**5. Proba exportului în pagină, ÎNAINTE de `main`** (doar citire din producție): în terminalul
+Codespace, `npm run build && npm start`, apoi `http://localhost:3000/admin/facturi`, intervalul
+care conține comenzile reale → „Export Saga (CSV)”. **Rezultat așteptat**: fișierul se descarcă;
+coloana „TVA” (nu „TVA 19%”), „Cota TVA” ultima, cu 21; pe o piesă de 200,00 lei: „Pret cu TVA”
+200.00, „Baza fara TVA” 165.29, „TVA” 34.71. Opțional: Integrări → Saga → cota „abc” → Salvează
+→ apare mesajul de cotă invalidă și nu se salvează nimic.
+
+#### Următorul
+
+Pasul 3 — datele firmei (capital, bancă, localitate, județ, țară în Admin → Setări; câmpul
+„Serie facturi” scos de acolo). Fără SQL. Începe doar după confirmare.
+

@@ -18,7 +18,7 @@ const INTEGRARI: Stare[] = [
            "Bifezi „Activă”, salvezi, apoi apeși „Trimite un test” și verifici INCLUSIV folderul Spam",
            "⚠ Înainte de activare: politica de confidențialitate trebuie să îl treacă pe Brevo la destinatari (e deja actualizată)"] },
   { nume: "Saga — facturare", grup: "Facturare", stare: "activ",
-    desc: "Saga nu are API public; fluxul standard e importul de fișiere. Exportul CSV conține clientul, CUI-ul, produsele și prețurile defalcate bază + TVA 19%.",
+    desc: "Fluxul de azi e importul de fișiere (integrarea prin API-ul SAGA WEB e în lucru, pe pași). Exportul CSV conține clientul, CUI-ul, produsele și prețurile defalcate bază + TVA, la cota de mai jos (gol = 21%).",
     pasi: ["Admin → Facturi → alegi intervalul → Export Saga (CSV)", "În Saga: Operații → Import → alegi fișierul", "Notezi seria facturii înapoi în comandă"] },
   { nume: "FAN Courier (SelfAWB)", grup: "Curieri", stare: "pregatit",
     desc: "Generezi AWB-ul direct din pagina comenzii: scrii câte colete, kilogramele și cele trei dimensiuni, apeși „Generează AWB”. Destinatarul, rambursul și conținutul vin singure din comandă. Eticheta se printează din același loc, iar AWB-ul apare și pe selfawb.ro, în Borderou. Transportul îl plătește firma la FAN (clientul îl plătește în ramburs, fiindcă e inclus în totalul comenzii).",
@@ -74,7 +74,12 @@ const CULORI = { activ: ["bg-ok/10 text-ok border-ok/30", "Activ ✓"], pregatit
 // câmpurile de configurare salvate în baza de date (settings → integrari)
 const CAMPURI: Record<string, { k: string; l: string; tip?: string }[]> = {
   "WhatsApp Business": [{ k: "numar", l: "Număr WhatsApp (format 40722…)" }],
-  "Saga — facturare": [{ k: "serie", l: "Seria facturilor (ex. AUTP)" }],
+  // Cota și regimul TVA le citește baza (`saga_cota_tva`, migrarea 48) la exportul
+  // CSV și, de la pasul 4 din docs/saga-plan.md, la emiterea facturilor. Gol = 21%,
+  // regim normal (confirmate de pe factura reală, 10 noiembrie 2026).
+  "Saga — facturare": [{ k: "serie", l: "Seria facturilor (ex. AUTP)" },
+    { k: "cota_tva", l: "Cota TVA, în procente (gol = 21)" },
+    { k: "regim_tva", l: "Regimul TVA: normal (gol = normal; „marja” nu e implementat)" }],
   "FAN Courier (SelfAWB)": [{ k: "client_id", l: "Client ID" }, { k: "user", l: "Utilizator selfawb.ro" }, { k: "parola", l: "Parolă selfawb.ro", tip: "password" },
     // Bifă: nesalvată încă înseamnă „da" (vezi `configFan` din lib/fancourier.ts).
     { k: "ramburs_cont", l: "Rambursul intră în contul bancar (serviciul Cont Colector). Debifat = ramburs în plic.", tip: "bifa" }],
@@ -296,6 +301,23 @@ export default function Integrari() {
       if (u !== "" && !/^https?:\/\/[^\s]+$/i.test(u)) {
         setMsg("„Adresa pe care o cheamă baza de date” trebuie să fie o adresă web, nu una de e-mail. " +
                `Valoarea corectă: https://autopas-dezmembrari.ro/api/${cheie === "email" ? "email-coada" : "dezro-coada"}`);
+        return;
+      }
+    }
+    // Cota și regimul TVA se verifică ÎNAINTE de salvare, cu aceleași reguli ca în
+    // bază (`saga_cota_tva`): o cotă scrisă greșit ar opri exportul abia la
+    // contabilitate. Aici se vede în două secunde.
+    if (cheie === "saga") {
+      const cota = String(valori.cota_tva ?? "").trim().replace(",", ".").replace("%", "").trim();
+      if (cota !== "" && !(/^[0-9]+(\.[0-9]+)?$/.test(cota) && Number(cota) < 100)) {
+        setMsg(`Cota TVA „${valori.cota_tva}” nu e validă: scrie un număr între 0 și 99 (de exemplu 21), sau lasă gol pentru 21.`);
+        return;
+      }
+      const regim = String(valori.regim_tva ?? "").trim().toLowerCase();
+      if (regim !== "" && regim !== "normal") {
+        setMsg(regim === "marja" || regim === "marjă"
+          ? "Regimul „marjă” nu e implementat. Lasă gol sau scrie „normal”."
+          : `Regimul TVA „${valori.regim_tva}” nu e cunoscut. Lasă gol sau scrie „normal”.`);
         return;
       }
     }
