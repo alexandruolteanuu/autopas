@@ -137,7 +137,10 @@ subcategorie → articol SAGA, `ON DELETE CASCADE` din `categories`) și **rescr
 (din 49): linia piesei ia articolul subcategoriei → al categoriei → implicitul. Migrarea are o GARDĂ:
 compară amprenta (`md5(prosrc)`) lui `emite_factura` din bază cu versiunea din git (49:
 `5b89a9154101aacc8d72d4d864b01356`, 50: `8eefb50d4c81c4ea93701317e9ac67ed`) și se OPREȘTE dacă diferă —
-**tiparul de folosit la orice migrare care rescrie o funcție existentă**. Anularea pune înapoi exact
+**tiparul de folosit la orice migrare care rescrie o funcție existentă**. **Amprenta se calculează
+FĂRĂ `\r`: `md5(replace(prosrc, E'\r', ''))`** — SQL Editor-ul Supabase folosit de pe Windows salvează
+funcțiile cu sfârșituri CRLF; `emite_factura` din producție avea `23e4b6f3…` = textul din git cu CRLF,
+iar comparația brută a dat „diferă” la o funcție identică (10 noiembrie 2026). Anularea pune înapoi exact
 versiunea din 49: `scripts/anuleaza-saga-articole.sql`.
 46 (21 octombrie 2026) pregătește AWB-ul de RETUR: adaugă pe `return_requests` legătura cu
 comanda (`order_id`), adresa de ridicare (`ridicare` jsonb) și câmpurile AWB-ului

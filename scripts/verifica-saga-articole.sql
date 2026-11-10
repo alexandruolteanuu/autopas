@@ -37,7 +37,8 @@ begin
   -- ----------------------------------------------------------
   -- PREGĂTIRE
   -- ----------------------------------------------------------
-  if (select md5(prosrc) from pg_proc where oid = to_regprocedure('public.emite_factura(bigint)'))
+  -- Fără „\r”: SQL Editor-ul de pe Windows salvează funcțiile cu CRLF.
+  if (select md5(replace(prosrc, E'\r', '')) from pg_proc where oid = to_regprocedure('public.emite_factura(bigint)'))
      is distinct from '8eefb50d4c81c4ea93701317e9ac67ed' then
     raise exception 'VERIFICARE PICATĂ: emite_factura din bază nu e versiunea din migrarea 50';
   end if;

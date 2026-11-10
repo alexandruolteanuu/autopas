@@ -22,13 +22,19 @@
 
 
 -- ------------------------------------------------------------
--- 1. GARDA: emite_factura din bază trebuie să fie exact cea din git
+-- 1. GARDA: emite_factura din bază trebuie să fie exact cea din git (fără „\r”)
 --    (49: 5b89a9154101aacc8d72d4d864b01356; 50, la re-rulare: 8eefb50d4c81c4ea93701317e9ac67ed)
 -- ------------------------------------------------------------
 do $$
 declare v text;
 begin
-  select md5(prosrc) into v from pg_proc where oid = to_regprocedure('public.emite_factura(bigint)');
+  -- Amprenta FĂRĂ caracterele „\r”: SQL Editor-ul Supabase, folosit dintr-un browser pe
+  -- Windows, salvează funcția cu sfârșituri de rând Windows (CRLF). Constatat la
+  -- 10 noiembrie 2026: `emite_factura` din producție avea amprenta 23e4b6f3…, adică
+  -- EXACT textul din git cu fiecare LF făcut CRLF. Fără normalizare, garda ar refuza
+  -- o funcție identică. Un „\r” nu poate schimba comportamentul: nu apare în niciun
+  -- șir de caractere din corpul funcției (verificat), iar în rest e spațiu alb.
+  select md5(replace(prosrc, E'\r', '')) into v from pg_proc where oid = to_regprocedure('public.emite_factura(bigint)');
   if v is null then
     raise exception 'OPRIT: emite_factura nu există — migrarea 49 nu e rulată.';
   end if;

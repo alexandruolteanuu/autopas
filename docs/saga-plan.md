@@ -1375,7 +1375,8 @@ CLAUDE.md), `a51cd1e` (seria PAP FE, procedura de pornire, riscul 7), `002d5b3` 
 rescrie nimic), dar metoda e aceasta și se folosește la orice pas care rescrie o funcție:
 1. Amprenta corpului funcției, în SQL Editor (doar citire):
    ```sql
-   select p.oid::regprocedure as functia, md5(p.prosrc) as amprenta, length(p.prosrc) as lungime
+   select p.oid::regprocedure as functia, md5(replace(p.prosrc, E'\r', '')) as amprenta,
+          length(replace(p.prosrc, E'\r', '')) as lungime
      from pg_proc p where p.oid = 'public.sterge_comanda(bigint)'::regprocedure;
    ```
    **Rezultat așteptat** pentru `sterge_comanda`, așa cum e în `supabase/admin-fix.sql`:
@@ -1536,7 +1537,7 @@ select
   to_regprocedure('auth.jwt()') is not null                                              as auth_jwt,
   exists (select 1 from information_schema.columns where table_name = 'products' and column_name = 'cod_intern') as products_cod_intern,
   exists (select 1 from information_schema.columns where table_name = 'orders' and column_name = 'discount_cod') as orders_discount_cod,
-  (select md5(prosrc) from pg_proc where oid = 'public.sterge_comanda(bigint)'::regprocedure)
+  (select md5(replace(prosrc, E'\r', '')) from pg_proc where oid = 'public.sterge_comanda(bigint)'::regprocedure)
     = 'cd1d7d0cf96d2c79014e7d7749ac1b0d'                                                as sterge_comanda_ca_in_git;
 ```
 Ultima coloană e informativă (migrarea 49 nu rescrie `sterge_comanda`); dacă e `false`, se
@@ -1680,7 +1681,7 @@ era oprit înainte de build.
 ```sql
 select
   to_regclass('public.saga_articole') is null                                          as tabela_noua_nu_exista,
-  (select md5(prosrc) from pg_proc where oid = 'public.emite_factura(bigint)'::regprocedure)
+  (select md5(replace(prosrc, E'\r', '')) from pg_proc where oid = 'public.emite_factura(bigint)'::regprocedure)
     = '5b89a9154101aacc8d72d4d864b01356'                                              as emite_factura_ca_in_49,
   to_regprocedure('public.is_facturare()') is not null                                  as m49,
   exists (select 1 from information_schema.columns where table_name = 'products' and column_name = 'subcategorie_id') as products_subcategorie,
@@ -1711,6 +1712,46 @@ select (select count(*) from saga_articole) as potriviri, (select count(*) from 
 
 **6. Doar la nevoie — anularea**: `scripts/anuleaza-saga-articole.sql` → la final
 `emite_factura_ca_in_49 = true`, `saga_articole_stearsa = true`.
+
+#### Pre-verificarea pe producție a dat `emite_factura_ca_in_49 = false` (10 noiembrie 2026)
+
+Proprietarul a rulat pre-verificarea: 4 coloane `true`, `emite_factura_ca_in_49` = **`false`**.
+**Migrarea 50 NU a fost rulată.** Din producție: `md5(prosrc)` = `23e4b6f3c6b5ba59dc8126c83936c65c`,
+lungimea 9257 (în git: `5b89a9154101aacc8d72d4d864b01356`, 9083), plus definiția întreagă
+(`pg_get_functiondef`).
+
+**1. Diferența exactă și de unde vine: sfârșiturile de rând.** Corpul funcției din git are 174 de
+rânduri; 9083 + 174 = 9257. Amprenta versiunii din git cu fiecare `LF` transformat în `CRLF`
+(sfârșit de rând Windows) e EXACT `23e4b6f3c6b5ba59dc8126c83936c65c` — calculată de asistent din
+fișier. Deci funcția din producție e textul din git, caracter cu caracter, plus câte un `\r` la
+fiecare sfârșit de rând. Vine din lipirea în SQL Editor-ul Supabase dintr-un browser pe Windows,
+care trimite textul cu CRLF. **Fișierul NU a fost modificat după rulare**: `supabase/saga-facturi.sql`
+are un singur commit (`002d5b3`), identic cu versiunea curentă (verificat cu `cmp`). Definiția
+lipită de proprietar are aceleași rânduri ca fișierul (clipboard-ul nu păstrează `\r`).
+Reprodus local: migrarea 49 rulată cu CRLF dă exact amprenta `23e4b6f3…` și lungimea 9257.
+
+**2. Versiunea din producție e corectă și sigură.** Un `\r` e spațiu alb pentru PL/pgSQL, iar
+niciun șir de caractere din corpul funcției nu trece peste un sfârșit de rând (verificat: 0
+rânduri în interiorul unui șir), deci niciun mesaj și nicio valoare nu primesc `\r`. Testele
+pasului 4 au trecut pe producție (41) chiar cu această versiune.
+
+**3. Ce s-a făcut: gărzile ignoră acum `\r`, în loc să se schimbe amprentele.** Amprenta
+corectă rămâne cea a textului din git; ce se compară e `md5(replace(prosrc, E'\r', ''))`.
+Așa garda trece și pentru o funcție lipită de pe Windows, și pentru una rulată din terminal, dar
+se oprește în continuare la orice altă diferență. Schimbate: garda din `supabase/saga-articole.sql`,
+garda și verificarea finală din `scripts/anuleaza-saga-articole.sql`, prima verificare din
+`scripts/verifica-saga-articole.sql`, pre-verificările din jurnalul pașilor 4 și 5 și metoda de
+comparare (b) de la pasul 4. **Nu trebuie rulat nimic înainte**: se reia de la pre-verificarea
+pasului 5, care acum dă `true`.
+
+Verificat local, cu toate fișierele lipite cu CRLF (ca din SQL Editor pe Windows): migrările
+47–49 → `emite_factura` cu amprenta `23e4b6f3…` (ca în producție); pre-verificarea normalizată
+→ `true`; migrarea 50 → trece, și a doua oară; testele 13 și 41 → „REZULTAT OK”; anularea →
+`emite_factura_ca_in_49 = true`. Scriptul local complet (fără CRLF) trece și el.
+
+**Lecție, trecută și în CLAUDE.md**: orice amprentă de funcție se compară FĂRĂ `\r`.
+`sterge_comanda` a dat `true` la pasul 4 fiindcă fusese creată pe altă cale; la funcțiile lipite
+din browser pe Windows, comparația brută pică fără ca funcția să fie diferită.
 
 #### Următorul
 

@@ -15,7 +15,8 @@ begin;
 do $$
 declare v text;
 begin
-  select md5(prosrc) into v from pg_proc where oid = to_regprocedure('public.emite_factura(bigint)');
+  -- Fără „\r”: SQL Editor-ul de pe Windows salvează funcțiile cu CRLF (vezi migrarea 50).
+  select md5(replace(prosrc, E'\r', '')) into v from pg_proc where oid = to_regprocedure('public.emite_factura(bigint)');
   if v is distinct from '8eefb50d4c81c4ea93701317e9ac67ed' then
     raise exception 'OPRIT: emite_factura din bază nu e versiunea din migrarea 50 (amprenta %). Nu se anulează nimic.', coalesce(v, 'lipsă');
   end if;
@@ -210,6 +211,6 @@ drop table if exists public.saga_articole;
 commit;
 
 -- Verificare: amprenta trebuie să fie cea din migrarea 49 (5b89a9154101aacc8d72d4d864b01356), iar tabela să lipsească.
-select md5(prosrc) = '5b89a9154101aacc8d72d4d864b01356' as emite_factura_ca_in_49,
+select md5(replace(prosrc, E'\r', '')) = '5b89a9154101aacc8d72d4d864b01356' as emite_factura_ca_in_49,
        to_regclass('public.saga_articole') is null as saga_articole_stearsa
   from pg_proc where oid = 'public.emite_factura(bigint)'::regprocedure;
