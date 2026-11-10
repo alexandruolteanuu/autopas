@@ -913,9 +913,17 @@ Pasul 2 — exportul CSV cu cota din setări, nu 19%. **Confirmat de proprietar 
 
 ### Pasul 2 — exportul CSV cu cota din setări, nu 19%
 
-**Stare: gata, în commit pe `saga-integrare`, 10 noiembrie 2026. Fără push. Migrarea 48 e
-scrisă, NErulată pe producție — o rulează proprietarul, din SQL Editor, cu pașii de mai jos;
-apoi confirmarea lui.**
+**Stare: ÎNCHIS. Migrarea 48 e RULATĂ pe producție la 10 noiembrie 2026**, de proprietar, din
+SQL Editor:
+- `supabase/saga-export.sql` → „Success. No rows returned.”
+- `scripts/verifica-saga-export.sql` → „REZULTAT OK: toate cele 15 verificări au trecut (488
+  comenzi, 496 linii de export verificate).”
+- proba din `/admin/facturi`, pe serverul local (`npm start`, citind din producție): CSV descărcat
+  corect, coloana „TVA”, ultima „Cota TVA” = 21, sumele corecte (200 → 165,29 + 34,71;
+  350 → 289,26 + 60,74).
+- **Pre-verificarea NU a fost rulată înainte** (a doua oară). Fără efect asupra rezultatului:
+  testele trec doar dacă funcțiile noi se comportă exact ca în fișier, iar cele din 47 pe care se
+  sprijină există. Codul: commit pe `saga-integrare`, fără push.
 
 #### Adaugă sau modifică ceva existent pe producție? (răspuns dat înainte de cod)
 

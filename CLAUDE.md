@@ -94,7 +94,7 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 45. `transport-incasat-de-fan.sql` -> 46. `retur-fan.sql` -> 47. `saga-calcul.sql` -> 48. `saga-export.sql`
 Idempotente (se pot re-rula oricând): 6, 7, 9–48.
 NU sunt încă idempotente: 1–5, 8.
-**Aplicate pe producție: 1–45 și 47. 46 e scrisă, NErulată** (așteaptă contul ocazional FAN).
+**Aplicate pe producție: 1–45, 47 și 48. 46 e scrisă, NErulată** (așteaptă contul ocazional FAN).
 **47 e RULATĂ pe producție la 10 noiembrie 2026**, de proprietar, din SQL Editor; testele
 (`scripts/verifica-saga-calcul.sql`) au dat „REZULTAT OK: toate cele 33 de verificări au trecut”
 (scrisă în aceeași zi, ramura `saga-integrare`, pasul 1 din
@@ -102,11 +102,13 @@ NU sunt încă idempotente: 1–5, 8.
 `transport_facturabil`. Doar unelte de calcul — nu atinge niciun rând și nicio politică existentă.
 Nu depinde de 46 — de aceea a putut rula înaintea ei. Pașii: `docs/saga-plan.md`, jurnalul
 pasului 1; anularea: `scripts/anuleaza-saga-calcul.sql`.
-**48 e scrisă, NErulată pe producție** (10 noiembrie 2026, pasul 2): `saga_cota_tva()` (cota din
+**48 e RULATĂ pe producție la 10 noiembrie 2026**, de proprietar, din SQL Editor; testele au dat
+„REZULTAT OK: toate cele 15 verificări au trecut (488 comenzi, 496 linii de export verificate)”, iar
+exportul CSV probat local dă 200 → 165,29 + 34,71 și 350 → 289,26 + 60,74 (pasul 2): `saga_cota_tva()` (cota din
 `settings.integrari.saga.cota_tva`, gol = 21 — singurul loc cu implicitul) și `export_saga_linii(bigint[])`,
 folosită de exportul CSV din Admin → Facturi. Doar adaugă două funcții; depinde de 47, nu de 46.
-**Ordinea contează**: codul paginii Facturi din pasul 2 cheamă `export_saga_linii`, deci migrarea 48
-se rulează ÎNAINTE ca ramura să ajungă pe `main` — altfel exportul spune „Exportul NU s-a făcut”.
+Codul paginii Facturi din pasul 2 cheamă `export_saga_linii` — de aceea 48 a trebuit rulată ÎNAINTE
+ca ramura să ajungă pe `main` (condiție îndeplinită).
 46 (21 octombrie 2026) pregătește AWB-ul de RETUR: adaugă pe `return_requests` legătura cu
 comanda (`order_id`), adresa de ridicare (`ridicare` jsonb) și câmpurile AWB-ului
 (`awb`, `awb_curier_id`, `awb_generat_la`, `awb_date`). Nu atinge niciun rând și nicio politică. 45 a fost rulată la 15 septembrie 2026 abia DUPĂ ce codul din
