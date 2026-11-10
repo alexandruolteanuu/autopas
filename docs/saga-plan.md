@@ -371,8 +371,14 @@ doar transformă rezultatul în CSV. Coloana „TVA 19%” devine „TVA” + o 
 
 ### A.14 Siguranța comenzilor facturate
 
-- `sterge_comanda` primește o gardă: refuză dacă există `facturi` pe comandă (FK-ul `restrict`
-  ar ridica oricum eroare, dar cu un mesaj de neînțeles).
+- **Schimbat la implementare (pasul 4, 10 noiembrie 2026): `sterge_comanda` NU se modifică.**
+  Protecția o dă cheia străină `facturi.order_id → orders(id) ON DELETE RESTRICT`, numită
+  intenționat `comanda_facturata_nu_se_poate_sterge`: o comandă CU factură nu se poate șterge
+  pe nicio cale (`sterge_comanda`, SQL direct, orice cod viitor), iar numele constrângerii apare
+  în mesajul de eroare. Motivul: aceeași protecție, fără a rescrie o funcție din producție.
+  Verificat local: `sterge_comanda` pe o comandă facturată se oprește, iar repunerea pe stoc pe
+  care o face înainte de ștergere se anulează odată cu ea (o singură tranzacție). Pagina
+  comenzii traduce mesajul și ascunde butonul de ștergere pe comenzile facturate (pasul 6).
 - `anuleaza_comanda` pe o comandă facturată: **avertizează, nu blochează** (anularea repune
   stocul; factura se stornează separat) — formularea exactă în pagina comenzii.
 - **Modificarea funcțiilor existente** se face după regula din CLAUDE.md: copiate din PRODUCȚIE,
@@ -1287,4 +1293,245 @@ Pasul 4 — tabelele de facturi și numerotarea (migrarea 49): `facturi`, `factu
 `facturi_serii`, `emite_factura` (cu `data_start_facturare`), `seteaza_serie_factura`,
 `retrage_factura`, triggerul de nemodificare, oglinda pe `orders`, garda din `sterge_comanda`,
 RLS, pagina Facturi → Setări serie. Începe doar după confirmare.
+
+### Pasul 4 — facturile și numerotarea (migrarea 49)
+
+**Stare: gata, în commit pe `saga-integrare`, 10 noiembrie 2026. Fără push. Migrarea 49 e
+scrisă, NErulată pe producție — o rulează proprietarul, după copia de siguranță, cu pașii de mai
+jos; apoi confirmarea lui.**
+
+#### Înainte de pas: punctele 1 și 2 cerute de proprietar
+
+- **Pasul 3 notat ca verificat și salvat pe producție** (vezi intrarea lui) + regula în
+  CLAUDE.md: până la unirea ramurii în `main`, „Date firmă” NU se salvează din site-ul live
+  (codul vechi ar șterge câmpurile noi). Tot în CLAUDE.md: serverul local se oprește ÎNAINTE
+  de orice build (cauza formularului vechi de la pasul 3).
+- **Decizia despre serie** (commit `a51cd1e`): fără serie separată; din ziua pornirii toate
+  facturile se emit DOAR din aplicație, pe seria existentă **„PAP FE”**; la 10.11.2026,
+  după-amiaza, ultimul număr manual era 14192, iar facturarea manuală continuă până în ziua
+  pornirii. Actualizate: A.4 (decizia, fără serie sau număr fix în cod, confirmarea explicită
+  din admin), A.15 (stornările pe PAP FE doar din aplicație după pornire), riscul 4, **riscul 7
+  nou** (contorul intern al SAGA), întrebările 2, 9 și **12 nouă** pentru contabilă, o întrebare
+  nouă pentru suportul SAGA, pasul 12 din C, **„Procedura de pornire”** (secțiune nouă, după C),
+  exemplele (acum „continuare de la 14193”, marcate *exemplu*).
+
+#### Răspunsurile cerute înainte de cod (a–c)
+
+**a. Ce funcții, tabele și triggere EXISTENTE modifică migrarea 49 — niciuna.**
+- Funcții existente rescrise: **niciuna**. `sterge_comanda`, `anuleaza_comanda`,
+  `plaseaza_comanda`, `is_staff`, `is_admin` rămân neatinse. Planul (A.14) prevedea o gardă în
+  `sterge_comanda`; s-a renunțat la ea în favoarea cheii străine (A.14, actualizat).
+- Tabele existente: **nicio coloană nouă, niciun trigger nou, nicio politică nouă**, niciun rând
+  modificat de migrare.
+- **Singura legătură nouă cu ce există**: cheia străină `facturi.order_id → orders(id) ON DELETE
+  RESTRICT` (`comanda_facturata_nu_se_poate_sterge`). Ea stă pe tabela NOUĂ, dar schimbă
+  comportamentul ștergerii pe `orders`: o comandă care ARE factură nu se mai poate șterge. Azi
+  nicio comandă n-are factură, deci nimic nu se schimbă până la prima emitere. La crearea ei,
+  Postgres ia o blocare scurtă pe `orders` (milisecunde, tabela e mică).
+- Ce SCRIU funcțiile noi în tabelele existente, doar când sunt chemate (niciodată de migrare):
+  `orders.factura_serie` / `factura_status` (oglinda din A.9) și un rând în `order_events`
+  (jurnalul comenzii) la emitere și la retragere. Citesc `settings`, `orders`, `order_items`,
+  `products.cod_intern`, `profiles.role`.
+- Obiecte noi: tabelele `facturi`, `facturi_linii`, `facturi_serii`, `facturi_serii_istoric`;
+  funcțiile `is_facturare`, `seteaza_serie_factura`, `emite_factura`, `retrage_factura`,
+  `facturi_pazeste`, `facturi_linii_pazeste`; triggerele `facturi_pazeste` și
+  `facturi_linii_pazeste`, doar pe tabelele noi.
+
+**b. Cum se compară funcțiile existente cu producția.** Pentru pasul 4 nu e nevoie (nu se
+rescrie nimic), dar metoda e aceasta și se folosește la orice pas care rescrie o funcție:
+1. Amprenta corpului funcției, în SQL Editor (doar citire):
+   ```sql
+   select p.oid::regprocedure as functia, md5(p.prosrc) as amprenta, length(p.prosrc) as lungime
+     from pg_proc p where p.oid = 'public.sterge_comanda(bigint)'::regprocedure;
+   ```
+   **Rezultat așteptat** pentru `sterge_comanda`, așa cum e în `supabase/admin-fix.sql`:
+   amprenta `cd1d7d0cf96d2c79014e7d7749ac1b0d`, lungime 792. Amprenta e calculată de asistent
+   din fișier și verificată identic într-un Postgres 17 în care funcția a fost creată din fișier.
+   Aceeași amprentă = producția are exact textul din git.
+2. Dacă diferă: `select pg_get_functiondef('public.sterge_comanda(bigint)'::regprocedure);` →
+   se copiază textul întreg și se trimite asistentului, care îl compară rând cu rând cu fișierul
+   din git ÎNAINTE ca migrarea care o rescrie să fie rulată — altfel un `create or replace` ar
+   da înapoi tăcut o modificare făcută direct în bază (regula din CLAUDE.md, migrarea 27).
+
+**c. Copia de siguranță, chiar înainte de rulare** — completă (schema + date), cu `pg_dump`,
+din terminalul Codespace. Planul Free al Supabase NU are copii descărcabile (cele zilnice sunt
+pe planul Pro), deci copia se face de mână.
+1. Adresa bazei: Supabase → proiectul de producție → **Connect** → **Session pooler** → copiezi
+   adresa (`postgresql://postgres.<ref>:[YOUR-PASSWORD]@aws-…pooler.supabase.com:5432/postgres`)
+   și pui parola bazei în locul `[YOUR-PASSWORD]`. NU „Direct connection” (doar IPv6). Parola
+   uitată se resetează din Settings → Database; cheile API ale site-ului NU se schimbă la asta.
+2. În terminalul Codespace (parola rămâne doar în sesiunea terminalului, nu în fișiere):
+   ```bash
+   cd /workspaces/autopas && mkdir -p .backup
+   export DB_PROD_URL='postgresql://postgres.<ref>:PAROLA@aws-…pooler.supabase.com:5432/postgres'
+   docker run --rm --network host -v "$PWD/.backup:/b" postgres:17 \
+     pg_dump "$DB_PROD_URL" --format=custom --no-owner --no-privileges \
+     --schema=public --file=/b/autopas-inainte-de-49-$(date +%Y%m%d-%H%M).dump
+   ```
+   Se salvează în **`/workspaces/autopas/.backup/`**, folder ignorat de git (`/.backup/` în
+   `.gitignore`, verificat cu `git check-ignore`) — **nu se comite niciodată**: conține datele
+   clienților. `--schema=public` = toate tabelele aplicației (comenzi, piese, setări…); conturile
+   (`auth`) rămân la Supabase și nu sunt atinse de migrare.
+3. Verificarea copiei:
+   ```bash
+   ls -lh .backup/
+   docker run --rm -v "$PWD/.backup:/b" postgres:17 sh -c 'pg_restore --list /b/*.dump | grep -c "TABLE DATA"'
+   docker run --rm -v "$PWD/.backup:/b" postgres:17 sh -c 'pg_restore --list /b/*.dump | grep "TABLE DATA" | grep -E " (orders|order_items|products|settings) "'
+   ```
+   **Rezultat așteptat**: fișierul are câțiva MB (nu 0); numărul de „TABLE DATA” e de ordinul
+   zecilor; ultima comandă listează cele patru tabele `orders`, `order_items`, `products`,
+   `settings`. Dacă pg_dump se plânge de versiune („server version mismatch”), se schimbă
+   `postgres:17` cu versiunea bazei (Supabase → Settings → Infrastructure).
+4. Opțional, o copie și pe calculatorul tău: în exploratorul VS Code, folderul `.backup` →
+   clic dreapta pe fișier → Download.
+5. Restaurarea e o operație mare, de ultim resort; pentru migrarea 49 anularea normală e
+   `scripts/anuleaza-saga-facturi.sql`. Copia e plasa de sub plasă.
+
+#### Ce s-a făcut
+
+**Migrarea 49, `supabase/saga-facturi.sql`** (idempotentă):
+- `is_facturare()` — admin sau contabil (nu operatorul).
+- `facturi_serii` (cel mult una activă) + `facturi_serii_istoric` (cine, când, ce număr).
+- `facturi` — copia clientului (cu codul județului), a furnizorului (din `settings.firma`,
+  cu codul județului), regimul și cota, mențiunea de plată, observațiile („Comanda AP-…”),
+  totalurile, starea SAGA; `unique (serie, numar)`; cel mult un storno pe factură.
+- `facturi_linii` — piesele (cu `cod_intern` și numele de pe site), apoi reducerea ca linie
+  NEGATIVĂ (întrebarea 6 rămâne deschisă), apoi transportul facturabil; TVA cu
+  `calculeaza_linie_tva` la cota din setări; `order_item_id` / `product_id` fără cheie străină
+  (o piesă ștearsă din catalog nu atinge o factură).
+- Paza (triggere pe tabelele NOI): după trimitere (`in_curs`, `trimisa`, `confirmata`) se
+  schimbă doar coloanele de stare, iar starea merge doar înainte (trimisa → confirmata);
+  seria, numărul, comanda, tipul nu se schimbă niciodată; ștergerea doar înainte de trimitere;
+  liniile urmează starea facturii.
+- `seteaza_serie_factura(serie, număr următor)` — face seria activă, refuză un număr ≤ cel mai
+  mare emis pe ea, scrie în istoric.
+- `emite_factura(comanda)` — în ordine: rolul; comanda blocată (`for update`), neanulată, fără
+  factură nestornată, cu piese; **`data_start_facturare`** (lipsă → refuz pentru tot; comandă
+  dinaintea ei, în ora României → refuz cu mesaj); seria activă blocată (`for update`) — lipsă →
+  refuz; cota (refuză marja); articolul implicit (cod + denumire obligatorii); datele firmei
+  (denumire, CUI, Reg. Com., adresă, IBAN obligatorii); județul clientului (nerecunoscut →
+  refuz); documentul, liniile, totalurile; contorul +1; oglinda pe comandă; jurnalul comenzii.
+  Totul într-o tranzacție: orice refuz nu lasă nimic, nici gol în numerotare.
+- `retrage_factura(factura)` — doar netrimisă și doar ULTIMA din serie; contorul dă înapoi,
+  numărul se refolosește; oglinda curățată; istoric + jurnalul comenzii.
+- RLS: citire doar `is_facturare()`; scriere doar prin funcții; `anon` fără niciun drept,
+  `authenticated` fără insert/update/delete.
+
+**Pagina `app/admin/facturi/setari/page.tsx`** (Facturi → „Setări serie”, admin + contabil):
+seria activă și numărul următor (sau „Nicio serie activă … starea corectă până în ziua
+pornirii”), formularul cu **bifa de confirmare obligatorie**, cu textul calculat din ce s-a scris
+(„Confirm că ultima factură emisă manual în SAGA pe {serie} are numărul {număr − 1} și că
+facturarea manuală pe {serie} s-a oprit.”) — butonul e inactiv fără bifă, iar bifa se scoate la
+orice schimbare a valorilor; istoricul ultimelor 20 de setări. Link „Setări serie” în antetul
+paginii Facturi.
+
+**`lib/types.ts`**: `SagaStatus`, `Factura`, `FacturaLinie`, `FacturaSerie`, `FacturaSerieIstoric`.
+
+**Testele pe producție, `scripts/verifica-saga-facturi.sql`** — 41 de verificări, în tranzacție
+anulată, „logat” ca un profil admin/contabil ales din `profiles`, pe o serie de probă „TEST …”
+cu nume UNIC la fiecare rulare (niciodată seria reală), pe cele mai recente două comenzi
+potrivite: refuzurile fără utilizator, fără dată de start, cu dată invalidă, cu comanda
+dinaintea datei, fără serie, cu număr 0 / serie goală, fără articol; emiterea (număr, contor,
+linii = piese + reducere + transport, fiecare linie = calculul din 47, numerele de rând,
+total = subtotal − reducere + transport, copiile, data în ora României, oglinda, jurnalul);
+a doua factură pe aceeași comandă refuzată fără să miște contorul; numărul de start refuzat
+sub cel emis; retragerea (doar ultima, numărul refolosit); nemodificabilitatea după trimitere
+(9 încercări refuzate, 2 tranziții permise); comanda facturată nu se șterge; un utilizator fără
+rol nu vede și nu emite; drepturile lui `anon` și `authenticated`. Singura urmă: id-uri interne
+consumate din `facturi` / `facturi_serii_istoric` (secvențele nu se anulează) — nu numere de
+factură.
+
+**Testele locale, `scripts/verifica-saga-local.sh`** (+ `scripts/saga-local/`: imitația
+Supabase și date FICTIVE, doar pentru container) — ce nu se poate testa pe producție. Rezultat
+la 10 noiembrie 2026, ~7 s:
+- migrările 47–49 rulate fiecare de două ori; testele SQL: 33 / 15 / 41, toate trec;
+- **20 de `emite_factura` simultane → numerele 14193–14212, consecutive, fără goluri, contorul
+  14213**;
+- aceeași comandă emisă de două ori simultan → o singură factură;
+- ora-limită: comanda de la 00:30 ora României (22:30 UTC în ziua dinainte) acceptată, cea de
+  la 23:30 ora României din ziua dinainte refuzată;
+- `sterge_comanda` pe o comandă facturată → oprită, stocul neatins; pe una nefacturată merge ca
+  înainte;
+- anularea migrării 49 refuză cât timp există facturi; fără facturi scoate tot și lasă 47–48
+  neatinse; migrarea se poate rula din nou.
+
+Verificate tot local, în plus: linia de reducere (−40,00 → −33,06 + −6,94) și cea de transport
+(28,92 → 23,90 + 5,02), totalul facturii = totalul comenzii la ban, clientul firmă cu codul
+județului (CJ) și furnizorul (NT); județ nerecunoscut („Atlantis”) refuzat fără să miște
+contorul; datele firmei fără IBAN → refuz; operatorul vede 0 facturi, nu emite și nu poate scrie
+direct („permission denied”).
+
+**Trei defecte introduse intenționat, toate prinse**: fără verificarea datei de start (prins de
+testul de producție), conținutul unei facturi trimise modificabil (prins), seria citită fără
+blocare (16 din 20 de emiteri simultane refuzate de unicitatea serie+număr — nicio dublură
+ajunsă în bază, dar și dovada că blocarea e cea care le face pe toate să reușească).
+
+**Lecții din probă**: (1) prima variantă a testului de producție folosea seria fixă „TEST SAGA”
+și pica pe o bază în care seria avea deja facturi — acum numele e unic la fiecare rulare;
+(2) o dată de probă greșită (comenzi fictive înaintea datei de start) a făcut toate emiterile
+simultane să fie refuzate — regula a funcționat; datele fictive au fost corectate.
+
+`npm run build`: „Compiled successfully”, cu `/admin/facturi/setari` în listă. Serverul local
+a fost oprit ÎNAINTE de build (regula nouă).
+
+#### Fișiere
+
+- create: `supabase/saga-facturi.sql`, `scripts/verifica-saga-facturi.sql`,
+  `scripts/anuleaza-saga-facturi.sql`, `scripts/verifica-saga-local.sh`,
+  `scripts/saga-local/stub-supabase.sql`, `scripts/saga-local/date-fictive.sql`,
+  `app/admin/facturi/setari/page.tsx`
+- modificate: `app/admin/facturi/page.tsx` (link „Setări serie”), `lib/types.ts`,
+  `.gitignore` (`/.backup/`), `scripts/baza-test.sh` (lista migrărilor), `CLAUDE.md`,
+  `docs/saga-plan.md` (A.14, jurnalul)
+
+#### Cum se aplică — pe PRODUCȚIE
+
+**0. Copia de siguranță** — pașii de la (c) de mai sus, apoi verificarea ei.
+
+**1. Pre-verificarea (doar citire)** — toate coloanele `true`:
+```sql
+select
+  not exists (select 1 from pg_class where relnamespace = 'public'::regnamespace
+               and relname in ('facturi','facturi_linii','facturi_serii','facturi_serii_istoric')) as tabelele_noi_nu_exista,
+  not exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace
+               and proname in ('is_facturare','seteaza_serie_factura','emite_factura','retrage_factura',
+                               'facturi_pazeste','facturi_linii_pazeste'))                as functiile_noi_nu_exista,
+  not exists (select 1 from pg_constraint where conname = 'comanda_facturata_nu_se_poate_sterge') as constrangerea_noua_nu_exista,
+  to_regprocedure('public.calculeaza_linie_tva(numeric,numeric,numeric)') is not null    as m47,
+  to_regprocedure('public.saga_cota_tva()') is not null                                  as m48,
+  to_regprocedure('auth.jwt()') is not null                                              as auth_jwt,
+  exists (select 1 from information_schema.columns where table_name = 'products' and column_name = 'cod_intern') as products_cod_intern,
+  exists (select 1 from information_schema.columns where table_name = 'orders' and column_name = 'discount_cod') as orders_discount_cod,
+  (select md5(prosrc) from pg_proc where oid = 'public.sterge_comanda(bigint)'::regprocedure)
+    = 'cd1d7d0cf96d2c79014e7d7749ac1b0d'                                                as sterge_comanda_ca_in_git;
+```
+Ultima coloană e informativă (migrarea 49 nu rescrie `sterge_comanda`); dacă e `false`, se
+trimite textul funcției înainte de orice altceva.
+
+**2. Migrarea**: `supabase/saga-facturi.sql` → „Success. No rows returned”.
+
+**3. Testele**: `scripts/verifica-saga-facturi.sql` → în căsuța roșie, intenționat:
+> REZULTAT OK: toate cele 41 verificări au trecut (probă pe comenzile AP-… și AP-…, seria de
+> probă „TEST …”).
+
+**4. Verificare că nu a rămas nimic** (doar citire) — toate trei 0:
+```sql
+select (select count(*) from facturi) as facturi, (select count(*) from facturi_serii) as serii,
+       (select count(*) from orders where factura_serie like 'TEST %') as oglinzi_de_proba;
+```
+
+**5. Pagina** — serverul local OPRIT, apoi `npm run build && npm start`, apoi
+`/admin/facturi/setari`: „Nicio serie activă …”; butonul „Salvează seria” inactiv până la bifă;
+textul bifei se schimbă după ce scrii (de ex. „PAP FE” și 14193 → „… are numărul 14192 …”).
+**NU se salvează acum** — seria se setează abia în ziua pornirii („Procedura de pornire”).
+
+**6. Doar la nevoie — anularea**: `scripts/anuleaza-saga-facturi.sql` (refuză dacă există facturi).
+
+**Opțional, oricând (local, fără bază reală)**: `scripts/verifica-saga-local.sh` →
+„TOATE VERIFICĂRILE LOCALE AU TRECUT”.
+
+#### Următorul
+
+Pasul 5 — potrivirea articolelor (`saga_articole`) și articolul implicit „ACCESORII AUTO” /
+„BUC” în setări. Începe doar după confirmare.
 

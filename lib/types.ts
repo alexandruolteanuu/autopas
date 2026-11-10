@@ -71,3 +71,27 @@ export type VehiculAdmin = { id: number; slug: string; nume: string; an: number 
   motorizare?: string | null; caroserie?: string | null; culoare?: string | null;
   cutie_viteze?: string | null; km?: number | null;
   marca_id?: number | null; model_id?: number | null };
+
+// ============================================================
+// FACTURILE SPRE SAGA (supabase/saga-facturi.sql, migrarea 49; docs/saga-plan.md)
+// ============================================================
+export type SagaStatus = "de_trimis" | "in_curs" | "trimisa" | "eroare" | "confirmata";
+export type FacturaSerie = { serie: string; urmator: number; activa: boolean;
+  actualizat_la: string; actualizat_de: string | null };
+export type FacturaSerieIstoric = { id: number; serie: string; urmator: number;
+  actiune: "setare" | "retragere"; detalii: string | null; facut_la: string;
+  facut_de: string | null; facut_de_email: string | null };
+export type Factura = { id: number; tip: "factura" | "storno"; storno_pentru: number | null;
+  order_id: number; serie: string; numar: number; data: string; scadenta: string | null;
+  regim_tva: "normal" | "marja"; preturi_cu_tva: boolean;
+  client: Record<string, string | null>; furnizor: Record<string, string | null>;
+  mentiune_plata: string | null; observatii: string | null;
+  total_fara_tva: number; total_tva: number; total: number;
+  saga_status: SagaStatus; saga_eroare: string | null; saga_trimisa_la: string | null;
+  confirmata_la: string | null; confirmata_de: string | null; emisa_de: string | null;
+  created_at: string; updated_at: string };
+export type FacturaLinie = { id: number; factura_id: number; nr_crt: number;
+  tip: "piesa" | "reducere" | "transport"; order_item_id: number | null; product_id: number | null;
+  cod_intern: string | null; denumire_site: string; cod_articol_saga: string; descriere: string;
+  um: string; cantitate: number; pret_cu_tva: number; pret_fara_tva: number; valoare: number;
+  cota_tva: number; tva: number; total: number };

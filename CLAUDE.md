@@ -100,8 +100,8 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 36. `email-automat.sql` -> 37. `dezro.sql` -> 38. `piesa-vanduta-ramane.sql` ->
 39. `dezro-automat.sql` -> 40. `senzori-auto-despartire.sql` -> 41. `observatii-comanda.sql` ->
 42. `sugestie-clasificare.sql` -> 43. `awb-fancourier.sql` -> 44. `nomenclator-fan.sql` ->
-45. `transport-incasat-de-fan.sql` -> 46. `retur-fan.sql` -> 47. `saga-calcul.sql` -> 48. `saga-export.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9–48.
+45. `transport-incasat-de-fan.sql` -> 46. `retur-fan.sql` -> 47. `saga-calcul.sql` -> 48. `saga-export.sql` -> 49. `saga-facturi.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9–49.
 NU sunt încă idempotente: 1–5, 8.
 **Aplicate pe producție: 1–45, 47 și 48. 46 e scrisă, NErulată** (așteaptă contul ocazional FAN).
 **47 e RULATĂ pe producție la 10 noiembrie 2026**, de proprietar, din SQL Editor; testele
@@ -118,6 +118,16 @@ exportul CSV probat local dă 200 → 165,29 + 34,71 și 350 → 289,26 + 60,74 
 folosită de exportul CSV din Admin → Facturi. Doar adaugă două funcții; depinde de 47, nu de 46.
 Codul paginii Facturi din pasul 2 cheamă `export_saga_linii` — de aceea 48 a trebuit rulată ÎNAINTE
 ca ramura să ajungă pe `main` (condiție îndeplinită).
+**49 e scrisă, NErulată pe producție** (10 noiembrie 2026, pasul 4): facturile și numerotarea —
+`facturi`, `facturi_linii`, `facturi_serii`, `facturi_serii_istoric`, `is_facturare`, `emite_factura`,
+`seteaza_serie_factura`, `retrage_factura` și două triggere de pază pe tabelele NOI. **Nu înlocuiește
+nicio funcție existentă și nu pune nimic pe tabelele existente**; singura legătură nouă e cheia străină
+`facturi.order_id → orders` cu `ON DELETE RESTRICT` (`comanda_facturata_nu_se_poate_sterge`): o comandă
+CU factură nu se mai poate șterge, pe nicio cale, inclusiv `sterge_comanda`. Nicio serie și niciun număr
+fix: seria („PAP FE”) și numărul de start se pun abia în ziua pornirii, din Facturi → Setări serie.
+`emite_factura` refuză tot fără `settings.integrari.saga.data_start_facturare` și refuză comenzile
+plasate înaintea ei (ora României). Anularea: `scripts/anuleaza-saga-facturi.sql` (refuză dacă există facturi).
+Înainte de rulare: copia de siguranță cu `pg_dump`, în `/.backup/` (ignorat de git) — pașii în jurnalul pasului 4.
 46 (21 octombrie 2026) pregătește AWB-ul de RETUR: adaugă pe `return_requests` legătura cu
 comanda (`order_id`), adresa de ridicare (`ridicare` jsonb) și câmpurile AWB-ului
 (`awb`, `awb_curier_id`, `awb_generat_la`, `awb_date`). Nu atinge niciun rând și nicio politică. 45 a fost rulată la 15 septembrie 2026 abia DUPĂ ce codul din
@@ -1393,6 +1403,9 @@ Niciuna nu e dependință a site-ului și niciuna nu rulează la build. Se cheam
 | `verifica-saga-calcul.sql` | după orice atingere a migrării 47 (calculul TVA, județele, transportul facturabil). 33 de verificări pe funcțiile REALE, inclusiv cazul de referință de pe factura din SAGA (200,00 → 165,29 + 34,71, unitar 165,2900) și stornarea lui. Nu lasă nimic în bază: stă între `begin` și `rollback` și se încheie MEREU cu o eroare — „REZULTAT OK: …” la reușită (căsuța roșie e intenționată), „VERIFICARE PICATĂ: …” la eșec. Se rulează pe producție, din SQL Editor |
 | `verifica-saga-export.sql` | după orice atingere a migrării 48 sau a exportului CSV. 15 verificări: cota din setări (gol = 21, „21,5”, „9%”), refuzul valorilor greșite și al regimului marjă, apoi exportul pe comenzile EXISTENTE (doar citite) comparat linie cu linie cu `calculeaza_linie_tva` și `transport_facturabil`. Schimbă setarea doar temporar; nu creează comenzi (ar consuma numere din `nr_comanda_seq`). Tranzacție anulată, rezultat în căsuța roșie, ca la pasul 1 |
 | `anuleaza-saga-export.sql` | **doar la nevoie**: anulează migrarea 48. După ea, butonul de export din Facturi nu mai merge până la re-rulare |
+| `verifica-saga-facturi.sql` | după orice atingere a migrării 49. 41 de verificări pe PRODUCȚIE, în tranzacție anulată, „logat” ca un profil admin/contabil: data de start, seria (pe o serie „TEST …” cu nume unic), emiterea pe două comenzi EXISTENTE, liniile și totalurile, copia clientului și a furnizorului, oglinda pe comandă, retragerea și refolosirea numărului, nemodificabilitatea după trimitere, ștergerea comenzii facturate, drepturile. Nu lasă nimic (doar id-uri interne consumate) |
+| `verifica-saga-local.sh` | ce NU se poate testa pe producție, într-un Postgres din Docker, cu imitația Supabase și date FICTIVE din `scripts/saga-local/`: aplică 47–49 de două ori, rulează cele trei teste SQL, apoi 20 de emiteri SIMULTANE (numere consecutive, fără goluri), aceeași comandă de două ori simultan, ora-limită de la miezul nopții, `sterge_comanda` pe o comandă facturată, garda anulării. ~7 s; containerul se șterge singur |
+| `anuleaza-saga-facturi.sql` | **doar la nevoie**: anulează migrarea 49. REFUZĂ dacă `facturi` are vreun rând — ar șterge documente fiscale |
 | `anuleaza-saga-calcul.sql` | **doar la nevoie**: anulează migrarea 47 (trei funcții + `judete_coduri`). Fără `cascade` — se oprește dacă ceva depinde de ele |
 | `curata-orfani.mjs` | **periodic**, mai ales după sesiuni lungi de lucru pe produse. Găsește fișierele din `poze-piese` spre care nu mai arată niciun rând din `products` SAU din `vehicles`. Implicit doar raportează; șterge numai cu `--sterge` și numai fișiere mai vechi de 24h (`--ore=N`). Peste 5% orfani refuză să șteargă și cere `--confirm-stergere-mare`: atâția deodată înseamnă de obicei o citire incompletă, nu formulare abandonate. Raportează și cazul invers, mai grav: adrese din bază fără fișier în stocare |
 

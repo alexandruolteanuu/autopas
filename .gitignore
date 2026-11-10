@@ -22,3 +22,8 @@ dbg*.mjs
 # ca să-l poată rula din Node. Scriptul îl șterge singur; tiparul e pentru cazul
 # în care rularea e întreruptă la mijloc.
 .tmp-fan/
+
+# Copiile de siguranță ale bazei, făcute cu pg_dump înaintea migrărilor
+# (docs/saga-plan.md, jurnalul pasului 4). Conțin datele clienților: NU se
+# comit niciodată. Bara din față: doar folderul din rădăcină.
+/.backup/

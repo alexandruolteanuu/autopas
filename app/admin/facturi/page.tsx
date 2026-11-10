@@ -102,7 +102,11 @@ export default function Facturi() {
       <div className="flex items-end justify-between flex-wrap gap-3">
         <div><div className="dim">Administrare</div><h1 className="font-disp font-bold text-2xl mt-1">Facturi</h1>
           <p className="text-sm text-mut mt-1">Saga nu are API public — fluxul standard e emiterea în Saga + importul acestui CSV. Statusul e-Factura ANAF îl gestionează Saga.</p></div>
-        <button onClick={exportSaga} className="rounded-xl bg-ok/10 text-ok border-2 border-ok/30 px-4 py-2 text-sm font-semibold hover:bg-ok/20">Export Saga (CSV)</button>
+        <div className="flex flex-wrap gap-2">
+          {/* Seria și numărul de start ale facturilor emise din aplicație (pasul 4 din docs/saga-plan.md). */}
+          <Link href="/admin/facturi/setari" className="rounded-xl border-2 border-line px-4 py-2 text-sm font-semibold hover:border-acc">Setări serie</Link>
+          <button onClick={exportSaga} className="rounded-xl bg-ok/10 text-ok border-2 border-ok/30 px-4 py-2 text-sm font-semibold hover:bg-ok/20">Export Saga (CSV)</button>
+        </div>
       </div>
 
       {msg && <div className="card p-3 text-sm border-2 border-red-300 bg-red-50 text-red-800">{msg}</div>}
