@@ -1749,6 +1749,25 @@ Verificat local, cu toate fișierele lipite cu CRLF (ca din SQL Editor pe Window
 → `true`; migrarea 50 → trece, și a doua oară; testele 13 și 41 → „REZULTAT OK”; anularea →
 `emite_factura_ca_in_49 = true`. Scriptul local complet (fără CRLF) trece și el.
 
+Commit: `aeee4dc` pe `saga-integrare`, fără push. Nimic rulat pe producție de asistent.
+
+**Rezumatul trimis proprietarului:**
+- **Cauza**: doar sfârșiturile de rând — 174 de rânduri, 9083 + 174 = 9257; textul din git cu
+  CRLF are exact amprenta din producție; vine din lipirea în SQL Editor dintr-un browser pe
+  Windows; fișierul NU a fost modificat după rulare (un singur commit, `002d5b3`); definiția lipită
+  are aceleași rânduri ca fișierul; reprodus local.
+- **Siguranța**: `\r` e spațiu alb pentru Postgres, niciun text din funcție nu trece peste un
+  rând nou, iar testele pasului 4 au trecut pe producție cu această versiune.
+- **Ce facem**: nimic de rulat înainte. Gărzile compară acum `md5(replace(prosrc, E'\r', ''))`
+  — amprenta corectă rămâne cea din git. Schimbate: garda din migrarea 50, anularea (garda +
+  verificarea finală), prima verificare din `verifica-saga-articole.sql`, pre-verificările din
+  plan (pașii 4 și 5), regula din CLAUDE.md. Verificat local cu fișierele lipite cu CRLF: totul
+  trece; scriptul local complet trece și el.
+- **Pașii următori pe producție**: (1) pre-verificarea din nou, versiunea nouă din jurnalul
+  pasului 5 → toate 5 coloanele `true`; (2) `supabase/saga-articole.sql`, versiunea nouă a
+  fișierului; (3) testele `verifica-saga-articole.sql` (13) și `verifica-saga-facturi.sql` (41);
+  apoi restul pașilor din „Cum se aplică”. Pasul 6 doar după confirmare.
+
 **Lecție, trecută și în CLAUDE.md**: orice amprentă de funcție se compară FĂRĂ `\r`.
 `sterge_comanda` a dat `true` la pasul 4 fiindcă fusese creată pe altă cale; la funcțiile lipite
 din browser pe Windows, comparația brută pică fără ca funcția să fie diferită.
