@@ -1296,9 +1296,31 @@ RLS, pagina Facturi → Setări serie. Începe doar după confirmare.
 
 ### Pasul 4 — facturile și numerotarea (migrarea 49)
 
-**Stare: gata, în commit pe `saga-integrare`, 10 noiembrie 2026. Fără push. Migrarea 49 e
-scrisă, NErulată pe producție — o rulează proprietarul, după copia de siguranță, cu pașii de mai
-jos; apoi confirmarea lui.**
+**Stare: gata, în commit pe `saga-integrare` (`002d5b3`), 10 noiembrie 2026. Fără push.
+Migrarea 49 e scrisă, NErulată pe producție — o rulează proprietarul, după copia de siguranță,
+cu pașii de mai jos; apoi confirmarea lui.**
+
+Commit-urile acestui schimb de mesaje: `ac1d140` (pasul 3 verificat și salvat; regulile din
+CLAUDE.md), `a51cd1e` (seria PAP FE, procedura de pornire, riscul 7), `002d5b3` (pasul 4).
+
+**Rezumatul trimis proprietarului** (detaliile în secțiunile de mai jos):
+- **a.** Migrarea 49 nu modifică nimic din ce există: nicio funcție rescrisă (`sterge_comanda`
+  rămâne cum e — în locul gărzii din plan, cheia străină `comanda_facturata_nu_se_poate_sterge`
+  oprește ștergerea unei comenzi facturate pe orice cale, verificat local, stocul neatins);
+  nicio coloană, niciun trigger, nicio politică nouă pe tabelele existente; niciun rând modificat
+  de migrare. Funcțiile noi scriu doar oglinda pe `orders` și jurnalul comenzii, când sunt chemate.
+- **b.** Pre-verificarea compară amprenta lui `sterge_comanda` din producție cu cea din git
+  (`cd1d7d0cf96d2c79014e7d7749ac1b0d`); dacă diferă, textul funcției se trimite asistentului
+  pentru comparare rând cu rând. Aceeași metodă la orice pas care rescrie o funcție.
+- **c.** Copia de siguranță cu `pg_dump`, din Codespace, prin Docker, în `/.backup/` (ignorat
+  de git — verificat), verificată cu `pg_restore --list`.
+- **Pasul 4**: migrarea 49 (facturi, serii, emitere fără goluri, retragere, pază după trimitere,
+  acces doar admin + contabil), pagina Facturi → Setări serie cu bifa de confirmare, 41 de teste
+  pe producție în tranzacție anulată, testele locale (concurență, ora-limită, ștergere, garda
+  anulării), trei defecte introduse intenționat — toate prinse. `npm run build` trece.
+- **Ordinea pe producție**: copia de siguranță → pre-verificarea → migrarea → testele →
+  verificarea că n-a rămas nimic → pagina (fără salvare: seria se pune în ziua pornirii).
+- Pasul 5 începe doar după confirmare.
 
 #### Înainte de pas: punctele 1 și 2 cerute de proprietar
 
