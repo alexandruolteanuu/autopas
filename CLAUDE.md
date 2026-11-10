@@ -109,7 +109,7 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 45. `transport-incasat-de-fan.sql` -> 46. `retur-fan.sql` -> 47. `saga-calcul.sql` -> 48. `saga-export.sql` -> 49. `saga-facturi.sql` -> 50. `saga-articole.sql` -> 51. `saga-emitere.sql`
 Idempotente (se pot re-rula oricând): 6, 7, 9–51.
 NU sunt încă idempotente: 1–5, 8.
-**Aplicate pe producție: 1–45 și 47–50. 46 e scrisă, NErulată** (așteaptă contul ocazional FAN).
+**Aplicate pe producție: 1–45 și 47–51. 46 e scrisă, NErulată** (așteaptă contul ocazional FAN).
 **47 e RULATĂ pe producție la 10 noiembrie 2026**, de proprietar, din SQL Editor; testele
 (`scripts/verifica-saga-calcul.sql`) au dat „REZULTAT OK: toate cele 33 de verificări au trecut”
 (scrisă în aceeași zi, ramura `saga-integrare`, pasul 1 din
@@ -149,7 +149,8 @@ FĂRĂ `\r`: `md5(replace(prosrc, E'\r', ''))`** — SQL Editor-ul Supabase folo
 funcțiile cu sfârșituri CRLF; `emite_factura` din producție avea `23e4b6f3…` = textul din git cu CRLF,
 iar comparația brută a dat „diferă” la o funcție identică (10 noiembrie 2026). Anularea pune înapoi exact
 versiunea din 49: `scripts/anuleaza-saga-articole.sql`.
-**51 e scrisă, NErulată pe producție** (10 noiembrie 2026, pasul 6): rescrie `emite_factura` (din 50) cu o
+**51 e RULATĂ pe producție la 10 noiembrie 2026** (pre-verificarea 5 × true; testele 16 / 13 / 41 OK;
+verificarea finală 0/0/0; paginile corecte). Pasul 6: rescrie `emite_factura` (din 50) cu o
 singură regulă în plus — refuză o comandă marcată deja ca facturată (`factura_serie` completat sau
 `factura_status` ≠ „de_emis”: factură notată manual din SAGA, „nu se emite”, stornată); adaugă
 `modifica_factura` (client + articolul pe linii, doar înainte de trimitere) și `opreste_emiterea` (nicio

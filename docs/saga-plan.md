@@ -1800,9 +1800,19 @@ la 10 noiembrie 2026; vezi intrarea pasului 6.**
 
 ### Pasul 6 — interfața de emitere și „Descarcă XML” (migrarea 51)
 
-**Stare: gata, în commit pe `saga-integrare` (`c49241a`), 10 noiembrie 2026. Fără push.
-Migrarea 51 e scrisă, NErulată pe producție — o rulează proprietarul, cu pașii de mai jos; apoi
-confirmarea lui.**
+**Stare: migrarea 51 e RULATĂ pe producție la 10 noiembrie 2026**, de proprietar, din SQL
+Editor (cod: commit `c49241a` pe `saga-integrare`, fără push):
+- pre-verificarea: 5 × `true`;
+- `supabase/saga-emitere.sql` → „Success. No rows returned.”;
+- testele: `verifica-saga-emitere.sql` 16/16, `verifica-saga-articole.sql` 13/13,
+  `verifica-saga-facturi.sql` 41/41;
+- verificarea finală: facturi 0, serii 0, potriviri 0;
+- paginile arată corect.
+
+**Urmează (în lucru la proprietar): proba de emitere prin interfață, cu seria „PROBA”**
+(varianta 2 de mai jos); rezultatul și XML-ul generat se trec aici când sosesc. **Pasul 7 NU a
+început**: proprietarul a cerut explicit să se aștepte proba, iar adresa instanței de test SAGA
+încă lipsește (riscul 5).
 
 Commit-urile acestui schimb de mesaje: `39daacf` (pasul 5 notat ca rulat, precizările despre
 pasul 4 și backup, regula paginii Integrări deschise), `c49241a` (pasul 6).
