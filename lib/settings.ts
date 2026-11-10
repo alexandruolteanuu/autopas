@@ -6,7 +6,17 @@
 import { sbServer, sbBrowser } from "./supabase";
 
 export type Firma = { denumire: string; cui: string; reg_com: string; adresa: string; iban: string;
-  serie_factura: string; telefon: string; email: string; whatsapp: string };
+  telefon: string; email: string; whatsapp: string;
+  // Pentru antetul facturii trimise în SAGA (pasul 3 din docs/saga-plan.md, A.16).
+  // NU se afișează pe site. Valorile le scrie proprietarul în Admin → Setări — nu
+  // stau în cod. `adresa` de mai sus rămâne textul întreg (subsol, contact, cele 8
+  // documente legale); `localitate` și `judet` sunt câmpuri ÎN PLUS, separate,
+  // fiindcă XML-ul SAGA le cere separat (`FurnizorLocalitate`, `FurnizorJudet`).
+  capital: string; banca: string; localitate: string; judet: string; tara: string;
+  // IEȘIT DIN UZ (10 noiembrie 2026): seria facturilor nu mai stă aici, ci în tabela
+  // de serii a facturilor (planul SAGA, A.4). Valoarea veche din bază („AUTP”) rămâne
+  // neatinsă — salvarea din Setări o păstrează —, dar nu o mai citește nimeni.
+  serie_factura?: string };
 export type Curier = { id: string; nume: string; detalii: string; pret: number };
 export type Integrari = {
   // `ramburs_cont` e o bifă salvată ca text („on” / ""), citită de `configFan`
@@ -44,7 +54,13 @@ export const FIRMA_IMPLICITA: Firma = {
   reg_com: "J27/893/2016",
   adresa: "Str. Petru Rareș nr. 181, com. Alexandru cel Bun, jud. Neamț",
   iban: "",
-  serie_factura: "AUTP",
+  // Goale până le completează proprietarul în Admin → Setări (planul SAGA, A.16).
+  capital: "",
+  banca: "",
+  localitate: "",
+  judet: "",
+  // Țara firmei, cod ISO (XML-ul SAGA: `FurnizorTara`). Rezervă, ca restul acestui obiect.
+  tara: "RO",
   telefon: "0743 627 151",
   // Adresa oficială și unică a firmei. Se schimbă din Admin → Setări → Date firmă;
   // valoarea de aici e doar rezerva folosită când tabela `settings` n-a fost citită.

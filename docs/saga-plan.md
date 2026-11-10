@@ -157,6 +157,13 @@ prima trimitere.
 la început. Totul într-o singură tranzacție (o funcție = o tranzacție):
 
 1. Refuză dacă comanda e `anulata` sau are deja o factură (nu storno) neanulată.
+1b. **Data de start a facturării** (regulă obligatorie, 10 noiembrie 2026): citește
+   `settings.integrari.saga.data_start_facturare`. **Fără dată setată, refuză TOT**: „Data de
+   start a facturării nu e setată (Admin → Integrări → Saga). Comenzile de dinainte au fost
+   facturate manual în SAGA.” Dacă `orders.created_at` e ÎNAINTEA datei (comparat în ziua
+   României, `Europe/Bucharest`), refuză: „Comanda AP-… a fost plasată pe …, înainte de data de
+   start a facturării (…). Comenzile de dinainte se facturează manual în SAGA, nu din aplicație.”
+   Verificarea stă ÎN bază, nu doar în interfață: e singurul loc prin care nu trece nimic pe lângă.
 2. Citește seria ACTIVĂ din `facturi_serii`. **Dacă nu există, refuză**: „Seria facturilor nu e
    configurată. Setați seria și numărul de start în Facturi → Setări serie, după ce le stabiliți
    cu contabila.”
@@ -283,6 +290,17 @@ codul însuși („NT”). Întoarce `null` dacă nu găsește — iar `emite_fa
 „Județul «X» nu e recunoscut; corectează-l în factură”. Citire publică (sunt date publice).
 
 ### A.9 Compatibilitatea cu `orders.factura_serie` / `factura_status`
+
+**Data de start a facturării** (regulă obligatorie, 10 noiembrie 2026). Comenzile din urmă —
+488 la 10 noiembrie 2026 — **NU se facturează din aplicație**: au fost facturate manual în SAGA.
+- Setarea `settings.integrari.saga.data_start_facturare` (dată, `AAAA-LL-ZZ`), **fără valoare
+  implicită**. O setează adminul în Admin → Integrări → Saga, după ce o stabilește cu contabila.
+- `emite_factura` refuză comenzile plasate înaintea ei și, fără dată setată, refuză tot (A.4, 1b).
+- Butonul „Emite factura” NU apare pe comenzile dinaintea datei (nici în pagina comenzii, nici în
+  `/admin/facturi`, nici în acțiunile în masă); acolo rămâne doar câmpul manual de serie
+  („Factură emisă direct în SAGA”). Ascunderea e comoditate; refuzul din bază e garanția.
+- **Oglinda nu atinge comenzile vechi**: `factura_serie` și `factura_status` ale lor rămân exact
+  cum le-a scris omul. Nicio migrare nu le recalculează.
 
 Coloanele **rămân**, dar devin o OGLINDĂ, scrisă de bază, nu de om:
 
@@ -441,7 +459,7 @@ ca azi). Valorile le scrie proprietarul din formular — **nu se pun în cod și
 
 | fișier | ce se schimbă |
 |---|---|
-| `lib/settings.ts` | tipul `Integrari.saga`: `cota_tva`, `regim_tva`, `preturi_cu_tva`, `url_api`, `format_numar`, `format_data`, `mentiune_plata`, `cif_persoana_fizica`, `articol_implicit` (+ denumire, UM), `articol_reducere`, `articol_transport`, `activ` — fără cheie și fără serie. Tipul `Firma`: `capital`, `banca`, `localitate`, `judet`, `tara`. `serie_factura: "AUTP"` scos din `FIRMA_IMPLICITA` |
+| `lib/settings.ts` | tipul `Integrari.saga`: `cota_tva`, `regim_tva`, `preturi_cu_tva`, `url_api`, `format_numar`, `format_data`, `data_start_facturare`, `mentiune_plata`, `cif_persoana_fizica`, `articol_implicit` (+ denumire, UM), `articol_reducere`, `articol_transport`, `activ` — fără cheie și fără serie. Tipul `Firma`: `capital`, `banca`, `localitate`, `judet`, `tara`. `serie_factura: "AUTP"` scos din `FIRMA_IMPLICITA` |
 | `app/admin/setari/page.tsx` | „Date firmă”: câmpurile noi (capital, bancă, localitate, județ, țară); câmpul „Serie facturi” scos |
 | `lib/supabase.ts` | `esteFacturare(req)`, gemenele lui `esteEchipa()`, pe `is_facturare()` |
 | `app/admin/facturi/page.tsx` | lista de documente cu filtre pe `saga_status`, acțiuni în masă („Trimite selectate”), export CSV prin `export_saga_linii`, textul despre „Saga nu are API public” rescris |
@@ -479,7 +497,9 @@ la confirmarea proprietarului.
 5. **Potrivirea articolelor** — `saga_articole` + pagina de editare (fără butonul de verificare);
    articolul implicit „ACCESORII AUTO” / „BUC” în setări.
 6. **Interfața de emitere** — „Emite factura”, detaliul facturii, „Modifică” (înainte de
-   trimitere), „Retrage”, „Descarcă XML” (`lib/saga-xml.ts`). **Aici factura există complet,
+   trimitere), „Retrage”, „Descarcă XML” (`lib/saga-xml.ts`). „Emite factura” apare DOAR pe
+   comenzile plasate la sau după `data_start_facturare` și niciunde dacă data nu e setată (A.9);
+   câmpul „Data de start a facturării” intră în cardul Saga din Integrări. **Aici factura există complet,
    fără niciun apel la SAGA** — se poate importa manual în SAGA WEB, ca probă, XML-ul descărcat.
 7. **Clientul API** — `saga_cheie`, `saga_blocare`, `saga_trimiteri`, `lib/saga.ts`,
    „Testează conexiunea” și „Salvează cheia” în Integrări. Prima atingere a SAGA, pe instanța de test.
@@ -496,6 +516,10 @@ Aceeași formă ca `dezro_coada` și `email_coada`:
 
 - La trecerea comenzii în starea aleasă (de exemplu `livrata` — de decis), un trigger pe
   `orders` cheamă `emite_factura` și pune factura în `saga_coada`, în ACEEAȘI tranzacție.
+- **Triggerul ignoră comenzile plasate înaintea `data_start_facturare`, chiar dacă își schimbă
+  starea** (o comandă veche trecută azi în `livrata` NU se facturează), și ignoră tot dacă data
+  nu e setată. Condiția stă în trigger ÎNAINTE de orice apel — nu se bazează pe refuzul din
+  `emite_factura`, care ar lăsa o eroare în coadă pentru fiecare comandă veche atinsă.
 - **Emiterea și trimiterea în blocuri `exception` separate** (lecția din 7 septembrie 2026):
   o eroare la facturare nu are voie să anuleze schimbarea stării comenzii.
 - `pg_net` trezește `/api/saga-coada`, care trimite pe rând, sub același lacăt; se recheamă
@@ -566,6 +590,10 @@ Ce se verifică (pe producție în tranzacții anulate, cu seria „TEST”; con
   neatins.
 - `seteaza_serie_factura` refuză un număr deja folosit; serie cu spațiu („PAP WEB”) salvată exact.
 - Fără serie activă, `emite_factura` refuză cu mesajul despre configurare și nu atinge nimic.
+- **Data de start**: fără `data_start_facturare` → refuz pentru orice comandă; o comandă plasată
+  cu o zi înainte → refuz cu mesajul despre facturarea manuală; una din ziua de start (inclusiv
+  la 00:30 ora României, adică 22:30 UTC în ziua dinainte) → acceptată; contorul seriei neatins
+  la refuz.
 - Fără cod la articolul implicit sau fără IBAN în `settings.firma` → refuz cu mesaj clar.
 - Triggerul: un `update` pe o factură `trimisa` e refuzat; doar statusul trece.
 - RLS: ca `operator` și ca `anon`, `facturi` întoarce 0 rânduri; `saga_cheie` nu se vede nici
@@ -1067,5 +1095,107 @@ cererea a fost de fapt „pasul 3”, începe la confirmare.
 #### Următorul
 
 Pasul 3 — datele firmei (capital, bancă, localitate, județ, țară în Admin → Setări; câmpul
-„Serie facturi” scos de acolo). Fără SQL. Începe doar după confirmare.
+„Serie facturi” scos de acolo). Fără SQL. **Confirmat de proprietar la 10 noiembrie 2026; vezi
+intrarea pasului 3.**
+
+### Pasul 3 — datele firmei
+
+**Stare: gata, în commit pe `saga-integrare`, 10 noiembrie 2026. Fără push. Fără SQL. Așteaptă
+verificarea și confirmarea proprietarului.**
+
+#### Înainte de pas: confirmările cerute de proprietar
+
+**Regula nouă, obligatorie — `data_start_facturare`** (comenzile din urmă, 488 la 10 noiembrie
+2026, au fost facturate manual în SAGA și NU se facturează din aplicație). Trecută în plan:
+- A.4 (pasul 1b din `emite_factura`): fără dată setată → refuz pentru tot; comandă plasată
+  înaintea datei (ziua României) → refuz cu mesaj clar; verificarea stă în bază;
+- A.9: setarea `settings.integrari.saga.data_start_facturare`, fără valoare implicită; butonul
+  „Emite factura” nu apare pe comenzile dinaintea datei; oglinda nu atinge comenzile vechi;
+- pasul 6 din C: butonul condiționat de dată; câmpul datei în cardul Saga din Integrări;
+- faza 2: triggerul ignoră comenzile dinaintea datei, chiar dacă își schimbă starea, și tot dacă
+  data lipsește — condiția stă în trigger, înaintea oricărui apel;
+- D.2: testele datei (fără dată, cu o zi înainte, ziua de start la 00:30 ora României).
+
+**Confirmat: nimic scris până acum nu creează facturi pentru comenzile vechi** (verificat în
+cod, 10 noiembrie 2026):
+- nu există nicio tabelă de facturi și niciun apel la API-ul SAGA (nicio referință la
+  `facturi`, `facturi_linii`, `web.sagasoft`, `/api/saga` în `app/`, `lib/`, `components/`,
+  `supabase/`);
+- migrările 47 și 48 doar calculează (`calculeaza_linie_tva`, `cod_judet`,
+  `transport_facturabil`, `saga_cota_tva`, `export_saga_linii`) — niciuna nu scrie;
+- exportul CSV citește și descarcă un fișier pentru contabilă; nu emite nimic și nu trimite nimic;
+- singurele scrieri pe `orders.factura_serie` / `factura_status` sunt cele două câmpuri manuale
+  de serie (Facturi și pagina comenzii), existente dinainte și neatinse de pașii 1–3.
+
+#### Modifică ceva existent pe site? (răspuns dat înainte de cod)
+
+- **Pe site: nimic vizibil.** Paginile publice (subsol, contact, documente legale, pagina
+  piesei, formularul de retur) folosesc doar denumirea, CUI-ul, Reg. Com., adresa, telefonul,
+  e-mailul. Câmpurile noi nu se afișează nicăieri public.
+- **În bază: nicio migrare.** La următoarea salvare din Setări, rândul `settings.firma` primește
+  cheile noi.
+- **Modificată: pagina Admin → Setări → „Date firmă”** — 5 câmpuri noi; „Serie facturi” scos
+  din formular, cu valoarea din bază („AUTP”) păstrată.
+- **O capcană reparată**: salvarea rescria tot obiectul firmei doar din câmpurile formularului,
+  deci scoaterea câmpului de serie ar fi șters „AUTP” la prima salvare. Acum se pornește din
+  datele existente (`{ ...firma, … }`).
+
+#### Ce s-a făcut
+
+**`lib/settings.ts`** — tipul `Firma` are `capital`, `banca`, `localitate`, `judet`, `tara`;
+`serie_factura` devine opțional și marcat „ieșit din uz”. În rezerva din cod (`FIRMA_IMPLICITA`):
+cele patru câmpuri noi sunt GOALE (valorile le scrie proprietarul, nu stau în cod), `tara` =
+„RO”, iar „AUTP” a fost scos.
+
+**`app/admin/setari/page.tsx`** — „Date firmă și fiscale”:
+- câmpuri noi: „Capital social”, „Banca”, „Localitatea sediului”, „Județul sediului”, „Țara (cod,
+  ex. RO)”. Placeholder-ele sunt neutre („suma și moneda”, „numele băncii și sucursala”) — nu
+  valorile reale, ca un câmp gol să nu pară completat;
+- „Serie facturi” scos; textul de sub titlu spune că seria nu se mai setează aici și că noile
+  câmpuri apar doar pe facturi;
+- verificări la salvare, înainte de orice scriere: **județul** se trece prin `cod_judet` din bază
+  (migrarea 47 — aceeași funcție care îl va traduce în cod pe factură); nerecunoscut → „Județul
+  „…” nu e recunoscut … Nu s-a salvat nimic.”; **țara** trebuie să fie două litere;
+- salvarea pornește din datele existente, deci nu pierde nicio cheie din bază.
+
+`npm run build`: „Compiled successfully”. Serverul local pornit pentru proba pasului 2 a fost
+oprit (build-ul nou i-a înlocuit fișierele).
+
+Neverificat de asistent în browser: pagina cere autentificare de admin, iar salvarea scrie în
+producție — o face proprietarul, cu pașii de mai jos.
+
+#### Fișiere
+
+- modificate: `lib/settings.ts`, `app/admin/setari/page.tsx`, `docs/saga-plan.md`
+- create: niciunul
+
+#### Cum se verifică
+
+**Atenție: serverul local citește și SCRIE în baza de producție** (`.env.local`). Salvarea din
+Setări e reală — exact ce trebuie, fiindcă valorile trebuie oricum puse.
+
+1. `npm run build && npm start`, apoi `http://localhost:3000/admin/setari` (portul 3000 din
+   tab-ul Ports), autentificat ca admin.
+2. „Date firmă și fiscale”: **nu mai există „Serie facturi”**; există Capital social, Banca,
+   Localitatea sediului, Județul sediului, Țara (cu „RO” deja pus).
+3. Proba refuzului: la Județ scrii „Atlantis” → Salvează → mesajul „Județul „Atlantis” nu e
+   recunoscut … Nu s-a salvat nimic.” La Țară „ROU” → mesaj despre codul de două litere.
+4. Completezi valorile reale — capital „200 RON”, banca „BCR Piatra Neamt”, localitatea, județul
+   „Neamț”, țara „RO” — → Salvează → „✓ Salvat — se vede imediat pe site.”
+5. Verificare în SQL Editor (doar citire):
+   ```sql
+   select valoare->>'capital' as capital, valoare->>'banca' as banca,
+          valoare->>'localitate' as localitate, valoare->>'judet' as judet,
+          valoare->>'tara' as tara, valoare->>'serie_factura' as serie_veche_pastrata
+     from settings where cheie = 'firma';
+   ```
+   **Rezultat așteptat**: valorile tale; `serie_veche_pastrata` = „AUTP” (nu NULL).
+6. Site-ul public: subsolul și `/contact` arată exact ca înainte.
+
+#### Următorul
+
+Pasul 4 — tabelele de facturi și numerotarea (migrarea 49): `facturi`, `facturi_linii`,
+`facturi_serii`, `emite_factura` (cu `data_start_facturare`), `seteaza_serie_factura`,
+`retrage_factura`, triggerul de nemodificare, oglinda pe `orders`, garda din `sterge_comanda`,
+RLS, pagina Facturi → Setări serie. Începe doar după confirmare.
 

@@ -97,16 +97,38 @@ export default function Setari() {
 
       <div className="grid lg:grid-cols-2 gap-4 items-start">
         {/* Firma */}
-        <form key={incarcari} onSubmit={(e) => { e.preventDefault();
+        <form key={incarcari} onSubmit={async (e) => { e.preventDefault();
           const f = new FormData(e.currentTarget);
-          const nou: Firma = { denumire: String(f.get("denumire")), cui: String(f.get("cui")), reg_com: String(f.get("reg_com")),
-            adresa: String(f.get("adresa")), iban: String(f.get("iban")), serie_factura: String(f.get("serie")),
+          const txt = (k: string) => String(f.get(k) ?? "").trim();
+          // `...firma` ÎNTÂI: salvarea rescrie tot obiectul din `settings.firma`, deci
+          // orice cheie care nu e în formular s-ar pierde. Așa rămâne neatinsă, de
+          // exemplu, vechea `serie_factura` („AUTP”), scoasă din formular la pasul 3
+          // din docs/saga-plan.md.
+          const nou: Firma = { ...firma,
+            denumire: String(f.get("denumire")), cui: String(f.get("cui")), reg_com: String(f.get("reg_com")),
+            adresa: String(f.get("adresa")), iban: String(f.get("iban")),
             telefon: String(f.get("telefon")), email: String(f.get("email")),
-            whatsapp: String(f.get("whatsapp")).replace(/\D/g, "") };
+            whatsapp: String(f.get("whatsapp")).replace(/\D/g, ""),
+            capital: txt("capital"), banca: txt("banca"), localitate: txt("localitate"),
+            judet: txt("judet"), tara: txt("tara").toUpperCase() };
+          // Țara: cod de două litere (RO), cum o cere XML-ul SAGA.
+          if (nou.tara !== "" && !/^[A-Z]{2}$/.test(nou.tara)) {
+            setMsg(`Țara „${nou.tara}” nu e un cod de două litere (de exemplu RO). Nu s-a salvat nimic.`);
+            return;
+          }
+          // Județul se verifică în bază, cu aceeași funcție care îl va traduce în cod
+          // pentru factură (`cod_judet`, migrarea 47). Un județ scris greșit s-ar
+          // descoperi abia la prima factură; aici se vede pe loc.
+          if (nou.judet !== "") {
+            const sb = sbBrowser();
+            const { data: cod, error } = sb ? await sb.rpc("cod_judet", { p_judet: nou.judet }) : { data: null, error: null };
+            if (error) { setMsg(`Nu am putut verifica județul: ${error.message}. Nu s-a salvat nimic.`); return; }
+            if (!cod) { setMsg(`Județul „${nou.judet}” nu e recunoscut (scrie-l ca „Neamț” sau „NT”). Nu s-a salvat nimic.`); return; }
+          }
           setFirma(nou); salveaza("firma", nou); }}
           className="card p-5 grid gap-3 text-sm">
           <b className="font-disp font-semibold text-[13px]">Date firmă și fiscale</b>
-          <p className="text-xs text-mut -mt-1">Apar în subsolul site-ului, pe documentele legale și în exportul pentru Saga.</p>
+          <p className="text-xs text-mut -mt-1">Apar în subsolul site-ului, pe documentele legale și în exportul pentru Saga. Capitalul, banca, localitatea, județul și țara apar doar pe facturi, nu pe site. Seria facturilor nu se mai setează aici.</p>
           <div className="fld"><label>Denumire</label><input name="denumire" defaultValue={firma.denumire} /></div>
           {/* Sediul social — apare în subsol, în certificatul de garanție și în politica GDPR */}
           <div className="fld"><label>Sediu social</label>
@@ -114,10 +136,18 @@ export default function Setari() {
           <div className="grid grid-cols-2 gap-3">
             <div className="fld"><label>CUI</label><input name="cui" defaultValue={firma.cui} placeholder="RO…" /></div>
             <div className="fld"><label>Reg. Com.</label><input name="reg_com" defaultValue={firma.reg_com} placeholder="J27/…" /></div>
-            <div className="fld"><label>Serie facturi</label><input name="serie" defaultValue={firma.serie_factura} /></div>
             <div className="fld"><label>Telefon afișat</label><input name="telefon" defaultValue={firma.telefon} /></div>
+            <div className="fld"><label>Capital social</label><input name="capital" defaultValue={firma.capital} placeholder="suma și moneda" /></div>
           </div>
           <div className="fld"><label>IBAN</label><input name="iban" defaultValue={firma.iban} placeholder="RO…" /></div>
+          <div className="fld"><label>Banca</label><input name="banca" defaultValue={firma.banca} placeholder="numele băncii și sucursala" /></div>
+          {/* Localitatea, județul și țara SEPARAT de sediul de mai sus: XML-ul facturii
+              pentru SAGA le cere în câmpuri proprii. Nu apar pe site. */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="fld"><label>Localitatea sediului</label><input name="localitate" defaultValue={firma.localitate} /></div>
+            <div className="fld"><label>Județul sediului</label><input name="judet" defaultValue={firma.judet} placeholder="de ex. Neamț" /></div>
+            <div className="fld"><label>Țara <span className="font-normal text-mut">(cod, ex. RO)</span></label><input name="tara" defaultValue={firma.tara} maxLength={2} /></div>
+          </div>
           <div className="fld"><label>E-mail comenzi</label><input name="email" type="email" defaultValue={firma.email} /></div>
           <div className="fld"><label>Număr WhatsApp <span className="font-normal text-mut">(format internațional, ex. 40740123456)</span></label>
             <input name="whatsapp" defaultValue={firma.whatsapp} placeholder="40740123456" /></div>
