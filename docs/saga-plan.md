@@ -1031,6 +1031,31 @@ coloana „TVA” (nu „TVA 19%”), „Cota TVA” ultima, cu 21; pe o piesă 
 200.00, „Baza fara TVA” 165.29, „TVA” 34.71. Opțional: Integrări → Saga → cota „abc” → Salvează
 → apare mesajul de cotă invalidă și nu se salvează nimic.
 
+#### Completări după predarea pasului 2 (10 noiembrie 2026)
+
+**Indiciile despre formatul numărului și al datei** (commit `6114bce`) — trecute la întrebarea
+1 pentru contabilă și la riscul 6, marcate „nu confirmări”:
+- concluzia provizorie: numărul „PAP FE 14188” (`serie_spatiu`) și data zi-lună-an;
+- riscul 6 cuprinde acum și data: zi și lună inversate trec neobservate până pe 13 ale lunii;
+- **formatul datei a devenit setare, `format_data`** („10-11-2026” / „10.11.2026” /
+  „2026-11-10”), cu aceeași regulă ca `format_numar`: fără valoare implicită, aplicat de o
+  singură funcție (`dataPentruSaga`), iar trimiterea e blocată până e ales. Trecut și în lista
+  de fișiere (B), la pasul 8 din C și în testele din D.1 (inclusiv o zi sub 13);
+- două precizări: (a) numele PDF-ului începe cu „131096”, care NU e CIF-ul firmei, deci numele
+  fișierului de import XML urmează exemplul din documentația API, nu PDF-ul; (b) indiciul 4
+  (articolele recunoscute după codul de bare / codul propriu) e legat și de întrebarea 3.
+
+**„Continuă cu PASUL 2”** — cerut de proprietar după indicii. Pasul 2 era deja gata în cod
+(commit `952f578`); nu s-a refăcut nimic. Rămâne doar partea proprietarului, pe producție, din
+SQL Editor, în ordine:
+1. pre-verificarea (secțiunea „Cum se aplică” de mai sus) → toate coloanele `true`;
+2. `supabase/saga-export.sql` → „Success. No rows returned”;
+3. `scripts/verifica-saga-export.sql` → „REZULTAT OK: toate cele 15 verificări au trecut …”;
+4. proba exportului în pagină (`npm run build && npm start`, `/admin/facturi`).
+
+Pasul 3 NU a fost început: regula e un singur pas o dată, după confirmarea proprietarului. Dacă
+cererea a fost de fapt „pasul 3”, începe la confirmare.
+
 #### Următorul
 
 Pasul 3 — datele firmei (capital, bancă, localitate, județ, țară în Admin → Setări; câmpul
