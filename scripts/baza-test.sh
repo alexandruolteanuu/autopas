@@ -97,10 +97,19 @@ case "$comanda" in
     echo "Toate cele $total migrări au fost aplicate."
     ;;
   teste)
+    # Testele se încheie MEREU cu o eroare (ca baza să anuleze tot), deci
+    # reușita se citește din mesaj, nu din codul de ieșire al lui psql.
+    picate=0
     for f in scripts/verifica-saga-*.sql; do
       echo "== $f"
-      psql_cmd < "$f"
+      iesire="$(psql_cmd < "$f" 2>&1 || true)"
+      if grep -q "REZULTAT OK" <<<"$iesire"; then
+        grep -o "REZULTAT OK[^.]*" <<<"$iesire"
+      else
+        grep -v '^CONTEXT' <<<"$iesire"; picate=1
+      fi
     done
+    exit $picate
     ;;
   *)
     echo "Folosire: scripts/baza-test.sh migrari [--de-la=N] | teste" >&2

@@ -35,6 +35,15 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
   prima dată la integrarea SAGA, `docs/saga-plan.md`). Când lucrul urmează un plan pe pași:
   implementezi UN SINGUR pas, apoi te oprești și spui ce ai făcut, ce fișiere ai modificat și
   cum se verifică. Pasul următor începe doar după confirmarea utilizatorului.
+- **Fără bază de test: testele pe PRODUCȚIE rulează doar în tranzacții anulate** (10 noiembrie
+  2026, decizia proprietarului, la integrarea SAGA). Orice script de verificare care atinge baza
+  reală stă între `begin` și `rollback` ȘI se încheie mereu cu o eroare („REZULTAT OK …” /
+  „VERIFICARE PICATĂ …”) — eroarea anulează tot, chiar dacă cineva adaugă mai târziu o scriere în
+  test. Probele de emitere a facturilor folosesc seria **„TEST”**, tot în tranzacții anulate,
+  ca să nu consume numere reale (seria PAP FE, ultimul număr confirmat: 14190). Ce nu se poate
+  testa așa (concurența, care cere sesiuni separate) se testează local, într-un Postgres din
+  Docker. Fiecare migrare nouă vine cu pre-verificare (doar citire) și fișier de anulare fără
+  `cascade`. Asistentul nu rulează nimic pe producție; rulează proprietarul, din SQL Editor.
 - **Cod complet**, nu fragmente. Comentarii scurte în cod, în română.
 - **Fără date demo hardcodate** — tot ce se afișează vine din Supabase.
 - **Nu inventa** funcții, tabele sau coloane. Dacă ai nevoie de ceva nou în baza de date,
@@ -89,7 +98,8 @@ NU sunt încă idempotente: 1–5, 8.
 **47 e scrisă, NErulată pe producție** (10 noiembrie 2026, ramura `saga-integrare`, pasul 1 din
 `docs/saga-plan.md`): `calculeaza_linie_tva`, tabela `judete_coduri` + `cod_judet`,
 `transport_facturabil`. Doar unelte de calcul — nu atinge niciun rând și nicio politică existentă.
-Se probează întâi pe proiectul de TEST (`scripts/baza-test.sh`).
+Nu depinde de 46. O rulează proprietarul pe producție, din SQL Editor (pașii: `docs/saga-plan.md`,
+jurnalul pasului 1); anularea: `scripts/anuleaza-saga-calcul.sql`.
 46 (21 octombrie 2026) pregătește AWB-ul de RETUR: adaugă pe `return_requests` legătura cu
 comanda (`order_id`), adresa de ridicare (`ridicare` jsonb) și câmpurile AWB-ului
 (`awb`, `awb_curier_id`, `awb_generat_la`, `awb_date`). Nu atinge niciun rând și nicio politică. 45 a fost rulată la 15 septembrie 2026 abia DUPĂ ce codul din
@@ -1361,8 +1371,9 @@ Niciuna nu e dependință a site-ului și niciuna nu rulează la build. Se cheam
 | `actualizeaza-nomenclator-fan.mjs` | **periodic (FAN recomandă), de exemplu lunar.** Reface județele, localitățile (cu agenția și km suplimentari) și străzile din API-ul FAN în `fan_localitati` / `fan_strazi`. ~5 minute. Contul FAN îl ia din `settings`. Nu scrie și nu șterge nimic dacă FAN întoarce sub 90% din ce avem. `--uscat` doar numără |
 | `verifica-cantitati.mjs` | **după orice modificare a coșului, a selectorului de cantitate sau a lui `plaseaza_comanda`.** 23 de verificări pe piese REALE, alese din bază (nu slug-uri scrise de mână): selectorul și plafonul, subtotalurile, coșul după reîncărcare, sumarul din checkout, așezarea pe 11 lățimi (suprapuneri, text tăiat, ținte de 44px) și faptul că serverul înmulțește și refuză peste stoc. Cere un server pornit (`BASE=…`) **pe build-ul de producție** — în `npm run dev` coșul se golește la reîncărcare — plus `playwright-core`, ca `scan-responsive.mjs`. Proba de server trimite intenționat un total greșit, deci se oprește înainte de orice scriere: nicio comandă creată |
 | `verifica-retur-fan.mjs` | **după orice modificare a fluxului de retur** (`lib/fancourier.ts`, `app/api/awb-retur/`). 15 verificări pe API-ul REAL al FAN, implicit pe contul lor de probă din anexă — merge și fără contul nostru ocazional. Compilează `lib/fancourier.ts` într-un `.tmp-fan/` temporar și cheamă funcțiile adevărate; creează un AWB de retur și o comandă de curier, apoi le șterge. Pe contul propriu: `FANCOURIER_RETUR_CLIENT_ID=… FANCOURIER_RETUR_USER=… FANCOURIER_RETUR_PASS=… node scripts/verifica-retur-fan.mjs` |
-| `baza-test.sh` | **doar pe proiectul Supabase de TEST** („autopas-test”). `migrari` aplică toate migrările în ordine (lista e copiată din CLAUDE.md — se ține la zi în ambele locuri), `--de-la=N` reia după o eroare; `teste` rulează `verifica-saga-*.sql`. Cere `DB_TEST_URL` (Session pooler) și **refuză adresa proiectului de producție** din `.env.local` |
-| `verifica-saga-calcul.sql` | după orice atingere a migrării 47 (calculul TVA, județele, transportul facturabil). 33 de verificări pe funcțiile REALE, inclusiv cazul de referință de pe factura din SAGA (200,00 → 165,29 + 34,71, unitar 165,2900) și stornarea lui. Nu scrie nimic. Se rulează pe baza de TEST: SQL Editor sau `baza-test.sh teste` |
+| `baza-test.sh` | **doar pe o bază Supabase de TEST** — nefolosit deocamdată: la 10 noiembrie 2026 s-a hotărât să nu existe bază de test. `migrari` aplică toate migrările în ordine (lista e copiată din CLAUDE.md — se ține la zi în ambele locuri), `--de-la=N` reia după o eroare; `teste` rulează `verifica-saga-*.sql`. Cere `DB_TEST_URL` (Session pooler) și **refuză adresa proiectului de producție** din `.env.local` |
+| `verifica-saga-calcul.sql` | după orice atingere a migrării 47 (calculul TVA, județele, transportul facturabil). 33 de verificări pe funcțiile REALE, inclusiv cazul de referință de pe factura din SAGA (200,00 → 165,29 + 34,71, unitar 165,2900) și stornarea lui. Nu lasă nimic în bază: stă între `begin` și `rollback` și se încheie MEREU cu o eroare — „REZULTAT OK: …” la reușită (căsuța roșie e intenționată), „VERIFICARE PICATĂ: …” la eșec. Se rulează pe producție, din SQL Editor |
+| `anuleaza-saga-calcul.sql` | **doar la nevoie**: anulează migrarea 47 (trei funcții + `judete_coduri`). Fără `cascade` — se oprește dacă ceva depinde de ele |
 | `curata-orfani.mjs` | **periodic**, mai ales după sesiuni lungi de lucru pe produse. Găsește fișierele din `poze-piese` spre care nu mai arată niciun rând din `products` SAU din `vehicles`. Implicit doar raportează; șterge numai cu `--sterge` și numai fișiere mai vechi de 24h (`--ore=N`). Peste 5% orfani refuză să șteargă și cere `--confirm-stergere-mare`: atâția deodată înseamnă de obicei o citire incompletă, nu formulare abandonate. Raportează și cazul invers, mai grav: adrese din bază fără fișier în stocare |
 
 **De ce apar orfani** (tipar structural, găsit la 25 august 2026): `components/admin/PhotoUploader.tsx`

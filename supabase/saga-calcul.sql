@@ -4,8 +4,10 @@
 --
 -- Doar unelte de calcul, fără nicio tabelă de facturi. Nu atinge niciun rând
 -- existent și nicio politică existentă. Idempotentă: se poate rula de oricâte ori.
--- Presupune `text_cautare` (migrarea 15) și extensia `unaccent`.
--- Testele: scripts/verifica-saga-calcul.sql — se rulează pe baza de TEST.
+-- Depinde DOAR de `text_cautare` și extensia `unaccent` (migrarea 15) și de
+-- rolurile Supabase. NU depinde de migrarea 46 (`retur-fan.sql`).
+-- Testele: scripts/verifica-saga-calcul.sql (în tranzacție anulată, merge și pe
+-- producție). Anularea: scripts/anuleaza-saga-calcul.sql.
 -- ============================================================
 
 

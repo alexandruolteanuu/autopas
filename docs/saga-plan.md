@@ -415,8 +415,9 @@ ca azi). Valorile le scrie proprietarul din formular — **nu se pun în cod și
 | fișier | rol |
 |---|---|
 | `supabase/saga-calcul.sql` (47) + migrările pașilor următori | secțiunea A, împărțită pe pași |
-| `scripts/verifica-saga-calcul.sql` | testele pasului 1, rulate pe baza de TEST (SQL Editor sau `baza-test.sh`) |
-| `scripts/baza-test.sh` | aplică migrările în ordine și rulează testele SQL pe proiectul de TEST; refuză baza de producție |
+| `scripts/verifica-saga-calcul.sql` | testele pasului 1; rulează pe producție, din SQL Editor, între `begin` și `rollback`, încheiate mereu cu o eroare (D.2) |
+| `scripts/anuleaza-saga-*.sql` | anularea fiecărei migrări SAGA, fără `cascade` (D.2) |
+| `scripts/baza-test.sh` | aplică migrările în ordine și rulează testele SQL pe o bază de TEST; refuză baza de producție. Nefolosit deocamdată (fără bază de test, D.2) |
 | `lib/saga.ts` | **clientul API**, ca `lib/fancourier.ts`: `configSaga()` (adresa API-ului din setări, cu `SAGA_URL` ca rezervă), `EroareSaga`, `cere()` intern (lacăt → citește cheia → apel → salvează `X-Saga-Refresh-Token` → eliberează), `importaFacturi(xml, numeFisier)`, `getArticol(cod)`, `verificaConexiunea()`. Doar pe server. |
 | `lib/saga-xml.ts` | construirea XML-ului din `facturi` + `facturi_linii` (funcție pură: date → text), escape XML, numele fișierului `F_<CIF curat>_<numar>_<data>.xml`; și **parsarea raportului** 207/422 pe facturi, după `NR_DOC`. Singurul loc care știe formatul numărului spre SAGA (`numarPentruSaga`, `facturaDinNrDoc`) și unde stă mențiunea de plată (A.4, A.17). Plus `cifCurat()`. Separat de `saga.ts` ca să poată fi testat fără rețea. |
 | `app/admin/facturi/setari/page.tsx` | „Setări serie”: seria activă, numărul următor (prin `seteaza_serie_factura`), istoricul seriilor. Accesibilă pentru `admin` și `contabil` |
@@ -507,7 +508,8 @@ Aceeași formă ca `dezro_coada` și `email_coada`:
   - Același caz ca storno (cantitate −1) → −165,29 / −34,71 / −200,00.
   - 350 lei/21%, 0,01 lei, 99,99 × 3, prețuri care dau jumătate de ban, suma
     `valoare + tva = total` pe 10.000 de prețuri aleatoare.
-  - Testele rulează pe funcția SQL REALĂ, pe baza de test (`scripts/verifica-saga-calcul.sql`),
+  - Testele rulează pe funcția SQL REALĂ, pe producție în tranzacție anulată (D.2), din
+    `scripts/verifica-saga-calcul.sql`,
     nu pe o copie JS: o copie ar trece testul și ar lăsa funcția greșită.
 - XML: caractere speciale în nume (`&`, `<`, ghilimele, diacritice), numele fișierului cu CIF-ul
   curățat („RO 36608590” → „RO36608590”), `GUID_factura` = id, `importAutomat` mereu `false`,
@@ -520,32 +522,35 @@ Aceeași formă ca `dezro_coada` și `email_coada`:
   factura PAP FE 14191, niciuna pentru 14192.
 - Județe: toate cele 42 cu și fără diacritice, cu sedilă, „Bucuresti”, „Sector 3”, gunoi → `null`.
 
-### D.2 Baza de date — pe o bază care NU e producția
-**Nicio ramură Supabase nu se creează fără aprobarea proprietarului: are cost.** Măsurat în
-documentația Supabase (10 noiembrie 2026): ramurile cer **planul Pro (25 $/lună)**; o ramură pe
-calculul implicit (Micro) costă **0,01344 $/oră** (~0,32 $/zi, ~10 $/lună dacă rămâne pornită),
-plus trafic și disc peste cota planului. **Nu intră sub Spend Cap** și creditele de calcul nu se
-aplică. Se șterge imediat după test.
+### D.2 Baza de date — pe PRODUCȚIE, doar în tranzacții anulate
 
-**Alternativa gratuită, recomandată: un proiect Supabase de test separat**, pe planul Free
-(0 $; planul gratuit permite 2 proiecte active, se oprește singur după o săptămână fără
-activitate și se repornește din panou):
+**Decizia proprietarului, 10 noiembrie 2026: fără bază de test separată** (nici ramură
+Supabase — cere planul Pro, 25 $/lună, plus ~0,32 $/zi de rulare, în afara Spend Cap —, nici
+proiectul gratuit „autopas-test”). Migrările SAGA se rulează direct pe producție, din SQL
+Editor, de proprietar. Asistentul nu rulează nimic pe producție. De aici trei reguli:
 
-1. supabase.com → New project → nume `autopas-test`, regiunea Frankfurt (`eu-central-1`, ca
-   producția), o parolă nouă pentru bază. **Nu se copiază nimic din producție** — nici date, nici chei.
-2. Se rulează migrările 1–46, **în ordinea din CLAUDE.md**, apoi cele noi — din SQL Editor, una
-   câte una, sau toate deodată cu `scripts/baza-test.sh migrari` (pașii exacți: raportul pasului 1).
-3. Authentication → Users: patru utilizatori de test (`admin`, `contabil`, `operator`, `client`),
-   apoi rolul pus în `profiles`.
-4. Date de test: un script `scripts/date-test-saga.mjs` creează câteva piese și comenzi FICTIVE,
-   doar dacă adresa bazei NU e cea de producție (refuză altfel, verificând URL-ul). Datele
-   fictive stau doar în baza de test, niciodată în cod sau în producție.
-5. Un `.env.test.local` (necomis) cu cheile proiectului de test; site-ul pornit cu el pentru D.3.
-6. Notă: conectorul Supabase din sesiune vede acum un singur proiect, „aer-test”, dintr-o
-   organizație în care **NU** e baza Autopas. Dacă proiectul de test se creează acolo (sau
-   conectorul se leagă de el), testele de la D.2 le pot rula eu direct; altfel le rulezi din SQL Editor.
+1. **Fiecare migrare are, în același commit:** o interogare de pre-verificare (doar citire:
+   obiectele noi nu există deja, dependențele există), fișierul de anulare
+   (`scripts/anuleaza-saga-*.sql`, fără `cascade`) și testele.
+2. **Testele de pe producție rulează doar în tranzacții anulate** (`scripts/verifica-saga-*.sql`):
+   `begin` … `rollback`, iar blocul de test se termină ÎNTOTDEAUNA cu o eroare — „REZULTAT OK:
+   …” la reușită, „VERIFICARE PICATĂ: …” la eșec. O eroare anulează tot ce a făcut tranzacția,
+   deci nicio scriere a testului nu poate rămâne, chiar dacă cineva adaugă una mai târziu.
+   Mesajul apare în SQL Editor în căsuța roșie, intenționat.
+3. **Probele de emitere (pasul 4 și următorii) folosesc seria „TEST”**, tot în tranzacții
+   anulate: `seteaza_serie_factura('TEST', 1)` → `emite_factura` pe o comandă → verificări →
+   eroare finală → totul anulat, inclusiv contorul. Seria reală („PAP WEB” sau „PAP FE”,
+   ultimul număr confirmat **14190**) nu e atinsă niciodată de un test, deci nu se consumă
+   numere reale. Comenzile folosite sunt cele existente; nimic nu rămâne pe ele.
 
-Se rulează 1–47 și se verifică:
+**Ce NU se poate testa într-o tranzacție anulată**: concurența (două `emite_factura` simultane
+cer două sesiuni separate, care ar trebui să scrie de-adevăratelea). Aceste teste rulează
+local, într-un Postgres 17 din Docker, cu obiectele Supabase de care depind simulate (roluri
+`anon`/`authenticated`/`service_role`, `text_cautare`, `auth.uid()`) — cum s-a verificat deja
+pasul 1. `scripts/baza-test.sh` rămâne în proiect, pentru ziua în care se face totuși o bază
+de test.
+
+Ce se verifică (pe producție în tranzacții anulate, cu seria „TEST”; concurența local):
 - **Concurența numerotării**: 20 de `emite_factura` simultane, pe 20 de comenzi → numerele
   1..20, fără gol și fără dublură. Plus o emitere care pică la mijloc (județ invalid) → contorul
   neatins.
@@ -670,9 +675,9 @@ ce rezultat trebuie văzut. Pasul următor începe doar după confirmarea propri
 
 ### Pasul 1 — calculul TVA, codurile de județ, transportul facturabil
 
-**Stare: gata, în commit pe `saga-integrare` (`a76f5e0`), 10 noiembrie 2026. Nerulat pe
-producție, fără push. Așteaptă proba pe proiectul de test „autopas-test” și confirmarea
-proprietarului.**
+**Stare: gata, în commit pe `saga-integrare`, 10 noiembrie 2026. Fără push. De rulat de
+proprietar pe PRODUCȚIE, din SQL Editor (fără bază de test — decizia din aceeași zi), cu pașii
+de mai jos; apoi confirmarea proprietarului.**
 
 #### Ce s-a făcut
 
@@ -699,6 +704,12 @@ existentă; se poate rula de mai multe ori.
 - 6 cazuri de transport facturabil;
 - drepturile: `anon` nu poate chema funcțiile.
 
+Testul rulează între `begin` și `rollback` și se încheie mereu cu o eroare („REZULTAT OK …” /
+„VERIFICARE PICATĂ …”), deci nu lasă nimic în bază — adaptat la 10 noiembrie 2026, când s-a
+hotărât rularea pe producție (prima variantă își scria rezultatul într-un tabel temporar).
+
+**`scripts/anuleaza-saga-calcul.sql`** — anularea migrării 47, fără `cascade`.
+
 Verificat și invers, pe un Postgres 17 local: funcția stricată intenționat în trei feluri
 (preț unitar din preț, TVA rotunjit separat, drept dat lui `anon`) — testele le-au prins pe
 toate trei; după refacere au trecut iar.
@@ -721,41 +732,52 @@ reluare) și rulează testele (`teste`) pe proiectul de TEST. Citește adresa pr
 
 #### Fișiere
 
-- create: `supabase/saga-calcul.sql`, `scripts/verifica-saga-calcul.sql`, `scripts/baza-test.sh`
+- create: `supabase/saga-calcul.sql`, `scripts/verifica-saga-calcul.sql`, `scripts/baza-test.sh`,
+  `scripts/anuleaza-saga-calcul.sql`
 - modificate: `docs/saga-plan.md`, `CLAUDE.md`
 - intrate în același commit (erau nesalvate în git): `docs/saga-api.md`, `raportare.md`
 - `npm run build`: „Compiled successfully”
 
-#### Cum se aplică pe proiectul de test
+#### Cum se aplică — pe PRODUCȚIE, din SQL Editor (decizia din 10 noiembrie 2026)
 
-**Varianta A — din terminalul Codespace (recomandată):**
-1. Supabase → proiectul **autopas-test** → **Connect** → **Session pooler** → copiezi adresa și
-   pui parola bazei de test în locul `[YOUR-PASSWORD]`. NU „Direct connection”: e doar IPv6,
-   iar Codespace-ul n-are IPv6.
-2. În terminal:
-   ```bash
-   export DB_TEST_URL='postgresql://postgres.XXXX:PAROLA@aws-0-eu-central-1.pooler.supabase.com:5432/postgres'
-   scripts/baza-test.sh migrari
-   ```
-   Scriptul arată unde se conectează și cere „da”. **Rezultat așteptat**: 47 de rânduri `ok`,
-   apoi „Toate cele 47 migrări au fost aplicate.”
-3. Apoi:
-   ```bash
-   scripts/baza-test.sh teste
-   ```
-   **Rezultat așteptat**: `TOATE VERIFICĂRILE AU TRECUT | 33`.
+Rulează proprietarul, din Supabase → proiectul de producție → SQL Editor. Patru pași, fiecare
+lipit și rulat separat.
 
-**Varianta B — din SQL Editor:** fiecare fișier din `supabase/`, în ordinea din `CLAUDE.md`
-(`schema.sql` … `retur-fan.sql`), lipit și rulat pe rând; apoi `supabase/saga-calcul.sql`; la
-final `scripts/verifica-saga-calcul.sql` → același rând, cu 33.
+**1. Pre-verificarea (doar citire).** Trebuie să întoarcă un singur rând cu toate coloanele
+`true`:
+```sql
+select
+  to_regclass('public.judete_coduri') is null                                   as tabela_noua_nu_exista,
+  not exists (select 1 from pg_proc
+               where pronamespace = 'public'::regnamespace
+                 and proname in ('calculeaza_linie_tva','cod_judet','transport_facturabil')) as functiile_noi_nu_exista,
+  to_regprocedure('public.text_cautare(text)') is not null                      as text_cautare_exista,
+  exists (select 1 from pg_extension where extname = 'unaccent')                as unaccent_exista,
+  public.text_cautare('Neamţ Iaşi') = 'neamt iasi'                              as unaccent_trateaza_sedila;
+```
+Dacă vreo coloană e `false`, NU se rulează migrarea; se trimite rezultatul.
 
-**De știut:**
-- Migrările 1–46 n-au fost rulate niciodată toate deodată, pe o bază goală. E posibil ca una să
-  pice. Scriptul se oprește și spune de la ce număr se reia; mesajul de eroare se trimite
-  înainte de orice altă încercare.
-- Migrările 1–5 și 8 nu se pot rula de două ori: dacă pică una dintre ele, baza de test trebuie
-  curățată întâi.
-- Parola din `DB_TEST_URL` rămâne doar în sesiunea de terminal; nu se pune în niciun fișier.
+**2. Migrarea.** Conținutul lui `supabase/saga-calcul.sql`, lipit întreg → Run. Rezultat
+așteptat: „Success. No rows returned”. Rulată de două ori, dă același rezultat.
+
+**3. Testele.** Conținutul lui `scripts/verifica-saga-calcul.sql`, lipit întreg → Run.
+Rezultat așteptat — **în căsuța roșie de eroare, intenționat**:
+> REZULTAT OK: toate cele 33 de verificări au trecut. (Apare ca eroare intenționat: așa baza
+> anulează tot ce a făcut testul.)
+
+Orice mesaj care începe cu „VERIFICARE PICATĂ” = defect; se trimite textul întreg. „function …
+does not exist” = migrarea de la pasul 2 n-a rulat. Testul nu lasă nimic în bază: nu scrie, stă
+între `begin` și `rollback`, și se termină mereu cu o eroare care anulează tranzacția
+(verificat local: după rulare nu rămâne niciun obiect).
+
+**4. Doar la nevoie — anularea.** Conținutul lui `scripts/anuleaza-saga-calcul.sql` → Run.
+Scoate cele trei funcții și tabela `judete_coduri`, nimic altceva; fără `cascade`, deci se
+oprește singur dacă un pas ulterior ajunsese să depindă de ele. Rezultat așteptat: 0 rânduri
+în verificarea de la final. Verificat local: anulare → re-rulare migrare → testele trec iar.
+
+**Nu depinde de migrarea 46** (`retur-fan.sql`, nerulată): migrarea 47 folosește doar
+`text_cautare` și `unaccent` (migrarea 15) și rolurile Supabase (`anon`, `authenticated`,
+`service_role`).
 
 #### Următorul
 

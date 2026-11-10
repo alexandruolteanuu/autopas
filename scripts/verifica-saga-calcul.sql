@@ -1,15 +1,23 @@
 -- ============================================================
 -- VERIFICĂRILE PASULUI 1 SAGA (migrarea 47, supabase/saga-calcul.sql)
 --
--- Se rulează DOAR pe baza de TEST (proiectul „autopas-test”), după migrarea 47:
---   · SQL Editor: lipești tot fișierul → Run; sau
---   · terminal:   scripts/baza-test.sh teste
+-- Se rulează după migrarea 47, din Supabase → SQL Editor: lipești tot fișierul → Run.
+-- Merge și pe PRODUCȚIE (decizia din 10 noiembrie 2026: fără bază de test).
 --
--- Nu scrie nimic în bază: doar citește și calculează. Dacă o verificare pică,
--- scriptul se oprește cu „VERIFICARE PICATĂ: …” și spune ce a așteptat și ce a
--- primit. Dacă trec toate, ultimul rezultat e un singur rând:
---   rezultat = „TOATE VERIFICĂRILE AU TRECUT”, verificari = numărul lor.
+-- NU LASĂ NIMIC ÎN BAZĂ, prin construcție:
+--   · nu scrie nimic — doar citește `judete_coduri` și cheamă funcții de calcul;
+--   · totul stă între BEGIN și ROLLBACK;
+--   · și, mai ales, blocul se termină ÎNTOTDEAUNA cu o eroare, iar o eroare
+--     anulează tot ce s-a făcut în tranzacție. Chiar dacă cineva ar adăuga
+--     mâine o scriere aici, ea n-ar supraviețui.
+--
+-- CUM CITEȘTI REZULTATUL — apare ÎNTOTDEAUNA ca „eroare” (căsuța roșie):
+--   · reușită:  „REZULTAT OK: toate cele 33 de verificări au trecut …”
+--   · eșec:     „VERIFICARE PICATĂ: …” — ce s-a așteptat și ce s-a primit.
+-- Altă eroare (de ex. „function … does not exist”) = migrarea 47 nu e rulată.
 -- ============================================================
+
+begin;
 
 do $$
 declare
@@ -240,23 +248,20 @@ begin
   end if;
   n := n + 6;
 
-  -- Rezultatul ajunge în tabelul temporar de mai jos, singurul fel în care un
-  -- bloc `do` poate întoarce ceva în SQL Editor.
-  create temp table if not exists rezultat_saga_calcul (verificari int);
-  delete from rezultat_saga_calcul;
-  insert into rezultat_saga_calcul values (n);
+  -- ----------------------------------------------------------
+  -- G. DREPTURILE: funcțiile nu se cheamă ca vizitator anonim
+  --    (lecția din migrarea 42: pe Supabase `anon` primește drept direct).
+  -- ----------------------------------------------------------
+  if has_function_privilege('anon', 'public.calculeaza_linie_tva(numeric, numeric, numeric)', 'execute')
+     or has_function_privilege('anon', 'public.cod_judet(text)', 'execute')
+     or has_function_privilege('anon', 'public.transport_facturabil(numeric, numeric, numeric, numeric)', 'execute') then
+    raise exception 'VERIFICARE PICATĂ: rolul anon poate chema o funcție SAGA';
+  end if;
+  n := n + 1;
+
+  -- Reușita se anunță tot printr-o eroare: așa Postgres anulează orice ar fi
+  -- făcut blocul, iar SQL Editor arată mesajul (un `raise notice` nu se vede acolo).
+  raise exception 'REZULTAT OK: toate cele % de verificări au trecut. (Apare ca eroare intenționat: așa baza anulează tot ce a făcut testul.)', n;
 end $$;
 
--- ----------------------------------------------------------
--- G. DREPTURILE: funcțiile nu se cheamă ca vizitator anonim
---    (lecția din migrarea 42: pe Supabase `anon` primește drept direct).
--- ----------------------------------------------------------
-select
-  case
-    when has_function_privilege('anon', 'public.calculeaza_linie_tva(numeric, numeric, numeric)', 'execute')
-      or has_function_privilege('anon', 'public.cod_judet(text)', 'execute')
-      or has_function_privilege('anon', 'public.transport_facturabil(numeric, numeric, numeric, numeric)', 'execute')
-    then 'VERIFICARE PICATĂ: rolul anon poate chema o funcție SAGA'
-    else 'TOATE VERIFICĂRILE AU TRECUT'
-  end as rezultat,
-  (select verificari from rezultat_saga_calcul) + 1 as verificari;
+rollback;
