@@ -100,8 +100,8 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 36. `email-automat.sql` -> 37. `dezro.sql` -> 38. `piesa-vanduta-ramane.sql` ->
 39. `dezro-automat.sql` -> 40. `senzori-auto-despartire.sql` -> 41. `observatii-comanda.sql` ->
 42. `sugestie-clasificare.sql` -> 43. `awb-fancourier.sql` -> 44. `nomenclator-fan.sql` ->
-45. `transport-incasat-de-fan.sql` -> 46. `retur-fan.sql` -> 47. `saga-calcul.sql` -> 48. `saga-export.sql` -> 49. `saga-facturi.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9–49.
+45. `transport-incasat-de-fan.sql` -> 46. `retur-fan.sql` -> 47. `saga-calcul.sql` -> 48. `saga-export.sql` -> 49. `saga-facturi.sql` -> 50. `saga-articole.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9–50.
 NU sunt încă idempotente: 1–5, 8.
 **Aplicate pe producție: 1–45, 47, 48 și 49. 46 e scrisă, NErulată** (așteaptă contul ocazional FAN).
 **47 e RULATĂ pe producție la 10 noiembrie 2026**, de proprietar, din SQL Editor; testele
@@ -132,6 +132,13 @@ plasate înaintea ei (ora României). Anularea: `scripts/anuleaza-saga-facturi.s
 Copia de siguranță cu `pg_dump`, în `/.backup/` (ignorat de git), NU a fost făcută (decizia proprietarului);
 pașii ei rămân în jurnalul pasului 4. Copiile zilnice Supabase există doar pe planurile plătite — de verificat
 în Database → Backups.
+**50 e scrisă, NErulată pe producție** (10 noiembrie 2026, pasul 5): tabela `saga_articole` (categorie /
+subcategorie → articol SAGA, `ON DELETE CASCADE` din `categories`) și **rescrierea lui `emite_factura`**
+(din 49): linia piesei ia articolul subcategoriei → al categoriei → implicitul. Migrarea are o GARDĂ:
+compară amprenta (`md5(prosrc)`) lui `emite_factura` din bază cu versiunea din git (49:
+`5b89a9154101aacc8d72d4d864b01356`, 50: `8eefb50d4c81c4ea93701317e9ac67ed`) și se OPREȘTE dacă diferă —
+**tiparul de folosit la orice migrare care rescrie o funcție existentă**. Anularea pune înapoi exact
+versiunea din 49: `scripts/anuleaza-saga-articole.sql`.
 46 (21 octombrie 2026) pregătește AWB-ul de RETUR: adaugă pe `return_requests` legătura cu
 comanda (`order_id`), adresa de ridicare (`ridicare` jsonb) și câmpurile AWB-ului
 (`awb`, `awb_curier_id`, `awb_generat_la`, `awb_date`). Nu atinge niciun rând și nicio politică. 45 a fost rulată la 15 septembrie 2026 abia DUPĂ ce codul din
@@ -1409,6 +1416,8 @@ Niciuna nu e dependință a site-ului și niciuna nu rulează la build. Se cheam
 | `anuleaza-saga-export.sql` | **doar la nevoie**: anulează migrarea 48. După ea, butonul de export din Facturi nu mai merge până la re-rulare |
 | `verifica-saga-facturi.sql` | după orice atingere a migrării 49. 41 de verificări pe PRODUCȚIE, în tranzacție anulată, „logat” ca un profil admin/contabil: data de start, seria (pe o serie „TEST …” cu nume unic), emiterea pe două comenzi EXISTENTE, liniile și totalurile, copia clientului și a furnizorului, oglinda pe comandă, retragerea și refolosirea numărului, nemodificabilitatea după trimitere, ștergerea comenzii facturate, drepturile. Nu lasă nimic (doar id-uri interne consumate) |
 | `verifica-saga-local.sh` | ce NU se poate testa pe producție, într-un Postgres din Docker, cu imitația Supabase și date FICTIVE din `scripts/saga-local/`: aplică 47–49 de două ori, rulează cele trei teste SQL, apoi 20 de emiteri SIMULTANE (numere consecutive, fără goluri), aceeași comandă de două ori simultan, ora-limită de la miezul nopții, `sterge_comanda` pe o comandă facturată, garda anulării. ~7 s; containerul se șterge singur |
+| `verifica-saga-articole.sql` | după orice atingere a migrării 50 sau a potrivirii articolelor. 13 verificări pe PRODUCȚIE, în tranzacție anulată: amprenta lui `emite_factura`, cine scrie potrivirile (admin/contabil da, alt utilizator și `anon` nu), valorile greșite, ordinea subcategorie → categorie → implicit pe o comandă EXISTENTĂ (cu retragere între încercări, numărul refolosit), reducerea/transportul nu iau articolul piesei, factura emisă nu se schimbă când se schimbă potrivirea |
+| `anuleaza-saga-articole.sql` | **doar la nevoie**: pune înapoi `emite_factura` din 49 și șterge `saga_articole`. Se oprește dacă funcția din bază nu e versiunea din 50 |
 | `anuleaza-saga-facturi.sql` | **doar la nevoie**: anulează migrarea 49. REFUZĂ dacă `facturi` are vreun rând — ar șterge documente fiscale |
 | `anuleaza-saga-calcul.sql` | **doar la nevoie**: anulează migrarea 47 (trei funcții + `judete_coduri`). Fără `cascade` — se oprește dacă ceva depinde de ele |
 | `curata-orfani.mjs` | **periodic**, mai ales după sesiuni lungi de lucru pe produse. Găsește fișierele din `poze-piese` spre care nu mai arată niciun rând din `products` SAU din `vehicles`. Implicit doar raportează; șterge numai cu `--sterge` și numai fișiere mai vechi de 24h (`--ore=N`). Peste 5% orfani refuză să șteargă și cere `--confirm-stergere-mare`: atâția deodată înseamnă de obicei o citire incompletă, nu formulare abandonate. Raportează și cazul invers, mai grav: adrese din bază fără fișier în stocare |

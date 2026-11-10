@@ -93,6 +93,11 @@ begin
 
   -- Nicio serie activă la început (proba nu se bazează pe ce e în producție).
   update public.facturi_serii set activa = false where activa;
+  -- Fără potriviri pe categorii (pasul 5, migrarea 50): proba verifică articolul
+  -- IMPLICIT pe toate liniile. Golirea se anulează odată cu restul testului.
+  if to_regclass('public.saga_articole') is not null then
+    execute 'delete from public.saga_articole';
+  end if;
 
   -- ----------------------------------------------------------
   -- A. FĂRĂ UTILIZATOR DIN ECHIPĂ → refuz

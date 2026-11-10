@@ -105,6 +105,7 @@ export default function Facturi() {
         <div className="flex flex-wrap gap-2">
           {/* Seria și numărul de start ale facturilor emise din aplicație (pasul 4 din docs/saga-plan.md). */}
           <Link href="/admin/facturi/setari" className="rounded-xl border-2 border-line px-4 py-2 text-sm font-semibold hover:border-acc">Setări serie</Link>
+          <Link href="/admin/facturi/articole" className="rounded-xl border-2 border-line px-4 py-2 text-sm font-semibold hover:border-acc">Articole SAGA</Link>
           <button onClick={exportSaga} className="rounded-xl bg-ok/10 text-ok border-2 border-ok/30 px-4 py-2 text-sm font-semibold hover:bg-ok/20">Export Saga (CSV)</button>
         </div>
       </div>

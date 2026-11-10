@@ -1567,5 +1567,136 @@ textul bifei se schimbă după ce scrii (de ex. „PAP FE” și 14193 → „�
 #### Următorul
 
 Pasul 5 — potrivirea articolelor (`saga_articole`) și articolul implicit „ACCESORII AUTO” /
-„BUC” în setări. Începe doar după confirmare.
+„BUC” în setări. **Confirmat de proprietar la 10 noiembrie 2026; vezi intrarea pasului 5.**
+
+### Pasul 5 — potrivirea pieselor cu articolele din gestiunea SAGA (migrarea 50)
+
+**Stare: gata, în commit pe `saga-integrare`, 10 noiembrie 2026. Fără push. Migrarea 50 e
+scrisă, NErulată pe producție — o rulează proprietarul, cu pașii de mai jos; apoi confirmarea
+lui.**
+
+#### Modifică ceva existent? (răspuns dat înainte de cod)
+
+- **În bază — DA, o funcție: `emite_factura`**, creată de migrarea 49 și rulată pe producție
+  la 10 noiembrie 2026. Se rescrie ca linia piesei să ia articolul din potrivire. Restul funcției
+  e IDENTIC cu 49 (singurele diferențe: bucla liniilor de piese și un comentariu).
+  - **Garda din migrare**: compară `md5(prosrc)` al funcției din bază cu versiunea din git (49:
+    `5b89a9154101aacc8d72d4d864b01356`; 50, la re-rulare: `8eefb50d4c81c4ea93701317e9ac67ed`)
+    și se OPREȘTE dacă diferă, fără să atingă nimic. Verificat local: cu funcția modificată
+    direct în bază, migrarea s-a oprit („OPRIT: emite_factura din bază diferă …”) și nu a creat
+    nici tabela.
+  - Riscul azi e nul: nu există nicio serie activă, deci funcția nu emite nimic.
+- **Tabelă NOUĂ `saga_articole`**, cu cheie străină spre `categories` `ON DELETE CASCADE`:
+  ștergerea unei categorii îi șterge și potrivirea (verificat local); categoria nu e blocată.
+- **Neatinse**: nicio altă funcție, tabelă, politică sau rând existent.
+- **În cod**: cardul Saga din Integrări (câmpurile articolelor; câmpul vechi „Seria
+  facturilor” scos — valoarea din bază rămâne, salvarea pornește din configurarea existentă),
+  un link nou în Facturi, pagina nouă „Articole SAGA”.
+
+#### Ce s-a făcut
+
+**Migrarea 50, `supabase/saga-articole.sql`** (idempotentă):
+- garda amprentei (de mai sus);
+- `saga_articole` — un rând pe categorie (`unique`): `cod_articol` (fără spații la capete,
+  nevid), `denumire`, `um` (implicit BUC), `verificat_la` / `verificat_raspuns` (pentru pasul 9,
+  GetArticol), cine și când. RLS: citire și scriere doar `is_facturare()` (admin + contabil);
+  `anon` fără niciun drept;
+- `emite_factura` rescrisă: articolul fiecărei piese = potrivirea SUBCATEGORIEI ei, apoi a
+  CATEGORIEI, apoi articolul implicit din setări; o piesă ștearsă din catalog primește
+  implicitul. Reducerea și transportul rămân pe articolele lor (implicit, dacă nu au cod propriu).
+  Factura emisă își păstrează articolul copiat: o potrivire schimbată nu o atinge.
+
+**Anularea, `scripts/anuleaza-saga-articole.sql`**: pune înapoi `emite_factura` EXACT din 49
+(textul copiat automat din fișierul migrării 49, nu rescris de mână) și șterge `saga_articole`.
+Se oprește dacă funcția din bază nu e versiunea din 50. Verificat local: după anulare,
+amprenta e cea din 49, tabela lipsește, iar re-rularea migrării 50 merge.
+
+**Interfața:**
+- **`app/admin/facturi/articole/page.tsx`** (Facturi → „Articole SAGA”, admin + contabil):
+  articolul implicit (citit din setări; dacă lipsește: „Nesetat. Fără el nu se emite nicio
+  factură …”), apoi arborele categoriilor — părinții cu cele mai multe piese întâi, fiecare cu
+  subcategoriile ei —, cu articolul pe care îl primesc ACUM piesele (propriu / „ca la categorie”
+  / „implicit”), „Articol propriu” / „Modifică” / „Scoate”, căutare după nume. Scrierile trec
+  prin `scrieVerificat` (RLS).
+- **Admin → Integrări → Saga**: codul, denumirea și UM-ul articolului implicit; codul și
+  denumirea articolelor pentru reducere și transport (goale = implicitul). Nicio valoare scrisă
+  în cod: eticheta doar amintește ce scrie pe factura reală („ACCESORII AUTO”). „Seria
+  facturilor” scos de aici.
+- **Facturi**: link „Articole SAGA” lângă „Setări serie”.
+
+**Testele pe producție, `scripts/verifica-saga-articole.sql`** — 13 verificări, tranzacție
+anulată, seria de probă „TEST …” unică: amprenta funcției; admin/contabil scrie și modifică
+potriviri, un utilizator fără rol nu vede și nu scrie, `anon` fără drepturi; cod gol, cod cu
+spații la capete și a doua potrivire pe aceeași categorie refuzate; pe o comandă EXISTENTĂ cu o
+piesă care are categorie ȘI subcategorie: fără potrivire → implicitul, cu potrivire pe categorie
+→ articolul categoriei, și pe subcategorie → subcategoria câștigă (între încercări factura se
+retrage, iar numărul 1 se refolosește); reducerea și transportul nu iau articolul piesei;
+factura emisă nu se schimbă când se schimbă potrivirea.
+- `scripts/verifica-saga-facturi.sql` (pasul 4) golește acum potrivirile în propria tranzacție
+  (anulată), fiindcă verifică articolul IMPLICIT pe toate liniile.
+
+**Verificat local** (`scripts/verifica-saga-local.sh`, extins cu migrarea 50 și categorii
+fictive): migrările 47–50 rulate de două ori; testele 33 / 15 / 41 / 13 trec; concurența,
+ora-limită, ștergerea, garda anulării — toate ok. În plus, separat: garda amprentei oprește
+migrarea; cascada pe categorie; anularea și re-rularea; **un defect introdus intenționat
+(categoria câștigă în fața subcategoriei) e prins de test** („cu potrivire și pe subcategorie,
+aștept SUB; am CAT”). (Prima probă a defectului a fost prinsă de garda amprentei, înainte ca
+testul ordinii să ruleze; a fost repetată ocolind garda, ca să se vadă că și testul ordinii îl
+prinde singur.)
+
+`npm run build`: „Compiled successfully”, cu `/admin/facturi/articole` în listă. Serverul local
+era oprit înainte de build.
+
+#### Fișiere
+
+- create: `supabase/saga-articole.sql`, `scripts/verifica-saga-articole.sql`,
+  `scripts/anuleaza-saga-articole.sql`, `app/admin/facturi/articole/page.tsx`
+- modificate: `app/admin/integrari/page.tsx`, `app/admin/facturi/page.tsx`,
+  `scripts/verifica-saga-facturi.sql`, `scripts/verifica-saga-local.sh`,
+  `scripts/saga-local/stub-supabase.sql`, `scripts/saga-local/date-fictive.sql`,
+  `scripts/baza-test.sh`, `CLAUDE.md`, `docs/saga-plan.md`
+
+#### Cum se aplică — pe PRODUCȚIE, din SQL Editor
+
+**1. Pre-verificarea (doar citire)** — toate coloanele `true`:
+```sql
+select
+  to_regclass('public.saga_articole') is null                                          as tabela_noua_nu_exista,
+  (select md5(prosrc) from pg_proc where oid = 'public.emite_factura(bigint)'::regprocedure)
+    = '5b89a9154101aacc8d72d4d864b01356'                                              as emite_factura_ca_in_49,
+  to_regprocedure('public.is_facturare()') is not null                                  as m49,
+  exists (select 1 from information_schema.columns where table_name = 'products' and column_name = 'subcategorie_id') as products_subcategorie,
+  (select count(*) from public.facturi) = 0                                             as nicio_factura_emisa;
+```
+Dacă `emite_factura_ca_in_49` e `false`, NU se rulează migrarea (s-ar opri oricum singură);
+se trimite `select pg_get_functiondef('public.emite_factura(bigint)'::regprocedure);`.
+
+**2. Migrarea**: `supabase/saga-articole.sql` → „Success. No rows returned”.
+
+**3. Testele** — amândouă, fiecare în căsuța roșie, intenționat:
+- `scripts/verifica-saga-articole.sql` → „REZULTAT OK: toate cele 13 verificări au trecut …”
+- `scripts/verifica-saga-facturi.sql` (din nou, fiindcă `emite_factura` s-a schimbat) →
+  „REZULTAT OK: toate cele 41 verificări au trecut …”
+
+**4. Verificare că n-a rămas nimic** — toate 0:
+```sql
+select (select count(*) from saga_articole) as potriviri, (select count(*) from facturi) as facturi,
+       (select count(*) from facturi_serii) as serii;
+```
+
+**5. Paginile** — serverul local OPRIT, apoi `npm run build && npm start`:
+- `/admin/facturi/articole`: caseta „Articolul implicit” cu „Nesetat …” (codul nu e dat încă);
+  arborele categoriilor, fiecare cu „→ implicit (nesetat)”; „Articol propriu” deschide
+  formularul. **Nu e nevoie de nicio potrivire** dacă toate piesele merg pe „ACCESORII AUTO”.
+- `/admin/integrari`, cardul „Saga — facturare”: câmpurile articolelor; „Seria facturilor” nu
+  mai apare. Codul articolului implicit se completează când îl dă contabila (întrebarea 3).
+
+**6. Doar la nevoie — anularea**: `scripts/anuleaza-saga-articole.sql` → la final
+`emite_factura_ca_in_49 = true`, `saga_articole_stearsa = true`.
+
+#### Următorul
+
+Pasul 6 — interfața de emitere: „Emite factura” (doar pe comenzile de la `data_start_facturare`
+încolo), detaliul facturii, „Modifică” (înainte de trimitere), „Retrage”, „Descarcă XML”
+(`lib/saga-xml.ts`), câmpul „Data de start a facturării” în Integrări. Începe doar după confirmare.
 

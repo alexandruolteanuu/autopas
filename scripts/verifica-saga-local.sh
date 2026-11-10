@@ -5,7 +5,7 @@
 # Pornește un Postgres 17 de unică folosință, îl îmbracă în imitația minimă a
 # Supabase (scripts/saga-local/stub-supabase.sql), încarcă `sterge_comanda`
 # EXACT din supabase/admin-fix.sql și date FICTIVE (scripts/saga-local/), aplică
-# migrările SAGA 47–49, apoi:
+# migrările SAGA 47–50, apoi:
 #   1. rulează aceleași teste ca pe producție (verifica-saga-*.sql);
 #   2. CONCURENȚA: 20 de `emite_factura` pornite simultan → 20 de numere
 #      distincte și consecutive, contorul exact după ele;
@@ -48,14 +48,14 @@ i = s.index('create or replace function public.sterge_comanda')
 print(s[i:s.index('grant execute on function public.sterge_comanda', i)])
 PY
 P < scripts/saga-local/date-fictive.sql >/dev/null 2>&1 || picat "datele fictive"
-for m in saga-calcul saga-export saga-facturi; do
+for m in saga-calcul saga-export saga-facturi saga-articole; do
   P < "supabase/$m.sql" >/dev/null 2>&1 || picat "migrarea $m"
   P < "supabase/$m.sql" >/dev/null 2>&1 || picat "migrarea $m, a doua rulare (idempotență)"
 done
-ok "migrările 47–49 (fiecare rulată de două ori)"
+ok "migrările 47–50 (fiecare rulată de două ori)"
 
 # 1. Testele de producție
-for t in calcul export facturi; do
+for t in calcul export facturi articole; do
   r="$(P < "scripts/verifica-saga-$t.sql" 2>&1)"
   grep -q "REZULTAT OK" <<<"$r" || picat "verifica-saga-$t.sql: $(grep -m1 -o 'VERIFICARE PICATĂ.*\|ERROR:.*' <<<"$r")"
   ok "verifica-saga-$t.sql — $(grep -o 'toate cele [0-9]* d*e* *verificări' <<<"$r")"

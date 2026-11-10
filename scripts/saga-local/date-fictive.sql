@@ -9,7 +9,11 @@ insert into profiles (id, email, role) values
   ('33333333-3333-3333-3333-333333333333','operator@test.local','operator');
 insert into settings values ('integrari', '{"fancourier":{"user":"x"}}'),
   ('firma', '{"denumire":"FIRMA TEST SRL","cui":"RO 123","reg_com":"J00/1/2000","adresa":"Str. Test 1","iban":"RO00TEST","capital":"200 RON","banca":"Banca Test","localitate":"Satul Test","judet":"Neamț","tara":"RO"}');
+insert into categories (slug, nume, parent_id) values ('faruri','Faruri',null), ('far-stanga','Far stânga',1), ('injectoare','Injectoare',null), ('diverse','Diverse',null);
 insert into products (cod_intern) select 'AP-' || lpad(g::text, 6, '0') from generate_series(1, 60) g;
+-- piesa 1: categorie Faruri + subcategorie Far stânga; piesa 2: doar categoria Injectoare
+update products set categorie_id = 1, subcategorie_id = 2 where id = 1;
+update products set categorie_id = 3 where id = 2;
 -- 3 comenzi de bază: simplă, cu reducere, veche cu transport în total (data de start a probei: 9 noiembrie 2026)
 insert into orders (numar, nume, email, telefon, adresa, oras, judet, subtotal, livrare, total, discount_cod, discount_valoare, created_at) values
   ('T-0001','Ion Test','i@t.ro','0700','Str. A 1','Bicaz','Neamț', 200, 0, 200, null, 0, '2026-11-10 12:00+02'),

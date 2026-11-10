@@ -22,7 +22,9 @@ create table profiles (id uuid primary key, email text, role text not null defau
 create function public.is_admin() returns boolean language sql stable security definer set search_path=public as $$ select exists(select 1 from profiles where id = auth.uid() and role = 'admin') $$;
 create function public.is_staff() returns boolean language sql stable security definer set search_path=public as $$ select exists(select 1 from profiles where id = auth.uid() and role in ('admin','operator','contabil')) $$;
 create table settings (cheie text primary key, valoare jsonb not null);
-create table products (id bigint generated always as identity primary key, cod_intern text, stoc int default 0, publicat boolean default true);
+create table categories (id bigint generated always as identity primary key, slug text unique not null, nume text not null, parent_id bigint references categories(id));
+create table products (id bigint generated always as identity primary key, cod_intern text, stoc int default 0, publicat boolean default true,
+  categorie_id bigint references categories(id), subcategorie_id bigint references categories(id));
 create table orders (id bigint generated always as identity primary key, numar text unique not null, tip_client text not null default 'pf',
   nume text not null, email text not null, telefon text not null, firma text, cui text, adresa text not null, oras text not null, judet text not null,
   curier text not null default 'fan', plata text not null default 'ramburs', subtotal numeric(10,2) not null, livrare numeric(10,2) not null,

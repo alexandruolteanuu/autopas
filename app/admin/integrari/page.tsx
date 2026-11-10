@@ -77,9 +77,23 @@ const CAMPURI: Record<string, { k: string; l: string; tip?: string }[]> = {
   // Cota și regimul TVA le citește baza (`saga_cota_tva`, migrarea 48) la exportul
   // CSV și, de la pasul 4 din docs/saga-plan.md, la emiterea facturilor. Gol = 21%,
   // regim normal (confirmate de pe factura reală, 10 noiembrie 2026).
-  "Saga — facturare": [{ k: "serie", l: "Seria facturilor (ex. AUTP)" },
+  // „Seria facturilor” a ieșit de aici la pasul 5: seria se setează în Facturi →
+  // Setări serie (`facturi_serii`). Valoarea veche din bază rămâne, nefolosită —
+  // salvarea pornește din configurarea existentă, deci n-o șterge.
+  // Articolele (pasul 5, docs/saga-plan.md A.5): codul și denumirea EXACT ca în
+  // gestiunea SAGA. Implicitul primește piesele fără potrivire în Facturi →
+  // Articole SAGA; reducerea și transportul, goale, cad și ele pe implicit.
+  "Saga — facturare": [
     { k: "cota_tva", l: "Cota TVA, în procente (gol = 21)" },
-    { k: "regim_tva", l: "Regimul TVA: normal (gol = normal; „marja” nu e implementat)" }],
+    { k: "regim_tva", l: "Regimul TVA: normal (gol = normal; „marja” nu e implementat)" },
+    { k: "articol_implicit", l: "Articolul implicit din gestiunea SAGA — CODUL (îl dă contabila)" },
+    { k: "articol_implicit_denumire", l: "Articolul implicit — DENUMIREA, exact ca în SAGA (pe factura reală: ACCESORII AUTO)" },
+    { k: "articol_implicit_um", l: "Articolul implicit — unitatea de măsură (gol = BUC)" },
+    { k: "articol_reducere", l: "Articolul pentru reducere — codul (gol = articolul implicit)" },
+    { k: "articol_reducere_denumire", l: "Articolul pentru reducere — denumirea (dacă are cod propriu)" },
+    { k: "articol_transport", l: "Articolul pentru transport — codul (gol = articolul implicit)" },
+    { k: "articol_transport_denumire", l: "Articolul pentru transport — denumirea (dacă are cod propriu)" },
+  ],
   "FAN Courier (SelfAWB)": [{ k: "client_id", l: "Client ID" }, { k: "user", l: "Utilizator selfawb.ro" }, { k: "parola", l: "Parolă selfawb.ro", tip: "password" },
     // Bifă: nesalvată încă înseamnă „da" (vezi `configFan` din lib/fancourier.ts).
     { k: "ramburs_cont", l: "Rambursul intră în contul bancar (serviciul Cont Colector). Debifat = ramburs în plic.", tip: "bifa" }],
