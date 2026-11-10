@@ -1800,9 +1800,33 @@ la 10 noiembrie 2026; vezi intrarea pasului 6.**
 
 ### Pasul 6 — interfața de emitere și „Descarcă XML” (migrarea 51)
 
-**Stare: gata, în commit pe `saga-integrare`, 10 noiembrie 2026. Fără push. Migrarea 51 e
-scrisă, NErulată pe producție — o rulează proprietarul, cu pașii de mai jos; apoi confirmarea
-lui.**
+**Stare: gata, în commit pe `saga-integrare` (`c49241a`), 10 noiembrie 2026. Fără push.
+Migrarea 51 e scrisă, NErulată pe producție — o rulează proprietarul, cu pașii de mai jos; apoi
+confirmarea lui.**
+
+Commit-urile acestui schimb de mesaje: `39daacf` (pasul 5 notat ca rulat, precizările despre
+pasul 4 și backup, regula paginii Integrări deschise), `c49241a` (pasul 6).
+
+**Rezumatul trimis proprietarului** (detaliile în secțiunile de mai jos):
+- cardul Saga salvat din site-ul live NU șterge câmpurile noi; riscul real e pagina Integrări
+  rămasă deschisă și salvată pe orice card — regula „reîncarcă înainte de a salva” e în CLAUDE.md;
+- pasul 6 rescrie `emite_factura` (gardă de amprentă; refuză comenzile marcate deja ca facturate
+  manual), adaugă `modifica_factura` și `opreste_emiterea`; în cod: cardul de facturare din
+  pagina comenzii, „Șterge” ascuns pe comenzile facturate, lista documentelor în Facturi,
+  câmpurile noi din Integrări, „Oprește emiterea” în Setări serie;
+- pagina facturii (Modifică, Retrage, Descarcă XML cu formate de PROBĂ alese pe loc);
+  generatorul XML cu formatul numărului și al datei fiecare într-o singură funcție, fără
+  implicit; „TVA la încasare” devine setare fără implicit (întrebarea 13); riscul 8, UTF-8
+  (întrebarea 14);
+- teste: 16 pe producție, 63 pentru XML, suita locală completă, migrările cu CRLF, o factură
+  reală trecută prin generator; interfața în browser NEverificată de asistent;
+- pe producție: pre-verificarea (5 × true), migrarea, cele trei teste (16 / 13 / 41),
+  verificarea 0/0/0, paginile;
+- proba emiterii fără să se consume un număr de pe PAP FE: testele SQL (serii „TEST …” anulate),
+  sau prin interfață, cu seria „PROBA” de la 1 — emite, verifică, descarcă XML, opțional proba
+  manuală în SAGA fără validare (cu contabila), retrage, oprește emiterea, golește data de
+  start, verificarea SQL; PAP FE nu e atinsă;
+- pasul 7 (clientul API) doar după confirmare și cu adresa instanței de test SAGA.
 
 #### Înainte de pas
 
