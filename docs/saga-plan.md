@@ -1100,8 +1100,22 @@ intrarea pasului 3.**
 
 ### Pasul 3 — datele firmei
 
-**Stare: gata, în commit pe `saga-integrare`, 10 noiembrie 2026. Fără push. Fără SQL. Așteaptă
-verificarea și confirmarea proprietarului.**
+**Stare: gata, în commit pe `saga-integrare` (`6376bb3`), 10 noiembrie 2026. Fără push. Fără
+SQL. Așteaptă verificarea și confirmarea proprietarului.**
+
+Înaintea pasului, în același schimb de mesaje: migrarea 48 a fost notată ca RULATĂ pe producție
+în jurnalul pasului 2 și în CLAUDE.md (commit `b87c30f`).
+
+**Rezumatul trimis proprietarului** (detaliile în secțiunile de mai jos):
+- regula `data_start_facturare` e în plan, în toate locurile cerute (A.4, A.9, pasul 6, faza 2),
+  plus testele din D.2, inclusiv cazul de la miezul nopții (data se compară în ora României);
+- confirmat: nimic scris până acum nu creează facturi pentru comenzile vechi;
+- pasul 3 nu schimbă nimic vizibil pe site și nu are SQL; modifică doar Admin → Setări → „Date
+  firmă” (5 câmpuri noi, verificate la salvare; „Serie facturi” scos) și repară capcana care ar
+  fi șters „AUTP” la prima salvare;
+- neverificat de asistent în browser (cere autentificare de admin, iar salvarea scrie pe
+  producție) — verificarea o face proprietarul, cu pașii 1–6 de la „Cum se verifică”;
+- pasul 4 începe doar după confirmare.
 
 #### Înainte de pas: confirmările cerute de proprietar
 
