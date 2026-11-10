@@ -35,7 +35,7 @@ MIGRARI=(
   superb-1.sql email-automat.sql dezro.sql piesa-vanduta-ramane.sql dezro-automat.sql
   senzori-auto-despartire.sql observatii-comanda.sql sugestie-clasificare.sql
   awb-fancourier.sql nomenclator-fan.sql transport-incasat-de-fan.sql retur-fan.sql
-  saga-calcul.sql saga-export.sql saga-facturi.sql saga-articole.sql
+  saga-calcul.sql saga-export.sql saga-facturi.sql saga-articole.sql saga-emitere.sql
 )
 
 comanda="${1:-}"

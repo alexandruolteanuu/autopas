@@ -84,6 +84,19 @@ export default function SetariSerie() {
 
   const activa = serii.find((s) => s.activa) ?? null;
 
+  // Oprirea emiterii (pasul 6, migrarea 51): nicio serie activă. Folosită după o
+  // probă pe o serie de test sau oricând trebuie oprită facturarea din aplicație.
+  async function opreste() {
+    if (!activa || !window.confirm(`Oprești emiterea facturilor din aplicație? Seria „${activa.serie}” devine inactivă (numărul ${activa.urmator} se păstrează). Până la o nouă setare de serie nu se mai emite nicio factură.`)) return;
+    const sb = sbBrowser(); if (!sb) return;
+    setLucru(true); setMsg(null);
+    const { error } = await sb.rpc("opreste_emiterea");
+    setLucru(false);
+    if (error) { setMsg({ bun: false, text: `NU s-a oprit: ${error.message}` }); return; }
+    setMsg({ bun: true, text: "✓ Emiterea e oprită: nicio serie activă." });
+    incarca();
+  }
+
   return (
     <div className="space-y-4 max-w-3xl">
       <div>
@@ -108,7 +121,13 @@ export default function SetariSerie() {
               <b className="font-disp text-lg">{activa.urmator}</b>
               {ultimele[activa.serie] !== undefined && <span className="text-mut"> (ultima emisă din aplicație: {ultimele[activa.serie]})</span>}
             </p>
-          ) : (
+          ) : null}
+        {incarcat && activa && (
+          <button type="button" onClick={opreste} disabled={lucru}
+            className="mt-3 rounded-xl border-2 border-red-200 text-red-600 px-4 py-2 text-xs font-semibold hover:bg-red-50">
+            Oprește emiterea (nicio serie activă)</button>
+        )}
+        {incarcat && !activa && (
             <p className="mt-2 text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2">
               Nicio serie activă. Până nu se setează una, aplicația nu emite nicio factură — e starea corectă până în ziua pornirii.
             </p>

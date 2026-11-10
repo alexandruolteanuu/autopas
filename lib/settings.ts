@@ -35,7 +35,15 @@ export type Integrari = {
                        depozit_nume?: string; depozit_telefon?: string; depozit_contact?: string;
                        depozit_judet?: string; depozit_localitate?: string; depozit_strada?: string };
   netopia?: { pos_id?: string; signature?: string; activ?: boolean };
-  saga?: { serie?: string; activ?: boolean };
+  // Facturarea prin SAGA (docs/saga-plan.md). Nicio valoare implicită în cod pentru ce
+  // ține de contabilitate: formatele, data de start, „TVA la încasare” se aleg explicit.
+  // `serie` e ieșit din uz (seria stă în tabela `facturi_serii`).
+  saga?: { serie?: string; activ?: boolean; cota_tva?: string; regim_tva?: string;
+           data_start_facturare?: string; format_numar?: string; format_data?: string;
+           tva_la_incasare?: string; cif_persoana_fizica?: string; mentiune_plata?: string;
+           articol_implicit?: string; articol_implicit_denumire?: string; articol_implicit_um?: string;
+           articol_reducere?: string; articol_reducere_denumire?: string;
+           articol_transport?: string; articol_transport_denumire?: string };
   ga4?: { id?: string; activ?: boolean };
   // E-mailurile automate (7 septembrie 2026). `cheie` e cheia API a
   // furnizorului, `notificari` e adresa pe care ajung anunțurile interne, iar

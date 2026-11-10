@@ -719,6 +719,9 @@ obișnuite.
    contabilă (12) și pentru suportul SAGA; de verificat la proba de la pasul 6 (după importul
    manual al XML-ului de probă, ce număr propune SAGA pentru o factură nouă pe PAP FE — fără să
    o salveze).
+8. **Codificarea XML-ului** (pasul 6) — fișierul e UTF-8, cu declarația în antet; diacriticele
+   din nume și adrese ies corect doar dacă SAGA WEB citește UTF-8. Nedocumentat. Atenuare: proba
+   manuală de la pasul 6 (D.4), pe o factură cu diacritice; întrebarea 14.
 6. **Formatul numărului necunoscut** — o factură trimisă cu `FacturaNumar` în forma greșită
    poate intra în SAGA cu alt număr decât crede aplicația, sau poate să nu fie recunoscută în
    raport. La fel o dată în alt format decât așteaptă SAGA (zi și lună inversate trec
@@ -797,6 +800,10 @@ actuală („PAP FE”, ultimul număr 14190), capitalul social (200 RON) și ba
     și ce cotă?
 11. **e-Factura**: confirmăm că transmiterea în SPV o face SAGA, după validare — deci aplicația nu
     trimite nimic la ANAF?
+13. **TVA la încasare** (pasul 6): firma aplică sistemul TVA la încasare? Câmpul `FacturaTVAIncasare`
+    din XML e „Da” sau „Nu” — setarea `tva_la_incasare` nu are valoare implicită.
+14. **Codificarea fișierului** (riscul 8): SAGA WEB acceptă XML în UTF-8 (cu diacritice), sau cere
+    altă codificare? Se vede la proba manuală de la pasul 6.
 12. **Contorul SAGA pentru PAP FE** (riscul 7): după ce o factură intră în SAGA prin import XML,
     avansează SAGA contorul seriei PAP FE? Dacă nu, ce număr ar propune SAGA unei facturi noi
     emise manual după pornire — și se poate bloca în SAGA emiterea manuală pe PAP FE?
@@ -1788,5 +1795,203 @@ din browser pe Windows, comparația brută pică fără ca funcția să fie dife
 
 Pasul 6 — interfața de emitere: „Emite factura” (doar pe comenzile de la `data_start_facturare`
 încolo), detaliul facturii, „Modifică” (înainte de trimitere), „Retrage”, „Descarcă XML”
-(`lib/saga-xml.ts`), câmpul „Data de start a facturării” în Integrări. Începe doar după confirmare.
+(`lib/saga-xml.ts`), câmpul „Data de start a facturării” în Integrări. **Confirmat de proprietar
+la 10 noiembrie 2026; vezi intrarea pasului 6.**
+
+### Pasul 6 — interfața de emitere și „Descarcă XML” (migrarea 51)
+
+**Stare: gata, în commit pe `saga-integrare`, 10 noiembrie 2026. Fără push. Migrarea 51 e
+scrisă, NErulată pe producție — o rulează proprietarul, cu pașii de mai jos; apoi confirmarea
+lui.**
+
+#### Înainte de pas
+
+- **Pasul 5 notat ca rulat** (commit `39daacf`): pre-verificarea fără `\r` (5 × true),
+  migrarea 50, testele 13 și 41, verificarea finală 0/0/0, paginile corecte. Precizările
+  proprietarului: la pasul 4, `/admin/facturi/setari` arăta corect; proiectul are backup zilnic
+  Supabase (verificat în Database → Backups) — jurnalul pasului 4 și CLAUDE.md corectate.
+- **Cardul „Saga — facturare” salvat din site-ul LIVE NU șterge câmpurile noi** (verificat în
+  codul de pe `main`: pornește din `{ ...conf.saga }`, suprascrie doar `serie` și `activ`).
+  Riscul real, valabil și pe live, și pe ramură: orice card salvat dintr-o pagină Integrări
+  deschisă ÎNAINTEA unei schimbări rescrie tot rândul `integrari` cu instantaneul vechi. Regula
+  „reîncarcă pagina înainte de a salva” e în CLAUDE.md.
+
+#### Ce modifică din ce există (răspuns dat înainte de cod)
+
+- **În bază (migrarea 51), doar obiecte SAGA:**
+  - `emite_factura` rescrisă a treia oară, cu aceeași gardă (amprenta fără `\r` = 50
+    `8eefb50d…` sau 51 `a1a45bbd8ce6ad03eae408ee9d2f113e`). O singură regulă în plus: refuză o
+    comandă marcată deja ca facturată — `factura_serie` completat sau `factura_status` ≠
+    „de_emis” (factură notată manual din SAGA, „nu se emite”, stornată). Fără ea, o probă pe o
+    comandă facturată manual i-ar fi suprascris nota, iar o retragere ar fi șters-o;
+  - constrângerea `facturi_serii_istoric.actiune` primește și „oprire”;
+  - funcții noi: `modifica_factura`, `opreste_emiterea`.
+- **În cod:** cardul „Facturare (Saga)” din pagina comenzii înlocuit de `FacturaSaga`; butonul
+  „Șterge” ascuns pe comenzile cu factură (iar eroarea bazei, tradusă); în Facturi, lista
+  documentelor cu filtre și câmpul manual de serie blocat pe comenzile cu factură; în
+  Integrări, câmpurile noi ale cardului Saga; în Setări serie, „Oprește emiterea”; pagini și
+  fișiere noi.
+
+#### Ce s-a făcut
+
+**Migrarea 51, `supabase/saga-emitere.sql`** (idempotentă):
+- garda amprentei;
+- `opreste_emiterea()` — dezactivează seria activă (rândul rămâne, cu numărul următor), scrie
+  „oprire” în istoric; după ea `emite_factura` refuză („Seria facturilor nu e configurată”);
+- `modifica_factura(factura, client, linii)` — doar cât factura e `de_trimis` / `eroare`:
+  datele clientului (doar cheile permise: nume, firmă, CUI, nr. Reg. Com., adresă, localitate,
+  județ, e-mail, telefon, țară; restul se ignoră), codul județului recalculat (nerecunoscut →
+  refuz), articolul pe linii (cod, denumire, UM; liniile altei facturi → refuz). Prețurile,
+  cantitățile, TVA-ul, seria și numărul NU. Jurnalul comenzii;
+- `emite_factura` cu paza comenzilor marcate deja ca facturate.
+
+**Anularea, `scripts/anuleaza-saga-emitere.sql`**: pune înapoi `emite_factura` EXACT din 50
+(copiat automat din fișierul migrării 50) și șterge cele două funcții noi; constrângerea din
+istoric rămâne lărgită (un rând „oprire” existent ar face îngustarea imposibilă).
+
+**Generatorul XML, `lib/saga-xml.mjs`** — funcții pure (fără bază, fără rețea), folosite în
+browser acum și pe server la pasul 8:
+- structura din `docs/saga-api.md` (Antet, Detalii/Continut/Linie, `GUID_factura` = id-ul);
+- **singurele două locuri care știu formatul**: `numarPentruSaga` și `dataPentruSaga`, după
+  `format_numar` / `format_data` — fără valoare implicită: fără ele, refuz;
+- `FurnizorCIF` / `ClientCIF` curățate de spații (`cifCurat`); PF → `ClientCIF` după
+  `cif_persoana_fizica` (gol / „-” / 13 zerouri); firmă → numele firmei, persoana de contact în
+  `ClientInformatiiSuplimentare`;
+- `FacturaInformatiiSuplimentare` = mențiunea de plată + „Comanda AP-…”;
+- linia: `Descriere` = articolul din gestiune, `CodArticolClient`, `GUID_cod_articol` = codul
+  intern (AP-…), `InformatiiSuplimentare` = numele piesei de pe site, `Pret` cu 4 zecimale,
+  `Valoare` / `TVA` cu 2, `Cantitate` fără zerouri inutile, negative la reducere/storno;
+- `FacturaTVAIncasare` din setarea nouă `tva_la_incasare` (da / nu) — **fără valoare implicită**,
+  întrebarea 13 pentru contabilă; `FacturaTaxareInversa` = „Nu”; `FacturaMoneda` = „RON”;
+- escape XML complet și caracterele de control scoase; UTF-8 (riscul 8, întrebarea 14);
+- numele fișierului: `F_<CIF>_<număr cu _>_<zi_luna_an>.xml`, după exemplul din documentație.
+
+**Interfața:**
+- **`components/admin/FacturaSaga.tsx`** (pagina comenzii): factura existentă (serie, număr,
+  total, stare, „Deschide factura”, „Retrage” cât e netrimisă); altfel „Emite factura” — DOAR
+  pentru admin/contabil, cu data de start setată, comanda plasată în ziua de start sau după (ora
+  României), nemarcată ca facturată, neanulată; altfel câmpul manual de serie, ca până acum, cu
+  motivul pentru care emiterea din aplicație nu e disponibilă. Baza refuză oricum tot ce nu are voie.
+- **Pagina comenzii**: „Șterge” nu mai apare pe comenzile cu factură; dacă baza refuză ștergerea,
+  mesajul e tradus („Comanda are o factură emisă și nu se mai poate șterge …”).
+- **`app/admin/facturi/[id]/page.tsx`** (pagina facturii): antetul cu starea, clientul și
+  furnizorul din copie, liniile cu totalurile; „Modifică” (client + articol pe linii) și
+  „Retrage” doar înainte de trimitere; **„Descarcă XML”**: formatele din Integrări, iar cele
+  nesetate se aleg pe loc, marcate „valoare de PROBĂ, doar pentru descărcarea asta”, fără să se
+  salveze; butonul e inactiv până sunt alese.
+- **Facturi**: secțiunea „Facturi emise din aplicație”, cu filtre pe stare (de trimis, se
+  trimite, trimisă, eroare, confirmată); câmpul manual de serie blocat pe comenzile cu factură.
+- **Setări serie**: „Oprește emiterea (nicio serie activă)”, cu confirmare.
+- **Integrări → Saga**: data de start (câmp de dată), `format_numar`, `format_data`,
+  `tva_la_incasare`, `cif_persoana_fizica`, `mentiune_plata` — toate fără valoare implicită,
+  verificate la salvare pe listele închise.
+
+**Teste:**
+- **`scripts/verifica-saga-emitere.sql`** — 16 verificări pe producție, în tranzacție anulată,
+  serie „TEST …” unică: amprenta; comanda marcată manual („PAP FE 99999”, „nu_se_emite”) refuzată
+  fără să miște contorul sau nota; corecturile (nume tăiat la capete, județ → IS, CUI, cheie
+  nepermisă ignorată, articolul pe linie, totalurile și numărul neatinse); refuzurile (județ
+  „Atlantis”, linia altei facturi, cod gol, factură trimisă); oprirea emiterii (seria inactivă,
+  istoric, emiterea refuzată); drepturile.
+- **`scripts/verifica-saga-xml.mjs`** — 63 de verificări ale generatorului, fără bază.
+- Testele pașilor 4 și 5 aleg acum doar comenzi nemarcate ca facturate; testul pasului 5
+  acceptă amprenta lui `emite_factura` din 50 SAU 51.
+- **Local** (`scripts/verifica-saga-local.sh`, extins cu 51): migrările 47–51 rulate de două
+  ori; testele 33 / 15 / 41 / 13 / 16; concurența, ora-limită, ștergerea, garda anulării — toate ok.
+  Separat: toate migrările lipite cu CRLF (ca din SQL Editor pe Windows) → ok, inclusiv a doua
+  rulare a lui 51; o factură emisă în baza locală, scoasă ca JSON (forma pe care o primește
+  pagina) și trecută prin generator → XML corect („PAP FE 14193”, „10-11-2026”, 289.2600 /
+  289.26 / 60.74, articolul, codul intern, firma cu persoana de contact); anularea lui 51 →
+  `emite_factura_ca_in_50 = true`.
+- Lecții din probă: (1) testul pasului 5 cerea strict amprenta din 50 — acum acceptă 50 sau 51;
+  (2) prima variantă a testului nou încerca emiterea după oprire pe o comandă care avea deja
+  factură, deci refuzul venea din alt motiv — corectat (se retrage întâi factura comenzii).
+
+**Neverificat de asistent**: interfața în browser (cere autentificare, iar emiterea scrie pe
+producție). Verifică proprietarul, cu procedura de mai jos.
+
+`npm run build`: „Compiled successfully”, cu `/admin/facturi/[id]` în listă. Serverul local
+era oprit înainte de build.
+
+#### Fișiere
+
+- create: `supabase/saga-emitere.sql`, `scripts/verifica-saga-emitere.sql`,
+  `scripts/anuleaza-saga-emitere.sql`, `lib/saga-xml.mjs`, `scripts/verifica-saga-xml.mjs`,
+  `components/admin/FacturaSaga.tsx`, `app/admin/facturi/[id]/page.tsx`
+- modificate: `app/admin/comenzi/[id]/page.tsx`, `app/admin/facturi/page.tsx`,
+  `app/admin/facturi/setari/page.tsx`, `app/admin/integrari/page.tsx`, `lib/settings.ts`,
+  `scripts/verifica-saga-facturi.sql`, `scripts/verifica-saga-articole.sql`,
+  `scripts/verifica-saga-local.sh`, `scripts/baza-test.sh`, `CLAUDE.md`, `docs/saga-plan.md`
+
+#### Cum se aplică — pe PRODUCȚIE, din SQL Editor
+
+**1. Pre-verificarea (doar citire)** — toate coloanele `true`:
+```sql
+select
+  (select md5(replace(prosrc, E'\r', '')) from pg_proc where oid = 'public.emite_factura(bigint)'::regprocedure)
+    = '8eefb50d4c81c4ea93701317e9ac67ed'                                  as emite_factura_ca_in_50,
+  to_regprocedure('public.modifica_factura(bigint, jsonb, jsonb)') is null  as modifica_nu_exista,
+  to_regprocedure('public.opreste_emiterea()') is null                       as opreste_nu_exista,
+  (select count(*) from public.facturi) = 0                                  as nicio_factura_emisa,
+  not exists (select 1 from public.facturi_serii where activa)               as nicio_serie_activa;
+```
+
+**2. Migrarea**: `supabase/saga-emitere.sql` → „Success. No rows returned”.
+
+**3. Testele** — fiecare cu „REZULTAT OK” în căsuța roșie:
+`scripts/verifica-saga-emitere.sql` (16), `scripts/verifica-saga-articole.sql` (13),
+`scripts/verifica-saga-facturi.sql` (41).
+
+**4. Verificarea că n-a rămas nimic** — toate 0:
+```sql
+select (select count(*) from facturi) as facturi, (select count(*) from facturi_serii) as serii,
+       (select count(*) from saga_articole) as potriviri;
+```
+
+**5. Paginile** (serverul local OPRIT, apoi `npm run build && npm start`): pagina unei comenzi
+→ cardul „Facturare (Saga)” arată câmpul manual și motivul („Data de start a facturării din
+aplicație nu e setată …”); Facturi → secțiunea „Facturi emise din aplicație” goală; Integrări →
+cardul Saga cu câmpurile noi; Setări serie fără butonul de oprire (nicio serie activă).
+
+**6. Doar la nevoie — anularea**: `scripts/anuleaza-saga-emitere.sql`.
+
+#### Cum se testează emiterea unei facturi FĂRĂ să se consume un număr real de pe PAP FE
+
+**Varianta 1 — fără interfață, deja făcută**: testele SQL de la pașii 4–6 emit, corectează,
+retrag și opresc pe o serie „TEST …” unică, totul anulat. Seria PAP FE nu e atinsă.
+
+**Varianta 2 — prin interfață, cap-coadă, cu serie de PROBĂ** (pe serverul local, care scrie în
+producție; durează câteva minute; în acest interval nimeni altcineva nu emite):
+1. **Facturi → Setări serie**: seria **„PROBA”** (NU „PAP FE”), numărul următor **1**. Bifa va
+   spune „… ultima factură emisă manual în SAGA pe PROBA are numărul 0 …” — e corect pentru o
+   serie de probă. Salvează.
+2. **Integrări → Saga** (reîncarcă pagina întâi): data de start = data unei comenzi recente,
+   NEFACTURATE manual (de ex. una de azi); codul și denumirea articolului implicit (dacă
+   contabila n-a dat încă codul: „PROBA” / „ACCESORII AUTO”). Salvează.
+3. Pagina comenzii alese → **„Emite factura”** → „Factura PROBA 1 a fost emisă”.
+4. **„Deschide factura”**: verifici clientul, liniile, totalul (= totalul comenzii, fără
+   transportul încasat de FAN); încerci **„Modifică”**; **„Descarcă XML”** cu formatele de
+   probă alese pe loc (`serie_spatiu`, `zi-luna-an`, TVA la încasare după contabilă).
+5. Opțional, **proba din SAGA (D.4)**: XML-ul se încarcă MANUAL în SAGA WEB, la Diverse →
+   Import date, **FĂRĂ validare** — vezi cum apar numărul, data, diacriticele, articolul — apoi
+   **se șterge din lista de import, nevalidat**. Seria „PROBA” nu există în SAGA, deci nu
+   atinge numerotarea PAP FE. Fă proba doar împreună cu contabila.
+6. **„Retrage”** (pe pagina facturii) → factura dispare, comanda revine la „De emis”, contorul
+   seriei PROBA revine la 1.
+7. **Setări serie → „Oprește emiterea”** → nicio serie activă.
+8. **Integrări → Saga**: golești data de start (și articolul de probă, dacă l-ai pus). Salvează.
+9. Verificare în SQL Editor (doar citire) — toate 0, cu excepția rândurilor PROBA din serii și
+   istoric, care rămân ca urmă a probei:
+   ```sql
+   select (select count(*) from facturi) as facturi,
+          (select count(*) from facturi_serii where activa) as serii_active,
+          (select count(*) from orders where factura_serie like 'PROBA%') as comenzi_marcate;
+   ```
+PAP FE nu e atinsă în niciun pas: numerele ei se setează abia în ziua pornirii.
+
+#### Următorul
+
+Pasul 7 — clientul API SAGA (`saga_cheie`, `saga_blocare`, `saga_trimiteri`, `lib/saga.ts`,
+„Testează conexiunea” și „Salvează cheia”). Cere adresa instanței de test SAGA (riscul 5).
+Începe doar după confirmare.
 

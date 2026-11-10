@@ -6,7 +6,8 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { sbBrowser, scrieVerificat, citesteTot, citesteDupaIduri } from "@/lib/supabase";
 import { lei } from "@/lib/format";
-import type { OrderFull } from "@/lib/types";
+import type { OrderFull, SagaStatus } from "@/lib/types";
+import { ETICHETE_STARE } from "@/components/admin/FacturaSaga";
 
 export default function Facturi() {
   const azi = new Date().toISOString().slice(0, 10);
@@ -36,6 +37,35 @@ export default function Facturi() {
     setOrders(comenzi);
   }, [de, pana, filtru]);
   useEffect(() => { incarca(); }, [incarca]);
+
+  // FACTURILE EMISE DIN APLICAȚIE (pasul 6 din docs/saga-plan.md), cu filtru pe starea
+  // față de SAGA. Separat de lista comenzilor de mai jos, care rămâne registrul pentru
+  // facturile emise manual și sursa exportului CSV.
+  type Doc = { id: number; tip: string; serie: string; numar: number; data: string; total: number;
+    saga_status: SagaStatus; order_id: number; client: Record<string, string | null> };
+  const [docs, setDocs] = useState<Doc[]>([]);
+  const [stare, setStare] = useState<"toate" | SagaStatus>("toate");
+  const incarcaDocs = useCallback(async () => {
+    const sb = sbBrowser(); if (!sb) return;
+    try {
+      setDocs(await citesteTot<Doc>(() => {
+        let q = sb.from("facturi").select("id,tip,serie,numar,data,total,saga_status,order_id,client", { count: "exact" })
+          .order("id", { ascending: false });
+        if (stare !== "toate") q = q.eq("saga_status", stare);
+        return q;
+      }, { eticheta: "facturile emise" }));
+    } catch { setDocs([]); }   // migrarea 49 nerulată sau fără drept: secțiunea rămâne goală
+  }, [stare]);
+  useEffect(() => { incarcaDocs(); }, [incarcaDocs]);
+  // Comenzile care au factură din aplicație: pe ele seria NU se mai scrie de mână
+  // (ar strica oglinda pe care o scrie `emite_factura`).
+  const [cuDocument, setCuDocument] = useState<Set<number>>(new Set());
+  useEffect(() => {
+    const sb = sbBrowser(); if (!sb) return;
+    citesteTot<{ order_id: number }>(() => sb.from("facturi").select("order_id", { count: "exact" }).order("id"),
+      { eticheta: "comenzile facturate din aplicație" })
+      .then((r) => setCuDocument(new Set(r.map((x) => x.order_id)))).catch(() => setCuDocument(new Set()));
+  }, [docs]);
 
   async function salveazaSerie(o: OrderFull, serie: string) {
     const sb = sbBrowser()!; setMsg("");
@@ -112,6 +142,38 @@ export default function Facturi() {
 
       {msg && <div className="card p-3 text-sm border-2 border-red-300 bg-red-50 text-red-800">{msg}</div>}
 
+      <div className="card p-4 text-sm">
+        <div className="flex flex-wrap items-center gap-2">
+          <b className="font-disp font-semibold text-[13px] mr-2">Facturi emise din aplicație</b>
+          {(["toate", "de_trimis", "in_curs", "trimisa", "eroare", "confirmata"] as const).map((k) => (
+            <button key={k} type="button" onClick={() => setStare(k)}
+              className={`rounded-full border-2 px-3 py-1 text-xs font-semibold ${stare === k ? "border-acc bg-acc/5 text-acc" : "border-line"}`}>
+              {k === "toate" ? "Toate" : ETICHETE_STARE[k]}</button>
+          ))}
+        </div>
+        {docs.length === 0 ? <p className="text-mut mt-3">Nicio factură{stare === "toate" ? " emisă din aplicație încă" : " în starea aleasă"}.</p> : (
+          <div className="overflow-x-auto mt-3">
+            <table className="w-full text-sm md:min-w-[640px]">
+              <thead><tr className="text-left text-mut text-xs border-b border-line">
+                <th className="px-3 py-2">Factura</th><th className="px-3 py-2">Data</th><th className="px-3 py-2">Client</th>
+                <th className="px-3 py-2">Total</th><th className="px-3 py-2">Stare</th></tr></thead>
+              <tbody className="divide-y divide-line">
+                {docs.map((d) => (
+                  <tr key={d.id} className="hover:bg-paper">
+                    <td className="px-3 py-2"><Link href={`/admin/facturi/${d.id}`} className="font-disp font-semibold hover:text-acc">
+                      {d.tip === "storno" ? "Storno " : ""}{d.serie} {d.numar}</Link></td>
+                    <td className="px-3 py-2 text-mut">{d.data.split("-").reverse().join(".")}</td>
+                    <td className="px-3 py-2">{d.client?.firma || d.client?.nume}</td>
+                    <td className="px-3 py-2 font-disp font-semibold">{lei(Number(d.total))}</td>
+                    <td className="px-3 py-2 text-xs">{ETICHETE_STARE[d.saga_status]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       <div className="grid grid-cols-3 gap-3">
         {[["Comenzi în interval", String(orders.length)], ["De facturat", String(deEmis)], ["Valoare totală", lei(total)]].map(([t, v]) => (
           <div key={t} className="card p-4"><span className="text-xs text-mut">{t}</span><b className="block font-disp text-xl mt-1">{v}</b></div>
@@ -141,7 +203,8 @@ export default function Facturi() {
                 <td data-eticheta="CUI" className="px-4 py-3 text-mut">{o.cui ?? "—"}</td>
                 <td data-eticheta="Total" className="px-4 py-3 font-disp font-semibold">{lei(Number(o.total))}</td>
                 <td className="px-4 py-3">
-                  <input defaultValue={o.factura_serie ?? ""} placeholder="ex. AUTP-0912"
+                  <input defaultValue={o.factura_serie ?? ""} placeholder="seria din SAGA"
+                    disabled={cuDocument.has(o.id)} title={cuDocument.has(o.id) ? "Factură emisă din aplicație — seria nu se scrie de mână" : undefined}
                     onBlur={(e) => { if (e.target.value !== (o.factura_serie ?? "")) salveazaSerie(o, e.target.value.trim()); }}
                     className={`rounded-lg border-2 px-2.5 py-1.5 text-sm outline-none w-40 ${o.factura_status === "emisa" ? "border-ok/40 bg-ok/5" : "border-line focus:border-acc"}`} />
                 </td>

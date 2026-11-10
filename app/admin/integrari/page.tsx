@@ -86,6 +86,13 @@ const CAMPURI: Record<string, { k: string; l: string; tip?: string }[]> = {
   "Saga — facturare": [
     { k: "cota_tva", l: "Cota TVA, în procente (gol = 21)" },
     { k: "regim_tva", l: "Regimul TVA: normal (gol = normal; „marja” nu e implementat)" },
+    // Pasul 6: fără valori implicite — se completează în ziua pornirii / după răspunsul contabilei.
+    { k: "data_start_facturare", l: "Data de start a facturării din aplicație (comenzile de dinainte se facturează manual în SAGA; goală = nu se emite nimic)", tip: "date" },
+    { k: "format_numar", l: "Formatul numărului spre SAGA: serie_spatiu („PAP FE 14193”) / serie_lipita („PAP FE14193”) / doar_numar („14193”) — se confirmă la proba manuală" },
+    { k: "format_data", l: "Formatul datei spre SAGA: zi-luna-an („10-11-2026”) / zi.luna.an / an-luna-zi — se confirmă la proba manuală" },
+    { k: "tva_la_incasare", l: "TVA la încasare: da / nu — întrebare pentru contabilă" },
+    { k: "cif_persoana_fizica", l: "Ce se trimite la CIF pentru persoane fizice: gol (ca pe factura reală) / liniuta / treisprezece_zerouri" },
+    { k: "mentiune_plata", l: "Mențiunea de plată de pe factură (pe factura reală: ramburs in cont)" },
     { k: "articol_implicit", l: "Articolul implicit din gestiunea SAGA — CODUL (îl dă contabila)" },
     { k: "articol_implicit_denumire", l: "Articolul implicit — DENUMIREA, exact ca în SAGA (pe factura reală: ACCESORII AUTO)" },
     { k: "articol_implicit_um", l: "Articolul implicit — unitatea de măsură (gol = BUC)" },
@@ -326,6 +333,22 @@ export default function Integrari() {
       if (cota !== "" && !(/^[0-9]+(\.[0-9]+)?$/.test(cota) && Number(cota) < 100)) {
         setMsg(`Cota TVA „${valori.cota_tva}” nu e validă: scrie un număr între 0 și 99 (de exemplu 21), sau lasă gol pentru 21.`);
         return;
+      }
+      // Listele închise ale pasului 6: o valoare scrisă greșit ar opri descărcarea XML-ului
+      // abia când e nevoie de el. Goală = încă nealeasă (permis).
+      const inchise: [string, string[]][] = [
+        ["format_numar", ["serie_spatiu", "serie_lipita", "doar_numar"]],
+        ["format_data", ["zi-luna-an", "zi.luna.an", "an-luna-zi"]],
+        ["tva_la_incasare", ["da", "nu"]],
+        ["cif_persoana_fizica", ["gol", "liniuta", "treisprezece_zerouri"]],
+      ];
+      for (const [k, permise] of inchise) {
+        const v = String(valori[k] ?? "").trim();
+        valori[k] = v;
+        if (v !== "" && !permise.includes(v)) {
+          setMsg(`„${v}” nu e o valoare permisă pentru ${k}. Variante: ${permise.join(" / ")} (sau gol).`);
+          return;
+        }
       }
       const regim = String(valori.regim_tva ?? "").trim().toLowerCase();
       if (regim !== "" && regim !== "normal") {

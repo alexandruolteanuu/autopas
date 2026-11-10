@@ -106,8 +106,8 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 36. `email-automat.sql` -> 37. `dezro.sql` -> 38. `piesa-vanduta-ramane.sql` ->
 39. `dezro-automat.sql` -> 40. `senzori-auto-despartire.sql` -> 41. `observatii-comanda.sql` ->
 42. `sugestie-clasificare.sql` -> 43. `awb-fancourier.sql` -> 44. `nomenclator-fan.sql` ->
-45. `transport-incasat-de-fan.sql` -> 46. `retur-fan.sql` -> 47. `saga-calcul.sql` -> 48. `saga-export.sql` -> 49. `saga-facturi.sql` -> 50. `saga-articole.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9–50.
+45. `transport-incasat-de-fan.sql` -> 46. `retur-fan.sql` -> 47. `saga-calcul.sql` -> 48. `saga-export.sql` -> 49. `saga-facturi.sql` -> 50. `saga-articole.sql` -> 51. `saga-emitere.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9–51.
 NU sunt încă idempotente: 1–5, 8.
 **Aplicate pe producție: 1–45 și 47–50. 46 e scrisă, NErulată** (așteaptă contul ocazional FAN).
 **47 e RULATĂ pe producție la 10 noiembrie 2026**, de proprietar, din SQL Editor; testele
@@ -149,6 +149,13 @@ FĂRĂ `\r`: `md5(replace(prosrc, E'\r', ''))`** — SQL Editor-ul Supabase folo
 funcțiile cu sfârșituri CRLF; `emite_factura` din producție avea `23e4b6f3…` = textul din git cu CRLF,
 iar comparația brută a dat „diferă” la o funcție identică (10 noiembrie 2026). Anularea pune înapoi exact
 versiunea din 49: `scripts/anuleaza-saga-articole.sql`.
+**51 e scrisă, NErulată pe producție** (10 noiembrie 2026, pasul 6): rescrie `emite_factura` (din 50) cu o
+singură regulă în plus — refuză o comandă marcată deja ca facturată (`factura_serie` completat sau
+`factura_status` ≠ „de_emis”: factură notată manual din SAGA, „nu se emite”, stornată); adaugă
+`modifica_factura` (client + articolul pe linii, doar înainte de trimitere) și `opreste_emiterea` (nicio
+serie activă); lărgește `facturi_serii_istoric.actiune` cu „oprire”. Garda: amprenta fără `\r` a lui
+`emite_factura` = 50 (`8eefb50d…`) sau 51 (`a1a45bbd8ce6ad03eae408ee9d2f113e`). Anularea:
+`scripts/anuleaza-saga-emitere.sql` (pune înapoi versiunea din 50).
 46 (21 octombrie 2026) pregătește AWB-ul de RETUR: adaugă pe `return_requests` legătura cu
 comanda (`order_id`), adresa de ridicare (`ridicare` jsonb) și câmpurile AWB-ului
 (`awb`, `awb_curier_id`, `awb_generat_la`, `awb_date`). Nu atinge niciun rând și nicio politică. 45 a fost rulată la 15 septembrie 2026 abia DUPĂ ce codul din
@@ -1427,6 +1434,9 @@ Niciuna nu e dependință a site-ului și niciuna nu rulează la build. Se cheam
 | `verifica-saga-facturi.sql` | după orice atingere a migrării 49. 41 de verificări pe PRODUCȚIE, în tranzacție anulată, „logat” ca un profil admin/contabil: data de start, seria (pe o serie „TEST …” cu nume unic), emiterea pe două comenzi EXISTENTE, liniile și totalurile, copia clientului și a furnizorului, oglinda pe comandă, retragerea și refolosirea numărului, nemodificabilitatea după trimitere, ștergerea comenzii facturate, drepturile. Nu lasă nimic (doar id-uri interne consumate) |
 | `verifica-saga-local.sh` | ce NU se poate testa pe producție, într-un Postgres din Docker, cu imitația Supabase și date FICTIVE din `scripts/saga-local/`: aplică 47–49 de două ori, rulează cele trei teste SQL, apoi 20 de emiteri SIMULTANE (numere consecutive, fără goluri), aceeași comandă de două ori simultan, ora-limită de la miezul nopții, `sterge_comanda` pe o comandă facturată, garda anulării. ~7 s; containerul se șterge singur |
 | `verifica-saga-articole.sql` | după orice atingere a migrării 50 sau a potrivirii articolelor. 13 verificări pe PRODUCȚIE, în tranzacție anulată: amprenta lui `emite_factura`, cine scrie potrivirile (admin/contabil da, alt utilizator și `anon` nu), valorile greșite, ordinea subcategorie → categorie → implicit pe o comandă EXISTENTĂ (cu retragere între încercări, numărul refolosit), reducerea/transportul nu iau articolul piesei, factura emisă nu se schimbă când se schimbă potrivirea |
+| `verifica-saga-emitere.sql` | după orice atingere a migrării 51. 16 verificări pe PRODUCȚIE, în tranzacție anulată: amprenta, refuzul comenzilor marcate deja ca facturate (fără să miște contorul sau nota manuală), corecturile înainte de trimitere (client, cod județ recalculat, articol pe linii, cheile nepermise ignorate, totalurile neatinse), refuzurile (județ greșit, linia altei facturi, cod gol, factură trimisă), oprirea emiterii, drepturile |
+| `verifica-saga-xml.mjs` | după orice atingere a lui `lib/saga-xml.mjs`. 63 de verificări, fără rețea și fără bază: CIF curățat, numărul și data în fiecare format, refuzul fără format ales, escape, sume și cantități, factura de referință (165.29 / 34.71 / 165.2900), XML bine format, client firmă, numele fișierului. `node scripts/verifica-saga-xml.mjs` |
+| `anuleaza-saga-emitere.sql` | **doar la nevoie**: pune înapoi `emite_factura` din 50 și șterge `modifica_factura` și `opreste_emiterea`. Se oprește dacă funcția din bază nu e versiunea din 51 |
 | `anuleaza-saga-articole.sql` | **doar la nevoie**: pune înapoi `emite_factura` din 49 și șterge `saga_articole`. Se oprește dacă funcția din bază nu e versiunea din 50 |
 | `anuleaza-saga-facturi.sql` | **doar la nevoie**: anulează migrarea 49. REFUZĂ dacă `facturi` are vreun rând — ar șterge documente fiscale |
 | `anuleaza-saga-calcul.sql` | **doar la nevoie**: anulează migrarea 47 (trei funcții + `judete_coduri`). Fără `cascade` — se oprește dacă ceva depinde de ele |

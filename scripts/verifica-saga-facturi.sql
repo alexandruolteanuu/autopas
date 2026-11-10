@@ -67,12 +67,14 @@ begin
    where o.status <> 'anulata'
      and exists (select 1 from public.order_items i where i.order_id = o.id)
      and not exists (select 1 from public.facturi f where f.order_id = o.id)
+     and o.factura_serie is null and coalesce(o.factura_status, 'de_emis') = 'de_emis'
      and public.cod_judet(o.judet) is not null
    order by o.id desc limit 1;
   select * into o1 from public.orders o
    where o.status <> 'anulata' and o.id < coalesce(o2.id, 0)
      and exists (select 1 from public.order_items i where i.order_id = o.id)
      and not exists (select 1 from public.facturi f where f.order_id = o.id)
+     and o.factura_serie is null and coalesce(o.factura_status, 'de_emis') = 'de_emis'
      and public.cod_judet(o.judet) is not null
    order by o.id desc limit 1;
   if o1.id is null or o2.id is null then

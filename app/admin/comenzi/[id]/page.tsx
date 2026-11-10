@@ -10,6 +10,7 @@ import { lei, telefonWhatsapp } from "@/lib/format";
 import { getSetariBrowser, waLinkCu, CURIERI_IMPLICITI, type Curier, type Firma, FIRMA_IMPLICITA } from "@/lib/settings";
 import { SITE_DOMENIU } from "@/lib/config";
 import LivrareFan from "@/components/admin/LivrareFan";
+import FacturaSaga from "@/components/admin/FacturaSaga";
 import type { OrderFull, OrderEvent } from "@/lib/types";
 
 type Item = { id: number; nume: string; pret: number; cantitate: number; product_id: number | null;
@@ -22,6 +23,10 @@ export default function DetaliuComanda() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [o, setO] = useState<OrderFull | null>(null);
+  // Câte facturi emise din aplicație are comanda (pasul 6 din docs/saga-plan.md). Cu
+  // factură, comanda nu se mai poate șterge — baza refuză oricum (cheia străină
+  // `comanda_facturata_nu_se_poate_sterge`), butonul doar nu mai apare.
+  const [areFactura, setAreFactura] = useState(false);
   const [items, setItems] = useState<Item[]>([]);
   const [events, setEvents] = useState<OrderEvent[]>([]);
   const [msg, setMsg] = useState("");
@@ -35,12 +40,14 @@ export default function DetaliuComanda() {
 
   const incarca = useCallback(async () => {
     const sb = sbBrowser(); if (!sb) return;
-    const [ord, it, ev] = await Promise.all([
+    const [ord, it, ev, fa] = await Promise.all([
       sb.from("orders").select("*").eq("id", id).single(),
       sb.from("order_items").select("*, products(oem,slug,greutate_kg,greutate_estimata,vehicles(nume,an))").eq("order_id", id),
       sb.from("order_events").select("*").eq("order_id", id).order("created_at", { ascending: false }),
+      sb.from("facturi").select("id", { count: "exact", head: true }).eq("order_id", id),
     ]);
     setO(ord.data as OrderFull); setItems((it.data ?? []) as Item[]); setEvents((ev.data ?? []) as OrderEvent[]);
+    setAreFactura((fa.count ?? 0) > 0);
     setGata(true);
   }, [id]);
   useEffect(() => { incarca(); }, [incarca]);
@@ -73,6 +80,12 @@ export default function DetaliuComanda() {
     if (!confirm("Ștergi definitiv comanda? Piesele revin pe stoc, iar jurnalul comenzii se pierde. Acțiunea nu poate fi anulată.")) return;
     const sb = sbBrowser()!;
     const { data, error } = await sb.rpc("sterge_comanda", { oid: Number(id) });
+    // Comanda are factură emisă din aplicație: baza o protejează prin cheia străină
+    // `comanda_facturata_nu_se_poate_sterge` (migrarea 49). Mesajul brut e tehnic.
+    if (error?.message.includes("comanda_facturata_nu_se_poate_sterge")) {
+      setMsg("Comanda are o factură emisă și nu se mai poate șterge. Factura se stornează, iar comanda se poate anula.");
+      return;
+    }
     if (error) { setMsg("Eroare: " + error.message); return; }
     const r = data as { ok: boolean; mesaj: string };
     if (!r.ok) { setMsg(r.mesaj); return; }
@@ -99,8 +112,9 @@ export default function DetaliuComanda() {
         <div className="flex gap-2">
           {o.status !== "anulata" && o.status !== "livrata" && (
             <button onClick={anuleaza} className="rounded-xl border-2 border-red-200 text-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-50">Anulează</button>)}
+          {!areFactura && (
           <button onClick={stergeComanda} title="Doar administratorul; piesele revin pe stoc"
-            className="rounded-xl border-2 border-line text-mut px-4 py-2 text-sm font-semibold hover:border-red-300 hover:text-red-600">Șterge</button>
+            className="rounded-xl border-2 border-line text-mut px-4 py-2 text-sm font-semibold hover:border-red-300 hover:text-red-600">Șterge</button>)}
         </div>
       </div>
 
@@ -223,21 +237,10 @@ export default function DetaliuComanda() {
           <LivrareFan o={o} laSchimbare={incarca}
             salveazaManual={(v) => salveaza({ awb: v, awb_generat_la: new Date().toISOString() }, `AWB ${v} introdus manual`)} />
 
-          {/* Facturare — fluxul Saga */}
-          <div className="card p-5 text-sm">
-            <b className="font-disp font-semibold text-[13px]">Facturare (Saga)</b>
-            <p className="text-xs text-mut mt-1">Emiți factura în Saga, apoi notezi seria aici — apare în exportul CSV și în evidență.</p>
-            <form onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget);
-              salveaza({ factura_serie: f.get("serie") || null, factura_status: f.get("serie") ? "emisa" : "de_emis" },
-                f.get("serie") ? `Factura ${f.get("serie")} notată ca emisă` : undefined); }}
-              className="mt-3 flex gap-2">
-              <input name="serie" defaultValue={o.factura_serie ?? ""} placeholder="ex. AUTP-0912"
-                className="flex-1 rounded-xl border-2 border-line px-3 py-2 outline-none focus:border-acc" />
-              <button className="btn-dark !py-2 !px-4 text-xs">Salvează</button>
-            </form>
-            <span className={`inline-block mt-2 px-2 py-0.5 rounded-full text-[11px] font-bold ${o.factura_status === "emisa" ? "bg-ok/10 text-ok" : "bg-paper text-mut"}`}>
-              {o.factura_status === "emisa" ? `Emisă — ${o.factura_serie}` : "De emis"}</span>
-          </div>
+          {/* Facturare — emiterea din aplicație sau seria notată manual (pasul 6, docs/saga-plan.md) */}
+          <FacturaSaga o={o} laSchimbare={incarca}
+            salveazaManual={(serie) => salveaza({ factura_serie: serie || null, factura_status: serie ? "emisa" : "de_emis" },
+              serie ? `Factura ${serie} notată ca emisă` : undefined)} />
 
           {/* Notă internă */}
           <div className="card p-5 text-sm">

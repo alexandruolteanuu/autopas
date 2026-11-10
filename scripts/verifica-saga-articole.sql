@@ -39,8 +39,10 @@ begin
   -- ----------------------------------------------------------
   -- Fără „\r”: SQL Editor-ul de pe Windows salvează funcțiile cu CRLF.
   if (select md5(replace(prosrc, E'\r', '')) from pg_proc where oid = to_regprocedure('public.emite_factura(bigint)'))
-     is distinct from '8eefb50d4c81c4ea93701317e9ac67ed' then
-    raise exception 'VERIFICARE PICATĂ: emite_factura din bază nu e versiunea din migrarea 50';
+     not in ('8eefb50d4c81c4ea93701317e9ac67ed',    -- migrarea 50
+             'a1a45bbd8ce6ad03eae408ee9d2f113e')    -- migrarea 51 (aceeași potrivire a articolelor)
+     or (select md5(replace(prosrc, E'\r', '')) from pg_proc where oid = to_regprocedure('public.emite_factura(bigint)')) is null then
+    raise exception 'VERIFICARE PICATĂ: emite_factura din bază nu e versiunea din migrarea 50 sau 51';
   end if;
   n := n + 1;
 
@@ -54,6 +56,7 @@ begin
   select o2.* into o from public.orders o2
    where o2.status <> 'anulata'
      and not exists (select 1 from public.facturi fx where fx.order_id = o2.id)
+     and o2.factura_serie is null and coalesce(o2.factura_status, 'de_emis') = 'de_emis'
      and public.cod_judet(o2.judet) is not null
      and exists (select 1 from public.order_items i join public.products p on p.id = i.product_id
                   where i.order_id = o2.id and p.categorie_id is not null and p.subcategorie_id is not null
