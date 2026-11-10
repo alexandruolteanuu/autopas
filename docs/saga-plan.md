@@ -660,3 +660,103 @@ actuală („PAP FE”, ultimul număr 14190), capitalul social (200 RON) și ba
 - Dublura la reîncărcare cu `importAutomat=false` (riscul 2).
 - Formatul garantat al raportului 207/422.
 - Cât timp poate dura un import (pentru timeout-uri, sub limita de 60 s a funcțiilor).
+
+---
+
+## F) Jurnalul pașilor
+
+Fiecare pas din C se încheie cu o intrare aici: ce s-a făcut, ce fișiere, cum se verifică și
+ce rezultat trebuie văzut. Pasul următor începe doar după confirmarea proprietarului.
+
+### Pasul 1 — calculul TVA, codurile de județ, transportul facturabil
+
+**Stare: gata, în commit pe `saga-integrare` (`a76f5e0`), 10 noiembrie 2026. Nerulat pe
+producție, fără push. Așteaptă proba pe proiectul de test „autopas-test” și confirmarea
+proprietarului.**
+
+#### Ce s-a făcut
+
+**Migrarea 47, `supabase/saga-calcul.sql`.** Nu atinge niciun rând și nicio politică
+existentă; se poate rula de mai multe ori.
+- `calculeaza_linie_tva(preț cu TVA, cantitate, cotă)` → total, valoare fără TVA, TVA (prin
+  diferență), preț unitar fără TVA cu 4 zecimale, calculat din baza deja rotunjită. Cota vine
+  ca parametru, nu e scrisă în cod. Refuză cantitatea 0 și o cotă lipsă sau în afara 0–99.
+- `judete_coduri`: cele 42 de coduri oficiale (ISO 3166-2:RO).
+- `cod_judet(text)`: recunoaște numele cu sau fără diacritice, cu sedilă (ş/ţ), cu cratimă sau
+  spațiu, codul însuși, prefixele („Jud.”, „Județul”, „Municipiul”) și sectoarele
+  Bucureștiului. Ce nu recunoaște → NULL; nu ghicește.
+- `transport_facturabil(subtotal, reducere, livrare, total)`: regula din
+  `livrareFacturabila()` (transportul intră pe factură doar la comenzile vechi), mutată în bază.
+  Copia din browser se scoate la pasul 2.
+- Vizitatorii anonimi (`anon`) nu pot chema niciuna dintre funcții.
+
+**Testele, `scripts/verifica-saga-calcul.sql`** — 33 de verificări pe funcțiile REALE:
+- cazul de pe factura reală: 200,00 → 165,29 + 34,71, preț unitar „165.2900” (verificat și ca
+  text), plus stornarea lui (−165,29 / −34,71 / −200,00, unitar tot 165,2900);
+- 10.000 de prețuri: valoare + TVA = total la ban, stornarea = exact opusul, zecimalele corecte;
+- jumătatea de ban rotunjită departe de zero, în ambele sensuri; cota 0; intrările greșite;
+- toate cele 42 de județe în cinci forme, 30 de forme reale, 8 intrări care trebuie să dea NULL;
+- 6 cazuri de transport facturabil;
+- drepturile: `anon` nu poate chema funcțiile.
+
+Verificat și invers, pe un Postgres 17 local: funcția stricată intenționat în trei feluri
+(preț unitar din preț, TVA rotunjit separat, drept dat lui `anon`) — testele le-au prins pe
+toate trei; după refacere au trecut iar.
+
+**`scripts/baza-test.sh`** — aplică migrările în ordine (`migrari`, cu `--de-la=N` pentru
+reluare) și rulează testele (`teste`) pe proiectul de TEST. Citește adresa producției din
+`.env.local` și refuză orice `DB_TEST_URL` care o conține (verificat: refuză, cod 3).
+
+**Corecturi aduse planului odată cu pasul 1:**
+- trimiterile la pașii renumerotați (D.4 → pasul 6, riscul 5 → pasul 7, A.5 → pasul 5);
+  întrebarea 12 scoasă, capitalul (200 RON) și banca (BCR Piatra Neamt) notate ca rezolvate;
+- ultimul număr din SAGA pe „PAP FE” e **14190** (nu 14188), deci continuarea ar fi de la 14191;
+- **exemplul de la 350 lei era greșit în plan**: preț unitar **289,2600**, nu 289,2562 — prețul
+  unitar vine din baza rotunjită, cum confirmă factura reală (165,2900, nu 165,2893). Funcția
+  era corectă; doar exemplul;
+- **o migrare pe fiecare pas** (47 acum, 48+ la pașii următori), nu un singur `saga.sql`.
+
+**`CLAUDE.md`**: migrarea 47 în ordine (scrisă, nerulată pe producție), cele două unelte noi
+în tabelul de scripturi.
+
+#### Fișiere
+
+- create: `supabase/saga-calcul.sql`, `scripts/verifica-saga-calcul.sql`, `scripts/baza-test.sh`
+- modificate: `docs/saga-plan.md`, `CLAUDE.md`
+- intrate în același commit (erau nesalvate în git): `docs/saga-api.md`, `raportare.md`
+- `npm run build`: „Compiled successfully”
+
+#### Cum se aplică pe proiectul de test
+
+**Varianta A — din terminalul Codespace (recomandată):**
+1. Supabase → proiectul **autopas-test** → **Connect** → **Session pooler** → copiezi adresa și
+   pui parola bazei de test în locul `[YOUR-PASSWORD]`. NU „Direct connection”: e doar IPv6,
+   iar Codespace-ul n-are IPv6.
+2. În terminal:
+   ```bash
+   export DB_TEST_URL='postgresql://postgres.XXXX:PAROLA@aws-0-eu-central-1.pooler.supabase.com:5432/postgres'
+   scripts/baza-test.sh migrari
+   ```
+   Scriptul arată unde se conectează și cere „da”. **Rezultat așteptat**: 47 de rânduri `ok`,
+   apoi „Toate cele 47 migrări au fost aplicate.”
+3. Apoi:
+   ```bash
+   scripts/baza-test.sh teste
+   ```
+   **Rezultat așteptat**: `TOATE VERIFICĂRILE AU TRECUT | 33`.
+
+**Varianta B — din SQL Editor:** fiecare fișier din `supabase/`, în ordinea din `CLAUDE.md`
+(`schema.sql` … `retur-fan.sql`), lipit și rulat pe rând; apoi `supabase/saga-calcul.sql`; la
+final `scripts/verifica-saga-calcul.sql` → același rând, cu 33.
+
+**De știut:**
+- Migrările 1–46 n-au fost rulate niciodată toate deodată, pe o bază goală. E posibil ca una să
+  pice. Scriptul se oprește și spune de la ce număr se reia; mesajul de eroare se trimite
+  înainte de orice altă încercare.
+- Migrările 1–5 și 8 nu se pot rula de două ori: dacă pică una dintre ele, baza de test trebuie
+  curățată întâi.
+- Parola din `DB_TEST_URL` rămâne doar în sesiunea de terminal; nu se pune în niciun fișier.
+
+#### Următorul
+
+Pasul 2 — exportul CSV cu cota din setări, nu 19%. Începe doar după confirmare.
