@@ -44,6 +44,14 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
   testa așa (concurența, care cere sesiuni separate) se testează local, într-un Postgres din
   Docker. Fiecare migrare nouă vine cu pre-verificare (doar citire) și fișier de anulare fără
   `cascade`. Asistentul nu rulează nimic pe producție; rulează proprietarul, din SQL Editor.
+- **Până la unirea ramurii `saga-integrare` în `main`, „Date firmă” NU se salvează din site-ul
+  LIVE** (Admin → Setări pe autopas-dezmembrari.ro). Codul vechi de acolo construiește obiectul
+  firmei doar din câmpurile lui și ar șterge câmpurile noi — capital, bancă, localitate, județ,
+  țară —, salvate la 10 noiembrie 2026 din serverul local al ramurii. Se salvează doar din
+  serverul local al ramurii, până la unire.
+- **Serverul local se oprește ÎNAINTE de `npm run build`** (10 noiembrie 2026). Un `next start`
+  rămas pornit își reîmprospătează paginile (`revalidate = 300`) și poate rescrie în `.next` o
+  pagină VECHE peste build-ul nou — s-a întâmplat cu `/admin/setari`, care arăta formularul vechi.
 - **Cod complet**, nu fragmente. Comentarii scurte în cod, în română.
 - **Fără date demo hardcodate** — tot ce se afișează vine din Supabase.
 - **Nu inventa** funcții, tabele sau coloane. Dacă ai nevoie de ceva nou în baza de date,

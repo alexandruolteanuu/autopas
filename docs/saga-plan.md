@@ -1100,8 +1100,22 @@ intrarea pasului 3.**
 
 ### Pasul 3 — datele firmei
 
-**Stare: gata, în commit pe `saga-integrare` (`6376bb3`), 10 noiembrie 2026. Fără push. Fără
-SQL. Așteaptă verificarea și confirmarea proprietarului.**
+**Stare: ÎNCHIS — verificat local și salvat pe producție de proprietar, 10 noiembrie 2026.**
+- formularul are cele 5 câmpuri noi, „Serie facturi” a dispărut;
+- salvate în `settings.firma`: capital „200 RON”, banca „BCR Piatra Neamt”, localitatea
+  „Alexandru Cel Bun”, județul „Neamț”, țara „RO”;
+- verificat în SQL: valorile sunt în `settings.firma`, iar `serie_factura` = „AUTP” (păstrată);
+- **problema de la verificare**: `/admin/setari` arăta întâi formularul VECHI. Cauza: un server
+  vechi încă rula pe portul 3000 în timpul build-ului, iar reîmprospătarea lui automată
+  (`revalidate = 300` din `app/layout.tsx`) a rescris `.next/server/app/admin/setari.html` cu
+  versiunea veche, la 14:34:59, după terminarea build-ului (14:34:31). Pagina cerea un fișier
+  JavaScript care nu mai exista. Rezolvat: serverul oprit, build refăcut fără niciun server
+  pornit, apoi `npm start`. **Regulă de acum: serverul se oprește ÎNAINTE de orice build.**
+- **Până la unirea ramurii în `main`, „Date firmă” NU se salvează din site-ul live** — codul
+  vechi de pe producție construiește obiectul firmei doar din câmpurile lui și ar șterge cele 5
+  câmpuri noi (trecut și în CLAUDE.md).
+
+Codul: commit `6376bb3` pe `saga-integrare`, fără push.
 
 Înaintea pasului, în același schimb de mesaje: migrarea 48 a fost notată ca RULATĂ pe producție
 în jurnalul pasului 2 și în CLAUDE.md (commit `b87c30f`).
