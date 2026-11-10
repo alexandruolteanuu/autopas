@@ -31,6 +31,10 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 
 ## Reguli de lucru (important)
 - **Răspunde în română.** Utilizatorul e începător — explică pe scurt ce faci și de ce.
+- **Un singur pas o dată, la planurile aprobate** (10 noiembrie 2026, cerut de proprietar —
+  prima dată la integrarea SAGA, `docs/saga-plan.md`). Când lucrul urmează un plan pe pași:
+  implementezi UN SINGUR pas, apoi te oprești și spui ce ai făcut, ce fișiere ai modificat și
+  cum se verifică. Pasul următor începe doar după confirmarea utilizatorului.
 - **Cod complet**, nu fragmente. Comentarii scurte în cod, în română.
 - **Fără date demo hardcodate** — tot ce se afișează vine din Supabase.
 - **Nu inventa** funcții, tabele sau coloane. Dacă ai nevoie de ceva nou în baza de date,
@@ -78,10 +82,14 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 36. `email-automat.sql` -> 37. `dezro.sql` -> 38. `piesa-vanduta-ramane.sql` ->
 39. `dezro-automat.sql` -> 40. `senzori-auto-despartire.sql` -> 41. `observatii-comanda.sql` ->
 42. `sugestie-clasificare.sql` -> 43. `awb-fancourier.sql` -> 44. `nomenclator-fan.sql` ->
-45. `transport-incasat-de-fan.sql` -> 46. `retur-fan.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9–46.
+45. `transport-incasat-de-fan.sql` -> 46. `retur-fan.sql` -> 47. `saga-calcul.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9–47.
 NU sunt încă idempotente: 1–5, 8.
 **Aplicate pe producție: 1–45. 46 e scrisă, NErulată** (așteaptă contul ocazional FAN).
+**47 e scrisă, NErulată pe producție** (10 noiembrie 2026, ramura `saga-integrare`, pasul 1 din
+`docs/saga-plan.md`): `calculeaza_linie_tva`, tabela `judete_coduri` + `cod_judet`,
+`transport_facturabil`. Doar unelte de calcul — nu atinge niciun rând și nicio politică existentă.
+Se probează întâi pe proiectul de TEST (`scripts/baza-test.sh`).
 46 (21 octombrie 2026) pregătește AWB-ul de RETUR: adaugă pe `return_requests` legătura cu
 comanda (`order_id`), adresa de ridicare (`ridicare` jsonb) și câmpurile AWB-ului
 (`awb`, `awb_curier_id`, `awb_generat_la`, `awb_date`). Nu atinge niciun rând și nicio politică. 45 a fost rulată la 15 septembrie 2026 abia DUPĂ ce codul din
@@ -1353,6 +1361,8 @@ Niciuna nu e dependință a site-ului și niciuna nu rulează la build. Se cheam
 | `actualizeaza-nomenclator-fan.mjs` | **periodic (FAN recomandă), de exemplu lunar.** Reface județele, localitățile (cu agenția și km suplimentari) și străzile din API-ul FAN în `fan_localitati` / `fan_strazi`. ~5 minute. Contul FAN îl ia din `settings`. Nu scrie și nu șterge nimic dacă FAN întoarce sub 90% din ce avem. `--uscat` doar numără |
 | `verifica-cantitati.mjs` | **după orice modificare a coșului, a selectorului de cantitate sau a lui `plaseaza_comanda`.** 23 de verificări pe piese REALE, alese din bază (nu slug-uri scrise de mână): selectorul și plafonul, subtotalurile, coșul după reîncărcare, sumarul din checkout, așezarea pe 11 lățimi (suprapuneri, text tăiat, ținte de 44px) și faptul că serverul înmulțește și refuză peste stoc. Cere un server pornit (`BASE=…`) **pe build-ul de producție** — în `npm run dev` coșul se golește la reîncărcare — plus `playwright-core`, ca `scan-responsive.mjs`. Proba de server trimite intenționat un total greșit, deci se oprește înainte de orice scriere: nicio comandă creată |
 | `verifica-retur-fan.mjs` | **după orice modificare a fluxului de retur** (`lib/fancourier.ts`, `app/api/awb-retur/`). 15 verificări pe API-ul REAL al FAN, implicit pe contul lor de probă din anexă — merge și fără contul nostru ocazional. Compilează `lib/fancourier.ts` într-un `.tmp-fan/` temporar și cheamă funcțiile adevărate; creează un AWB de retur și o comandă de curier, apoi le șterge. Pe contul propriu: `FANCOURIER_RETUR_CLIENT_ID=… FANCOURIER_RETUR_USER=… FANCOURIER_RETUR_PASS=… node scripts/verifica-retur-fan.mjs` |
+| `baza-test.sh` | **doar pe proiectul Supabase de TEST** („autopas-test”). `migrari` aplică toate migrările în ordine (lista e copiată din CLAUDE.md — se ține la zi în ambele locuri), `--de-la=N` reia după o eroare; `teste` rulează `verifica-saga-*.sql`. Cere `DB_TEST_URL` (Session pooler) și **refuză adresa proiectului de producție** din `.env.local` |
+| `verifica-saga-calcul.sql` | după orice atingere a migrării 47 (calculul TVA, județele, transportul facturabil). 33 de verificări pe funcțiile REALE, inclusiv cazul de referință de pe factura din SAGA (200,00 → 165,29 + 34,71, unitar 165,2900) și stornarea lui. Nu scrie nimic. Se rulează pe baza de TEST: SQL Editor sau `baza-test.sh teste` |
 | `curata-orfani.mjs` | **periodic**, mai ales după sesiuni lungi de lucru pe produse. Găsește fișierele din `poze-piese` spre care nu mai arată niciun rând din `products` SAU din `vehicles`. Implicit doar raportează; șterge numai cu `--sterge` și numai fișiere mai vechi de 24h (`--ore=N`). Peste 5% orfani refuză să șteargă și cere `--confirm-stergere-mare`: atâția deodată înseamnă de obicei o citire incompletă, nu formulare abandonate. Raportează și cazul invers, mai grav: adrese din bază fără fișier în stocare |
 
 **De ce apar orfani** (tipar structural, găsit la 25 august 2026): `components/admin/PhotoUploader.tsx`
