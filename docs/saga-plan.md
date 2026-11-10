@@ -779,6 +779,78 @@ oprește singur dacă un pas ulterior ajunsese să depindă de ele. Rezultat aș
 `text_cautare` și `unaccent` (migrarea 15) și rolurile Supabase (`anon`, `authenticated`,
 `service_role`).
 
+#### Confirmări cerute înainte de rularea pe producție (10 noiembrie 2026)
+
+Proprietarul a hotărât să ruleze pasul 1 direct pe producție, din SQL Editor, fără bază de
+test. Ultimul număr de factură confirmat pe seria PAP FE: **14190**. Înainte de rulare a cerut
+patru confirmări; răspunsurile, verificate în cod și pe un Postgres 17 local:
+
+**1. Migrarea 47 doar adaugă obiecte noi, nu modifică nimic existent, nu depinde de 46.**
+- Creează exact patru obiecte: trei funcții (`calculeaza_linie_tva`, `cod_judet`,
+  `transport_facturabil`) și tabela `judete_coduri` (cu indexul și politica ei de citire).
+  Niciuna dintre migrările existente și niciun fișier din `app/`, `lib/`, `components/` nu
+  folosește aceste nume — deci `create or replace` nu poate înlocui nimic existent.
+- Nu atinge niciun rând existent, nicio politică existentă, nu șterge nimic. Singura politică
+  creată (`drop policy if exists` + `create policy`) e pe tabela ei nouă.
+- Depinde doar de `text_cautare` și extensia `unaccent` (migrarea 15) și de rolurile Supabase
+  (`anon`, `authenticated`, `service_role`). NU de migrarea 46. Antetul migrării o spune acum
+  explicit.
+- Pre-verificarea (doar citire, pasul 1 din „Cum se aplică”) confirmă asta pe baza reală
+  înainte de rulare: toate coloanele trebuie să fie `true`. Probată local pe o bază curată.
+
+**2. Testul nu lasă nimic în bază — adaptat.** Prima variantă își scria rezultatul într-un tabel
+temporar (`rezultat_saga_calcul`): dispărea la închiderea sesiunii, dar tot era o scriere. Acum:
+- nu scrie nimic — doar citește `judete_coduri` și cheamă funcțiile de calcul;
+- stă între `BEGIN` și `ROLLBACK`;
+- se termină ÎNTOTDEAUNA cu o eroare, iar o eroare anulează tot ce a făcut tranzacția — chiar
+  dacă cineva ar adăuga mai târziu o scriere în test;
+- verificarea drepturilor lui `anon` s-a mutat în blocul de test, deci face parte din cele 33.
+
+**Cum arată rezultatul în SQL Editor** — mereu în căsuța roșie de eroare:
+- reușita: „**REZULTAT OK: toate cele 33 de verificări au trecut.** (Apare ca eroare intenționat:
+  așa baza anulează tot ce a făcut testul.)”;
+- orice mesaj care începe cu „VERIFICARE PICATĂ” = defect;
+- „function … does not exist” = migrarea nu a rulat.
+
+Verificat local: după rulare nu rămâne niciun obiect, iar un defect introdus intenționat (drept
+dat lui `anon` pe `cod_judet`) e prins. `scripts/baza-test.sh teste` citește acum reușita din
+mesaj, nu din codul de ieșire.
+
+**3. SQL-ul de anulare** — salvat în `scripts/anuleaza-saga-calcul.sql`:
+```sql
+begin;
+drop function if exists public.calculeaza_linie_tva(numeric, numeric, numeric);
+drop function if exists public.cod_judet(text);
+drop function if exists public.transport_facturabil(numeric, numeric, numeric, numeric);
+drop table    if exists public.judete_coduri;
+commit;
+```
+Urmat, în fișier, de o verificare care trebuie să întoarcă 0 rânduri. Fără `cascade`,
+intenționat: dacă un pas ulterior ajunge să depindă de aceste obiecte, anularea se oprește cu
+„cannot drop … because other objects depend on it”, în loc să șteargă tăcut și ce depinde de ele.
+Verificat local: anulare → migrarea rulată din nou → testele trec iar; iar cu un view dependent
+creat intenționat, anularea refuză.
+
+**4. Planul și CLAUDE.md actualizate.**
+- D.2 rescris: fără bază de test; testele pe producție doar în tranzacții anulate; probele de
+  emitere de la pasul 4 încolo folosesc seria **„TEST”**, tot în tranzacții anulate, ca să nu
+  consume numere reale (seria reală, PAP FE, ultimul număr 14190, nu e atinsă de niciun test);
+  concurența (două emiteri simultane cer sesiuni separate) se testează local, în Postgres din
+  Docker.
+- CLAUDE.md, „Reguli de lucru”: regula testelor pe producție în tranzacții anulate, seria
+  „TEST”, iar fiecare migrare nouă vine cu pre-verificare (doar citire) și fișier de anulare fără
+  `cascade`. Asistentul nu rulează nimic pe producție; rulează proprietarul.
+- Commit `c4b362e` pe `saga-integrare`, fără push. `npm run build`: „Compiled successfully”.
+
+**Ordinea de rulare în SQL Editor** (fiecare separat):
+1. pre-verificarea → toate coloanele `true`;
+2. `supabase/saga-calcul.sql` → „Success. No rows returned”;
+3. `scripts/verifica-saga-calcul.sql` → „REZULTAT OK: toate cele 33 de verificări au trecut.”
+   (în căsuța roșie);
+4. doar la nevoie: `scripts/anuleaza-saga-calcul.sql` → 0 rânduri în verificarea finală.
+
+Proprietarul trimite rezultatele pașilor 1–3; pasul 2 din C începe doar după confirmarea lui.
+
 #### Următorul
 
 Pasul 2 — exportul CSV cu cota din setări, nu 19%. Începe doar după confirmare.
