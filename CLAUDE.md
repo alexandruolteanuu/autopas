@@ -40,7 +40,8 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
   reală stă între `begin` și `rollback` ȘI se încheie mereu cu o eroare („REZULTAT OK …” /
   „VERIFICARE PICATĂ …”) — eroarea anulează tot, chiar dacă cineva adaugă mai târziu o scriere în
   test. Probele de emitere a facturilor folosesc seria **„TEST”**, tot în tranzacții anulate,
-  ca să nu consume numere reale (seria PAP FE, ultimul număr confirmat: 14190). Ce nu se poate
+  ca să nu consume numere reale. Seria reală e „PAP FE” (decizia din 10 noiembrie 2026: fără serie
+  separată); numărul ei de start se setează abia în ziua pornirii, nu stă în cod sau în migrări. Ce nu se poate
   testa așa (concurența, care cere sesiuni separate) se testează local, într-un Postgres din
   Docker. Fiecare migrare nouă vine cu pre-verificare (doar citire) și fișier de anulare fără
   `cascade`. Asistentul nu rulează nimic pe producție; rulează proprietarul, din SQL Editor.

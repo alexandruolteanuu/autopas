@@ -20,7 +20,7 @@ confirmarea proprietarului înainte de pasul următor.
 | Articolul generic | **„ACCESORII AUTO”**, UM **BUC** — articolul implicit; codul vine de la contabilă | A.5 |
 | Persoane fizice | **fără CNP** pe factură | `ClientCIF` configurabil (A.17) |
 | Mențiunea de plată | **„ramburs in cont”** | configurabilă (A.17) |
-| Seria actuală din SAGA | **„PAP FE”** (cu spațiu), ultimul număr **14190** | NU e implicitul site-ului (A.4) |
+| Seria actuală din SAGA | **„PAP FE”** (cu spațiu); ultimul număr manual la 10.11.2026, după-amiaza: **14192** (facturarea manuală continuă până în ziua pornirii) | **ACEASTA e seria aplicației** — decizia din 10.11.2026 (A.4). Numărul de start se setează abia în ziua pornirii |
 | Capital social, banca | **200 RON**, **BCR Piatra Neamt** | le scrie proprietarul în Admin → Setări după pasul 3 — **nu în cod** (A.16) |
 
 ---
@@ -143,15 +143,22 @@ lasă goluri. Factura cere numere fără goluri.
 
 `facturi_serii (serie text PK, urmator int not null, activa boolean not null default false,
 actualizat_la timestamptz, actualizat_de uuid)` + index unic parțial pe `activa` (`where activa`)
-= **cel mult o serie activă**. Seria poate conține spații („PAP WEB”); se salvează exact cum e
+= **cel mult o serie activă**. Seria poate conține spații („PAP FE”); se salvează exact cum e
 scrisă, fără spații la capete.
 
 **Fără serie implicită.** Nu există „AUTP”, „PAP FE” sau altă serie în cod sau în migrare.
 `settings.firma.serie_factura`, `settings.integrari.saga.serie` și „AUTP” din
 `FIRMA_IMPLICITA` ies din uz: câmpul dispare din Admin → Setări → Date firmă (valoarea din bază
-rămâne, nefolosită — nu se șterge nimic). **Singura sursă e `facturi_serii`.** Propunerea pentru
-site: o serie dedicată, **„PAP WEB”**, stabilită cu contabila și creată în SAGA înainte de
-prima trimitere.
+rămâne, nefolosită — nu se șterge nimic). **Singura sursă e `facturi_serii`.**
+
+**DECIZIA PROPRIETARULUI (10 noiembrie 2026): NU se face serie separată.** Din ziua pornirii,
+toate facturile se emit DOAR din aplicație, pe seria existentă din SAGA, **„PAP FE”**. Până
+atunci facturarea manuală pe PAP FE continuă (la 10.11.2026, după-amiaza, ultimul număr era
+14192). Recomandarea veche, o serie dedicată „PAP WEB”, a fost scoasă.
+- **Numărul de start NU se setează acum**, ci în ziua pornirii: ultimul număr emis manual + 1
+  (vezi „Procedura de pornire”, după secțiunea C).
+- **Nicio serie și niciun număr fix în cod sau în migrări.** „PAP FE” și numerele din plan sunt
+  EXEMPLE; în bază ajung doar prin `seteaza_serie_factura`, din admin.
 
 **`emite_factura(p_order_id bigint) returns json`** — `security definer`, verifică `is_facturare()`
 la început. Totul într-o singură tranzacție (o funcție = o tranzacție):
@@ -179,15 +186,21 @@ Dacă oricare pas pică, se anulează TOT, inclusiv incrementul: **nu rămâne g
 **Seria și numărul de start**: `seteaza_serie_factura(p_serie text, p_urmator int)` — doar
 `is_facturare()` (deci și contabila, nu doar adminul: e domeniul ei). Creează seria dacă nu
 există, o face activă (și le dezactivează pe celelalte) și pune `urmator`. Refuză un număr mai
-mic sau egal cu cel mai mare număr deja emis în seria aceea (altfel ar ieși dubluri). Exemple:
-„PAP WEB” de la 1, sau — dacă contabila hotărăște să continue seria existentă — „PAP FE” de la
-14191. Fiecare schimbare intră în jurnal (`order_events` nu se potrivește — se scrie în
-`saga_trimiteri` cu `tip = 'serie'`).
+mic sau egal cu cel mai mare număr deja emis în seria aceea (altfel ar ieși dubluri). *Exemplu:*
+„PAP FE”, continuare de la 14193 (dacă ultima factură manuală ar fi 14192). Fiecare schimbare
+intră într-un istoric propriu (`facturi_serii_istoric`: serie, număr următor, cine, când) — urma
+zilei de pornire.
+
+**Confirmare explicită în admin, înainte de salvare** (pagina Facturi → Setări serie): o bifă
+obligatorie, cu textul calculat din ce s-a scris — „Confirm că ultima factură emisă manual în
+SAGA pe {serie} are numărul {număr următor − 1} și că facturarea manuală pe {serie} s-a
+oprit.” Fără bifă, butonul de salvare e inactiv. (Bifa e o protecție a interfeței; regula
+„număr peste cel mai mare emis” e a bazei.)
 
 **Formatul numărului spre SAGA — o singură funcție.** În bază, seria și numărul stau separat
-(`serie = 'PAP WEB'`, `numar = 1`). Cum devin ele `FacturaNumar` în XML și cum se recunosc în
-`NR_DOC` din raport NU se știe încă (întrebarea 1 pentru contabilă): „PAP FE14191”,
-„PAP FE 14191” sau doar „14191”, cu seria în altă parte. De aceea:
+(*exemplu:* `serie = 'PAP FE'`, `numar = 14193`). Cum devin ele `FacturaNumar` în XML și cum se
+recunosc în `NR_DOC` din raport NU se știe încă (întrebarea 1 pentru contabilă): „PAP FE14193”,
+„PAP FE 14193” sau doar „14193”, cu seria în altă parte. De aceea:
 
 - `lib/saga-xml.ts` are EXACT două funcții care știu formatul: `numarPentruSaga(serie, numar)`
   (scrie) și `facturaDinNrDoc(nrDoc, facturi)` (recunoaște în raport). Nimic altceva din
@@ -206,7 +219,8 @@ mic sau egal cu cel mai mare număr deja emis în seria aceea (altfel ar ieși d
 - Recunoașterea din raport e toleranță: compară după eliminarea spațiilor și a majusculelor,
   iar dacă `NR_DOC` conține doar cifre, potrivește după număr ÎN cadrul fișierului trimis (un
   fișier conține o singură serie). Ce nu se potrivește → „raport neînțeles”, nu `trimisa`.
-- Afișarea în aplicație rămâne „PAP WEB 1” (serie, spațiu, număr) — oglinda din A.9 la fel.
+- Afișarea în aplicație rămâne „PAP FE 14193” (*exemplu*: serie, spațiu, număr) — oglinda din
+  A.9 la fel.
 
 **Retragerea unei facturi netrimise**: singurul caz în care un număr poate „dispărea” e o factură
 emisă din greșeală, netrimisă încă. `retrage_factura(p_id)` o șterge DOAR dacă e `de_trimis` ȘI
@@ -304,7 +318,7 @@ codul însuși („NT”). Întoarce `null` dacă nu găsește — iar `emite_fa
 
 Coloanele **rămân**, dar devin o OGLINDĂ, scrisă de bază, nu de om:
 
-- `emite_factura` pune `factura_serie = 'PAP WEB 1'` (serie, spațiu, număr — forma de afișare,
+- `emite_factura` pune `factura_serie = 'PAP FE 14193'` (*exemplu*; serie, spațiu, număr — forma de afișare,
   nu cea spre SAGA) și `factura_status = 'emisa'`.
 - Emiterea unui storno pune `factura_status = 'stornata'`.
 - `retrage_factura` le readuce la `null` / `de_emis`.
@@ -386,8 +400,12 @@ din comandă), `storneaza_factura`, `retrage_factura`, `seteaza_serie_factura`,
 
 **Stornarea**: `storneaza_factura(p_id)` — doar pe o factură `trimisa` sau `confirmata`,
 fără alt storno. Creează un document `tip = 'storno'`, cu număr nou din aceeași serie, aceleași
-linii cu cantitatea negativă, `observatii = 'Stornare factura PAP WEB 1 din …'`. Merge la SAGA
-ca orice factură.
+linii cu cantitatea negativă, `observatii = 'Stornare factura PAP FE 14193 din …'` (*exemplu*).
+Merge la SAGA ca orice factură.
+
+**Regulă (decizia din 10 noiembrie 2026): după pornire, stornările pe PAP FE se fac DOAR din
+aplicație (pasul 10), niciodată manual în SAGA.** O stornare manuală ar lua un număr din PAP FE
+pe care aplicația nu-l cunoaște, iar următoarea factură din aplicație l-ar dubla (riscul 7).
 
 ### A.16 Datele firmei: câmpuri noi în `settings.firma`
 
@@ -493,7 +511,8 @@ la confirmarea proprietarului.
    „Serie facturi” scos de acolo. Fără SQL. Proprietarul completează capitalul, banca, localitatea.
 4. **Tabelele de facturi + numerotarea** — `facturi`, `facturi_linii`, `facturi_serii`,
    `emite_factura`, `seteaza_serie_factura`, `retrage_factura`, triggerul de nemodificare,
-   oglinda pe `orders`, garda din `sterge_comanda`, RLS. Plus pagina Facturi → Setări serie.
+   oglinda pe `orders`, protecția comenzilor facturate la ștergere, RLS. Plus pagina Facturi →
+   Setări serie, cu confirmarea explicită (A.4).
 5. **Potrivirea articolelor** — `saga_articole` + pagina de editare (fără butonul de verificare);
    articolul implicit „ACCESORII AUTO” / „BUC” în setări.
 6. **Interfața de emitere** — „Emite factura”, detaliul facturii, „Modifică” (înainte de
@@ -508,7 +527,35 @@ la confirmarea proprietarului.
 9. **Verificarea articolelor** prin `GetArticol` în pagina de potrivire.
 10. **Stornarea** — `storneaza_factura` + butonul.
 11. **Textele** — Integrări, Facturi, pagina comenzii; `CLAUDE.md`.
-12. **Proba pe contul real**, cu o singură factură, după aprobarea contabilei (D.6).
+12. **Proba pe contul real și pornirea** — prima factură reală, pe PAP FE, după aprobarea
+    contabilei (D.6), făcută EXACT după „Procedura de pornire” de mai jos, în ziua trecerii.
+
+### Procedura de pornire (ziua trecerii pe facturarea din aplicație)
+
+Decizia din 10 noiembrie 2026: aplicația continuă seria **„PAP FE”**. Toate numerele de mai
+jos sunt *exemple* (dacă ultima factură manuală ar fi 14192). În aceeași zi, în ordinea asta:
+
+1. **Ultima factură manuală.** Contabila emite în SAGA ultima factură manuală pe PAP FE și
+   comunică numărul ei (*exemplu*: 14192). Se verifică în SAGA, în lista Ieșiri, că nu există
+   niciun număr mai mare pe PAP FE (nici ciornă, nici storno).
+2. **Oprirea facturării manuale pe PAP FE.** De acum nimeni nu mai emite și nu mai stornează
+   manual pe PAP FE (riscurile 4 și 7). Dacă SAGA permite blocarea seriei pentru emitere
+   manuală (întrebarea 12), se face aici.
+3. **Seria în aplicație.** Admin → Facturi → Setări serie: serie „PAP FE”, număr următor =
+   ultimul manual + 1 (*exemplu*: 14193). Se bifează confirmarea („Confirm că ultima factură
+   emisă manual în SAGA pe PAP FE are numărul 14192 și că facturarea manuală pe PAP FE s-a
+   oprit.”) și se salvează. Istoricul seriei păstrează cine și când.
+4. **Data de start, în aceeași zi.** Admin → Integrări → Saga: `data_start_facturare` = data de
+   azi. Comenzile plasate înainte rămân facturate manual (sau deja facturate) și NU pot fi
+   facturate din aplicație.
+5. **Prima factură din aplicație**, pe o comandă plasată azi sau după: „Emite factura” →
+   „Descarcă XML” / „Trimite în SAGA” → în SAGA WEB, la Diverse → Import date, se verifică
+   seria și numărul (*exemplu*: PAP FE 14193), clientul, liniile, totalul = rambursul de pe AWB;
+   apoi validarea în SAGA și „Marchează confirmată” în aplicație. Abia după asta, facturare
+   obișnuită.
+
+Dacă la pasul 5 ceva nu e în regulă, factura încă netrimisă se poate retrage (`retrage_factura`,
+doar ultima din serie, deci numărul se refolosește), iar cea trimisă se stornează DIN APLICAȚIE.
 
 ### Faza 2 — declanșarea automată (doar descrisă)
 
@@ -547,13 +594,13 @@ Aceeași formă ca `dezro_coada` și `email_coada`:
   curățat („RO 36608590” → „RO36608590”), `GUID_factura` = id, `importAutomat` mereu `false`,
   mențiunea de plată „ramburs in cont” în câmpul ales, `ClientCIF` pentru persoană fizică în
   fiecare dintre cele trei variante.
-- Formatul numărului: seria „PAP WEB” / „PAP FE” cu numărul 14191 în toate cele trei formate;
+- Formatul numărului (*exemplu*): seria „PAP FE” cu numărul 14193 în toate cele trei formate;
   fără `format_numar` ales → refuz.
 - Formatul datei: 10 noiembrie 2026 → „10-11-2026”, „10.11.2026”, „2026-11-10”; o zi sub 13
   (3 noiembrie) ca să se vadă inversarea zi/lună; fără `format_data` ales → refuz.
 - Raportul: exemplul din documentație, raport cu un singur succes, cu „importata … deja”, gol,
-  cu CRLF, cu `NR_DOC` „PAP FE14191”, „PAP FE 14191”, „14191” — toate recunoscute pentru
-  factura PAP FE 14191, niciuna pentru 14192.
+  cu CRLF, cu `NR_DOC` „PAP FE14193”, „PAP FE 14193”, „14193” — toate recunoscute pentru
+  factura PAP FE 14193 (*exemplu*), niciuna pentru 14194.
 - Județe: toate cele 42 cu și fără diacritice, cu sedilă, „Bucuresti”, „Sector 3”, gunoi → `null`.
 
 ### D.2 Baza de date — pe PRODUCȚIE, doar în tranzacții anulate
@@ -573,9 +620,8 @@ Editor, de proprietar. Asistentul nu rulează nimic pe producție. De aici trei 
    Mesajul apare în SQL Editor în căsuța roșie, intenționat.
 3. **Probele de emitere (pasul 4 și următorii) folosesc seria „TEST”**, tot în tranzacții
    anulate: `seteaza_serie_factura('TEST', 1)` → `emite_factura` pe o comandă → verificări →
-   eroare finală → totul anulat, inclusiv contorul. Seria reală („PAP WEB” sau „PAP FE”,
-   ultimul număr confirmat **14190**) nu e atinsă niciodată de un test, deci nu se consumă
-   numere reale. Comenzile folosite sunt cele existente; nimic nu rămâne pe ele.
+   eroare finală → totul anulat, inclusiv contorul. Seria reală („PAP FE”) nu e atinsă
+   niciodată de un test, deci nu se consumă numere reale. Comenzile folosite sunt cele existente; nimic nu rămâne pe ele.
 
 **Ce NU se poate testa într-o tranzacție anulată**: concurența (două `emite_factura` simultane
 cer două sesiuni separate, care ar trebui să scrie de-adevăratelea). Aceste teste rulează
@@ -588,7 +634,7 @@ Ce se verifică (pe producție în tranzacții anulate, cu seria „TEST”; con
 - **Concurența numerotării**: 20 de `emite_factura` simultane, pe 20 de comenzi → numerele
   1..20, fără gol și fără dublură. Plus o emitere care pică la mijloc (județ invalid) → contorul
   neatins.
-- `seteaza_serie_factura` refuză un număr deja folosit; serie cu spațiu („PAP WEB”) salvată exact.
+- `seteaza_serie_factura` refuză un număr deja folosit; serie cu spațiu („PAP FE”, „TEST X”) salvată exact.
 - Fără serie activă, `emite_factura` refuză cu mesajul despre configurare și nu atinge nimic.
 - **Data de start**: fără `data_start_facturare` → refuz pentru orice comandă; o comandă plasată
   cu o zi înainte → refuz cu mesajul despre facturarea manuală; una din ziua de start (inclusiv
@@ -650,15 +696,23 @@ obișnuite.
 3. **Raportul text nu are format garantat** — parsarea după `NR_DOC` e făcută după un singur
    exemplu. Atenuare: raportul brut se păstrează integral în jurnal; o factură pe care parserul
    nu o găsește în raport rămâne `eroare` cu „raport neînțeles”, niciodată `trimisa` din oficiu.
-4. **Numerotarea în două locuri pe „PAP FE”** — seria actuală din SAGA e „PAP FE”, ultimul număr
-   14190, și pe ea se emit facturi manual. Dacă site-ul ar continua aceeași serie de la 14191,
-   orice factură emisă manual între timp în SAGA ar lua un număr pe care site-ul îl va aloca și
-   el: două facturi „PAP FE 14191”. Nici nu știm dacă importul din XML mută contorul intern al
-   SAGA pentru seria aceea. **De aceea propunerea e o serie dedicată, „PAP WEB”**, numerotată
-   doar de site. Dacă totuși se alege „PAP FE”, facturarea manuală pe ea trebuie să înceteze din
-   ziua pornirii.
+4. **Numerotarea în două locuri pe „PAP FE”** — decizia (10 noiembrie 2026) e ca aplicația să
+   continue seria existentă „PAP FE”, pe care până la pornire se emit facturi manual. Dacă după
+   pornire s-ar mai emite o singură factură manual pe PAP FE, ea ar lua un număr pe care
+   aplicația îl va aloca și ea: două facturi cu același număr (*exemplu*: „PAP FE 14193”).
+   Atenuare: **din ziua pornirii, facturarea manuală pe PAP FE se oprește complet** — și
+   stornările (regula de la A.15) —; numărul de start se ia în aceeași zi, după ultima factură
+   manuală (Procedura de pornire); confirmarea explicită din admin (A.4).
 5. **Instanța de test SAGA** — documentația o pomenește, dar adresa ei nu apare. Fără ea,
    pasul 7 (clientul API) nu poate începe.
+7. **Contorul intern al SAGA pentru PAP FE** (risc nou, 10 noiembrie 2026) — NU știm dacă un
+   import XML avansează contorul de numerotare din SAGA pentru seria PAP FE. Dacă nu-l
+   avansează, SAGA „crede” în continuare că următorul număr e cel de la pornire, iar o factură
+   emisă ulterior manual în SAGA (din greșeală sau dintr-un obicei) ar primi un număr deja folosit
+   de aplicație. Atenuare: regula „după pornire, nimic manual pe PAP FE”; întrebare pentru
+   contabilă (12) și pentru suportul SAGA; de verificat la proba de la pasul 6 (după importul
+   manual al XML-ului de probă, ce număr propune SAGA pentru o factură nouă pe PAP FE — fără să
+   o salveze).
 6. **Formatul numărului necunoscut** — o factură trimisă cu `FacturaNumar` în forma greșită
    poate intra în SAGA cu alt număr decât crede aplicația, sau poate să nu fie recunoscută în
    raport. La fel o dată în alt format decât așteaptă SAGA (zi și lună inversate trec
@@ -690,9 +744,9 @@ articolul generic („ACCESORII AUTO”, BUC), mențiunea de plată („ramburs 
 actuală („PAP FE”, ultimul număr 14190), capitalul social (200 RON) și banca (BCR Piatra Neamt).
 
 1. **PRIORITAR — formatul numărului.** Pentru o serie cu spațiu, cum se completează
-   `FacturaNumar` în XML: „PAP FE14191”, „PAP FE 14191” sau doar „14191”, cu seria în alt câmp?
+   `FacturaNumar` în XML: „PAP FE14193”, „PAP FE 14193” sau doar „14193” (*exemplu*), cu seria în alt câmp?
    Și cum apare `NR_DOC` în raportul de import? **Cel mai sigur răspuns: XML-ul-model al facturii
-   PAP FE 14190**, exportat din SAGA (Ieșiri → tipărire → „Formular PDF” → fișierul din
+   PAP FE 14192** (sau a ultimei facturi manuale), exportat din SAGA (Ieșiri → tipărire → „Formular PDF” → fișierul din
    `TEMP\Facturi`). Din el aflăm deodată și formatul numărului, și câmpul în care stă mențiunea de
    plată, și cum e scris clientul persoană fizică. Se salvează ca `docs/factura-model.xml`.
    Aceeași întrebare pentru **formatul datei** (`FacturaData`, `FacturaScadenta`).
@@ -713,9 +767,9 @@ actuală („PAP FE”, ultimul număr 14190), capitalul social (200 RON) și ba
    **Concluzie provizorie**: `format_numar` cel mai probabil = `serie_spatiu` („PAP FE 14188”),
    iar data = zi-lună-an. **Amândouă rămân NESETATE implicit**; se confirmă la proba manuală de
    la pasul 6 (XML descărcat, importat în SAGA WEB fără validare — D.4), sau din XML-ul-model.
-2. **Seria pentru site**: o serie nouă, dedicată, „PAP WEB” (propunerea noastră), de la 1 — sau
-   continuăm „PAP FE” de la 14191, renunțând la facturarea manuală pe ea (riscul 4)? Seria nouă
-   trebuie creată și în SAGA?
+2. **Seria — DECISĂ de proprietar (10 noiembrie 2026): „PAP FE”, fără serie separată.** De
+   confirmat cu contabila doar: (a) ziua pornirii și cine emite ultima factură manuală; (b) că
+   din acea zi nimeni nu mai emite și nu mai stornează manual pe PAP FE (riscurile 4 și 7).
 3. **Codul articolului „ACCESORII AUTO”** din gestiune. Și: reducerea și transportul tot pe
    „ACCESORII AUTO” sau pe alte articole (cu ce coduri)? Vor fi vreodată articole pe categorii
    (piese de motor, caroserie…), sau rămâne unul singur? Indiciu (manualul SAGA, vezi indiciul 4
@@ -730,18 +784,25 @@ actuală („PAP FE”, ultimul număr 14190), capitalul social (200 RON) și ba
    aceeași zi?
 8. **Momentul facturării** (pentru faza 2): la confirmare, la expediere sau la livrare
    (încasarea rambursului)?
-9. **Storno**: aceeași serie, cu număr nou, sau serie separată? Trimis din aplicație sau făcut
-   direct în SAGA?
+9. **Storno**: decis că, după pornire, se face DOAR din aplicație, pe PAP FE, cu număr nou (A.15).
+   De confirmat cu contabila că e forma acceptată de ea (aceeași serie, număr nou, cantități
+   negative, cu trimitere la factura stornată).
 10. **Transportul de pe comenzile vechi** (cele 2 cu transportul inclus în total): cu ce articol
     și ce cotă?
 11. **e-Factura**: confirmăm că transmiterea în SPV o face SAGA, după validare — deci aplicația nu
     trimite nimic la ANAF?
+12. **Contorul SAGA pentru PAP FE** (riscul 7): după ce o factură intră în SAGA prin import XML,
+    avansează SAGA contorul seriei PAP FE? Dacă nu, ce număr ar propune SAGA unei facturi noi
+    emise manual după pornire — și se poate bloca în SAGA emiterea manuală pe PAP FE?
 
 ### Întrebări pentru SAGA (suport)
 - Adresa instanței de test și cum primim o cheie pentru ea.
 - Dublura la reîncărcare cu `importAutomat=false` (riscul 2).
 - Formatul garantat al raportului 207/422.
 - Cât timp poate dura un import (pentru timeout-uri, sub limita de 60 s a funcțiilor).
+- **Contorul seriei** (riscul 7): importul XML (cu `importAutomat=false`, apoi validat manual)
+  actualizează numărul următor al seriei PAP FE în SAGA? Se poate dezactiva emiterea manuală pe
+  o serie folosită prin import?
 
 ---
 
