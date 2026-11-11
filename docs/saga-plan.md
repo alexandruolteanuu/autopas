@@ -20,9 +20,11 @@ proprietarului.
 3b. **„TVA la încasare” = Nu** (decis la 11 noiembrie 2026).
 3c. ~~Verificările obligatorii la prima probă de import~~ — **făcute la 11 noiembrie 2026**: „PROBA 1”,
    11.11.2026, cota 21% (33,06 + 6,94 = 40,00), fără `Gestiune`.
-3d. **Diacriticele** pe factura importată — de confirmat (riscul 8 rămâne deschis până atunci).
-3e. **Rezultatul lui „Testează conexiunea” cu 1457070043** — încă nereportat (de două ori „[rezultat]”).
-3f. **De discutat (nu de implementat încă): clienții creați automat de SAGA la import** — întrebarea 16.
+3d. **Diacriticele** — se testează la proba pasului 10, cu un client cu ș/ț/ă/î în nume și adresă (riscul 8).
+3e. ~~„Testează conexiunea” cu 1457070043~~ — **reportat la 12 noiembrie 2026**: „Conectat la SAGA. Articolul
+   „1457070043” există: ACCESORII AUTO (BUC, TVA 19%). SAGA a rotit cheia; cea nouă e salvată.”
+3f. **Clienții (întrebarea 16)** — DECIS: câte un client separat în SAGA pentru fiecare persoană; propunerea
+   (cum nu se dublează un client care revine + proba pe seria PROBA) vine în raportul pasului 10.
 
 Făcut la 11 noiembrie 2026: push-ul ramurii `saga-integrare` pe GitHub, CU preview Vercel (fără
 unire în `main`). De acum, tot ce ține de SAGA, date firmă și facturi se face doar din preview
@@ -45,8 +47,8 @@ sau local (regula din CLAUDE.md).
    până la pasul 10 (ascundere / stornare).
    Lipsește încă rezultatul celui de-al doilea „Testează conexiunea” (cu 1457070043).
 8. Pasul 9 — verificarea articolelor prin `GetArticol`: **COD SCRIS (11 noiembrie 2026), fără migrare,
-   neîmpins.** Rămâne: push pe ramură (la confirmare) și o verificare din preview (Facturi → Articole SAGA →
-   „Verifică toate în SAGA”).
+   împins pe ramură la 12 noiembrie 2026.** Rămâne: verificarea proprietarului din preview („Verifică în
+   SAGA” pe articolul implicit).
 9. Pasul 10 — stornarea (`storneaza_factura` + butonul). **Cerut de proprietar (11 noiembrie 2026):
    facturile pe seria PROBA trimise în SAGA trebuie să poată fi ascunse din listă sau stornate.**
 10. Pasul 11 — textele (Integrări, Facturi, pagina comenzii) și `CLAUDE.md`.
@@ -818,7 +820,8 @@ obișnuite.
    scrie doar „<CUI_FIRMA>”. Trimitem forma curățată din Date firmă, „RO36608590”, aceeași ca în
    `FurnizorCIF` și în numele fișierului. Dacă SAGA o vrea fără „RO”, primul „Testează conexiunea”
    va eșua cu un mesaj de-al lor; atunci se schimbă într-un singur loc (`cif` în `lib/saga.ts`).
-8. **Codificarea XML-ului** (pasul 6) — **ÎNCĂ DESCHIS (11 noiembrie 2026)**: la prima probă de import,
+8. **Codificarea XML-ului** (pasul 6) — **ÎNCĂ DESCHIS; se testează la proba pasului 10**, cu un client
+   cu ș/ț/ă/î în nume și adresă (decizia din 12 noiembrie 2026). Nota din 11 noiembrie 2026: la prima probă de import,
    rezultatul pentru diacritice a rămas necompletat în raport („[corecte / de verificat]”). Clientul
    probei („ALEX OLTEANU TEST”) n-avea diacritice; de verificat pe o factură cu „ă/î/ș/ț” în nume sau
    adresă. Textul inițial: fișierul e UTF-8, cu declarația în antet; diacriticele
@@ -921,8 +924,11 @@ actuală („PAP FE”, ultimul număr 14190), capitalul social (200 RON) și ba
 12. **Contorul SAGA pentru PAP FE** (riscul 7): după ce o factură intră în SAGA prin import XML,
     avansează SAGA contorul seriei PAP FE? Dacă nu, ce număr ar propune SAGA unei facturi noi
     emise manual după pornire — și se poate bloca în SAGA emiterea manuală pe PAP FE?
-16. **Clienții creați automat de SAGA la import** (de discutat, 11 noiembrie 2026 — NU de implementat
-    încă). La prima probă, SAGA a creat singur clientul „ALEX OLTEANU TEST” (cod 18086). Întrebările:
+16. **Clienții creați automat de SAGA la import** — **DECIZIA proprietarului (12 noiembrie 2026): câte un
+    client separat în SAGA pentru fiecare persoană, ca la facturarea manuală** (clienții noi primesc coduri
+    consecutive, cei care revin își păstrează codul vechi). Rămâne de propus (în raportul pasului 10, fără
+    implementare): cum nu se creează din nou un client care revine și proba pe seria PROBA. Textul inițial
+    (de discutat, 11 noiembrie 2026 — NU de implementat încă). La prima probă, SAGA a creat singur clientul „ALEX OLTEANU TEST” (cod 18086). Întrebările:
     - același client care cumpără de mai multe ori: SAGA îl recunoaște (după ce? — nume, CIF), sau
       creează de fiecare dată unul nou? Și clienții existenți deja în SAGA, din facturarea manuală?
     - pentru persoane fizice fără CNP, recunoașterea după nume poate și DUBLA (același om, scris altfel),
@@ -2677,6 +2683,20 @@ Modificate: `lib/saga-api.mjs`, `app/api/saga/route.ts`, `app/admin/facturi/arti
   NEverificate: interfața în browser și apelul real.
 - **Întrebarea către proprietar**: push-ul pasului 9 pe ramură (commit `f94c80d`, local), ca să se poată
   verifica din preview.
+
+#### Răspunsurile proprietarului (12 noiembrie 2026)
+
+1. **Push-ul pasului 9** pe ramură — DA; făcut. Proprietarul verifică din preview „Verifică în SAGA” pe
+   articolul implicit.
+2. **„Testează conexiunea” cu 1457070043**: „Conectat la SAGA. Articolul „1457070043” există: ACCESORII AUTO
+   (BUC, TVA 19%). SAGA a rotit cheia; cea nouă e salvată.” TVA 19% e doar în fișa articolului; la proba
+   de import s-a aplicat 21% din XML.
+3. **Diacriticele**: proba de ieri nu le-a testat; se testează la proba pasului 10, cu un client cu
+   ș/ț/ă/î în nume și adresă.
+4. **Întrebarea 16**: câte un client separat în SAGA pentru fiecare persoană, ca la facturarea manuală.
+   Propunerea (cum nu se dublează un client care revine — CUI la firme, `GUID_cod_client` din telefon la
+   persoane fizice? — și proba pe seria PROBA, cu și fără GUID) vine în raportul pasului 10. NU se
+   implementează încă.
 
 #### Următorul
 
