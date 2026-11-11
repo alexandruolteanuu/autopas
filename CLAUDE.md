@@ -130,10 +130,12 @@ seria PROBA se verifică OBLIGATORIU cota TVA pe factura importată și dacă SA
 **Pasul 8 (trimiterea în SAGA) — cod scris la 11 noiembrie 2026, FĂRĂ migrare nouă.** O factură = un
 fișier = un apel (`lib/saga-trimitere.mjs`); singurul loc cu calea „/Import” e `importaFacturi` din
 `lib/saga-api.mjs`. Setări în Integrări → Saga: `format_numar` = serie_spatiu, `format_data` = zi-luna-an
-(decizia proprietarului, de confirmat la prima probă), `tva_la_incasare` NEDECIS (fără el trimiterea e
-blocată), `import_automat` = text da / nu, **gol = nu, rămâne „nu” la primele facturi reale** (nu bifă:
+(decizia proprietarului, de confirmat la prima probă), `tva_la_incasare` = **nu** (decis la 11 noiembrie
+2026: firma nu aplică TVA la încasare), `import_automat` = text da / nu, **gol = nu, rămâne „nu” la primele facturi reale** (nu bifă:
 bifele din Integrări pornesc bifate când lipsește valoarea). Probele de import: DOAR pe seria PROBA, cu
-contabila, care șterge importul nevalidat.: clientul API SAGA —
+contabila, care șterge importul nevalidat. Prima probă: pe o comandă de PROBĂ a proprietarului, anulată apoi —
+`anuleaza_comanda` NU verifică facturile (permite anularea, fără avertisment, stocul revine); factura PROBA
+trimisă rămâne legată de comanda anulată până la pasul 10 (ascundere / stornare).: clientul API SAGA —
 `saga_cheie` (cheia REALĂ, fără instanță de test; RLS fără nicio politică, doar `service_role`; se
 scrie doar din admin, cu „Salvează cheia”), `saga_blocare` (lacătul de 90 s), `saga_trimiteri`
 (jurnalul, fără cheie) și patru funcții doar pentru `service_role`. Doar obiecte noi. Singurul loc care

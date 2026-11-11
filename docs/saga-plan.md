@@ -18,8 +18,7 @@ proprietarului.
    `serie_spatiu` — la probă a ieșit cu `serie_lipita`.
 3. ~~Cheia API REALĂ~~ — **salvată din admin și verificată pe contul real** (11 noiembrie 2026).
    Rămâne regula: cheia nu se dă în chat, nu se pune în variabile de mediu sau în fișiere.
-3b. **„TVA la încasare”** — de ales în Integrări (da / nu). Nedecis în mesajul din 11 noiembrie 2026
-   („[Nu / Da]” rămas necompletat); fără el, XML-ul și trimiterea refuză.
+3b. **„TVA la încasare” = Nu** (decis la 11 noiembrie 2026) — de pus în Integrări → Saga (`nu`), din preview.
 3c. **La prima probă de import pe seria PROBA (pasul 8), verificări OBLIGATORII**: cota și TVA-ul pe
    factura importată (21%, nu 19% din fișa articolului — riscul 10), dacă SAGA cere `Gestiune` pe
    linii (articolul are stoc — întrebarea 5), numărul („PROBA 1”) și data (zi-lună-an).
@@ -34,7 +33,7 @@ sau local (regula din CLAUDE.md).
    oprirea facturării manuale), 4 (persoane fizice),
    5 (gestiune), 6 (reducerea), 7 (data facturii și scadența), 8 (momentul facturării), 9 (forma
    stornării), 10 (transportul comenzilor vechi), 11 (e-Factura prin SAGA), 12 (contorul PAP FE),
-   13 (TVA la încasare), 14 (codificarea), 15 (Nr. Reg. Com. al clienților firmă).
+   14 (codificarea), 15 (Nr. Reg. Com. al clienților firmă).
 5. De la **suportul SAGA** (nu mai blochează pasul 7) — dubla încărcare la reîncercare, formatul
    raportului, durata unui import, contorul seriei.
 
@@ -47,11 +46,12 @@ sau local (regula din CLAUDE.md).
    `import_automat` = nu, împreună cu contabila (pașii în jurnalul pasului 8), cu verificările
    obligatorii de la 3c. Setări de pus în Integrări înainte: `format_numar` = serie_spatiu,
    `format_data` = zi-luna-an, `tva_la_incasare` (NEDECIS), `import_automat` gol sau „nu”.
-   **Așteaptă de la proprietar**: (1) valoarea „TVA la încasare”; (2) comanda pentru prima probă de
-   import — (a) comandă de probă proprie, (b) comandă reală, acceptând că factura PROBA trimisă rămâne
-   legată de ea, (c) o schimbare de cod înainte; (3) push-ul pasului 8 pe ramură (commit `a3a71ee`, local).
+   **Decis la 11 noiembrie 2026**: „TVA la încasare” = **Nu**; comanda de probă = varianta **(a)** (comandă
+   de probă a proprietarului, anulată după probă — vezi jurnalul pasului 8); pasul 8 împins pe ramură.
+   Lipsește încă rezultatul celui de-al doilea „Testează conexiunea” (cu 1457070043).
 8. Pasul 9 — verificarea articolelor prin `GetArticol`.
-9. Pasul 10 — stornarea (`storneaza_factura` + butonul).
+9. Pasul 10 — stornarea (`storneaza_factura` + butonul). **Cerut de proprietar (11 noiembrie 2026):
+   facturile pe seria PROBA trimise în SAGA trebuie să poată fi ascunse din listă sau stornate.**
 10. Pasul 11 — textele (Integrări, Facturi, pagina comenzii) și `CLAUDE.md`.
 11. **Unirea ramurii în `main`** (după care regula „Date firmă nu se salvează din site-ul live”
     dispare din `CLAUDE.md`).
@@ -600,7 +600,9 @@ la confirmarea proprietarului.
    Probele: pe seria **PROBA**, cu `importAutomat=false`, împreună cu contabila, care șterge
    importul nevalidat din Diverse → Import date. **PAP FE nu se folosește la probe.**
 9. **Verificarea articolelor** prin `GetArticol` în pagina de potrivire.
-10. **Stornarea** — `storneaza_factura` + butonul.
+10. **Stornarea** — `storneaza_factura` + butonul. **Plus (cerut la 11 noiembrie 2026): facturile pe
+    seria PROBA trimise în SAGA trebuie să poată fi ascunse din listă sau stornate** — după proba de la
+    pasul 8 rămâne cel puțin una „trimisă”, care nu se mai poate retrage.
 11. **Textele** — Integrări, Facturi, pagina comenzii; `CLAUDE.md`.
 12. **Proba pe contul real și pornirea** — prima factură reală, pe PAP FE, după aprobarea
     contabilei (D.6), făcută EXACT după „Procedura de pornire” de mai jos, în ziua trecerii.
@@ -903,7 +905,8 @@ actuală („PAP FE”, ultimul număr 14190), capitalul social (200 RON) și ba
     și ce cotă?
 11. **e-Factura**: confirmăm că transmiterea în SPV o face SAGA, după validare — deci aplicația nu
     trimite nimic la ANAF?
-13. **TVA la încasare** (pasul 6): firma aplică sistemul TVA la încasare? Câmpul `FacturaTVAIncasare`
+13. ~~**TVA la încasare**~~ — **ÎNCHISĂ la 11 noiembrie 2026: Nu** (decizia proprietarului; mențiunea nu
+    apare pe factura PAP FE 14188). Textul inițial (pasul 6): firma aplică sistemul TVA la încasare? Câmpul `FacturaTVAIncasare`
     din XML e „Da” sau „Nu” — setarea `tva_la_incasare` nu are valoare implicită.
 14. **Codificarea fișierului** (riscul 8): SAGA WEB acceptă XML în UTF-8 (cu diacritice), sau cere
     altă codificare? Se vede la proba manuală de la pasul 6.
@@ -2510,6 +2513,32 @@ nimeni altcineva nu emite:
   factura manuală din SAGA. Variante (a) / (b) / (c) — la „Cum se verifică”, pasul 2.
 - **Așteptat de la proprietar**: „TVA la încasare”; comanda pentru probă; push-ul pasului 8 pe ramură
   (`a3a71ee`), ca preview-ul să-l aibă.
+
+#### Răspunsurile proprietarului (11 noiembrie 2026)
+
+1. **„TVA la încasare” = Nu** — firma nu aplică sistemul (mențiunea nu apare pe factura PAP FE 14188).
+   Întrebarea 13 închisă. Se pune în Integrări → Saga, din preview: `tva_la_incasare` = `nu`.
+2. **Comanda pentru prima probă de import = varianta (a)**: proprietarul plasează pe site o comandă de
+   probă pe numele lui (fără client real), emite pe ea PROBA 1, o trimite în SAGA, apoi ANULEAZĂ comanda.
+   Fără AWB.
+   **Verificat în cod (11 noiembrie 2026) — anularea:** `anuleaza_comanda` (sursa actuală: migrarea 38,
+   `piesa-vanduta-ramane.sql`; migrările SAGA 47–52 nu o ating) **nu se uită deloc la facturi**: anularea
+   e PERMISĂ, fără niciun avertisment (nici în bază, nici în pagina comenzii), iar **stocul revine** —
+   fiecare piesă primește înapoi `cantitate`. Cheia străină din 49 blochează doar ȘTERGEREA comenzii, nu
+   anularea. După anulare, factura PROBA rămâne „trimisă”, legată de comanda anulată (până la pasul 10).
+   Efecte secundare ale comenzii de probă, de știut înainte:
+   - **dez.ro**: vânzarea pune piesa pe stoc 0 → coada automată (migrarea 39) RETRAGE anunțul la ei
+     (ștergerea la ei nu se desface); anularea îl RECREEAZĂ ca anunț NOU, care trece din nou prin aprobarea
+     lor. De preferat o piesă care NU e publicată pe dez.ro;
+   - **pieseauto.ro**: dacă importul lor de noapte cade între plasare și anulare, piesa apare acolo cu
+     cantitate 0 până la importul următor;
+   - **e-mailurile automate** pleacă (confirmarea la adresa proprietarului, notificarea internă) — inofensiv;
+   - **GA4 / Meta**: cu „Accept toate” în browser, `purchase` pleacă la mulțumire — o vânzare falsă în
+     rapoarte; de evitat cu „Doar necesare” sau într-o fereastră privată.
+3. **Al doilea „Testează conexiunea”, cu articolul 1457070043**: rezultatul **încă nereportat** (în mesaj a
+   rămas „[scrie rezultatul]”).
+4. **Push-ul pasului 8 pe ramură** — făcut (vezi mai jos).
+5. **Pasul 10** — notat: facturile PROBA trimise trebuie să poată fi ascunse din listă sau stornate.
 
 #### Următorul
 
