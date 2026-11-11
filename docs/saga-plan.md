@@ -2654,6 +2654,30 @@ Modificate: `lib/saga-api.mjs`, `app/api/saga/route.ts`, `app/admin/facturi/arti
    există”; apoi „Închide”, fără „Salvează” (nu rămâne nimic).
 4. Jurnalul: fiecare verificare apare ca „get_articol” în Integrări → Saga → „Ultimele apeluri spre SAGA”.
 
+#### Raportul trimis proprietarului (11 noiembrie 2026)
+
+- **Proba de import, notată** în jurnalul pasului 8, în CLAUDE.md și în lista de sus; commit și push pe ramură
+  (`ca141e0`). Închise: riscurile 6 (formatul numărului / datei) și 10 (cota 21% din XML), întrebările 1 și 5
+  (pentru acum). Notate: ultimul număr manual PAP FE 14202 (continuarea 14203) și curățenia.
+- **Riscul 8 (diacriticele) rămâne deschis**: în mesaj a rămas „[corecte / de verificat]”, iar clientul probei
+  n-avea diacritice în nume — se verifică pe o factură cu „ă/î/ș/ț” în nume sau adresă.
+- **„Testează conexiunea” cu 1457070043**: rezultatul tot lipsește („[rezultat]”).
+- **Clienții creați automat de SAGA** (întrebarea 16, de discutat, neimplementat): nu știm dacă SAGA
+  recunoaște singur clientul la a doua cumpărare (probabil după CUI la firme; la persoane fizice fără CNP,
+  poate doar după nume — dubluri pentru același om scris altfel, amestec pentru doi „Ion Popescu”).
+  `GUID_cod_client` ar da o cheie stabilă: din CUI la firme, dintr-o formă derivată din telefon la persoane
+  fizice. Necunoscute: formatul cerut, ce face SAGA la același GUID cu alt nume / adresă, legătura cu
+  clienții existenți din facturarea manuală. Propunere: întâi contabila (client per persoană sau generic),
+  apoi o probă pe seria PROBA cu același client trimis de două ori (cu și fără GUID), apoi decizia.
+- **Pasul 9**: baza neatinsă; patru fișiere de cod cu adăugiri (compararea, acțiunea din rută, butoanele din
+  „Articole SAGA”, testele). „Verifică în SAGA” (implicit + fiecare articol propriu), „Verifică toate în
+  SAGA” (pe rând), în formular „Verifică codul” + „Preia denumirea și UM din SAGA” (fără salvare automată).
+  ✓ potrivit / ⚠ diferă / ✗ nu există; TVA din fișă doar informativ; doar citire, intră în jurnal.
+  Teste: 109 pe SAGA simulat (+10), 95 XML, build-ul; ruta refuză fără sesiune, pagina se încarcă.
+  NEverificate: interfața în browser și apelul real.
+- **Întrebarea către proprietar**: push-ul pasului 9 pe ramură (commit `f94c80d`, local), ca să se poată
+  verifica din preview.
+
 #### Următorul
 
 Pasul 10 — stornarea (`storneaza_factura` + butonul) și, cerut de proprietar, ascunderea / stornarea
