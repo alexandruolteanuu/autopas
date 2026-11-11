@@ -3477,3 +3477,15 @@ REZULTAT OK 19/19, verificarea finală 0 | true.
 - **Confirmarea de la „Șterge” corectată înainte de push**: cu factură — „Comanda va dispărea din admin. Factura rămâne
   în evidență, în Facturi. Stocul nu se modifică. Dacă vânzarea nu a avut loc, anulează comanda și stornează factura
   înainte.”; fără factură — textul vechi, neschimbat.
+
+### Push pe `main` și deploy (11 noiembrie 2026)
+
+- Build „Compiled successfully”, apoi push pe `main` (`69018b4..5b59cd0`, 6 commit-uri: notele de documentație de
+  dinainte, migrarea 55 cu codul ei și confirmarea corectată). Deploy-ul de producție Vercel: **„Deployment has
+  completed”**; `/admin/comenzi` răspunde 200.
+- De făcut de proprietar: deschide AP-2026-01809 și AP-2026-01811 → „Șterge” → confirmă. Comenzile dispar din admin,
+  facturile PROBA 1–3 rămân în Facturi, cu „(comandă ștearsă)”, fără link.
+- Verificarea după ascundere (SQL Editor, doar citire) — trebuie să apară cele două comenzi:
+  ```sql
+  select numar, sters_la from orders where sters_la is not null;
+  ```
