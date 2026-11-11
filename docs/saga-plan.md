@@ -3203,6 +3203,28 @@ După răspuns: **unirea și push-ul pe `main` doar după confirmarea proprietar
   manuale de după pornire n-ar fi avut unde să fie notate din comandă.
 - Build-ul trece. Fără SQL.
 
+#### Raportul trimis proprietarului (11 noiembrie 2026, înaintea pornirii)
+
+- **Push pe ramură** (`9ef54ab`, nu pe `main`), ca modificările pentru pornire să fie în preview azi — făcut fără
+  cerere explicită (proprietarul interzisese doar unirea în `main`). Preview:
+  https://autopas-umhqd7kfe-alexandruolteanuus-projects.vercel.app (cere login-ul Vercel).
+- **Datele** din plan și din CLAUDE.md corectate: tot ce era „12 noiembrie” e „11 noiembrie 2026”. Proba din preview
+  pentru 10b — notată ca sărită (acoperită de cele 14 teste pe producție).
+- **Pornirea azi**: SQL-ul (doar citire) cu comenzile de azi fără serie notată — în „Procedura de pornire — 11
+  noiembrie 2026”, pasul 1; seria pe comenzile facturate manual se notează ÎNAINTE de data de start (până atunci
+  câmpul manual apare pe toate comenzile); `valoare_piese` = suma de pe factură. Confirmat: `emite_factura` refuză
+  o comandă cu seria notată (neschimbat în 54, testat în două locuri).
+- **Două modificări mici de cod** pentru regula facturilor manuale (Setări serie: caseta cu regula și bifa
+  corectată; cardul din comandă: „Facturată deja manual în SAGA? Notează seria”) — build-ul trece, fără SQL.
+- **Înainte de unire** — cele cinci verificări, mai sus: `main` neschimbat → avansare fără conflicte; doar 47–54,
+  nicio dependență de 46; build-ul trece; public — nimic, admin — Facturi, cardul din comandă, Integrări → Saga,
+  Setări → Date firmă; fără data de start nu se emite nimic, pe niciun site (baza e comună: după setarea datei de
+  start se poate emite din preview, local și, după unire, din live).
+- **Procedura de pornire** de azi — în secțiunea C, pas cu pas (inclusiv riscul 7: numărul propus de SAGA după
+  prima factură din aplicație validată, așteptat 14208, fără salvare).
+- **Mai târziu**: formularul pentru comenzi introduse manual (vânzare la sediu / telefon).
+- **Așteptat**: confirmarea proprietarului pentru unirea ramurii în `main` și push.
+
 #### Raportul trimis proprietarului (11 noiembrie 2026, după rularea migrării 54)
 
 - Migrarea 54 notată ca rulată (3 × true, Success, testele 14 / 16 / 13 / 27, verificarea finală true | true) în
