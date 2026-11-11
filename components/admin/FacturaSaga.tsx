@@ -148,6 +148,20 @@ export default function FacturaSaga({ o, laSchimbare, salveazaManual }: {
             Se copiază la emitere și nu se poate adăuga după, prin „Modifică”.</p>}
           <button type="button" className="btn-acc mt-2 !py-2 text-xs" disabled={lucru} onClick={() => emite()}>
             {lucru ? "Se emite…" : "Emite factura"}</button>
+          {/* Regula din 11 noiembrie 2026: facturarea manuală pe aceeași serie poate continua după pornire.
+              O comandă facturată manual în SAGA se notează aici, ca aplicația să n-o mai factureze
+              (`emite_factura` refuză o comandă cu seria notată). */}
+          <details className="mt-3 text-xs">
+            <summary className="cursor-pointer text-mut">Facturată deja manual în SAGA? Notează seria</summary>
+            <form onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); const v = String(f.get("serie") ?? "").trim();
+                if (v && confirm(`Notezi că comanda ${o.numar} e facturată manual în SAGA cu „${v}”? Aplicația nu o va mai factura.`)) salveazaManual(v); }}
+              className="mt-2 flex gap-2">
+              <input name="serie" placeholder="seria și numărul din SAGA (ex. PAP FE 14207)"
+                className="flex-1 rounded-xl border-2 border-line px-3 py-2 outline-none focus:border-acc" />
+              <button className="btn-dark !py-2 !px-4 text-xs">Salvează</button>
+            </form>
+            <p className="text-mut mt-1">După o factură manuală pe aceeași serie: actualizează și numărul următor în Facturi → Setări serie.</p>
+          </details>
         </div>
       ) : (
         <>

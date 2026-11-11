@@ -121,19 +121,19 @@ NU sunt încă idempotente: 1–5, 8.
 **Aplicate pe producție: 1–45 și 47–54. 46 e scrisă, NErulată** (așteaptă contul ocazional FAN).
 **52 e RULATĂ pe producție la 11 noiembrie 2026**, de proprietar, din SQL Editor (pre-verificarea 5 × true,
 `scripts/verifica-saga-api.sql` „REZULTAT OK” 33/33, verificarea finală 0 | 0 | 1 | true; pasul 7 din `docs/saga-plan.md`).
-**53 e RULATĂ pe producție la 12 noiembrie 2026** (pre-verificarea 5 × true, Success, `verifica-saga-stornare.sql` 27/27,
+**53 e RULATĂ pe producție la 11 noiembrie 2026** (pre-verificarea 5 × true, Success, `verifica-saga-stornare.sql` 27/27,
 verificarea finală 0 | 0; pasul 10): `storneaza_factura` (storno în aceeași serie, liniile
 cu semn schimbat, comanda „stornata”), `retrage_storno`, `serie_de_proba`, tabela `facturi_ascunse` cu
 `ascunde_factura` / `reafiseaza_factura` (DOAR seriile „PROBA…” / „TEST…”). Doar obiecte noi; nicio funcție
 existentă rescrisă. Limită știută: o comandă stornată nu mai primește factură nouă din aplicație
-(`emite_factura` din 51 refuză „stornata”) — **refacturarea după storno e DECISĂ (12 noiembrie 2026)** și vine ca
+(`emite_factura` din 51 refuză „stornata”) — **refacturarea după storno e DECISĂ (11 noiembrie 2026)** și vine ca
 pasul 10b (migrarea 54: `emite_factura` + `retrage_factura` rescrise cu gărzi de amprentă; refacturare doar după ce
 stornoul e TRIMIS), abia după proba pasului 10.
-**Proba pasului 10 pe contul REAL a REUȘIT la 12 noiembrie 2026** (comanda de probă AP-2026-01811): PROBA 2 (50 lei →
+**Proba pasului 10 pe contul REAL a REUȘIT la 11 noiembrie 2026** (comanda de probă AP-2026-01811): PROBA 2 (50 lei →
 41,32 + 8,68) și stornoul PROBA 3 (−41,32 / −8,68 / −50,00) importate, **același client în SAGA** (cod 18086,
 fără GUID). Diacriticele: fișierul e citit corect, SAGA le scoate singur, ca la clienții manuali — riscul 8
 închis. Numerotarea manuală PAP FE: 14206 la 11.11.2026, ~11:45.
-**54 e RULATĂ pe producție la 12 noiembrie 2026** (pre-verificarea 3 × true, Success, testele refacturare 14,
+**54 e RULATĂ pe producție la 11 noiembrie 2026** (pre-verificarea 3 × true, Success, testele refacturare 14,
 emitere 16, articole 13, stornare 27, verificarea finală true | true; pasul 10b — refacturarea după storno): RESCRIE `emite_factura` (din 51,
 `a1a45bbd…` → `05f9fdfb49e73145c8004f290ed6ec42`) și `retrage_factura` (din 49, `f9f982f0…` →
 `8ea9759db0a900c3043eff58663ea1fb`), cu gărzi de amprentă. O comandă „stornata” primește factură nouă DOAR dacă
@@ -143,7 +143,13 @@ stornarea e din aplicație și fiecare storno e deja trimis în SAGA; retragerea
 `scripts/anuleaza-saga-refacturare.sql` (pune înapoi exact 51 și 49; refuză dacă există o refacturare).
 **Pasul 11 (după pornire)**: curățarea zonei SAGA / facturare din admin pentru folosirea zilnică — fără mesajele de
 lucru și trimiterile la pași / riscuri, setările fixe într-o secțiune „Setări avansate” restrânsă (cu „Descarcă XML”),
-drum scurt comandă → „Emite factura” → „Trimite în SAGA”, limbaj simplu (`docs/saga-plan.md`, lista de sus). Pașii: jurnalul pasului 10; anularea: `scripts/anuleaza-saga-stornare.sql`.
+drum scurt comandă → „Emite factura” → „Trimite în SAGA”, limbaj simplu (`docs/saga-plan.md`, lista de sus).
+**PORNIREA pe PAP FE: 11 noiembrie 2026** (`data_start_facturare` = 2026-11-11; pașii: `docs/saga-plan.md`,
+„Procedura de pornire — 11 noiembrie 2026”). **Facturarea manuală pe PAP FE CONTINUĂ după pornire** (decizia
+proprietarului; o singură persoană facturează): înainte de o factură manuală se verifică în SAGA că numărul propus
+e cel de după ultima factură din aplicație; imediat după, se actualizează numărul următor în Facturi → Setări serie
+și se notează seria pe comandă. Comenzile de azi facturate manual (PAP FE 14195–14206) se notează ÎNAINTE de a
+seta data de start. Riscul 7 (contorul SAGA după import) se verifică după prima factură din aplicație validată. Pașii: jurnalul pasului 10; anularea: `scripts/anuleaza-saga-stornare.sql`.
 **Pasul 7 verificat pe contul REAL SAGA la 11 noiembrie 2026**, din preview: cheia salvată din admin,
 „Testează conexiunea” trecut, SAGA a rotit cheia la primul apel și cea nouă s-a salvat singură;
 `X-Saga-Cod-Fiscal` = „RO36608590” acceptat. Articolul implicit: **1457070043 „ACCESORII AUTO”, BUC** —

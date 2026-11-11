@@ -62,7 +62,7 @@ export default function SetariSerie() {
   // Textul confirmării se calculează din ce s-a scris: omul confirmă EXACT
   // numărul ultimei facturi manuale, nu o formulă generală.
   const textConfirmare = valid
-    ? `Confirm că ultima factură emisă manual în SAGA pe ${serieCurata} are numărul ${numar - 1} și că facturarea manuală pe ${serieCurata} s-a oprit.`
+    ? `Confirm că ultima factură pe ${serieCurata} — din aplicație sau emisă manual în SAGA — are numărul ${numar - 1}, deci următoarea primește ${numar}.`
     : "Completează seria și numărul următor ca să apară textul de confirmat.";
 
   // Orice schimbare a seriei sau a numărului scoate bifa: confirmarea e pentru valorile de acum.
@@ -103,10 +103,21 @@ export default function SetariSerie() {
         <div className="dim"><Link href="/admin/facturi" className="hover:text-acc">Facturi</Link> → Setări serie</div>
         <h1 className="font-disp font-bold text-2xl mt-1">Seria facturilor</h1>
         <p className="text-sm text-mut mt-1">
-          Seria și numărul de start ale facturilor emise din aplicație. Se setează în <b>ziua pornirii</b>, după
-          ultima factură emisă manual în SAGA: numărul următor = ultimul număr manual + 1. Din acel moment, pe
-          seria aceasta nu se mai emite și nu se mai stornează nimic manual în SAGA.
+          Seria și numărul următor ale facturilor emise din aplicație. La pornire: numărul următor = ultimul număr
+          emis manual în SAGA + 1.
         </p>
+      </div>
+
+      {/* Regula din 11 noiembrie 2026 (docs/saga-plan.md, „Procedura de pornire”): facturarea manuală pe
+          aceeași serie poate continua, cu numărul ținut la zi aici, de mână. */}
+      <div className="card p-4 text-sm border-2 border-amber-300 bg-amber-50 text-amber-900">
+        <b>Factură manuală în SAGA pe aceeași serie?</b>
+        <ol className="list-decimal ml-5 mt-1 space-y-0.5">
+          <li><b>Înainte</b>: verifică în SAGA că numărul propus e cel de după ultima factură din aplicație
+            {activa ? <> (azi: <b>{activa.serie} {activa.urmator}</b> e următorul liber)</> : null}.</li>
+          <li><b>Imediat după</b>: actualizează aici „Numărul următoarei facturi” = numărul facturii manuale + 1.</li>
+        </ol>
+        <p className="text-xs mt-1">Altfel, aplicația și SAGA pot da același număr la două facturi. Stornările pe această serie se fac din aplicație.</p>
       </div>
 
       {eroareCitire && <div className="card p-3 text-sm border-2 border-red-300 bg-red-50 text-red-800">
