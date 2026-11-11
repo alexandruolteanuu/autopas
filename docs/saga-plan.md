@@ -47,6 +47,9 @@ sau local (regula din CLAUDE.md).
    `import_automat` = nu, împreună cu contabila (pașii în jurnalul pasului 8), cu verificările
    obligatorii de la 3c. Setări de pus în Integrări înainte: `format_numar` = serie_spatiu,
    `format_data` = zi-luna-an, `tva_la_incasare` (NEDECIS), `import_automat` gol sau „nu”.
+   **Așteaptă de la proprietar**: (1) valoarea „TVA la încasare”; (2) comanda pentru prima probă de
+   import — (a) comandă de probă proprie, (b) comandă reală, acceptând că factura PROBA trimisă rămâne
+   legată de ea, (c) o schimbare de cod înainte; (3) push-ul pasului 8 pe ramură (commit `a3a71ee`, local).
 8. Pasul 9 — verificarea articolelor prin `GetArticol`.
 9. Pasul 10 — stornarea (`storneaza_factura` + butonul).
 10. Pasul 11 — textele (Integrări, Facturi, pagina comenzii) și `CLAUDE.md`.
@@ -2483,6 +2486,30 @@ nimeni altcineva nu emite:
    se marchează „confirmată” (n-a fost validată). Setări serie → „Oprește emiterea”; golești data de start.
    **O factură PROBA trimisă rămâne în listă ca urmă a probei** — de discutat dacă se ascund sau se
    stornează la pasul 10.
+
+#### Raportul trimis proprietarului (11 noiembrie 2026)
+
+- **Înainte de pas**: verificarea de pe contul real notată în jurnalul pasului 7 și în CLAUDE.md (cheia
+  acceptată, rotirea pe viu, riscul 9 închis, articolul 1457070043, mențiunea de plată); riscul 10 deschis
+  (TVA 19 în fișa articolului) și verificările obligatorii la prima probă (cota și TVA-ul, `Gestiune`); pe
+  ramură, commit `dd29e2a`. Două valori lipseau din mesaj: rezultatul celui de-al doilea test („[rezultat]”)
+  și „TVA la încasare” („[Nu / Da]”) — fără al doilea, trimiterea rămâne blocată.
+- **Pasul 8**: fără migrare; starea facturii o scrie doar serverul, triggerul din 49 decide trecerile.
+  „Trimite în SAGA” / „Reîncearcă”, „Trimite selectate” (pe rând, câte una pe fișier), blocate până sunt
+  salvate formatele și „TVA la încasare”. Aceeași factură nu pleacă de două ori (nici din două tab-uri, nici
+  dintr-un tab rămas în urmă); cheie refuzată sau lacăt ocupat → factura revine unde era; timeout → „eroare /
+  rezultat necunoscut”, iar la reîncercare SAGA spune „importata … deja”. „Trimisă” doar când răspunsul o
+  spune limpede. „Marchează confirmată” după validarea în SAGA; jurnalul cu raportul întreg pe pagina
+  facturii. `import_automat` = text da / nu, gol = nu.
+- **Teste**: 95 XML (au prins o greșeală reală: „importata … deja” nu era recunoscut — corectată); 99 cap-coadă
+  pe SAGA simulat, care pică fără revendicare sau fără revenirea stării (prima variantă nu prindea lipsa
+  revendicării — s-a adăugat cazul „tab rămas în urmă”, care o prinde); în Docker, trecerile pe triggerul
+  real; build-ul; ruta refuză fără sesiune. NEverificate: interfața în browser și primul import real.
+- **De decis înaintea primei probe**: o factură PROBA trimisă nu se mai retrage (spre deosebire de proba de
+  la pasul 6) și rămâne legată definitiv de comanda ei — pe acea comandă nu se mai poate nota în aplicație
+  factura manuală din SAGA. Variante (a) / (b) / (c) — la „Cum se verifică”, pasul 2.
+- **Așteptat de la proprietar**: „TVA la încasare”; comanda pentru probă; push-ul pasului 8 pe ramură
+  (`a3a71ee`), ca preview-ul să-l aibă.
 
 #### Următorul
 
