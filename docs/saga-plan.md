@@ -3022,6 +3022,30 @@ O comandă de probă (ca la pasul 10) → PROBA n → „Trimite în SAGA” →
 PROBA n+2 → (opțional) „Retrage” → comanda revine la „stornata”. Curățenia ca la pasul 10 (importuri anulate în SAGA,
 comanda anulată, emiterea oprită, data de start golită, PROBA ascunse).
 
+#### Raportul trimis proprietarului (12 noiembrie 2026)
+
+- **Proba pasului 10 notată** (jurnalul pasului 10, CLAUDE.md, commit `34a5a9e`): PROBA 2 și stornoul PROBA 3 în
+  SAGA, același client (18086) fără GUID; riscul 8 închis; din întrebarea 16 rămâne doar cazul cu nume / adresă
+  ușor diferite; curățenia; numerotarea manuală PAP FE la 14206.
+- **Pasul 10b — ce modifică**: migrarea 54 rescrie `emite_factura` (51) și `retrage_factura` (49), cu gărzi de
+  amprentă; nicio tabelă, politică sau rând. Funcțiile generate din textul din git și comparate mecanic — dispar
+  exact cele trei linii înlocuite intenționat. Trei scripturi existente actualizate (două teste acceptă amprenta
+  54; anularea lui 51 refuză cât e activă 54). În cod: doar cardul de facturare din comandă.
+- **Ce face**: comanda stornată primește factură nouă doar dacă stornarea e din aplicație și stornoul e deja
+  trimis în SAGA (altfel cardul spune „Stornoul … trebuie întâi trimis în SAGA”); retragerea facturii noi
+  readuce comanda la „stornată” cu seria veche; restul exact ca înainte („stornată” de mână sau serie notată din
+  SAGA → refuz).
+- **Teste**: 14 SQL pe producție (tranzacție anulată); în Docker toate testele vechi trec pe 54, două
+  refacturări simultane → o singură factură nouă, anularea pune înapoi exact 51 și 49 și refuză dacă există o
+  refacturare, anularea lui 51 refuză cât e activă 54; 102 XML, 109 API, build-ul. NEverificate: interfața în
+  browser și o refacturare reală în SAGA.
+- **Așteptat de la proprietar**: pre-verificarea (3 × true — dacă una dă false, NU se rulează migrarea, se
+  trimite textul funcției), migrarea 54, testele (14/14 + plasa: emitere 16, articole 13, stornare 27),
+  verificarea finală (true | true), apoi confirmarea push-ului (4 commit-uri locale pe ramură). Apoi proba scurtă
+  din preview pe seria PROBA (factură → trimisă → storno → „trebuie întâi trimis” → storno trimis → „Emite factura
+  nouă” → opțional „Retrage” → curățenia).
+- Pasul 11 NU a început.
+
 #### Următorul
 
 Pasul 11 — textele (Integrări, Facturi, pagina comenzii) și `CLAUDE.md`. Începe doar după confirmare.
