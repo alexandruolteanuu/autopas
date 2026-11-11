@@ -2542,6 +2542,20 @@ nimeni altcineva nu emite:
    (protejat de Vercel Authentication; adresa se schimbă la fiecare push).
 5. **Pasul 10** — notat: facturile PROBA trimise trebuie să poată fi ascunse din listă sau stornate.
 
+**Raportul trimis proprietarului (11 noiembrie 2026), pe scurt:**
+- „TVA la încasare” = Nu — în plan (întrebarea 13 închisă) și în CLAUDE.md; în aplicație îl pune
+  proprietarul, din preview (Integrări → Saga → `tva_la_incasare` = `nu`);
+- anularea comenzii de probă: permisă, stocul revine; factura blochează doar ȘTERGEREA. **Nu apare niciun
+  avertisment** la anularea unei comenzi cu factură — dacă se vrea unul, e o modificare separată
+  (nedecisă); factura PROBA rămâne „trimisă”, legată de comanda anulată, până la pasul 10;
+- efectele secundare ale comenzii de probă (dez.ro, pieseauto.ro, analytics, e-mailuri) — mai sus, la 2;
+  pentru analytics: comanda se plasează cu „Doar necesare” sau dintr-o fereastră privată;
+- rezultatul celui de-al doilea „Testează conexiunea” — încă lipsă;
+- push făcut (`08141f8`), preview reconstruit; adresa notată aici printr-un commit local (`5367701`),
+  neîmpins, ca adresa preview-ului să nu se schimbe din nou doar pentru o notă;
+- pasul 10: cererea de ascundere / stornare a facturilor PROBA trimise — în lista de sus și în C.
+- Pasul 9 NU a început.
+
 #### Următorul
 
 Pasul 9 — verificarea articolelor prin `GetArticol` în pagina de potrivire. Începe doar după confirmare
