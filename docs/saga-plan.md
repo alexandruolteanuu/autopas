@@ -20,7 +20,8 @@ proprietarului.
 3b. **„TVA la încasare” = Nu** (decis la 11 noiembrie 2026).
 3c. ~~Verificările obligatorii la prima probă de import~~ — **făcute la 11 noiembrie 2026**: „PROBA 1”,
    11.11.2026, cota 21% (33,06 + 6,94 = 40,00), fără `Gestiune`.
-3d. **Diacriticele** — se testează la proba pasului 10, cu un client cu ș/ț/ă/î în nume și adresă (riscul 8).
+3d. ~~Diacriticele~~ — **ÎNCHIS la 12 noiembrie 2026**: fișierul e citit corect; SAGA însuși scoate diacriticele,
+   ca la clienții introduși manual (riscul 8).
 3e. ~~„Testează conexiunea” cu 1457070043~~ — **reportat la 12 noiembrie 2026**: „Conectat la SAGA. Articolul
    „1457070043” există: ACCESORII AUTO (BUC, TVA 19%). SAGA a rotit cheia; cea nouă e salvată.”
 3f. **Clienții (întrebarea 16)** — DECIS: câte un client separat în SAGA pentru fiecare persoană; propunerea
@@ -34,7 +35,7 @@ sau local (regula din CLAUDE.md).
 4. De la **contabilă** — întrebările deschise din E: 1 (formatul numărului și al datei; ideal
    2 (ziua pornirii, oprirea facturării manuale), 4 (persoane fizice), 6 (reducerea), 7 (data facturii și scadența), 8 (momentul facturării), 9 (forma
    stornării), 10 (transportul comenzilor vechi), 11 (e-Factura prin SAGA), 12 (contorul PAP FE),
-   14 (codificarea), 15 (Nr. Reg. Com. al clienților firmă), 16 (clienții creați automat de SAGA).
+   15 (Nr. Reg. Com. al clienților firmă), 16 (clienții — rămâne cazul cu nume / adresă ușor diferite).
 5. De la **suportul SAGA** (nu mai blochează pasul 7) — dubla încărcare la reîncercare, formatul
    raportului, durata unui import, contorul seriei.
 
@@ -49,13 +50,10 @@ sau local (regula din CLAUDE.md).
 8. Pasul 9 — verificarea articolelor prin `GetArticol`: **COD SCRIS (11 noiembrie 2026), fără migrare,
    împins pe ramură la 12 noiembrie 2026.** Rămâne: verificarea proprietarului din preview („Verifică în
    SAGA” pe articolul implicit).
-9. Pasul 10 — stornarea + ascunderea facturilor de probă: **migrarea 53 RULATĂ pe producție la 12 noiembrie
-   2026** (5 × true, Success, 27/27, 0 | 0); pasul 10 împins pe ramură. Rămâne: **proba din preview** cu
-   contabila (PROBA 2 cu diacritice → „Stornează” → PROBA 3 — arată și dacă SAGA refolosește clientul fără
-   GUID; curățenia; ascunderea PROBA 1–3). Pașii: jurnalul pasului 10.
-9b. **Pasul 10b — refacturarea după storno: DECIS DA (12 noiembrie 2026)**; propunerea (rescrierea lui
-   `emite_factura` și `retrage_factura`, cu gărzi de amprentă) e în jurnalul pasului 10. **Se implementează
-   abia DUPĂ proba pasului 10.**
+9. ~~Pasul 10~~ — **GATA (12 noiembrie 2026)**: migrarea 53 rulată, proba pe contul real reușită (PROBA 2 cu
+   diacritice → storno PROBA 3, același client în SAGA); riscul 8 închis.
+9b. **Pasul 10b — refacturarea după storno**: decis DA; proba pasului 10 făcută → **început la 12 noiembrie
+   2026** (jurnalul pasului 10b).
 10. Pasul 11 — textele (Integrări, Facturi, pagina comenzii) și `CLAUDE.md`.
 11. **Unirea ramurii în `main`** (după care regula „Date firmă nu se salvează din site-ul live”
     dispare din `CLAUDE.md`).
@@ -79,7 +77,7 @@ confirmarea proprietarului înainte de pasul următor.
 | Articolul generic | **„ACCESORII AUTO”**, UM **BUC** — articolul implicit; codul vine de la contabilă | A.5 |
 | Persoane fizice | **fără CNP** pe factură | `ClientCIF` configurabil (A.17) |
 | Mențiunea de plată | **„ramburs in cont”** | configurabilă (A.17) |
-| Seria actuală din SAGA | **„PAP FE”** (cu spațiu); ultimul număr manual la 10.11.2026, după-amiaza: **14192**; la **11.11.2026, ~11:00: 14202** (continuarea ar fi 14203; facturarea manuală continuă până în ziua pornirii) | **ACEASTA e seria aplicației** — decizia din 10.11.2026 (A.4). Numărul de start se setează abia în ziua pornirii |
+| Seria actuală din SAGA | **„PAP FE”** (cu spațiu); ultimul număr manual la 10.11.2026, după-amiaza: **14192**; la **11.11.2026, ~11:00: 14202**; la **11.11.2026, ~11:45: 14206** (continuarea ar fi 14207; facturarea manuală continuă până în ziua pornirii) | **ACEASTA e seria aplicației** — decizia din 10.11.2026 (A.4). Numărul de start se setează abia în ziua pornirii |
 | Capital social, banca | **200 RON**, **BCR Piatra Neamt** | le scrie proprietarul în Admin → Setări după pasul 3 — **nu în cod** (A.16) |
 
 ---
@@ -825,8 +823,9 @@ obișnuite.
    scrie doar „<CUI_FIRMA>”. Trimitem forma curățată din Date firmă, „RO36608590”, aceeași ca în
    `FurnizorCIF` și în numele fișierului. Dacă SAGA o vrea fără „RO”, primul „Testează conexiunea”
    va eșua cu un mesaj de-al lor; atunci se schimbă într-un singur loc (`cif` în `lib/saga.ts`).
-8. **Codificarea XML-ului** (pasul 6) — **ÎNCĂ DESCHIS; se testează la proba pasului 10**, cu un client
-   cu ș/ț/ă/î în nume și adresă (decizia din 12 noiembrie 2026). Nota din 11 noiembrie 2026: la prima probă de import,
+8. ~~**Codificarea XML-ului**~~ — **ÎNCHIS la 12 noiembrie 2026** (proba pasului 10): XML-ul UTF-8 e citit
+   corect, fără caractere stricate; SAGA scoate singur diacriticele („TEST COMANDA”, „PIATRA-NEAMT”, „Str.
+   Marasesti, 1”), la fel ca la clienții introduși manual. Întrebarea 14 închisă. Nota din 11 noiembrie 2026: la prima probă de import,
    rezultatul pentru diacritice a rămas necompletat în raport („[corecte / de verificat]”). Clientul
    probei („ALEX OLTEANU TEST”) n-avea diacritice; de verificat pe o factură cu „ă/î/ș/ț” în nume sau
    adresă. Textul inițial: fișierul e UTF-8, cu declarația în antet; diacriticele
@@ -929,7 +928,9 @@ actuală („PAP FE”, ultimul număr 14190), capitalul social (200 RON) și ba
 12. **Contorul SAGA pentru PAP FE** (riscul 7): după ce o factură intră în SAGA prin import XML,
     avansează SAGA contorul seriei PAP FE? Dacă nu, ce număr ar propune SAGA unei facturi noi
     emise manual după pornire — și se poate bloca în SAGA emiterea manuală pe PAP FE?
-16. **Clienții creați automat de SAGA la import** — **DECIZIA proprietarului (12 noiembrie 2026): câte un
+16. **Clienții creați automat de SAGA la import** — **PROBA pasului 10 (12 noiembrie 2026): SAGA refolosește
+    clientul cu date identice, fără GUID (PROBA 2 și stornoul PROBA 3 → același cod 18086). Rămâne de testat
+    cazul cu nume / adresă ușor diferite, după pornire; propunerea cu GUID e acceptată.** DECIZIA proprietarului (12 noiembrie 2026): câte un
     client separat în SAGA pentru fiecare persoană, ca la facturarea manuală** (clienții noi primesc coduri
     consecutive, cei care revin își păstrează codul vechi). Rămâne de propus (în raportul pasului 10, fără
     implementare): cum nu se creează din nou un client care revine și proba pe seria PROBA. Textul inițial
@@ -2901,6 +2902,21 @@ git; se OPREȘTE dacă diferă; amprentele exacte se calculează din git la impl
 - `scripts/anuleaza-saga-refacturare.sql` — pune înapoi `emite_factura` din 51 și `retrage_factura` din 49,
   cu gardă (se oprește dacă funcțiile din bază nu sunt versiunile din 54); refuză dacă există deja o factură
   emisă prin refacturare (ar rămâne o comandă cu două facturi, fără regula care le explică).
+
+#### Proba pasului 10 pe contul REAL — REUȘITĂ (12 noiembrie 2026, din preview)
+
+- **Comanda de probă AP-2026-01811**, client cu diacritice „TEȘT COMANDA”, „Str. Mărășești 1”, Piatra-Neamț;
+  factura **PROBA 2** (50 lei) trimisă → în SAGA: **41,32 + 8,68 = 50,00**, client cod 18086.
+- **Diacriticele (riscul 8) — ÎNCHIS**: fișierul e citit corect, fără caractere stricate; SAGA însuși scoate
+  diacriticele — „TEST COMANDA”, „PIATRA-NEAMT”, „Str. Marasesti, 1” — la fel ca la clienții introduși manual.
+- Fișa clientului creată corect: RO, NT, cont 4111.18086.
+- **„Stornează” pe PROBA 2 → PROBA 3**, trimisă → în SAGA: **−41,32 / −8,68 / −50,00**, mențiunea „ramburs in
+  cont; Stornare factura PROBA 2 din …”, **ACELAȘI client 18086**.
+- **Întrebarea 16**: SAGA refolosește clientul cu date IDENTICE, fără GUID. Rămâne de testat doar cazul cu
+  nume / adresă ușor diferite — după pornire.
+- **Curățenia**: importuri anulate în SAGA, clientul de test șters, comanda anulată, emiterea oprită, data de
+  start golită, PROBA 1–3 ascunse din listă.
+- **Numerotarea manuală PAP FE**: 14206 (11.11.2026, ~11:45).
 
 #### Raportul trimis proprietarului (12 noiembrie 2026, după rularea migrării 53)
 

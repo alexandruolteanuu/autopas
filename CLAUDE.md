@@ -128,7 +128,11 @@ cu semn schimbat, comanda „stornata”), `retrage_storno`, `serie_de_proba`, t
 existentă rescrisă. Limită știută: o comandă stornată nu mai primește factură nouă din aplicație
 (`emite_factura` din 51 refuză „stornata”) — **refacturarea după storno e DECISĂ (12 noiembrie 2026)** și vine ca
 pasul 10b (migrarea 54: `emite_factura` + `retrage_factura` rescrise cu gărzi de amprentă; refacturare doar după ce
-stornoul e TRIMIS), abia după proba pasului 10. Pașii: jurnalul pasului 10; anularea: `scripts/anuleaza-saga-stornare.sql`.
+stornoul e TRIMIS), abia după proba pasului 10.
+**Proba pasului 10 pe contul REAL a REUȘIT la 12 noiembrie 2026** (comanda de probă AP-2026-01811): PROBA 2 (50 lei →
+41,32 + 8,68) și stornoul PROBA 3 (−41,32 / −8,68 / −50,00) importate, **același client în SAGA** (cod 18086,
+fără GUID). Diacriticele: fișierul e citit corect, SAGA le scoate singur, ca la clienții manuali — riscul 8
+închis. Numerotarea manuală PAP FE: 14206 la 11.11.2026, ~11:45. Pașii: jurnalul pasului 10; anularea: `scripts/anuleaza-saga-stornare.sql`.
 **Pasul 7 verificat pe contul REAL SAGA la 11 noiembrie 2026**, din preview: cheia salvată din admin,
 „Testează conexiunea” trecut, SAGA a rotit cheia la primul apel și cea nouă s-a salvat singură;
 `X-Saga-Cod-Fiscal` = „RO36608590” acceptat. Articolul implicit: **1457070043 „ACCESORII AUTO”, BUC** —
