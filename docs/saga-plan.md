@@ -2537,7 +2537,9 @@ nimeni altcineva nu emite:
      rapoarte; de evitat cu „Doar necesare” sau într-o fereastră privată.
 3. **Al doilea „Testează conexiunea”, cu articolul 1457070043**: rezultatul **încă nereportat** (în mesaj a
    rămas „[scrie rezultatul]”).
-4. **Push-ul pasului 8 pe ramură** — făcut (vezi mai jos).
+4. **Push-ul pasului 8 pe ramură** — făcut (commit `08141f8`, nu pe `main`); preview-ul s-a reconstruit
+   („Deployment has completed”): https://autopas-r1a65j3l0-alexandruolteanuus-projects.vercel.app
+   (protejat de Vercel Authentication; adresa se schimbă la fiecare push).
 5. **Pasul 10** — notat: facturile PROBA trimise trebuie să poată fi ascunse din listă sau stornate.
 
 #### Următorul
