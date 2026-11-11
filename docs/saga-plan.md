@@ -3,8 +3,46 @@
 Ramura: `saga-integrare` · scris la 10 noiembrie 2026 · documentația API: `docs/saga-api.md` ·
 raportul despre proiect: `raportare.md`.
 
-**Stare: PLAN, fără cod.** Nicio migrare nu se rulează pe producție și nu se face push fără
-aprobarea explicită a proprietarului.
+**Stare la 11 noiembrie 2026: pașii 1–6 sunt făcuți** (migrările 47–51 rulate pe producție).
+Nicio migrare nu se rulează pe producție și nu se face push fără aprobarea explicită a
+proprietarului.
+
+## Ce a rămas de făcut (la 11 noiembrie 2026)
+
+**Acum — la proprietar:**
+1. **Proba de emitere prin interfață, cu seria „PROBA”** (pasul 6, „Varianta 2” din jurnalul
+   pasului 6). Rezultatul și XML-ul generat se trec în jurnal. Dacă se face și importul manual în
+   SAGA WEB, fără validare, împreună cu contabila, el răspunde la trei necunoscute: formatul
+   numărului și al datei (riscul 6), diacriticele / UTF-8 (riscul 8) și ce număr propune SAGA
+   după import pe PAP FE (riscul 7).
+2. **Ramura `saga-integrare` există DOAR în Codespace** — 24 de commit-uri, niciunul împins pe
+   GitHub. Push-ul ramurii (nu pe `main`) se face doar cu aprobarea proprietarului.
+
+**De aflat (blochează pașii următori):**
+3. De la **contabilă** — întrebările deschise din E: 1 (formatul numărului și al datei; ideal
+   XML-ul-model al unei facturi PAP FE, salvat ca `docs/factura-model.xml`), 2 (ziua pornirii,
+   oprirea facturării manuale), 3 (codul articolului „ACCESORII AUTO”), 4 (persoane fizice),
+   5 (gestiune), 6 (reducerea), 7 (data facturii și scadența), 8 (momentul facturării), 9 (forma
+   stornării), 10 (transportul comenzilor vechi), 11 (e-Factura prin SAGA), 12 (contorul PAP FE),
+   13 (TVA la încasare), 14 (codificarea).
+4. De la **suportul SAGA** — adresa instanței de test și cheia pentru ea (fără ea pasul 7 nu
+   începe), dubla încărcare la reîncercare, formatul raportului, durata unui import, contorul seriei.
+
+**Pașii de cod rămași** (din C, câte unul, după confirmare):
+5. Pasul 7 — clientul API (`saga_cheie`, `saga_blocare`, `saga_trimiteri`, `lib/saga.ts`,
+   „Testează conexiunea”, „Salvează cheia”).
+6. Pasul 8 — trimiterea („Trimite în SAGA”, reîncercare, raportul, „Marchează confirmată”,
+   acțiunea în masă); blocată până sunt alese `format_numar` și `format_data`.
+7. Pasul 9 — verificarea articolelor prin `GetArticol`.
+8. Pasul 10 — stornarea (`storneaza_factura` + butonul).
+9. Pasul 11 — textele (Integrări, Facturi, pagina comenzii) și `CLAUDE.md`.
+10. **Unirea ramurii în `main`** (după care regula „Date firmă nu se salvează din site-ul live”
+    dispare din `CLAUDE.md`).
+11. Pasul 12 — proba pe contul real și pornirea, exact după „Procedura de pornire” (secțiunea C):
+    ultima factură manuală, oprirea manualului pe PAP FE, seria + numărul de start, data de start,
+    prima factură din aplicație.
+
+**Mai târziu:** faza 2 — facturarea automată la schimbarea stării comenzii (descrisă în C).
 
 **Mod de lucru**: după aprobarea planului se implementează UN SINGUR pas din secțiunea C, apoi
 lucrul se oprește: raport (ce s-a făcut, ce fișiere, cum se verifică) și se așteaptă
