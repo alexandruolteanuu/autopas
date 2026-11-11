@@ -52,10 +52,18 @@ sau local (regula din CLAUDE.md).
    SAGA” pe articolul implicit).
 9. ~~Pasul 10~~ — **GATA (12 noiembrie 2026)**: migrarea 53 rulată, proba pe contul real reușită (PROBA 2 cu
    diacritice → storno PROBA 3, același client în SAGA); riscul 8 închis.
-9b. **Pasul 10b — refacturarea după storno: COD SCRIS (12 noiembrie 2026), migrarea 54 NErulată, neîmpins.**
-   Rămâne: migrarea 54 pe producție (proprietarul), apoi push, apoi o probă din preview (pașii în jurnalul
-   pasului 10b).
-10. Pasul 11 — textele (Integrări, Facturi, pagina comenzii) și `CLAUDE.md`.
+9b. **Pasul 10b — refacturarea după storno: migrarea 54 RULATĂ pe producție la 12 noiembrie 2026** (3 × true,
+   Success, testele 14 / 16 / 13 / 27, verificarea finală true | true), împins pe ramură. Rămâne: proba scurtă
+   din preview pe seria PROBA (jurnalul pasului 10b).
+10. Pasul 11 — textele (Integrări, Facturi, pagina comenzii) și `CLAUDE.md`. **Cerut de proprietar (12 noiembrie 2026) — DUPĂ PORNIRE**: curățarea și organizarea zonei SAGA / facturare
+   din admin pentru folosirea zilnică:
+   - scoase mesajele de lucru: „de verificat cu contabila”, „valoare de PROBĂ”, trimiterile la pași / riscuri /
+     întrebări, notele tehnice;
+   - setările care nu se mai schimbă (formatele, TVA la încasare, CIF-ul persoanelor fizice, adresa API-ului)
+     mutate într-o secțiune „Setări avansate”, restrânsă;
+   - drum scurt și clar: comandă → „Emite factura” → „Trimite în SAGA”, cu stări ușor de înțeles;
+   - limbaj simplu, fără XML / API / GUID unde nu e nevoie;
+   - butoanele de probă (de ex. „Descarcă XML”) mutate la setările avansate.
 11. **Unirea ramurii în `main`** (după care regula „Date firmă nu se salvează din site-ul live”
     dispare din `CLAUDE.md`).
 12. Pasul 12 — proba pe contul real și pornirea, exact după „Procedura de pornire” (secțiunea C):
@@ -606,7 +614,15 @@ la confirmarea proprietarului.
 10. **Stornarea** — `storneaza_factura` + butonul. **Plus (cerut la 11 noiembrie 2026): facturile pe
     seria PROBA trimise în SAGA trebuie să poată fi ascunse din listă sau stornate** — după proba de la
     pasul 8 rămâne cel puțin una „trimisă”, care nu se mai poate retrage.
-11. **Textele** — Integrări, Facturi, pagina comenzii; `CLAUDE.md`.
+11. **Textele** — Integrări, Facturi, pagina comenzii; `CLAUDE.md`. **Cerut de proprietar (12 noiembrie 2026) — DUPĂ PORNIRE**: curățarea și organizarea zonei SAGA / facturare
+    din admin pentru folosirea zilnică:
+    - scoase mesajele de lucru: „de verificat cu contabila”, „valoare de PROBĂ”, trimiterile la pași / riscuri /
+      întrebări, notele tehnice;
+    - setările care nu se mai schimbă (formatele, TVA la încasare, CIF-ul persoanelor fizice, adresa API-ului)
+      mutate într-o secțiune „Setări avansate”, restrânsă;
+    - drum scurt și clar: comandă → „Emite factura” → „Trimite în SAGA”, cu stări ușor de înțeles;
+    - limbaj simplu, fără XML / API / GUID unde nu e nevoie;
+    - butoanele de probă (de ex. „Descarcă XML”) mutate la setările avansate.
 12. **Proba pe contul real și pornirea** — prima factură reală, pe PAP FE, după aprobarea
     contabilei (D.6), făcută EXACT după „Procedura de pornire” de mai jos, în ziua trecerii.
 
@@ -2943,8 +2959,15 @@ Pasul 10b (refacturarea) — mai jos; apoi pasul 11 — textele (Integrări, Fac
 
 ### Pasul 10b — refacturarea după storno (migrarea 54)
 
-**Stare: cod scris și testat local (12 noiembrie 2026); migrarea 54 NErulată pe producție; commit local,
-NEîmpins.** Pasul 11 NU a început.
+**Stare: migrarea 54 e RULATĂ pe producție la 12 noiembrie 2026**, de proprietar, din SQL Editor:
+- pre-verificarea: 3 × `true`;
+- `supabase/saga-refacturare.sql` → „Success”;
+- testele: `verifica-saga-refacturare.sql` 14/14, `verifica-saga-emitere.sql` 16/16,
+  `verifica-saga-articole.sql` 13/13, `verifica-saga-stornare.sql` 27/27;
+- verificarea finală: `true | true` (amprentele 54).
+
+Codul pasului 10b împins pe ramura `saga-integrare` în aceeași zi (adresa preview-ului mai jos). Urmează proba
+scurtă din preview. **Pasul 11 NU a început.**
 
 #### Ce modifică din ce există (confirmat înainte de cod)
 
@@ -3048,4 +3071,5 @@ comanda anulată, emiterea oprită, data de start golită, PROBA ascunse).
 
 #### Următorul
 
-Pasul 11 — textele (Integrări, Facturi, pagina comenzii) și `CLAUDE.md`. Începe doar după confirmare.
+Pasul 11 — textele și organizarea zonei SAGA / facturare pentru folosirea zilnică (cererea din 12 noiembrie
+2026, în lista de sus, la pasul 11 — DUPĂ PORNIRE). Începe doar după confirmare.

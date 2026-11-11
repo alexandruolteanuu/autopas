@@ -118,7 +118,7 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 45. `transport-incasat-de-fan.sql` -> 46. `retur-fan.sql` -> 47. `saga-calcul.sql` -> 48. `saga-export.sql` -> 49. `saga-facturi.sql` -> 50. `saga-articole.sql` -> 51. `saga-emitere.sql` -> 52. `saga-api.sql` -> 53. `saga-stornare.sql` -> 54. `saga-refacturare.sql`
 Idempotente (se pot re-rula oricând): 6, 7, 9–54.
 NU sunt încă idempotente: 1–5, 8.
-**Aplicate pe producție: 1–45 și 47–53. 46 e scrisă, NErulată** (așteaptă contul ocazional FAN).
+**Aplicate pe producție: 1–45 și 47–54. 46 e scrisă, NErulată** (așteaptă contul ocazional FAN).
 **52 e RULATĂ pe producție la 11 noiembrie 2026**, de proprietar, din SQL Editor (pre-verificarea 5 × true,
 `scripts/verifica-saga-api.sql` „REZULTAT OK” 33/33, verificarea finală 0 | 0 | 1 | true; pasul 7 din `docs/saga-plan.md`).
 **53 e RULATĂ pe producție la 12 noiembrie 2026** (pre-verificarea 5 × true, Success, `verifica-saga-stornare.sql` 27/27,
@@ -133,13 +133,17 @@ stornoul e TRIMIS), abia după proba pasului 10.
 41,32 + 8,68) și stornoul PROBA 3 (−41,32 / −8,68 / −50,00) importate, **același client în SAGA** (cod 18086,
 fără GUID). Diacriticele: fișierul e citit corect, SAGA le scoate singur, ca la clienții manuali — riscul 8
 închis. Numerotarea manuală PAP FE: 14206 la 11.11.2026, ~11:45.
-**54 e scrisă, NErulată** (12 noiembrie 2026, pasul 10b — refacturarea după storno): RESCRIE `emite_factura` (din 51,
+**54 e RULATĂ pe producție la 12 noiembrie 2026** (pre-verificarea 3 × true, Success, testele refacturare 14,
+emitere 16, articole 13, stornare 27, verificarea finală true | true; pasul 10b — refacturarea după storno): RESCRIE `emite_factura` (din 51,
 `a1a45bbd…` → `05f9fdfb49e73145c8004f290ed6ec42`) și `retrage_factura` (din 49, `f9f982f0…` →
 `8ea9759db0a900c3043eff58663ea1fb`), cu gărzi de amprentă. O comandă „stornata” primește factură nouă DOAR dacă
 stornarea e din aplicație și fiecare storno e deja trimis în SAGA; retragerea facturii noi readuce comanda la
 „stornata”. `verifica-saga-emitere.sql` / `verifica-saga-articole.sql` acceptă și amprenta 54;
 `anuleaza-saga-emitere.sql` refuză cât e activă 54. Pașii: jurnalul pasului 10b; anularea:
-`scripts/anuleaza-saga-refacturare.sql` (pune înapoi exact 51 și 49; refuză dacă există o refacturare). Pașii: jurnalul pasului 10; anularea: `scripts/anuleaza-saga-stornare.sql`.
+`scripts/anuleaza-saga-refacturare.sql` (pune înapoi exact 51 și 49; refuză dacă există o refacturare).
+**Pasul 11 (după pornire)**: curățarea zonei SAGA / facturare din admin pentru folosirea zilnică — fără mesajele de
+lucru și trimiterile la pași / riscuri, setările fixe într-o secțiune „Setări avansate” restrânsă (cu „Descarcă XML”),
+drum scurt comandă → „Emite factura” → „Trimite în SAGA”, limbaj simplu (`docs/saga-plan.md`, lista de sus). Pașii: jurnalul pasului 10; anularea: `scripts/anuleaza-saga-stornare.sql`.
 **Pasul 7 verificat pe contul REAL SAGA la 11 noiembrie 2026**, din preview: cheia salvată din admin,
 „Testează conexiunea” trecut, SAGA a rotit cheia la primul apel și cea nouă s-a salvat singură;
 `X-Saga-Cod-Fiscal` = „RO36608590” acceptat. Articolul implicit: **1457070043 „ACCESORII AUTO”, BUC** —
