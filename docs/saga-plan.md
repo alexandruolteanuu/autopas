@@ -56,7 +56,8 @@ sau local (regula din CLAUDE.md).
    Proba din preview SĂRITĂ (decizia proprietarului: acoperită de cele 14 teste pe producție).
 9c. **PORNIREA pe PAP FE — AZI, 11 noiembrie 2026** (`data_start_facturare` = 2026-11-11): pas cu pas în
    „Procedura de pornire — 11 noiembrie 2026” (secțiunea C). Înainte: verificările pentru unirea ramurii în
-   `main` (secțiunea „Înainte de unire”, în jurnalul pasului 10b) — **unirea abia după confirmarea proprietarului**.
+   `main` (secțiunea „Înainte de unire”, în jurnalul pasului 10b). **Ramura UNITĂ în `main` și pusă pe producție
+   la 11 noiembrie 2026** (`e0f512f`) — procedura se face din adminul live.
 10. Pasul 11 — textele (Integrări, Facturi, pagina comenzii) și `CLAUDE.md`. **Cerut de proprietar (11 noiembrie 2026) — DUPĂ PORNIRE**: curățarea și organizarea zonei SAGA / facturare
    din admin pentru folosirea zilnică:
    - scoase mesajele de lucru: „de verificat cu contabila”, „valoare de PROBĂ”, trimiterile la pași / riscuri /
@@ -66,8 +67,8 @@ sau local (regula din CLAUDE.md).
    - drum scurt și clar: comandă → „Emite factura” → „Trimite în SAGA”, cu stări ușor de înțeles;
    - limbaj simplu, fără XML / API / GUID unde nu e nevoie;
    - butoanele de probă (de ex. „Descarcă XML”) mutate la setările avansate.
-11. **Unirea ramurii în `main`** (după care regula „Date firmă nu se salvează din site-ul live”
-    dispare din `CLAUDE.md`).
+11. ~~Unirea ramurii în `main`~~ — **FĂCUTĂ la 11 noiembrie 2026** (`e0f512f`, deploy de producție reușit);
+    regulile „până la unire” scoase din `CLAUDE.md`.
 12. Pasul 12 — proba pe contul real și pornirea, exact după „Procedura de pornire” (secțiunea C):
     ultima factură manuală, oprirea manualului pe PAP FE, seria + numărul de start, data de start,
     prima factură din aplicație.
@@ -3253,3 +3254,14 @@ din CLAUDE.md în același commit (valabile până la terminarea deploy-ului de 
 terminat cu succes (deployment `7707928645`, ~10:41 UTC). Verificat pe domeniu: `POST /api/saga` (ruta nouă)
 răspunde 401 „Nu ai dreptul…” — adminul live rulează codul nou; prima pagină și `/piese` răspund 200. De acum,
 procedura de pornire se poate face și din adminul live (autopas-dezmembrari.ro).
+
+**Raportul trimis proprietarului (11 noiembrie 2026, după unire):**
+- unirea fără conflicte (`937562e` → `e0f512f`), build-ul trecut înainte, push pe `main`;
+- deploy-ul de producție Vercel terminat cu succes; verificat pe domeniu: `/api/saga` răspunde (refuză corect
+  fără sesiune), prima pagină și `/piese` se încarcă normal;
+- din CLAUDE.md scoase regulile „Date firmă nu din live” și „SAGA doar din preview sau local”, înlocuite cu nota
+  despre unire — procedura de pornire se face de acum direct din adminul live;
+- nota despre unire și deploy e în plan printr-un commit local pe `main` (`aa1e4d2`), neîmpins, ca să nu pornească
+  încă un deploy de producție doar pentru documentație — se împinge odată cu următoarea modificare sau la cerere;
+- urmează procedura de pornire de azi: SQL-ul cu comenzile de azi și notarea seriilor facturate manual → ultimul
+  număr pe PAP FE → Setări serie PAP FE 14207 → Integrări → Saga → prima factură reală.
