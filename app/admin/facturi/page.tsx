@@ -1,7 +1,6 @@
 "use client";
-// FACTURI — registrul pentru fluxul cu Saga: emiți factura în Saga, notezi seria
-// aici, exporți CSV-ul pentru contabil. (Integrarea prin API-ul SAGA WEB e în
-// lucru, pe pași: docs/saga-plan.md.)
+// FACTURI — facturile emise din aplicație și trimise în SAGA (docs/saga-plan.md),
+// plus registrul comenzilor facturate direct în SAGA și exportul CSV pentru ele.
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { sbBrowser, scrieVerificat, citesteTot, citesteDupaIduri } from "@/lib/supabase";
@@ -171,7 +170,7 @@ export default function Facturi() {
     <div className="space-y-4">
       <div className="flex items-end justify-between flex-wrap gap-3">
         <div><div className="dim">Administrare</div><h1 className="font-disp font-bold text-2xl mt-1">Facturi</h1>
-          <p className="text-sm text-mut mt-1">Saga nu are API public — fluxul standard e emiterea în Saga + importul acestui CSV. Statusul e-Factura ANAF îl gestionează Saga.</p></div>
+          <p className="text-sm text-mut mt-1">Facturile se emit din pagina comenzii și se trimit în SAGA de aici sau de pe pagina facturii. În SAGA le validezi și le trimiți în e-Factura. Exportul CSV e pentru comenzile facturate direct în SAGA.</p></div>
         <div className="flex flex-wrap gap-2">
           {/* Seria și numărul de start ale facturilor emise din aplicație (pasul 4 din docs/saga-plan.md). */}
           <Link href="/admin/facturi/setari" className="rounded-xl border-2 border-line px-4 py-2 text-sm font-semibold hover:border-acc">Setări serie</Link>
@@ -234,6 +233,10 @@ export default function Facturi() {
         )}
       </div>
 
+      <div>
+        <b className="font-disp font-semibold text-[13px]">Toate comenzile, cu seria facturii</b>
+        <p className="text-xs text-mut">Seria vine singură la facturile emise din aplicație; la cele emise direct în SAGA se scrie de mână. Exportul CSV ia comenzile din intervalul ales.</p>
+      </div>
       <div className="grid grid-cols-3 gap-3">
         {[["Comenzi în interval", String(orders.length)], ["De facturat", String(deEmis)], ["Valoare totală", lei(total)]].map(([t, v]) => (
           <div key={t} className="card p-4"><span className="text-xs text-mut">{t}</span><b className="block font-disp text-xl mt-1">{v}</b></div>
@@ -253,7 +256,7 @@ export default function Facturi() {
         <table className="tabel-carduri w-full text-sm md:min-w-[720px]">
           <thead><tr className="text-left text-mut text-xs border-b border-line">
             <th className="px-4 py-3">Comandă</th><th className="px-4 py-3">Data</th><th className="px-4 py-3">Client</th>
-            <th className="px-4 py-3">CUI</th><th className="px-4 py-3">Total</th><th className="px-4 py-3">Serie factură (din Saga)</th></tr></thead>
+            <th className="px-4 py-3">CUI</th><th className="px-4 py-3">Total</th><th className="px-4 py-3">Seria facturii</th></tr></thead>
           <tbody className="divide-y divide-line">
             {orders.map((o) => (
               <tr key={o.id} className="hover:bg-paper">

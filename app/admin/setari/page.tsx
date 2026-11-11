@@ -128,7 +128,7 @@ export default function Setari() {
           setFirma(nou); salveaza("firma", nou); }}
           className="card p-5 grid gap-3 text-sm">
           <b className="font-disp font-semibold text-[13px]">Date firmă și fiscale</b>
-          <p className="text-xs text-mut -mt-1">Apar în subsolul site-ului, pe documentele legale și în exportul pentru Saga. Capitalul, banca, localitatea, județul și țara apar doar pe facturi, nu pe site. Seria facturilor nu se mai setează aici.</p>
+          <p className="text-xs text-mut -mt-1">Apar în subsolul site-ului, pe documentele legale și în exportul pentru Saga. Capitalul, banca, localitatea, județul și țara apar doar pe facturi, nu pe site. Seria facturilor se setează în Facturi → Setări serie.</p>
           <div className="fld"><label>Denumire</label><input name="denumire" defaultValue={firma.denumire} /></div>
           {/* Sediul social — apare în subsol, în certificatul de garanție și în politica GDPR */}
           <div className="fld"><label>Sediu social</label>

@@ -103,8 +103,7 @@ export default function SetariSerie() {
         <div className="dim"><Link href="/admin/facturi" className="hover:text-acc">Facturi</Link> → Setări serie</div>
         <h1 className="font-disp font-bold text-2xl mt-1">Seria facturilor</h1>
         <p className="text-sm text-mut mt-1">
-          Seria și numărul următor ale facturilor emise din aplicație. La pornire: numărul următor = ultimul număr
-          emis manual în SAGA + 1.
+          Seria și numărul următoarei facturi emise din admin.
         </p>
       </div>
 
@@ -121,7 +120,7 @@ export default function SetariSerie() {
       </div>
 
       {eroareCitire && <div className="card p-3 text-sm border-2 border-red-300 bg-red-50 text-red-800">
-        Nu pot citi seriile: {eroareCitire}. (Pagina e pentru admin și contabil; migrarea 49 trebuie să fie rulată.)</div>}
+        Nu pot citi seriile: {eroareCitire}. (Pagina e pentru administrator și contabil.)</div>}
 
       <div className="card p-5 text-sm">
         <b className="font-disp font-semibold text-[13px]">Seria activă</b>
@@ -140,7 +139,7 @@ export default function SetariSerie() {
         )}
         {incarcat && !activa && (
             <p className="mt-2 text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2">
-              Nicio serie activă. Până nu se setează una, aplicația nu emite nicio factură — e starea corectă până în ziua pornirii.
+              Nicio serie activă: din admin nu se emite nicio factură până nu setezi una mai jos.
             </p>
           )}
       </div>
@@ -162,8 +161,7 @@ export default function SetariSerie() {
           {lucru ? "Se salvează…" : "Salvează seria"}</button>
         {msg && <p className={`text-sm ${msg.bun ? "text-ok" : "text-red-700"}`}>{msg.text}</p>}
         <p className="text-[11px] text-mut">
-          Baza de date refuză un număr mai mic sau egal cu ultimul emis deja din aplicație pe seria aceea. Pașii
-          completi ai zilei de pornire: docs/saga-plan.md, „Procedura de pornire”.
+          Un număr deja folosit de o factură din admin e refuzat.
         </p>
       </form>
 

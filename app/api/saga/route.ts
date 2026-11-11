@@ -57,10 +57,10 @@ export async function POST(req: Request) {
       const { client, articolImplicit } = await clientSaga();
       const r = await client.testeazaConexiunea({ cod: articolImplicit, de });
       const mesaj = r.exista
-        ? `✓ Conectat la SAGA. Articolul „${r.cod}” există: ${r.articol?.denumire ?? "?"} (${r.articol?.um ?? "?"}, TVA ${r.articol?.tva ?? "?"}%).`
+        ? `✓ Conectat la SAGA. Articolul pentru piese („${r.cod}”) există: ${r.articol?.denumire ?? "?"} (${r.articol?.um ?? "?"}).`
         : articolImplicit
-          ? `⚠ Conectat la SAGA (cheia e acceptată), dar articolul implicit „${r.cod}” NU există în gestiune: ${r.mesaj}. Verifică codul cu contabila.`
-          : `✓ Conectat la SAGA (cheia e acceptată). Proba s-a făcut cu un cod inexistent, fiindcă articolul implicit nu e setat — SAGA a răspuns: ${r.mesaj}.`;
+          ? `⚠ Conectat la SAGA (cheia e acceptată), dar articolul implicit „${r.cod}” NU există în gestiune: ${r.mesaj}. Verifică codul în Integrări → Saga.`
+          : `✓ Conectat la SAGA. (Articolul pentru piese nu e setat încă în Integrări → Saga.)`;
       return NextResponse.json({ ok: true, avertisment: !r.exista && !!articolImplicit, mesaj, rotita: r.rotita, ...(await stareSaga()) });
     }
 

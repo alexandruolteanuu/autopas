@@ -121,7 +121,7 @@ export default function FacturaPagina() {
       a.href = URL.createObjectURL(new Blob([xml], { type: "application/xml;charset=utf-8" }));
       a.download = numeFisier(f, opt); a.click();
       setMsg({ bun: true, text: `✓ Descărcat ${a.download}.` });
-    } catch (e: any) { setMsg({ bun: false, text: `XML-ul NU s-a generat: ${e?.message ?? e}` }); }
+    } catch (e: any) { setMsg({ bun: false, text: `Fișierul NU s-a generat: ${e?.message ?? e}` }); }
   }
 
   async function salveazaModificari() {
@@ -147,7 +147,7 @@ export default function FacturaPagina() {
   async function trimite() {
     if (!f) return;
     const cum = automat
-      ? "IMPORT AUTOMAT („import_automat” = da): SAGA o finalizează singură."
+      ? "Importul automat e pornit: SAGA o validează singură."
       : "Doar se ÎNCARCĂ în SAGA; o validezi apoi de mână, în SAGA WEB → Diverse → Import date.";
     if (!confirm(`Trimiți factura ${f.serie} ${f.numar} în SAGA? ${cum} După trimitere nu se mai modifică și nu se mai retrage aici.`)) return;
     setLucru(true); setMsg(null);
@@ -217,8 +217,12 @@ export default function FacturaPagina() {
   const exempluNumar = opt.format_numar ? numarPentruSaga(f.serie, f.numar, opt.format_numar) : "";
   const exempluFisier = opt.format_numar ? numeFisier(f, opt) : "";
 
+  const NUME_OPTIUNI: Record<keyof Optiuni, string> = {
+    format_numar: "Formatul numărului", format_data: "Formatul datei",
+    tva_la_incasare: "TVA la încasare", cif_persoana_fizica: "Cod fiscal pentru persoane fizice",
+  };
   const sel = (k: keyof Optiuni, variante: readonly string[]) => (
-    <div className="fld"><label>{k}{setari[k] ? "" : " — nesetat în Integrări: valoare de PROBĂ, doar pentru descărcarea asta"}</label>
+    <div className="fld"><label>{NUME_OPTIUNI[k]}{setari[k] ? "" : " (nesetat în Integrări — ales doar pentru descărcarea asta)"}</label>
       <select value={opt[k]} disabled={!!setari[k]} onChange={(e) => setOpt({ ...opt, [k]: e.target.value })}>
         <option value="">— alege —</option>
         {variante.map((v) => <option key={v} value={v}>{v}</option>)}
@@ -265,7 +269,7 @@ export default function FacturaPagina() {
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" className="btn-acc !py-2 text-xs" disabled={lucru || editez} onClick={trimite}>
                 {lucru ? "Se trimite…" : f.saga_status === "eroare" ? "Reîncearcă trimiterea" : "Trimite în SAGA"}</button>
-              <span className="text-xs text-mut">{automat ? "Import AUTOMAT (setarea „import_automat” = da)." : "Doar încărcare — validarea se face de mână în SAGA (Diverse → Import date)."}</span>
+              <span className="text-xs text-mut">{automat ? "Importul automat e pornit: SAGA o validează singură." : "După trimitere o validezi în SAGA (Diverse → Import date)."}</span>
             </div>
           ))}
           {f.saga_status === "in_curs" && <p className="text-xs text-mut">Se trimite… Dacă rămâne așa peste 3 minute, trimiterea s-a întrerupt: reîncarcă pagina și apasă din nou — SAGA spune singur dacă o are deja.</p>}
@@ -277,19 +281,7 @@ export default function FacturaPagina() {
               <span className="text-xs text-mut">După validarea în SAGA WEB → Diverse → Import date. Verifică acolo seria, numărul, clientul, cota și TVA-ul, totalul.</span>
             </div>)}
           {f.saga_status === "confirmata" && <p className="text-xs text-ok">Confirmată în SAGA{f.confirmata_la ? ` la ${new Date(f.confirmata_la).toLocaleString("ro-RO", { timeZone: "Europe/Bucharest" })}` : ""}.</p>}
-          {apeluri.length > 0 && (
-            <details className="text-xs mt-1"><summary className="cursor-pointer text-mut">Jurnalul trimiterilor ({apeluri.length})</summary>
-              <ul className="mt-2 space-y-2">
-                {apeluri.map((a) => (
-                  <li key={a.id} className="rounded-lg border-2 border-line p-2">
-                    <div>{new Date(a.created_at).toLocaleString("ro-RO", { timeZone: "Europe/Bucharest" })} · HTTP {a.http_status ?? "—"} · {a.durata_ms ?? "—"} ms
-                      {a.fisier ? ` · ${a.fisier}` : ""}{a.cheie_rotita ? " · cheie rotită" : ""}</div>
-                    {a.eroare && <div className="text-red-700">{a.eroare}</div>}
-                    {a.raspuns && <pre className="whitespace-pre-wrap break-words text-[11px] text-mut mt-1">{a.raspuns}</pre>}
-                  </li>
-                ))}
-              </ul></details>
-          )}
+
         </div>
       )}
       {!modificabila && <p className="text-xs text-mut">Factura a plecat spre SAGA: nu se mai modifică aici. Corecturile se fac în SAGA, iar în aplicație rămâne stornarea.</p>}
@@ -362,18 +354,35 @@ export default function FacturaPagina() {
       </div>
       {editez && <button type="button" className="btn-acc" disabled={lucru} onClick={salveazaModificari}>{lucru ? "Se salvează…" : "Salvează corecturile"}</button>}
 
-      <div className="card p-5 text-sm grid gap-2">
-        <b className="font-disp font-semibold text-[13px]">Descarcă XML pentru SAGA</b>
-        <p className="text-xs text-mut">Fișierul se importă manual în SAGA WEB, la Diverse → Import date, FĂRĂ validare — ca probă a formatului
-          (planul, D.4). Formatele nesetate în Integrări se aleg aici doar pentru descărcarea asta.</p>
+      {/* Pasul 11 (11 noiembrie 2026): uneltele tehnice — istoricul trimiterilor și fișierul pentru SAGA —
+          stau restrânse, la final. Drumul de zi cu zi e cardul „Trimiterea în SAGA” de mai sus. */}
+      <details className="card p-5 text-sm">
+        <summary className="cursor-pointer font-disp font-semibold text-[13px]">Setări avansate</summary>
+        <div className="grid gap-2 mt-3">
+          {apeluri.length > 0 && (
+            <details className="text-xs"><summary className="cursor-pointer text-mut">Istoricul trimiterilor în SAGA ({apeluri.length})</summary>
+              <ul className="mt-2 space-y-2">
+                {apeluri.map((a) => (
+                  <li key={a.id} className="rounded-lg border-2 border-line p-2">
+                    <div>{new Date(a.created_at).toLocaleString("ro-RO", { timeZone: "Europe/Bucharest" })} · HTTP {a.http_status ?? "—"} · {a.durata_ms ?? "—"} ms
+                      {a.fisier ? ` · ${a.fisier}` : ""}{a.cheie_rotita ? " · cheie rotită" : ""}</div>
+                    {a.eroare && <div className="text-red-700">{a.eroare}</div>}
+                    {a.raspuns && <pre className="whitespace-pre-wrap break-words text-[11px] text-mut mt-1">{a.raspuns}</pre>}
+                  </li>
+                ))}
+              </ul></details>
+          )}
+        <b className="text-xs mt-2">Fișierul facturii pentru SAGA</b>
+        <p className="text-xs text-mut">Pentru import de mână în SAGA (Diverse → Import date), dacă trimiterea cu butonul nu merge.</p>
         <div className="grid sm:grid-cols-2 gap-2">
           {sel("format_numar", FORMATE_NUMAR)}{sel("format_data", FORMATE_DATA)}
           {sel("tva_la_incasare", ["da", "nu"])}{sel("cif_persoana_fizica", VARIANTE_CIF_PF)}
         </div>
-        {exempluNumar && <p className="text-xs">În XML: <b>&lt;FacturaNumar&gt;{exempluNumar}&lt;/FacturaNumar&gt;</b> · fișierul <b>{exempluFisier}</b></p>}
-        {!f.mentiune_plata && <p className="text-xs text-red-700">Atenție: XML-ul pleacă fără mențiunea de plată (vezi avertismentul de mai sus).</p>}
-        <button type="button" className="btn-dark !py-2 text-xs" disabled={!xmlGata} onClick={descarca}>Descarcă XML</button>
-      </div>
+        {exempluNumar && <p className="text-xs">Numărul în fișier: <b>{exempluNumar}</b> · fișierul <b>{exempluFisier}</b></p>}
+        {!f.mentiune_plata && <p className="text-xs text-red-700">Atenție: fișierul pleacă fără mențiunea de plată (vezi avertismentul de mai sus).</p>}
+        <button type="button" className="btn-dark !py-2 text-xs w-fit" disabled={!xmlGata} onClick={descarca}>Descarcă fișierul</button>
+        </div>
+      </details>
     </div>
   );
 }

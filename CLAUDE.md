@@ -142,7 +142,11 @@ e cel de după ultima factură din aplicație; imediat după, se actualizează n
 seta data de start. **PORNIREA A REUȘIT la 11 noiembrie 2026**: prima factură reală din aplicație, **PAP FE 14207** (comanda
 AP-2026-01812, 200,00 lei = 165,29 + 34,71), importată, validată în SAGA, trimisă în e-Factura, confirmată.
 Riscul 7 (contorul SAGA după import) — rezultatul nereportat încă; până atunci, regula facturilor manuale
-(verificarea numărului propus de SAGA) rămâne în vigoare. Pașii: jurnalul pasului 10; anularea: `scripts/anuleaza-saga-stornare.sql`.
+(verificarea numărului propus de SAGA) rămâne în vigoare.
+**Pasul 11 (11 noiembrie 2026) — curățarea zonei de facturare**: doar texte și aranjare. În Integrări → Saga,
+câmpurile marcate `avansat` stau într-o secțiune „Setări avansate” restrânsă (rămân în formular, deci se salvează);
+pe pagina facturii, istoricul trimiterilor și „Descarcă fișierul” stau în „Setări avansate”, la final. Textele
+vizibile nu mai trimit la pași / riscuri / migrări / contabilă. Pașii: jurnalul pasului 10; anularea: `scripts/anuleaza-saga-stornare.sql`.
 **Pasul 7 verificat pe contul REAL SAGA la 11 noiembrie 2026**, din preview: cheia salvată din admin,
 „Testează conexiunea” trecut, SAGA a rotit cheia la primul apel și cea nouă s-a salvat singură;
 `X-Saga-Cod-Fiscal` = „RO36608590” acceptat. Articolul implicit: **1457070043 „ACCESORII AUTO”, BUC** —

@@ -58,7 +58,8 @@ sau local (regula din CLAUDE.md).
    „Procedura de pornire — 11 noiembrie 2026” (secțiunea C). Înainte: verificările pentru unirea ramurii în
    `main` (secțiunea „Înainte de unire”, în jurnalul pasului 10b). **Ramura UNITĂ în `main` și pusă pe producție
    la 11 noiembrie 2026** (`e0f512f`) — procedura se face din adminul live.
-10. Pasul 11 — textele (Integrări, Facturi, pagina comenzii) și `CLAUDE.md`. **Cerut de proprietar (11 noiembrie 2026) — DUPĂ PORNIRE**: curățarea și organizarea zonei SAGA / facturare
+10. Pasul 11 — textele: **COD SCRIS (11 noiembrie 2026), commit local pe `main`, NEîmpins — așteaptă confirmarea
+   proprietarului (fiecare push pe `main` ajunge direct pe site).** Jurnalul pasului 11 la finalul planului. **Cerut de proprietar (11 noiembrie 2026) — DUPĂ PORNIRE**: curățarea și organizarea zonei SAGA / facturare
    din admin pentru folosirea zilnică:
    - scoase mesajele de lucru: „de verificat cu contabila”, „valoare de PROBĂ”, trimiterile la pași / riscuri /
      întrebări, notele tehnice;
@@ -3280,4 +3281,57 @@ procedura de pornire se poate face și din adminul live (autopas-dezmembrari.ro)
 - **Riscul 7**: numărul propus de SAGA pentru o factură manuală nouă pe PAP FE după validare — **nereportat** (în
   mesaj a rămas „[14208 / alt număr]”). Riscul rămâne deschis; regula facturilor manuale (verificarea numărului
   propus de SAGA înainte de fiecare factură manuală) rămâne în vigoare.
-- **Pasul 11** (curățarea zonei de facturare) — început în aceeași zi, după confirmare.
+- **Pasul 11** (curățarea zonei de facturare) — început în aceeași zi, după confirmare (mai jos).
+
+### Pasul 11 — curățarea zonei SAGA / facturare pentru folosirea zilnică (11 noiembrie 2026)
+
+**Stare: cod scris, build-ul trece; commit LOCAL pe `main`, NEîmpins** — se împinge doar după confirmarea
+proprietarului. Nimic schimbat în bază și nicio logică de facturare: doar texte, aranjare și ce e vizibil.
+
+#### Lista dată înainte de cod (pagină cu pagină)
+
+1. **Integrări** (`app/admin/integrari/page.tsx`): cardul „Saga — facturare” cu descrierea și pașii fluxului de azi
+   (Emite factura → Trimite în SAGA → validare și e-Factura în SAGA → Marchează confirmată), fără „API în lucru” și
+   fără CSV ca flux principal; vizibile doar mențiunea de plată și articolul pentru piese (cod / denumire / UM);
+   în **„Setări avansate”** restrânsă: cota și regimul TVA, data de start, formatele numărului și datei, TVA la
+   încasare, codul fiscal pentru persoane fizice, articolele pentru reducere / transport, adresa SAGA, importul
+   automat; fără „se confirmă la proba manuală” / „întrebare pentru contabilă” / „îl dă contabila”; caseta cheii
+   fără „API” / „GetArticol”; cardul e-Factura devine „activ”, cu „se trimite din SAGA, după validare”.
+2. **Facturi** (`app/admin/facturi/page.tsx`): „Saga nu are API public…” → fluxul real; exportul CSV explicat ca
+   fiind pentru comenzile facturate direct în SAGA.
+3. **Pagina facturii** (`app/admin/facturi/[id]/page.tsx`): „Descarcă XML” și jurnalul tehnic → o secțiune
+   „Setări avansate” restrânsă, la final; fără „(planul, D.4)”, „valoare de PROBĂ” și numele tehnice ale setărilor.
+4. **Setări serie**: fără „ziua pornirii”, `docs/saga-plan.md`, „migrarea 49”; regula facturilor manuale rămâne.
+5. **Articole SAGA**: fără „migrarea 50”, „îl dă contabila”, „(GetArticol)”.
+6. **Setări → Date firmă**: „Seria facturilor se setează în Facturi → Setări serie”.
+7. Cardul din comandă și exportul din Comenzi — deja simple, neatinse.
+
+#### Ce s-a făcut
+
+- **Integrări**: câmpurile primesc un semn `avansat`; formularul le arată pe cele obișnuite, iar pe cele avansate
+  într-un `details` „Setări avansate (nu se schimbă de obicei)”. Câmpurile restrânse **rămân în formular**, deci
+  se salvează și nu se golesc (formularul citește toate câmpurile listei). Caseta „Legătura cu SAGA”: „Conectat.
+  Cheia e salvată (…); folosită ultima dată: …”; schimbarea cheii restrânsă când cheia e salvată (deschisă dacă
+  lipsește sau e blocată); mesajul despre codul fiscal apare doar dacă lipsește.
+- **Facturi**: textul de sus și un titlu peste lista comenzilor („Toate comenzile, cu seria facturii”); coloana
+  „Seria facturii”.
+- **Pagina facturii**: cardul „Trimiterea în SAGA” rămâne drumul de zi cu zi (Trimite / Reîncearcă / Marchează
+  confirmată), cu texte simple; la final, „Setări avansate” restrânsă: „Istoricul trimiterilor în SAGA” și
+  „Fișierul facturii pentru SAGA” (pentru import de mână, dacă butonul nu merge) — „Descarcă fișierul”.
+- **Ruta `/api/saga`** — doar trei mesaje: fără „TVA 19%” (cota din fișă, care încurca), fără „verifică cu
+  contabila”, fără „proba cu un cod inexistent”.
+- **Teste**: `verifica-saga-xml.mjs` 102/102, `verifica-saga-api.mjs` 109/109, build-ul trece. NEverificat în
+  browser (paginile cer contul de admin).
+
+#### Fișiere
+
+`app/admin/integrari/page.tsx`, `app/admin/facturi/page.tsx`, `app/admin/facturi/[id]/page.tsx`,
+`app/admin/facturi/setari/page.tsx`, `app/admin/facturi/articole/page.tsx`, `app/admin/setari/page.tsx`,
+`app/api/saga/route.ts`, `CLAUDE.md`, `docs/saga-plan.md`.
+
+#### Cum se verifică (după push, pe site)
+
+Integrări → „Saga — facturare”: doar mențiunea și articolul la vedere, restul în „Setări avansate”; salvezi cardul
+o dată și verifici că valorile din „Setări avansate” au rămas. Facturi → o factură: drumul Trimite / Marchează
+confirmată sus, „Setări avansate” jos, restrânsă. Facturi → Setări serie / Articole SAGA: fără trimiteri la
+migrări sau la contabilă.

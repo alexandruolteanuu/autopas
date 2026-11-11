@@ -48,7 +48,7 @@ function RezultatSaga({ v }: { v?: Verificare | "lucru" }) {
   if (!v) return null;
   if (v === "lucru") return <p className="text-xs text-mut mt-1">Se verifică în SAGA…</p>;
   if (!v.ok) return <p className="text-xs text-red-700 mt-1">Verificarea n-a mers: {v.eroare}</p>;
-  if (!v.exista) return <p className="text-xs text-red-700 mt-1">✗ Codul „{v.cod}” NU există în gestiunea SAGA ({v.mesaj}). Facturile cu el ar ieși pe un articol inexistent — verifică-l cu contabila.</p>;
+  if (!v.exista) return <p className="text-xs text-red-700 mt-1">✗ Codul „{v.cod}” NU există în gestiunea SAGA ({v.mesaj}). Facturile cu el ar ieși pe un articol inexistent — verifică-l în SAGA.</p>;
   return (
     <div className={`text-xs mt-1 ${v.potrivit ? "text-ok" : "text-amber-800"}`}>
       {v.potrivit ? "✓" : "⚠"} În SAGA: <b>{v.articol?.denumire ?? "—"}</b> · {v.articol?.um ?? "—"}
@@ -133,12 +133,12 @@ export default function ArticoleSaga() {
         <p className="text-sm text-mut mt-1">
           Ce articol din SAGA apare pe factură pentru piesele fiecărei categorii. Ordinea: subcategoria piesei,
           apoi categoria ei, apoi articolul implicit. Numele complet al piesei apare oricum pe linie. Codurile se
-          scriu exact ca în SAGA — le dă contabila. Schimbările nu ating facturile deja emise.
+          scriu exact ca în SAGA. Schimbările nu ating facturile deja emise.
         </p>
       </div>
 
       {eroare && <div className="card p-3 text-sm border-2 border-red-300 bg-red-50 text-red-800">
-        Nu pot citi potrivirile: {eroare}. (Pagina e pentru admin și contabil; migrarea 50 trebuie să fie rulată.)</div>}
+        Nu pot citi potrivirile: {eroare}. (Pagina e pentru administrator și contabil.)</div>}
 
       <div className="card p-4 text-sm">
         <b className="font-disp font-semibold text-[13px]">Articolul implicit</b>{" "}
@@ -151,15 +151,14 @@ export default function ArticoleSaga() {
               <RezultatSaga v={rez[implicit.cod]} />
             </>
           : <p className="mt-1 text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2">
-              Nesetat. Fără el nu se emite nicio factură. Se setează în Admin → Integrări → Saga (doar adminul);
-              codul îl dă contabila.</p>}
+              Nesetat. Fără el nu se emite nicio factură. Se setează în Admin → Integrări → Saga (doar administratorul).</p>}
         <p className="text-xs text-mut mt-2">{nrPotriviri === 0 ? "Nicio potrivire pe categorii: toate piesele merg pe articolul implicit." : `${nrPotriviri} categorii cu articol propriu.`}</p>
         {(implicit || nrPotriviri > 0) && (
           <div className="flex flex-wrap items-center gap-2 mt-2">
             <button type="button" className="rounded-xl border-2 border-line px-3 py-1.5 text-xs font-bold hover:border-acc"
               disabled={!!toate && toate.facut < toate.din} onClick={verificaToate}>Verifică toate în SAGA</button>
             <span className="text-xs text-mut">{toate ? (toate.facut < toate.din ? `Se verifică ${toate.facut + 1} din ${toate.din}…` : `Gata: ${toate.din} ${toate.din === 1 ? "cod verificat" : "coduri verificate"}.`)
-              : "Doar citire din SAGA (GetArticol): codul există? denumirea și UM sunt aceleași?"}</span>
+              : "Verifică în SAGA dacă fiecare cod există și are aceeași denumire și unitate de măsură."}</span>
           </div>
         )}
       </div>

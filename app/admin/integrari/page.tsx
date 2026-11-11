@@ -18,8 +18,10 @@ const INTEGRARI: Stare[] = [
            "Bifezi „Activă”, salvezi, apoi apeși „Trimite un test” și verifici INCLUSIV folderul Spam",
            "⚠ Înainte de activare: politica de confidențialitate trebuie să îl treacă pe Brevo la destinatari (e deja actualizată)"] },
   { nume: "Saga — facturare", grup: "Facturare", stare: "activ",
-    desc: "Fluxul de azi e importul de fișiere (integrarea prin API-ul SAGA WEB e în lucru, pe pași). Exportul CSV conține clientul, CUI-ul, produsele și prețurile defalcate bază + TVA, la cota de mai jos (gol = 21%).",
-    pasi: ["Admin → Facturi → alegi intervalul → Export Saga (CSV)", "În Saga: Operații → Import → alegi fișierul", "Notezi seria facturii înapoi în comandă"] },
+    desc: "Facturile se emit din pagina comenzii și se trimit în SAGA cu un buton. În SAGA le verifici și le validezi, apoi le trimiți în e-Factura tot din SAGA. Comenzile facturate direct în SAGA se notează pe comandă.",
+    pasi: ["Comanda → „Emite factura”", "Factura → „Trimite în SAGA”",
+           "În SAGA: Diverse → Import date → verifici și validezi; apoi e-Factura din SAGA",
+           "Înapoi în admin: „Marchează confirmată”"] },
   { nume: "FAN Courier (SelfAWB)", grup: "Curieri", stare: "pregatit",
     desc: "Generezi AWB-ul direct din pagina comenzii: scrii câte colete, kilogramele și cele trei dimensiuni, apeși „Generează AWB”. Destinatarul, rambursul și conținutul vin singure din comandă. Eticheta se printează din același loc, iar AWB-ul apare și pe selfawb.ro, în Borderou. Transportul îl plătește firma la FAN (clientul îl plătește în ramburs, fiindcă e inclus în totalul comenzii).",
     pasi: ["Pe selfawb.ro: Client ID-ul e în dreapta sus → Editare cont → Opțiuni sucursală",
@@ -36,9 +38,9 @@ const INTEGRARI: Stare[] = [
   { nume: "Plată cu cardul (Netopia / Stripe)", grup: "Plăți", stare: "viitor",
     desc: "Acum: ramburs și transfer bancar. Cardul online necesită contract cu procesatorul și verificare KYC.",
     pasi: ["Clientul deschide cont la procesator", "Primim cheile API", "Adăugăm pasul de plată în checkout"] },
-  { nume: "e-Factura ANAF (SPV)", grup: "Facturare", stare: "viitor",
-    desc: "Transmiterea în SPV se face din Saga, care are modulul e-Factura inclus. Nu dublăm funcția — evităm facturi transmise de două ori.",
-    pasi: ["Se folosește modulul e-Factura din Saga", "Certificat digital pe firmă", "Statusul se notează în comandă"] },
+  { nume: "e-Factura ANAF (SPV)", grup: "Facturare", stare: "activ",
+    desc: "Facturile ajung în e-Factura din SAGA, după ce le validezi acolo. Din admin nu se trimite nimic la ANAF — așa nu pleacă nicio factură de două ori.",
+    pasi: ["Validezi factura în SAGA", "O trimiți în e-Factura din SAGA"] },
   { nume: "Google Analytics 4", grup: "Analiză", stare: "pregatit",
     desc: "Codul e scris și așteaptă doar ID-ul. Cât timp câmpul de mai jos e gol, în site NU se încarcă niciun script și nu pleacă nicio cerere către Google. Evenimentele de comerț (vizualizare piesă, adăugare în coș, comandă) sunt deja legate. Măsurarea pornește doar pentru vizitatorii care apasă „Accept toate” în bannerul de cookie-uri; traficul din /admin nu se numără niciodată.",
     pasi: ["Cont GA4 → ID de măsurare (G-XXXXXXX)", "Îl lipești în câmpul de mai jos și salvezi — atât", "Verifici în GA4 → Rapoarte → Timp real că apari", "⚠ Înainte de a-l activa: Politica de cookies trebuie actualizată (vezi docs/google-analytics.md)"] },
@@ -72,7 +74,8 @@ const INTEGRARI: Stare[] = [
 const CULORI = { activ: ["bg-ok/10 text-ok border-ok/30", "Activ ✓"], pregatit: ["bg-yellow-50 text-yellow-700 border-yellow-200", "Pregătit — așteaptă cont"], viitor: ["bg-paper text-mut border-line", "Fază următoare"] } as const;
 
 // câmpurile de configurare salvate în baza de date (settings → integrari)
-const CAMPURI: Record<string, { k: string; l: string; tip?: string }[]> = {
+// `avansat`: câmpul stă în „Setări avansate”, restrânsă — setări care nu se mai schimbă după pornire.
+const CAMPURI: Record<string, { k: string; l: string; tip?: string; avansat?: boolean }[]> = {
   "WhatsApp Business": [{ k: "numar", l: "Număr WhatsApp (format 40722…)" }],
   // Cota și regimul TVA le citește baza (`saga_cota_tva`, migrarea 48) la exportul
   // CSV și, de la pasul 4 din docs/saga-plan.md, la emiterea facturilor. Gol = 21%,
@@ -84,28 +87,27 @@ const CAMPURI: Record<string, { k: string; l: string; tip?: string }[]> = {
   // gestiunea SAGA. Implicitul primește piesele fără potrivire în Facturi →
   // Articole SAGA; reducerea și transportul, goale, cad și ele pe implicit.
   "Saga — facturare": [
-    { k: "cota_tva", l: "Cota TVA, în procente (gol = 21)" },
-    { k: "regim_tva", l: "Regimul TVA: normal (gol = normal; „marja” nu e implementat)" },
-    // Pasul 6: fără valori implicite — se completează în ziua pornirii / după răspunsul contabilei.
-    { k: "data_start_facturare", l: "Data de start a facturării din aplicație (comenzile de dinainte se facturează manual în SAGA; goală = nu se emite nimic)", tip: "date" },
-    { k: "format_numar", l: "Formatul numărului spre SAGA: serie_spatiu („PAP FE 14193”) / serie_lipita („PAP FE14193”) / doar_numar („14193”) — se confirmă la proba manuală" },
-    { k: "format_data", l: "Formatul datei spre SAGA: zi-luna-an („10-11-2026”) / zi.luna.an / an-luna-zi — se confirmă la proba manuală" },
-    { k: "tva_la_incasare", l: "TVA la încasare: da / nu — întrebare pentru contabilă" },
-    { k: "cif_persoana_fizica", l: "Ce se trimite la CIF pentru persoane fizice: gol (ca pe factura reală) / liniuta / treisprezece_zerouri" },
-    { k: "mentiune_plata", l: "Mențiunea de plată de pe factură (pe factura reală: ramburs in cont)" },
-    { k: "articol_implicit", l: "Articolul implicit din gestiunea SAGA — CODUL (îl dă contabila)" },
-    { k: "articol_implicit_denumire", l: "Articolul implicit — DENUMIREA, exact ca în SAGA (pe factura reală: ACCESORII AUTO)" },
-    { k: "articol_implicit_um", l: "Articolul implicit — unitatea de măsură (gol = BUC)" },
-    { k: "articol_reducere", l: "Articolul pentru reducere — codul (gol = articolul implicit)" },
-    { k: "articol_reducere_denumire", l: "Articolul pentru reducere — denumirea (dacă are cod propriu)" },
-    { k: "articol_transport", l: "Articolul pentru transport — codul (gol = articolul implicit)" },
-    { k: "articol_transport_denumire", l: "Articolul pentru transport — denumirea (dacă are cod propriu)" },
-    // Pasul 7: adresa API-ului. Cheia NU e aici — se salvează separat, mai sus, în
-    // caseta „Cheia SAGA”, și ajunge doar în tabela `saga_cheie` (invizibilă din browser).
-    { k: "url_api", l: "Adresa API-ului SAGA (gol = https://web.sagasoft.ro/api/v20260225, din documentația lor)" },
-    // Pasul 8: text da/nu, NU bifă — bifele de aici pornesc bifate când valoarea lipsește,
-    // iar importul automat s-ar fi pornit singur la prima salvare a cardului.
-    { k: "import_automat", l: "Import automat în SAGA: da / nu (gol = nu). Cu „nu”, factura doar se încarcă și se validează de mână în SAGA (Diverse → Import date). Rămâne „nu” la primele facturi reale" },
+    { k: "mentiune_plata", l: "Mențiunea de plată de pe factură (de ex. ramburs in cont)" },
+    { k: "articol_implicit", l: "Articolul din SAGA pentru piese — codul" },
+    { k: "articol_implicit_denumire", l: "Articolul pentru piese — denumirea, exact ca în SAGA" },
+    { k: "articol_implicit_um", l: "Articolul pentru piese — unitatea de măsură (gol = BUC)" },
+    // Setări fixe după pornire (11 noiembrie 2026) — restrânse, ca să nu se schimbe din greșeală.
+    { k: "cota_tva", l: "Cota TVA, în procente (gol = 21)", avansat: true },
+    { k: "regim_tva", l: "Regimul TVA (gol = normal)", avansat: true },
+    { k: "data_start_facturare", l: "Data de la care se facturează din admin (comenzile mai vechi s-au facturat direct în SAGA)", tip: "date", avansat: true },
+    { k: "format_numar", l: "Cum se scrie numărul facturii pentru SAGA: serie_spatiu („PAP FE 14207”) / serie_lipita / doar_numar", avansat: true },
+    { k: "format_data", l: "Cum se scrie data pentru SAGA: zi-luna-an / zi.luna.an / an-luna-zi", avansat: true },
+    { k: "tva_la_incasare", l: "TVA la încasare: da / nu", avansat: true },
+    { k: "cif_persoana_fizica", l: "Codul fiscal pentru persoane fizice: gol / liniuta / treisprezece_zerouri", avansat: true },
+    { k: "articol_reducere", l: "Articolul pentru reducere — codul (gol = cel pentru piese)", avansat: true },
+    { k: "articol_reducere_denumire", l: "Articolul pentru reducere — denumirea", avansat: true },
+    { k: "articol_transport", l: "Articolul pentru transport — codul (gol = cel pentru piese)", avansat: true },
+    { k: "articol_transport_denumire", l: "Articolul pentru transport — denumirea", avansat: true },
+    // Cheia NU e aici — se salvează separat, în caseta „Legătura cu SAGA”, și ajunge doar în
+    // tabela `saga_cheie` (invizibilă din browser).
+    { k: "url_api", l: "Adresa SAGA (gol = adresa standard)", avansat: true },
+    // Text da/nu, NU bifă — bifele de aici pornesc bifate când valoarea lipsește.
+    { k: "import_automat", l: "Import automat în SAGA: da / nu (gol = nu — factura se validează de mână în SAGA)", avansat: true },
   ],
   "FAN Courier (SelfAWB)": [{ k: "client_id", l: "Client ID" }, { k: "user", l: "Utilizator selfawb.ro" }, { k: "parola", l: "Parolă selfawb.ro", tip: "password" },
     // Bifă: nesalvată încă înseamnă „da" (vezi `configFan` din lib/fancourier.ts).
@@ -269,14 +271,14 @@ function UneltSaga() {
     setLucru("test"); setRez(null);
     const j = await cheama({ actiune: "testeaza-conexiunea" });
     setLucru("");
-    if (j?.ok) { setStare(j); setRez({ bun: !j.avertisment, text: j.mesaj + (j.rotita ? " SAGA a rotit cheia; cea nouă e salvată." : "") }); }
+    if (j?.ok) { setStare(j); setRez({ bun: !j.avertisment, text: j.mesaj }); }
     else { setRez({ bun: false, text: j?.eroare ?? "Testul nu s-a putut face." }); citeste(); }
   }
 
   const k = stare?.cheie;
   return (
     <div className="mt-4 pt-3 border-t border-line text-sm grid gap-2">
-      <b className="text-xs">Cheia SAGA (legătura prin API)</b>
+      <b className="text-xs">Legătura cu SAGA</b>
       {k?.blocata_la && (
         <p className="text-xs rounded-lg border-2 border-red-300 bg-red-50 text-red-800 p-2">
           ⚠ Cheia a fost respinsă / pierdută la {cand(k.blocata_la)} ({k.blocata_motiv}). Generați o cheie nouă din SAGA WEB
@@ -284,22 +286,26 @@ function UneltSaga() {
       )}
       <p className="text-xs text-mut">
         {!stare ? "Se citește starea…" : k?.setata
-          ? <>Cheie salvată la {cand(k.salvata_la)}{k.rotiri ? ` · rotită de SAGA de ${k.rotiri} ori (ultima: ${cand(k.rotita_la)})` : ""} · folosită ultima dată: {cand(k.folosita_la)}.</>
+          ? <>Conectat. Cheia e salvată ({cand(k.salvata_la)}); folosită ultima dată: {cand(k.folosita_la)}.</>
           : "Nicio cheie salvată."}
-        {stare?.adresa && <> Adresa: {stare.adresa} · cod fiscal în antet: {stare.cif || "LIPSEȘTE (Setări → Date firmă)"}.</>}
+        {stare && !stare.cif && <span className="text-red-600"> Codul fiscal al firmei lipsește (Setări → Date firmă).</span>}
       </p>
-      <p className="text-xs text-mut">Cheia se generează în SAGA WEB de un utilizator Admin (Utilizatori → Integrare API → Generează cheie de acces)
-        și se lipește doar aici. Nu se trimite pe chat, pe e-mail și nu se pune în Vercel. După salvare nu se mai poate vedea — doar înlocui.</p>
-      <div className="fld"><label>Cheia nouă de acces SAGA</label>
-        <input type="password" autoComplete="new-password" value={cheie} onChange={(e) => setCheie(e.target.value)} placeholder="lipește cheia din SAGA WEB" /></div>
-      <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={salveaza} disabled={!!lucru || !cheie.trim()} className="btn-dark !py-1.5 text-xs">
+      {/* Cu cheia salvată, schimbarea ei stă restrânsă: nu e o acțiune de zi cu zi. */}
+      <details open={!k?.setata || !!k?.blocata_la} className="text-xs">
+        <summary className="cursor-pointer text-mut">{k?.setata ? "Schimbă cheia" : "Salvează cheia"}</summary>
+        <p className="text-mut mt-1">Cheia se generează în SAGA WEB de un utilizator Admin (Utilizatori → Integrare API → Generează cheie de acces)
+          și se lipește doar aici — nu se trimite pe chat sau pe e-mail. După salvare nu se mai poate vedea, doar înlocui.</p>
+        <div className="fld mt-1"><label>Cheia nouă de acces SAGA</label>
+          <input type="password" autoComplete="new-password" value={cheie} onChange={(e) => setCheie(e.target.value)} placeholder="lipește cheia din SAGA WEB" /></div>
+        <button type="button" onClick={salveaza} disabled={!!lucru || !cheie.trim()} className="btn-dark !py-1.5 text-xs mt-2">
           {lucru === "salvez" ? "Se salvează…" : "Salvează cheia"}</button>
+      </details>
+      <div className="flex flex-wrap gap-2">
         <button type="button" onClick={testeaza} disabled={!!lucru || !k?.setata}
           className="rounded-xl border-2 border-line px-3 py-1.5 text-xs font-bold hover:border-acc">
           {lucru === "test" ? "Se testează…" : "Testează conexiunea"}</button>
       </div>
-      <p className="text-[11px] text-mut">„Testează conexiunea” doar CITEȘTE din SAGA articolul implicit (GetArticol) — nu importă nimic.</p>
+      <p className="text-[11px] text-mut">„Testează conexiunea” doar citește din SAGA articolul pentru piese — nu trimite nimic.</p>
       {rez && <p className={`text-xs ${rez.bun ? "text-ok" : "text-red-600"}`}>{rez.text}</p>}
       {!!stare?.apeluri.length && (
         <details className="text-xs"><summary className="cursor-pointer text-mut">Ultimele apeluri spre SAGA</summary>
@@ -455,7 +461,7 @@ export default function Integrari() {
       const urlApi = String(valori.url_api ?? "").trim();
       valori.url_api = urlApi;
       if (urlApi !== "" && !/^https:\/\/[^\s]+$/i.test(urlApi)) {
-        setMsg(`Adresa API-ului SAGA („${urlApi}”) trebuie să înceapă cu https://. Lasă gol pentru adresa din documentația SAGA.`);
+        setMsg(`Adresa SAGA („${urlApi}”) trebuie să înceapă cu https://. Lasă gol pentru adresa standard.`);
         return;
       }
       const regim = String(valori.regim_tva ?? "").trim().toLowerCase();
@@ -541,7 +547,7 @@ export default function Integrari() {
                       salveaza(cheie, v); }}
                       autoComplete="off"
                       className="mt-4 pt-3 border-t border-line grid gap-2 text-sm">
-                      {CAMPURI[i.nume].map((c) => c.tip === "bifa" ? (
+                      {CAMPURI[i.nume].filter((c) => !c.avansat).map((c) => c.tip === "bifa" ? (
                         <label key={c.k} className="flex items-start gap-2 text-xs cursor-pointer">
                           <input type="checkbox" name={c.k} className="mt-0.5"
                             defaultChecked={(conf[CHEI[i.nume]]?.[c.k] ?? "on") === "on"} />
@@ -563,6 +569,35 @@ export default function Integrari() {
                             autoComplete={c.tip === "password" ? "new-password" : "off"}
                             defaultValue={conf[CHEI[i.nume]]?.[c.k] ?? ""} /></div>
                       ))}
+                      {CAMPURI[i.nume].some((c) => c.avansat) && (
+                        <details className="rounded-xl border-2 border-line px-3 py-2">
+                          <summary className="cursor-pointer text-xs font-semibold">Setări avansate (nu se schimbă de obicei)</summary>
+                          <div className="grid gap-2 mt-2">
+                            {CAMPURI[i.nume].filter((c) => c.avansat).map((c) => c.tip === "bifa" ? (
+                        <label key={c.k} className="flex items-start gap-2 text-xs cursor-pointer">
+                          <input type="checkbox" name={c.k} className="mt-0.5"
+                            defaultChecked={(conf[CHEI[i.nume]]?.[c.k] ?? "on") === "on"} />
+                          {c.l}</label>
+                      ) : (
+                        <div className="fld" key={c.k}><label>{c.l}</label>
+                          {/* `autoComplete` NU e cosmetică aici (7 septembrie 2026).
+                              Chrome vede un câmp `password` lângă unul text, hotărăște
+                              că e formular de autentificare și pune peste amândouă
+                              contul cu care ești logat în /admin. Utilizatorul dez.ro
+                              scris de om („autopas") apărea, după un simplu refresh,
+                              ca adresa de e-mail a adminului — iar o apăsare pe
+                              „Salvează" ar fi scris-o chiar așa în bază, peste
+                              valoarea bună, fără ca nimeni să înțeleagă de ce nu mai
+                              merge integrarea.
+                              `new-password` pe câmpurile de parolă e ce oprește
+                              euristica; `off` singur nu e respectat de Chrome. */}
+                          <input name={c.k} type={c.tip ?? "text"}
+                            autoComplete={c.tip === "password" ? "new-password" : "off"}
+                            defaultValue={conf[CHEI[i.nume]]?.[c.k] ?? ""} /></div>
+                      ))}
+                          </div>
+                        </details>
+                      )}
                       <label className="flex items-center gap-2 text-xs cursor-pointer">
                         <input type="checkbox" name="activ" defaultChecked={conf[CHEI[i.nume]]?.activ ?? false} />
                         Activă (folosește această integrare)</label>
