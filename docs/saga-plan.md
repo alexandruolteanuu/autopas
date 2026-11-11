@@ -40,6 +40,9 @@ sau local (regula din CLAUDE.md).
    migrării 52 pe producție (proprietarul, din SQL Editor — jurnalul pasului 7), apoi, din preview sau
    local, „Salvează cheia” cu cheia reală și „Testează conexiunea”. Nedovedit până atunci: forma
    codului fiscal din antetul `X-Saga-Cod-Fiscal` („RO36608590” — riscul 9).
+   **Decizie așteptată de la proprietar**: push-ul pasului 7 pe ramură (commit `58aa002`, doar local)
+   — preview-ul s-ar reconstrui, iar caseta „Cheia SAGA” ar arăta eroare până la rularea migrării 52 —
+   sau întâi proba din serverul local.
 7. Pasul 8 — trimiterea („Trimite în SAGA”, reîncercare, raportul, „Marchează confirmată”,
    acțiunea în masă); blocată până sunt alese `format_numar` și `format_data`. **Probele de
    trimitere: pe seria PROBA, cu `importAutomat=false`, împreună cu contabila**, care șterge
@@ -2300,6 +2303,30 @@ Modificate: `lib/supabase.ts`, `lib/settings.ts`, `app/admin/integrari/page.tsx`
    e completat, mesajul spune și dacă există în gestiunea SAGA. Un eșec cu un mesaj despre codul fiscal
    → riscul 9. Un 401 / 403 → cheia se regenerează din SAGA WEB și se salvează din nou.
 6. **Doar la nevoie — anularea**: `scripts/anuleaza-saga-api.sql`.
+
+#### Adresa preview-ului (11 noiembrie 2026)
+
+Vercel → proiectul `autopas` → **Deployments** → filtrul de ramură `saga-integrare` → ultimul
+deployment → **Visit**. Sau pe GitHub, la commit-ul de pe ramură: bifa / linkul „Vercel” de lângă el.
+Preview-ul scrie în baza REALĂ (o singură bază Supabase) — regula din CLAUDE.md: până la unire, tot ce
+ține de SAGA, date firmă și facturi se face doar din preview sau local.
+
+#### Raportul trimis proprietarului (11 noiembrie 2026)
+
+- push-ul ramurii făcut, preview construit; `main` neatins; regula „doar din preview sau local” în CLAUDE.md;
+- decizia „fără instanță de test” trecută în riscul 5, A.10, D.5, pașii 7–8 și lista de sus; în
+  `docs/saga-api.md` corectate „testare pe instanța de test” și „serie separată”;
+- pasul 7 scris: un singur loc care folosește și rotește cheia (`lib/saga-api.mjs`), lacăt, rotirea
+  înainte de corp, 401 / 403 → mesajul de regenerare; cheia doar prin „Salvează cheia”, invizibilă din
+  browser; „Testează conexiunea” doar `GetArticol`;
+- teste: 59/59 pe SAGA simulat (care pică dacă rotirea se mută după corp sau dacă dispare lacătul),
+  33 SQL pentru producție, Docker (lacătul sub 20 de cereri simultane; 47–51 trec în continuare),
+  build-ul, ruta refuză fără sesiune; NEverificate: interfața în browser și primul apel real;
+- riscul 9: codul fiscal din antet („RO36608590”), nedovedit;
+- **migrarea 52 NErulată; pasul 7 doar local (`58aa002`)** — de ales: push pe ramură sau întâi proba locală.
+- Incident mărunt la proba rutei: `pgrep -f "next-server"` a găsit chiar comanda care îl căuta și a
+  oprit-o, iar serverul de probă a rămas pornit; oprit apoi după PID. **Regula: `pgrep -a next-server`
+  (fără `-f`), apoi `kill <PID>`.**
 
 #### Următorul
 
