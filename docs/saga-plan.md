@@ -3386,3 +3386,11 @@ migrări sau la contabilă.
 - întrebările pentru suportul SAGA (dubla încărcare la reîncercare, formatul raportului, durata unui import);
 - mai târziu: faza 2 (facturarea automată), formularul pentru comenzi introduse manual, `GUID_cod_client` (după
   proba cu nume diferite).
+
+## Ștergerea comenzilor de probă (11 noiembrie 2026)
+
+Cerută de proprietar: AP-2026-01809 (PROBA 1) și AP-2026-01811 (PROBA 2 + stornoul PROBA 3) să nu mai
+apară în admin. Varianta aleasă: **ștergere definitivă**, nu ascundere. Scriptul `scripts/sterge-comenzi-proba.sql`
+(rulat de proprietar din SQL Editor) oprește paza facturilor DOAR în tranzacția lui, șterge facturile de probă
+și cele două comenzi și repune pe stoc piesele comenzilor neanulate. Se oprește fără să șteargă nimic dacă vreo
+factură a lor e pe o serie reală. Nu atinge SAGA: dacă PROBA 1–3 mai sunt acolo, le șterge contabila.
