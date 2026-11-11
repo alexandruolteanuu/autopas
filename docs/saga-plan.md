@@ -58,8 +58,8 @@ sau local (regula din CLAUDE.md).
    „Procedura de pornire — 11 noiembrie 2026” (secțiunea C). Înainte: verificările pentru unirea ramurii în
    `main` (secțiunea „Înainte de unire”, în jurnalul pasului 10b). **Ramura UNITĂ în `main` și pusă pe producție
    la 11 noiembrie 2026** (`e0f512f`) — procedura se face din adminul live.
-10. Pasul 11 — textele: **COD SCRIS (11 noiembrie 2026), commit local pe `main`, NEîmpins — așteaptă confirmarea
-   proprietarului (fiecare push pe `main` ajunge direct pe site).** Jurnalul pasului 11 la finalul planului. **Cerut de proprietar (11 noiembrie 2026) — DUPĂ PORNIRE**: curățarea și organizarea zonei SAGA / facturare
+10. ~~Pasul 11~~ — textele: **GATA și pus pe site la 11 noiembrie 2026** (push confirmat, deploy reușit ~11:09 UTC);
+   de verificat de proprietar pe ecran — vezi „Raportul trimis proprietarului” de la finalul planului. Jurnalul pasului 11 la finalul planului. **Cerut de proprietar (11 noiembrie 2026) — DUPĂ PORNIRE**: curățarea și organizarea zonei SAGA / facturare
    din admin pentru folosirea zilnică:
    - scoase mesajele de lucru: „de verificat cu contabila”, „valoare de PROBĂ”, trimiterile la pași / riscuri /
      întrebări, notele tehnice;
@@ -3361,3 +3361,28 @@ migrări sau la contabilă.
 - **Riscul 7 ÎNCHIS**: după validarea PAP FE 14207, SAGA a propus 14208 pentru o factură manuală nouă — contorul SAGA
   vede facturile importate. Rămâne obligatoriu doar pasul de după o factură manuală (numărul următor în Setări serie
   + seria pe comandă), fiindcă aplicația nu vede facturile manuale.
+
+#### Raportul trimis proprietarului (11 noiembrie 2026, după push)
+
+- Deploy-ul pe producție terminat cu succes (~11:09 UTC); site-ul răspunde normal, ruta de facturare refuză corect
+  cererile fără autentificare.
+- Push: 5 commit-uri, nu 4 — al cincilea e raportul din plan, doar documentație. Pasul 11 e live.
+- Riscul 7 închis: SAGA a propus 14208 după validarea PAP FE 14207 → vede facturile trimise din admin. Notat în plan
+  și în CLAUDE.md.
+- La o factură manuală: ÎNAINTE — SAGA propune singur numărul corect, verificarea rămâne doar o plasă; DUPĂ —
+  obligatoriu: numărul următor în Facturi → Setări serie și seria pe comandă (adminul nu vede facturile din SAGA).
+- Nota despre riscul 7 e într-un commit local pe `main` (`cd3d3ab`), neîmpins — pleacă la următorul push, ca să nu
+  pornească un deploy doar pentru o notă.
+- De verificat pe site de proprietar: Integrări — salvezi o dată cardul Saga și verifici că valorile din „Setări
+  avansate” au rămas; pagina unei facturi — „Setări avansate” jos, restrânsă.
+
+## Ce a rămas (la 11 noiembrie 2026, după pornire)
+
+- verificarea pe ecran a pasului 11 (mai sus);
+- întrebările deschise pentru contabilă: 2 (doar ce ține de oprirea manualului — înlocuită de regula facturilor
+  manuale), 4 (persoane fizice), 6 (reducerea), 7 (data facturii), 8 (momentul facturării — pentru faza 2),
+  9 (forma stornării), 10 (transportul comenzilor vechi), 11 (e-Factura prin SAGA — confirmat în practică), 15 (Nr.
+  Reg. Com. al firmelor), 16 (clienții cu nume / adresă ușor diferite — după pornire);
+- întrebările pentru suportul SAGA (dubla încărcare la reîncercare, formatul raportului, durata unui import);
+- mai târziu: faza 2 (facturarea automată), formularul pentru comenzi introduse manual, `GUID_cod_client` (după
+  proba cu nume diferite).
