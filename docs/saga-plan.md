@@ -49,13 +49,13 @@ sau local (regula din CLAUDE.md).
 8. Pasul 9 — verificarea articolelor prin `GetArticol`: **COD SCRIS (11 noiembrie 2026), fără migrare,
    împins pe ramură la 12 noiembrie 2026.** Rămâne: verificarea proprietarului din preview („Verifică în
    SAGA” pe articolul implicit).
-9. Pasul 10 — stornarea + ascunderea facturilor de probă: **COD SCRIS (12 noiembrie 2026), migrarea 53
-   NErulată, neîmpins (commit `5f41384`).** Așteptat de la proprietar, în ordine: (1) rularea migrării 53
-   (pre-verificare 5 × true, migrarea, testele 27/27, verificarea finală 0 | 0); (2) confirmarea push-ului —
-   DUPĂ migrare, fiindcă paginile cheamă funcțiile din 53; (3) proba din preview cu contabila (PROBA 2 cu
-   diacritice → „Stornează” → PROBA 3, curățenia, ascunderea PROBA 1–3); (4) decizia despre refacturarea
-   după storno (azi o comandă stornată nu mai primește factură nouă din aplicație). Pașii: jurnalul pasului 10.
-   Propunerea pentru clienții SAGA (întrebarea 16) e tot acolo — neimplementată, cu proba ei înaintea codului.
+9. Pasul 10 — stornarea + ascunderea facturilor de probă: **migrarea 53 RULATĂ pe producție la 12 noiembrie
+   2026** (5 × true, Success, 27/27, 0 | 0); pasul 10 împins pe ramură. Rămâne: **proba din preview** cu
+   contabila (PROBA 2 cu diacritice → „Stornează” → PROBA 3 — arată și dacă SAGA refolosește clientul fără
+   GUID; curățenia; ascunderea PROBA 1–3). Pașii: jurnalul pasului 10.
+9b. **Pasul 10b — refacturarea după storno: DECIS DA (12 noiembrie 2026)**; propunerea (rescrierea lui
+   `emite_factura` și `retrage_factura`, cu gărzi de amprentă) e în jurnalul pasului 10. **Se implementează
+   abia DUPĂ proba pasului 10.**
 10. Pasul 11 — textele (Integrări, Facturi, pagina comenzii) și `CLAUDE.md`.
 11. **Unirea ramurii în `main`** (după care regula „Date firmă nu se salvează din site-ul live”
     dispare din `CLAUDE.md`).
@@ -2710,8 +2710,14 @@ facturilor PROBA trimise. Începe doar după confirmare.
 
 ### Pasul 10 — stornarea și ascunderea facturilor de probă (migrarea 53)
 
-**Stare: cod scris și testat local (12 noiembrie 2026); migrarea 53 NErulată pe producție; commit local,
-NEîmpins.** Pasul 11 NU a început.
+**Stare: migrarea 53 e RULATĂ pe producție la 12 noiembrie 2026**, de proprietar, din SQL Editor:
+- pre-verificarea: 5 × `true`;
+- `supabase/saga-stornare.sql` → „Success”;
+- `scripts/verifica-saga-stornare.sql` → „REZULTAT OK”, 27/27;
+- verificarea finală: `0 | 0` (nicio factură ascunsă, nicio stornare).
+
+Codul pasului 10 împins pe ramura `saga-integrare` în aceeași zi (preview reconstruit — adresa mai jos).
+Urmează proba pasului 10 din preview, cu contabila. **Pasul 10b (refacturarea) și pasul 11 NU au început.**
 
 #### Ce modifică din ce există (răspuns dat înainte de cod)
 
@@ -2845,6 +2851,57 @@ Abia după rezultate: implementarea (un pas separat), cu testele ei.
 - Neverificate: interfața în browser și stornoul importat în SAGA.
 - **Așteptat**: rularea migrării 53; push-ul pasului 10 (după migrare); decizia despre refacturarea după storno.
 
+#### Deciziile proprietarului după pasul 10 (12 noiembrie 2026)
+
+- **Refacturarea după storno: DA.** După stornarea facturii unei comenzi, comanda trebuie să poată primi o
+  factură NOUĂ din aplicație (cazul tipic: date greșite pe factura trimisă → storno → factură corectă). Se
+  propune ca pas separat, **10b**, cu testele lui; **nu se implementează înainte de proba pasului 10**.
+- **Clienții (întrebarea 16)**: propunerea cu `GUID_cod_client` din telefon / CUI e bună. Proba pasului 10
+  (PROBA 2 + stornoul PROBA 3, același client) arată deja dacă SAGA refolosește clientul FĂRĂ GUID; rezultatul
+  se notează după probă. Restul probelor manuale (cu XML-uri editate) — după.
+
+#### Propunerea pentru pasul 10b — refacturarea după storno (NEIMPLEMENTATĂ)
+
+**Ce blochează azi**: `emite_factura` (51) refuză orice comandă cu `factura_status` ≠ „de_emis” sau cu
+`factura_serie` completat — regulă pusă ca să nu se dubleze o factură emisă MANUAL în SAGA. Stornarea din
+aplicație (53) pune comanda pe „stornata”, deci și ea e refuzată.
+
+**Modificarea propusă — migrarea 54 (`supabase/saga-refacturare.sql`)**, care rescrie DOUĂ funcții existente,
+fiecare cu gardă de amprentă (tiparul din 50/51: `md5(replace(prosrc, E'\r', ''))` comparat cu versiunea din
+git; se OPREȘTE dacă diferă; amprentele exacte se calculează din git la implementare):
+1. **`emite_factura`** (din 51) — o singură regulă în plus, în locul refuzului de azi pentru „stornata”:
+   comanda se poate factura din nou DACĂ, toate deodată:
+   - `factura_status = 'stornata'` ȘI există cel puțin o factură DIN APLICAȚIE pe comandă, iar fiecare
+     factură a ei are storno (adică „stornata” vine din aplicație, nu dintr-o notă manuală — o comandă
+     marcată „stornata” de mână, fără facturi din aplicație, rămâne refuzată, ca azi);
+   - **fiecare storno al comenzii e deja TRIMIS sau CONFIRMAT în SAGA**. Motivul: un storno netrimis se mai
+     poate retrage (`retrage_storno`), iar atunci factura veche ar redeveni valabilă lângă cea nouă — două
+     facturi pentru aceeași vânzare. Cu stornoul trimis, retragerea e deja refuzată;
+   - restul verificărilor rămân EXACT ca azi (comanda neanulată, cu piese, data de start, seria activă,
+     articolul implicit, datele firmei, județul). Data de start se aplică la data PLASĂRII comenzii, ca azi.
+   Factura nouă primește număr din seria ACTIVĂ (ca orice factură); oglinda devine „emisa” + noul număr;
+   jurnalul comenzii: „Factură nouă după stornarea <serie număr>”.
+2. **`retrage_factura`** (din 49) — dacă se retrage factura NOUĂ (netrimisă, ultima din serie), comanda nu mai
+   revine la „de_emis” / gol, ci la **„stornata” + seria ultimei facturi stornate** (azi ar pierde urma
+   stornării). Pentru o comandă fără stornări — exact ca azi.
+3. **`retrage_storno`** (53) — rămâne neatinsă: stornoul trimis nu se retrage oricum, iar cu regula de la 1
+   refacturarea cere stornoul trimis.
+4. **Interfața**: în cardul de facturare din comandă, când toate facturile sunt stornate și stornările
+   trimise → „Emite factura nouă” (cu explicația), altfel motivul („stornoul … trebuie întâi trimis în SAGA”).
+
+**Testele propuse** (ca la pașii anteriori):
+- `scripts/verifica-saga-refacturare.sql` — pe PRODUCȚIE, tranzacție anulată: refacturarea după storno
+  trimis (număr, oglindă, jurnal); refuz cu storno netrimis; refuz pe „stornata” manuală fără facturi din
+  aplicație; refuz cât există o factură nestornată; al doilea ciclu (factură → storno → factură → storno →
+  factură); retragerea facturii noi → oglinda „stornata” cu seria veche; amprentele; drepturile. Plus
+  re-rularea testelor 49/50/51/53 (comportamentul vechi neschimbat).
+- `verifica-saga-local.sh` (Docker): două refacturări SIMULTANE pe aceeași comandă stornată → o singură
+  factură nouă; anularea 54 pune înapoi exact versiunile din 51 și 49.
+- `scripts/anuleaza-saga-refacturare.sql` — pune înapoi `emite_factura` din 51 și `retrage_factura` din 49,
+  cu gardă (se oprește dacă funcțiile din bază nu sunt versiunile din 54); refuză dacă există deja o factură
+  emisă prin refacturare (ar rămâne o comandă cu două facturi, fără regula care le explică).
+
 #### Următorul
 
-Pasul 11 — textele (Integrări, Facturi, pagina comenzii) și `CLAUDE.md`. Începe doar după confirmare.
+Proba pasului 10 (proprietarul, din preview), apoi pasul 10b (refacturarea), apoi pasul 11 — textele
+(Integrări, Facturi, pagina comenzii) și `CLAUDE.md`. Fiecare doar după confirmare.

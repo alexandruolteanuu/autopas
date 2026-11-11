@@ -118,14 +118,17 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 45. `transport-incasat-de-fan.sql` -> 46. `retur-fan.sql` -> 47. `saga-calcul.sql` -> 48. `saga-export.sql` -> 49. `saga-facturi.sql` -> 50. `saga-articole.sql` -> 51. `saga-emitere.sql` -> 52. `saga-api.sql` -> 53. `saga-stornare.sql`
 Idempotente (se pot re-rula oricând): 6, 7, 9–53.
 NU sunt încă idempotente: 1–5, 8.
-**Aplicate pe producție: 1–45 și 47–52. 46 e scrisă, NErulată** (așteaptă contul ocazional FAN).
+**Aplicate pe producție: 1–45 și 47–53. 46 e scrisă, NErulată** (așteaptă contul ocazional FAN).
 **52 e RULATĂ pe producție la 11 noiembrie 2026**, de proprietar, din SQL Editor (pre-verificarea 5 × true,
 `scripts/verifica-saga-api.sql` „REZULTAT OK” 33/33, verificarea finală 0 | 0 | 1 | true; pasul 7 din `docs/saga-plan.md`).
-**53 e scrisă, NErulată** (12 noiembrie 2026, pasul 10): `storneaza_factura` (storno în aceeași serie, liniile
+**53 e RULATĂ pe producție la 12 noiembrie 2026** (pre-verificarea 5 × true, Success, `verifica-saga-stornare.sql` 27/27,
+verificarea finală 0 | 0; pasul 10): `storneaza_factura` (storno în aceeași serie, liniile
 cu semn schimbat, comanda „stornata”), `retrage_storno`, `serie_de_proba`, tabela `facturi_ascunse` cu
 `ascunde_factura` / `reafiseaza_factura` (DOAR seriile „PROBA…” / „TEST…”). Doar obiecte noi; nicio funcție
 existentă rescrisă. Limită știută: o comandă stornată nu mai primește factură nouă din aplicație
-(`emite_factura` din 51 refuză „stornata”). Pașii: jurnalul pasului 10; anularea: `scripts/anuleaza-saga-stornare.sql`.
+(`emite_factura` din 51 refuză „stornata”) — **refacturarea după storno e DECISĂ (12 noiembrie 2026)** și vine ca
+pasul 10b (migrarea 54: `emite_factura` + `retrage_factura` rescrise cu gărzi de amprentă; refacturare doar după ce
+stornoul e TRIMIS), abia după proba pasului 10. Pașii: jurnalul pasului 10; anularea: `scripts/anuleaza-saga-stornare.sql`.
 **Pasul 7 verificat pe contul REAL SAGA la 11 noiembrie 2026**, din preview: cheia salvată din admin,
 „Testează conexiunea” trecut, SAGA a rotit cheia la primul apel și cea nouă s-a salvat singură;
 `X-Saga-Cod-Fiscal` = „RO36608590” acceptat. Articolul implicit: **1457070043 „ACCESORII AUTO”, BUC** —
