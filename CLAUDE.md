@@ -141,8 +141,9 @@ e cel de după ultima factură din aplicație; imediat după, se actualizează n
 și se notează seria pe comandă. Comenzile de azi facturate manual (PAP FE 14195–14206) se notează ÎNAINTE de a
 seta data de start. **PORNIREA A REUȘIT la 11 noiembrie 2026**: prima factură reală din aplicație, **PAP FE 14207** (comanda
 AP-2026-01812, 200,00 lei = 165,29 + 34,71), importată, validată în SAGA, trimisă în e-Factura, confirmată.
-Riscul 7 (contorul SAGA după import) — rezultatul nereportat încă; până atunci, regula facturilor manuale
-(verificarea numărului propus de SAGA) rămâne în vigoare.
+**Riscul 7 ÎNCHIS**: după validarea PAP FE 14207, SAGA a propus 14208 pentru o factură manuală nouă — contorul
+SAGA vede facturile importate. Obligatoriu rămâne pasul de DUPĂ o factură manuală (numărul următor în Facturi →
+Setări serie + seria pe comandă): aplicația nu vede facturile emise direct în SAGA.
 **Pasul 11 (11 noiembrie 2026) — curățarea zonei de facturare**: doar texte și aranjare. În Integrări → Saga,
 câmpurile marcate `avansat` stau într-o secțiune „Setări avansate” restrânsă (rămân în formular, deci se salvează);
 pe pagina facturii, istoricul trimiterilor și „Descarcă fișierul” stau în „Setări avansate”, la final. Textele

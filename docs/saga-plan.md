@@ -72,7 +72,7 @@ sau local (regula din CLAUDE.md).
     regulile „până la unire” scoase din `CLAUDE.md`.
 12. ~~Pasul 12~~ — **GATA: PORNIREA a reușit la 11 noiembrie 2026.** Prima factură reală din aplicație:
     **PAP FE 14207** (comanda AP-2026-01812, 200,00 lei) — importată, validată în SAGA, trimisă în e-Factura,
-    confirmată. Rămâne doar rezultatul riscului 7 (necompletat în raport).
+    confirmată. Riscul 7 închis (SAGA a propus 14208 după import).
 
 **Mai târziu:**
 - faza 2 — facturarea automată la schimbarea stării comenzii (descrisă în C);
@@ -909,10 +909,12 @@ obișnuite.
    singur loc care o rotește (A.10, A.11); „Testează conexiunea” doar cu `GetArticol`; nicio cale de
    Import în pasul 7; probele de trimitere doar pe seria PROBA, cu `importAutomat=false`, șterse
    nevalidate de contabilă; testele automate ale clientului pe un SAGA simulat (D.5).
-7. **Contorul intern al SAGA pentru PAP FE** — **ÎNCĂ DESCHIS (11 noiembrie 2026)**: verificarea s-a făcut după
-   prima factură reală din aplicație (PAP FE 14207, validată), dar în raport numărul propus de SAGA a rămas
-   necompletat („[14208 / alt număr]”). Până la răspuns, regula facturilor manuale (riscul 4) rămâne: înainte de
-   o factură manuală se verifică numărul propus de SAGA. Textul inițial (risc nou, 10 noiembrie 2026) — NU știm dacă un
+7. ~~**Contorul intern al SAGA pentru PAP FE**~~ — **ÎNCHIS la 11 noiembrie 2026**: după validarea PAP FE 14207
+   (prima factură din aplicație, importată), SAGA a propus pentru o factură manuală nouă pe PAP FE **14208** —
+   contorul SAGA VEDE facturile importate. Consecința pentru regula facturilor manuale (riscul 4): SAGA propune
+   singur numărul corect după facturile din aplicație (verificarea dinainte rămâne doar o plasă); pasul care
+   rămâne OBLIGATORIU e cel de după: aplicația NU vede facturile manuale, deci după fiecare factură manuală se
+   actualizează numărul următor în Facturi → Setări serie și se notează seria pe comandă. Textul inițial (risc nou, 10 noiembrie 2026) — NU știm dacă un
    import XML avansează contorul de numerotare din SAGA pentru seria PAP FE. Dacă nu-l
    avansează, SAGA „crede” în continuare că următorul număr e cel de la pornire, iar o factură
    emisă ulterior manual în SAGA (din greșeală sau dintr-un obicei) ar primi un număr deja folosit
@@ -3350,3 +3352,12 @@ migrări sau la contabilă.
 - **După push, de verificat**: Integrări — salvezi o dată cardul Saga și verifici că valorile din „Setări avansate”
   au rămas; pagina unei facturi — drumul de zi cu zi sus, „Setări avansate” jos, restrânsă.
 - **Așteptat**: confirmarea push-ului pe `main` și numărul propus de SAGA (riscul 7).
+
+#### Push-ul pasului 11 și riscul 7 (11 noiembrie 2026)
+
+- **Push pe `main` confirmat de proprietar** — au plecat 5 commit-uri (cele 4 anunțate plus raportul din plan,
+  `69018b4`, doar documentație). Deploy-ul de producție Vercel s-a terminat cu succes (deployment `7708487882`,
+  ~11:09 UTC); site-ul răspunde (prima pagină 200, `/api/saga` refuză corect fără sesiune).
+- **Riscul 7 ÎNCHIS**: după validarea PAP FE 14207, SAGA a propus 14208 pentru o factură manuală nouă — contorul SAGA
+  vede facturile importate. Rămâne obligatoriu doar pasul de după o factură manuală (numărul următor în Setări serie
+  + seria pe comandă), fiindcă aplicația nu vede facturile manuale.
