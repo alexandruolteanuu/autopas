@@ -36,13 +36,11 @@ sau local (regula din CLAUDE.md).
    raportului, durata unui import, contorul seriei.
 
 **Pașii de cod rămași** (din C, câte unul, după confirmare):
-6. Pasul 7 — clientul API: **COD SCRIS (11 noiembrie 2026), migrarea 52 NErulată.** Rămâne: rularea
-   migrării 52 pe producție (proprietarul, din SQL Editor — jurnalul pasului 7), apoi, din preview sau
-   local, „Salvează cheia” cu cheia reală și „Testează conexiunea”. Nedovedit până atunci: forma
+6. Pasul 7 — clientul API: **cod scris, migrarea 52 RULATĂ pe producție la 11 noiembrie 2026**
+   (pre-verificarea 5 × true, testele 33/33, verificarea finală 0 | 0 | 1 | true), împins pe ramură.
+   Rămâne: din preview sau local, „Salvează cheia” cu cheia reală și „Testează conexiunea”. Nedovedit până atunci: forma
    codului fiscal din antetul `X-Saga-Cod-Fiscal` („RO36608590” — riscul 9).
-   **Decizie așteptată de la proprietar**: push-ul pasului 7 pe ramură (commit `58aa002`, doar local)
-   — preview-ul s-ar reconstrui, iar caseta „Cheia SAGA” ar arăta eroare până la rularea migrării 52 —
-   sau întâi proba din serverul local.
+
 7. Pasul 8 — trimiterea („Trimite în SAGA”, reîncercare, raportul, „Marchează confirmată”,
    acțiunea în masă); blocată până sunt alese `format_numar` și `format_data`. **Probele de
    trimitere: pe seria PROBA, cu `importAutomat=false`, împreună cu contabila**, care șterge
@@ -2203,8 +2201,15 @@ Pasul 7 — clientul API SAGA (`saga_cheie`, `saga_blocare`, `saga_trimiteri`, `
 
 ### Pasul 7 — clientul API SAGA, pe contul REAL (migrarea 52)
 
-**Stare: cod scris și testat local (11 noiembrie 2026), migrarea 52 NErulată pe producție, pasul 7
-neîmpins pe GitHub.** Pasul 8 NU a început.
+**Stare: migrarea 52 e RULATĂ pe producție la 11 noiembrie 2026**, de proprietar, din SQL Editor:
+- pre-verificarea: 5 × `true`;
+- `supabase/saga-api.sql` → „Success. No rows returned.”;
+- `scripts/verifica-saga-api.sql` → „REZULTAT OK: toate cele 33 verificări au trecut”;
+- verificarea finală: `0 | 0 | 1 | true` (nicio cheie, niciun apel, lacătul liber).
+
+Codul pasului 7 împins pe ramura `saga-integrare` în aceeași zi (preview reconstruit). Urmează, la
+proprietar: „Salvează cheia” cu cheia reală și „Testează conexiunea”, din preview sau local.
+**Pasul 8 NU a început.**
 
 #### Înainte de pas (11 noiembrie 2026)
 
