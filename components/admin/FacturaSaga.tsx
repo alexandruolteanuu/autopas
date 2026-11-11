@@ -70,13 +70,17 @@ export default function FacturaSaga({ o, laSchimbare, salveazaManual }: {
   }
 
   async function retrage(doc: Doc) {
-    if (!confirm(`Retragi factura ${doc.serie} ${doc.numar}? Se șterge, iar numărul ${doc.numar} va fi folosit de următoarea factură. Merge doar pentru ultima factură din serie, netrimisă.`)) return;
+    const eStorno = doc.tip === "storno";
+    if (!confirm(eStorno
+      ? `Retragi stornoul ${doc.serie} ${doc.numar}? Se șterge, numărul ${doc.numar} se refolosește, iar factura stornată rămâne valabilă. Merge doar pentru ultimul document din serie, netrimis.`
+      : `Retragi factura ${doc.serie} ${doc.numar}? Se șterge, iar numărul ${doc.numar} va fi folosit de următoarea factură. Merge doar pentru ultima factură din serie, netrimisă.`)) return;
     const sb = sbBrowser(); if (!sb) return;
     setLucru(true); setMsg(null);
-    const { error } = await sb.rpc("retrage_factura", { p_id: doc.id });
+    // Pasul 10: `retrage_factura` (49) refuză stornările; pentru ele există `retrage_storno` (53).
+    const { error } = await sb.rpc(eStorno ? "retrage_storno" : "retrage_factura", { p_id: doc.id });
     setLucru(false);
     if (error) { setMsg({ bun: false, text: `NU s-a retras: ${error.message}` }); return; }
-    setMsg({ bun: true, text: `✓ Factura ${doc.serie} ${doc.numar} a fost retrasă.` });
+    setMsg({ bun: true, text: `✓ ${eStorno ? "Stornoul" : "Factura"} ${doc.serie} ${doc.numar} a fost ${eStorno ? "retras" : "retrasă"}.` });
     await incarca(); laSchimbare();
   }
 

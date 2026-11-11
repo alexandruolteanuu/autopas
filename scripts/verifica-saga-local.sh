@@ -5,7 +5,7 @@
 # Pornește un Postgres 17 de unică folosință, îl îmbracă în imitația minimă a
 # Supabase (scripts/saga-local/stub-supabase.sql), încarcă `sterge_comanda`
 # EXACT din supabase/admin-fix.sql și date FICTIVE (scripts/saga-local/), aplică
-# migrările SAGA 47–52, apoi:
+# migrările SAGA 47–53, apoi:
 #   1. rulează aceleași teste ca pe producție (verifica-saga-*.sql);
 #   2. CONCURENȚA: 20 de `emite_factura` pornite simultan → 20 de numere
 #      distincte și consecutive, contorul exact după ele;
@@ -15,7 +15,10 @@
 #   5. `sterge_comanda` pe o comandă facturată → refuzată, stocul neatins;
 #   6. anularea migrării 49 refuză cât timp există facturi;
 #   7. LACĂTUL SAGA (migrarea 52): 20 de `saga_ia_blocarea` simultane → exact una
-#      reușește; anularea migrării 52 șterge tot, iar re-rularea o reface.
+#      reușește; anularea migrării 52 șterge tot, iar re-rularea o reface;
+#   8. trecerile de stare folosite de trimitere (pasul 8), pe triggerul real;
+#   9. STORNAREA (migrarea 53): aceeași factură stornată de două ori simultan → un
+#      singur storno; anularea 53 lasă documentele, re-rularea o reface.
 # La final containerul se șterge. Nu atinge nicio bază reală.
 #
 # Folosire: scripts/verifica-saga-local.sh   (cere Docker)
@@ -50,14 +53,14 @@ i = s.index('create or replace function public.sterge_comanda')
 print(s[i:s.index('grant execute on function public.sterge_comanda', i)])
 PY
 P < scripts/saga-local/date-fictive.sql >/dev/null 2>&1 || picat "datele fictive"
-for m in saga-calcul saga-export saga-facturi saga-articole saga-emitere saga-api; do
+for m in saga-calcul saga-export saga-facturi saga-articole saga-emitere saga-api saga-stornare; do
   P < "supabase/$m.sql" >/dev/null 2>&1 || picat "migrarea $m"
   P < "supabase/$m.sql" >/dev/null 2>&1 || picat "migrarea $m, a doua rulare (idempotență)"
 done
-ok "migrările 47–52 (fiecare rulată de două ori)"
+ok "migrările 47–53 (fiecare rulată de două ori)"
 
 # 1. Testele de producție
-for t in calcul export facturi articole emitere api; do
+for t in calcul export facturi articole emitere api stornare; do
   r="$(P < "scripts/verifica-saga-$t.sql" 2>&1)"
   grep -q "REZULTAT OK" <<<"$r" || picat "verifica-saga-$t.sql: $(grep -m1 -o 'VERIFICARE PICATĂ.*\|ERROR:.*' <<<"$r")"
   ok "verifica-saga-$t.sql — $(grep -o 'toate cele [0-9]* d*e* *verificări' <<<"$r")"
@@ -147,5 +150,27 @@ SQL
 )
 grep -q "TRECERI OK" <<<"$r" || picat "trecerile de stare ale trimiterii: $r"
 ok "trimiterea (pasul 8): de_trimis/eroare ⇄ in_curs → trimisă → confirmată permise; trimisă → eroare / in_curs și confirmată → înapoi refuzate"
+
+# 9. Stornarea (pasul 10): aceeași factură stornată de două ori SIMULTAN → un singur storno
+fid=$(Q "select id from facturi where tip = 'factura' and saga_status in ('trimisa','confirmata') and not exists (select 1 from facturi s where s.storno_pentru = facturi.id) order by id limit 1")
+[ -n "$fid" ] || picat "stornarea: nu găsesc o factură trimisă"
+urm0=$(Q "select urmator from facturi_serii where serie = (select serie from facturi where id = $fid)")
+storno() {
+  docker exec -i "$C" psql -U postgres -tA -q 2>&1 <<SQL | grep -v '^{"sub\|^CONTEXT'
+select set_config('request.jwt.claims', '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', false);
+select storneaza_factura($fid, 'simultan');
+SQL
+}
+storno > /tmp/saga-storno-a.out & storno > /tmp/saga-storno-b.out; wait
+ns=$(Q "select count(*) from facturi where storno_pentru = $fid"); rm -f /tmp/saga-storno-[ab].out
+urm1=$(Q "select urmator from facturi_serii where serie = (select serie from facturi where id = $fid)")
+[ "$ns" = 1 ] || picat "stornare simultană: $ns stornări pe aceeași factură"
+[ "$urm1" = "$((urm0 + 1))" ] || picat "stornare simultană: contorul a sărit de la $urm0 la $urm1"
+ok "stornare simultană pe aceeași factură → un singur storno, contorul +1"
+P < scripts/anuleaza-saga-stornare.sql >/dev/null 2>&1 || picat "anularea migrării 53"
+[ "$(Q "select to_regclass('public.facturi_ascunse') is null and to_regprocedure('public.storneaza_factura(bigint,text)') is null and (select count(*) from facturi where tip='storno') > 0")" = t ] \
+  || picat "anularea migrării 53: trebuia să șteargă funcțiile și tabela, dar să lase stornările emise"
+P < supabase/saga-stornare.sql >/dev/null 2>&1 || picat "re-rularea migrării 53 după anulare"
+ok "anularea migrării 53 șterge funcțiile și tabela, lasă documentele; re-rularea o reface"
 
 echo "TOATE VERIFICĂRILE LOCALE AU TRECUT"

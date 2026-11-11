@@ -14,7 +14,11 @@
 //   · „Trimite în SAGA” / „Reîncearcă” (pasul 8) — prin ruta /api/saga, cu formatele
 //     SALVATE în Integrări (nu cu cele alese aici pentru descărcare); blocat cât lipsesc;
 //   · „Marchează confirmată” — după ce omul a validat importul în SAGA (Diverse → Import date);
-//   · jurnalul trimiterilor (`saga_trimiteri`), cu raportul SAGA întreg.
+//   · jurnalul trimiterilor (`saga_trimiteri`), cu raportul SAGA întreg;
+//   · „Stornează” (pasul 10) — doar pe o factură trimisă / confirmată, fără storno
+//     (`storneaza_factura`); stornoul se trimite apoi ca orice factură. Un storno netrimis,
+//     ultimul din serie, se retrage cu `retrage_storno` (nu cu `retrage_factura`);
+//   · „Ascunde din listă” / „Arată din nou” — DOAR pe seriile de probă (PROBA…, TEST…).
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -51,6 +55,9 @@ export default function FacturaPagina() {
   type Apel = { id: number; created_at: string; http_status: number | null; durata_ms: number | null;
     cheie_rotita: boolean; eroare: string | null; raspuns: string | null; fisier: string | null };
   const [apeluri, setApeluri] = useState<Apel[]>([]);
+  // Pasul 10: legătura factură ↔ storno și ascunderea facturilor de probă.
+  const [legat, setLegat] = useState<{ id: number; serie: string; numar: number } | null>(null);
+  const [ascunsa, setAscunsa] = useState(false);
 
   const incarca = useCallback(async () => {
     const sb = sbBrowser(); if (!sb) return;
@@ -63,6 +70,17 @@ export default function FacturaPagina() {
         .contains("factura_ids", [Number(id)]).order("id", { ascending: false }).limit(20),
     ]);
     setApeluri((ap.data ?? []) as Apel[]);
+    {
+      const fx0 = fa.data as Factura | null;
+      const [lg, asc] = await Promise.all([
+        fx0?.tip === "storno" && fx0.storno_pentru
+          ? sb.from("facturi").select("id,serie,numar").eq("id", fx0.storno_pentru).maybeSingle()
+          : sb.from("facturi").select("id,serie,numar").eq("storno_pentru", Number(id)).maybeSingle(),
+        sb.from("facturi_ascunse").select("factura_id").eq("factura_id", Number(id)).maybeSingle(),
+      ]);
+      setLegat((lg.data ?? null) as { id: number; serie: string; numar: number } | null);
+      setAscunsa(!!asc.data);
+    }
     const fx = fa.data as Factura | null;
     setF(fx); setLinii((li.data ?? []) as FacturaLinie[]); setPoate(rol.data === true);
     if (fx) {
@@ -152,14 +170,47 @@ export default function FacturaPagina() {
   }
 
   async function retrage() {
-    if (!f || !confirm(`Retragi factura ${f.serie} ${f.numar}? Se șterge, iar numărul ${f.numar} va fi folosit de următoarea factură. Merge doar pentru ultima factură din serie, netrimisă.`)) return;
+    const eStorno = f?.tip === "storno";
+    if (!f || !confirm(eStorno
+      ? `Retragi stornoul ${f.serie} ${f.numar}? Se șterge, numărul ${f.numar} se refolosește, iar factura stornată rămâne valabilă. Merge doar pentru ultimul document din serie, netrimis.`
+      : `Retragi factura ${f.serie} ${f.numar}? Se șterge, iar numărul ${f.numar} va fi folosit de următoarea factură. Merge doar pentru ultima factură din serie, netrimisă.`)) return;
     const sb = sbBrowser(); if (!sb) return;
     setLucru(true); setMsg(null);
-    const { error } = await sb.rpc("retrage_factura", { p_id: f.id });
+    // `retrage_factura` (49) refuză stornările; pentru ele există `retrage_storno` (53).
+    const { error } = await sb.rpc(eStorno ? "retrage_storno" : "retrage_factura", { p_id: f.id });
     setLucru(false);
     if (error) { setMsg({ bun: false, text: `NU s-a retras: ${error.message}` }); return; }
     router.push(`/admin/comenzi/${f.order_id}`);
   }
+
+  async function storneaza() {
+    if (!f) return;
+    const motiv = prompt(`Stornezi factura ${f.serie} ${f.numar} (${lei(Number(f.total))})? Se emite un document STORNO în seria ${f.serie}, cu număr nou și sumele cu minus, care se trimite apoi în SAGA ca orice factură. Comanda devine „stornată” și NU mai poate primi o factură nouă din aplicație.\n\nMotivul (opțional, apare pe storno):`, "");
+    if (motiv === null) return;
+    const sb = sbBrowser(); if (!sb) return;
+    setLucru(true); setMsg(null);
+    const { data, error } = await sb.rpc("storneaza_factura", { p_id: f.id, p_motiv: motiv });
+    setLucru(false);
+    if (error) { setMsg({ bun: false, text: `NU s-a stornat: ${error.message}` }); return; }
+    router.push(`/admin/facturi/${(data as { id: number }).id}`);
+  }
+
+  async function comutaAscunderea() {
+    if (!f) return;
+    if (!ascunsa && !confirm(`Ascunzi factura de probă ${f.serie} ${f.numar} din lista din Facturi? Nu se șterge nimic; o vezi din nou cu bifa „Arată și facturile de probă ascunse”.`)) return;
+    const sb = sbBrowser(); if (!sb) return;
+    setLucru(true); setMsg(null);
+    const { error } = ascunsa
+      ? await sb.rpc("reafiseaza_factura", { p_id: f.id })
+      : await sb.rpc("ascunde_factura", { p_id: f.id, p_motiv: "factură de probă" });
+    setLucru(false);
+    if (error) { setMsg({ bun: false, text: `NU s-a putut: ${error.message}` }); return; }
+    setMsg({ bun: true, text: ascunsa ? "✓ Factura apare din nou în listă." : "✓ Factura e ascunsă din listă." });
+    incarca();
+  }
+
+  const deProba = /^(PROBA|TEST)/i.test(f.serie.trim());
+  const sePoateStorna = poate && f.tip === "factura" && (f.saga_status === "trimisa" || f.saga_status === "confirmata") && !legat;
 
   // Ce va scrie efectiv în XML formatul de număr ales — la proba din 11 noiembrie 2026 s-a
   // ales din listă „serie_lipita” fără să se vadă că dă „PROBA1”, nu „PROBA 1”.
@@ -182,8 +233,17 @@ export default function FacturaPagina() {
             {numarComanda && <> · <Link href={`/admin/comenzi/${f.order_id}`} className="hover:text-acc">comanda {numarComanda}</Link></>}</div>
           <h1 className="font-disp font-bold text-2xl mt-1">{f.tip === "storno" ? "Storno " : "Factura "}{f.serie} {f.numar}</h1>
           <span className="text-sm text-mut">{f.data.split("-").reverse().join(".")} · {lei(Number(f.total))} ·{" "}
-            <b className={f.saga_status === "confirmata" ? "text-ok" : f.saga_status === "eroare" ? "text-red-700" : ""}>{ETICHETE_STARE[f.saga_status]}</b></span>
+            <b className={f.saga_status === "confirmata" ? "text-ok" : f.saga_status === "eroare" ? "text-red-700" : ""}>{ETICHETE_STARE[f.saga_status]}</b>
+            {ascunsa && <> · <span className="text-amber-800">ascunsă din listă</span></>}</span>
+          {legat && <div className="text-sm mt-1">{f.tip === "storno" ? "Stornează factura " : "Stornată de "}
+            <Link href={`/admin/facturi/${legat.id}`} className="font-semibold text-acc hover:underline">{f.tip === "storno" ? "" : "storno "}{legat.serie} {legat.numar}</Link></div>}
         </div>
+        {(sePoateStorna || (poate && deProba)) && (
+          <div className="flex gap-2">
+            {sePoateStorna && <button type="button" onClick={storneaza} disabled={lucru} className="rounded-xl border-2 border-red-200 text-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-50">Stornează</button>}
+            {poate && deProba && <button type="button" onClick={comutaAscunderea} disabled={lucru} className="rounded-xl border-2 border-line px-4 py-2 text-sm font-semibold hover:border-acc">{ascunsa ? "Arată din nou în listă" : "Ascunde din listă (probă)"}</button>}
+          </div>
+        )}
         {poate && modificabila && (
           <div className="flex gap-2">
             <button type="button" onClick={() => setEditez(!editez)} className="rounded-xl border-2 border-line px-4 py-2 text-sm font-semibold hover:border-acc">{editez ? "Renunță" : "Modifică"}</button>

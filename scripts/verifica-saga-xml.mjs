@@ -188,4 +188,18 @@ eq(st({ status: 207, text: "" }, "PROBA 1").stare, "eroare", "207 gol → eroare
 eq(st({ status: 500, text: "boom" }, "PROBA 1").stare, "eroare", "500 → eroare");
 eq(st({ status: 207, text: "Factura 1.\n NR_DOC: PROBA1\n Avertizare: x" }, "PROBA 1").stare, "trimisa", "207: NR_DOC fără spațiu se potrivește tot");
 
+// --- Stornarea (pasul 10): documentul storno, așa cum îl scrie `storneaza_factura` ---
+const storno = {
+  ...factura, tip: "storno", numar: 14194, observatii: "Stornare factura PAP FE 14193 din 03.11.2026. Motiv: retur",
+  linii: factura.linii.map((l) => ({ ...l, cantitate: -Number(l.cantitate), valoare: -Number(l.valoare), tva: -Number(l.tva), total: -Number(l.total) })),
+};
+const xs = construiesteXml([storno], opt);
+eq(xs.includes("<FacturaNumar>PAP FE 14194</FacturaNumar>"), true, "storno: număr nou din aceeași serie");
+eq(xs.includes("<Cantitate>-1</Cantitate>"), true, "storno: cantitatea negativă");
+eq(xs.includes("<Pret>165.2900</Pret>"), true, "storno: prețul unitar rămâne pozitiv");
+eq(xs.includes("<Valoare>-165.29</Valoare>") && xs.includes("<TVA>-34.71</TVA>"), true, "storno: valoarea și TVA-ul negative (opusul facturii de referință)");
+eq(xs.includes("<Valoare>8.26</Valoare>"), true, "storno: linia de reducere devine pozitivă");
+eq(/<FacturaInformatiiSuplimentare>[^<]*Stornare factura PAP FE 14193 din 03.11.2026/.test(xs), true, "storno: trimiterea la factura stornată în informațiile suplimentare");
+eq(numeFisier(storno, opt), "F_RO36608590_PAP_FE_14194_03_11_2026.xml", "storno: numele fișierului");
+
 console.log(`TOATE CELE ${n} VERIFICĂRI XML AU TRECUT`);

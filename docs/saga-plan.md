@@ -49,8 +49,9 @@ sau local (regula din CLAUDE.md).
 8. Pasul 9 — verificarea articolelor prin `GetArticol`: **COD SCRIS (11 noiembrie 2026), fără migrare,
    împins pe ramură la 12 noiembrie 2026.** Rămâne: verificarea proprietarului din preview („Verifică în
    SAGA” pe articolul implicit).
-9. Pasul 10 — stornarea (`storneaza_factura` + butonul). **Cerut de proprietar (11 noiembrie 2026):
-   facturile pe seria PROBA trimise în SAGA trebuie să poată fi ascunse din listă sau stornate.**
+9. Pasul 10 — stornarea + ascunderea facturilor de probă: **COD SCRIS (12 noiembrie 2026), migrarea 53
+   NErulată, neîmpins.** Rămâne: migrarea 53 pe producție (proprietarul), push, proba din preview
+   (stornare + diacritice) — pașii în jurnalul pasului 10.
 10. Pasul 11 — textele (Integrări, Facturi, pagina comenzii) și `CLAUDE.md`.
 11. **Unirea ramurii în `main`** (după care regula „Date firmă nu se salvează din site-ul live”
     dispare din `CLAUDE.md`).
@@ -2702,3 +2703,143 @@ Modificate: `lib/saga-api.mjs`, `app/api/saga/route.ts`, `app/admin/facturi/arti
 
 Pasul 10 — stornarea (`storneaza_factura` + butonul) și, cerut de proprietar, ascunderea / stornarea
 facturilor PROBA trimise. Începe doar după confirmare.
+
+### Pasul 10 — stornarea și ascunderea facturilor de probă (migrarea 53)
+
+**Stare: cod scris și testat local (12 noiembrie 2026); migrarea 53 NErulată pe producție; commit local,
+NEîmpins.** Pasul 11 NU a început.
+
+#### Ce modifică din ce există (răspuns dat înainte de cod)
+
+- **În bază (migrarea 53, `supabase/saga-stornare.sql`), doar obiecte NOI**: `storneaza_factura(id, motiv)`,
+  `retrage_storno(id)`, `serie_de_proba(serie)`, tabela `facturi_ascunse` cu `ascunde_factura` /
+  `reafiseaza_factura`. **Nu înlocuiește nicio funcție existentă și nu adaugă coloane** pe tabelele
+  existente; triggerul de pază din 49 rămâne neatins și se aplică și stornărilor.
+- **În cod**: pagina facturii („Stornează” cu motiv, legăturile factură ↔ storno, „Retrage” pe un storno →
+  `retrage_storno`, „Ascunde / Arată din nou” pe seriile de probă); cardul din comandă (pe un storno,
+  „Retrage” → `retrage_storno`, fiindcă `retrage_factura` îl refuză); lista din Facturi (ascunsele lipsesc
+  implicit, bifa „Arată și facturile de probă ascunse”).
+- **Limită semnalată, NEschimbată**: după stornare comanda e „stornata”, iar `emite_factura` (51) refuză
+  comenzile care nu sunt „de_emis” — o comandă stornată NU primește o factură nouă din aplicație.
+  Refacturarea ar cere rescrierea lui `emite_factura` (cu gardă de amprentă) — decizie separată.
+
+#### Ce s-a făcut
+
+- **`storneaza_factura`**: doar pe o factură „trimisă” sau „confirmată”, care nu e storno și n-are deja unul
+  (factura blocată `for update`); numărul din ACEEAȘI serie (blocată, fără goluri — merge și pe o serie
+  inactivă, cum e PROBA); liniile copiate cu cantitatea și sumele cu semn schimbat, prețul unitar neschimbat
+  (totalul = exact opusul); clientul, furnizorul și mențiunea copiate de pe factură; observațiile „Stornare
+  factura <serie> <număr> din <data>. Motiv: …”; comanda → „stornata”; rând în jurnalul comenzii. Stornoul
+  pleacă în SAGA prin „Trimite în SAGA” (pasul 8), ca orice factură.
+- **`retrage_storno`**: un storno NETRIMIS și ULTIMUL din serie se șterge, contorul dă înapoi, comanda revine
+  la „emisă” cu seria facturii stornate.
+- **Ascunderea**: doar pe seriile al căror nume începe cu „PROBA” sau „TEST” (`serie_de_proba`) — un document
+  fiscal real nu poate dispărea din listă (se stornează). Nu se șterge nimic.
+- **Teste:**
+  - `scripts/verifica-saga-stornare.sql` — **27 de verificări pe PRODUCȚIE**, în tranzacție anulată, pe două
+    serii cu nume unic (una „TEST …”, una „Z…” = serie „reală”): refuzul pe o factură netrimisă, antetul și
+    numărul stornoului, contorul, totalurile opuse, copia clientului / furnizorului / mențiunii, observațiile,
+    fiecare linie = opusul, comanda „stornata”, jurnalul comenzii, al doilea storno refuzat, `retrage_factura`
+    refuză un storno, `retrage_storno` refuză o factură, retragerea stornoului (contor, comanda „emisă”),
+    numărul refolosit, stornoul trimis nu se retrage / nu se stornează / nu se modifică, ascunderea pe probă
+    (idempotentă) și reafișarea, refuzul ascunderii pe o serie reală, stornarea unei facturi confirmate,
+    drepturile (utilizator fără rol, `anon`, citirea tabelei);
+  - `verifica-saga-local.sh` (Docker): 53 aplicată de două ori, testul SQL 27/27, **aceeași factură
+    stornată de două ori SIMULTAN → un singur storno, contorul +1**, anularea 53 șterge funcțiile și tabela
+    dar lasă documentele, re-rularea o reface; toate testele mai vechi trec;
+  - `verifica-saga-xml.mjs` — **102/102** (+7: XML-ul unui storno — număr nou, cantitate negativă, preț unitar
+    pozitiv, valoare / TVA negative, reducerea pozitivă, trimiterea la factura stornată, numele fișierului);
+    `verifica-saga-api.mjs` 109/109; build-ul trece.
+  - **NEverificat**: interfața în browser și stornoul importat în SAGA.
+
+#### Fișiere
+
+Noi: `supabase/saga-stornare.sql`, `scripts/verifica-saga-stornare.sql`, `scripts/anuleaza-saga-stornare.sql`.
+Modificate: `app/admin/facturi/[id]/page.tsx`, `app/admin/facturi/page.tsx`, `components/admin/FacturaSaga.tsx`,
+`scripts/verifica-saga-xml.mjs`, `scripts/verifica-saga-local.sh`, `CLAUDE.md`, `docs/saga-plan.md`.
+
+#### Cum se aplică — pe PRODUCȚIE, din SQL Editor (proprietarul)
+
+1. **Pre-verificarea** (doar citire) — 5 × `true`:
+   ```sql
+   select to_regprocedure('public.is_facturare()') is not null           as are_is_facturare,
+          to_regclass('public.facturi') is not null                      as are_facturi,
+          to_regclass('public.facturi_ascunse') is null                  as fara_facturi_ascunse,
+          to_regprocedure('public.storneaza_factura(bigint,text)') is null as fara_storneaza,
+          to_regprocedure('public.retrage_storno(bigint)') is null        as fara_retrage_storno;
+   ```
+2. **Migrarea**: `supabase/saga-stornare.sql` → „Success. No rows returned.”
+3. **Testele**: `scripts/verifica-saga-stornare.sql` → „REZULTAT OK: toate cele 27 verificări au trecut …”.
+4. **Verificarea finală** (doar citire) — `0 | 0`:
+   ```sql
+   select (select count(*) from facturi_ascunse) as ascunse, (select count(*) from facturi where tip = 'storno') as stornari;
+   ```
+5. Apoi push pe ramură (la confirmare) — codul paginilor cheamă funcțiile din 53.
+6. **Doar la nevoie — anularea**: `scripts/anuleaza-saga-stornare.sql` (lasă documentele emise).
+
+#### Cum se verifică — proba pasului 10 pe contul REAL (cu contabila), din preview
+
+Acoperă stornarea ȘI diacriticele (riscul 8).
+1. O comandă de PROBĂ a proprietarului, cu **diacritice în nume și adresă** (de ex. „Ștefan Țăranu Test”,
+   „Str. Mărășești nr. 1”, o localitate cu diacritice din listă); plasată cu „Doar necesare” sau dintr-o
+   fereastră privată, pe o piesă care NU e pe dez.ro.
+2. Facturi → Setări serie: seria **PROBA**, numărul următor **2** (1 e deja folosit — NU 1). Integrări →
+   Saga: data de start = azi.
+3. „Emite factura” → **PROBA 2** → „Trimite în SAGA”. În SAGA (Diverse → Import date, fără validare):
+   **diacriticele** în numele clientului, adresă, localitate.
+4. Pe PROBA 2 (acum „trimisă”): **„Stornează”** (motiv: „proba pasului 10”) → **PROBA 3** (storno) →
+   „Trimite în SAGA”. În SAGA: PROBA 3 cu sumele negative, trimiterea „Stornare factura PROBA 2 din …”,
+   același client (nu unul nou!).
+5. Curățenia: contabila șterge importurile nevalidate și clientul de test; comanda se anulează; Setări serie →
+   „Oprește emiterea”; data de start golită; PROBA 1, 2, 3 → „Ascunde din listă (probă)”.
+
+#### Propunerea pentru clienții din SAGA (întrebarea 16) — NEIMPLEMENTATĂ
+
+**Decizia proprietarului**: câte un client separat în SAGA pentru fiecare persoană, ca la facturarea manuală
+(cei noi primesc coduri consecutive, cei care revin își păstrează codul).
+
+**Ce știm**: la import, SAGA a creat singur clientul (cod 18086). Nu știm după ce îl recunoaște la a doua
+factură. XML-ul are două câmpuri pentru asta: `GUID_cod_client` (cheia NOASTRĂ, „SAGA reține asocierea”) și
+`Cod` (codul clientului DIN SAGA — îl știm doar pentru clienții pe care i-am văzut deja în SAGA).
+
+**Propunerea:**
+1. **Firme**: CUI-ul e cheia naturală — SAGA îl are în fișa clientului și, cel mai probabil, recunoaște firma
+   după el. În plus, `GUID_cod_client` derivat din CUI-ul curățat (vezi 3), ca regula să fie una singură.
+2. **Persoane fizice**: `GUID_cod_client` derivat din **telefonul normalizat** — cifrele, cu „+40” / „0040”
+   aduse la „0”, ultimele 10 cifre („07xxxxxxxx”). Telefonul e obligatoriu la checkout și e mai stabil decât
+   e-mailul (care lipsește uneori) sau numele (scris diferit de la o comandă la alta). Fără telefon valid →
+   fără GUID (SAGA decide singur).
+3. **Forma**: un GUID determinist (UUID versiunea 5) din „tel:07xxxxxxxx” / „cui:RO36608590”, cu un spațiu de
+   nume fix al aplicației. Același telefon dă mereu același GUID; formatul e cel standard (8-4-4-4-12), deci
+   merge și dacă SAGA cere un GUID adevărat; iar telefonul nu apare încă o dată, în clar, în alt câmp (e
+   oricum în `ClientTelefon`). Un singur loc în cod (`lib/saga-xml.mjs`), testat ca restul.
+4. **Ce nu rezolvă** (de spus contabilei): doi oameni pe același telefon (familie) → un singur client;
+   același om cu alt telefon → doi clienți; **clienții existenți din facturarea manuală** nu au GUID-ul nostru,
+   deci prima lor factură din aplicație poate crea un client nou — întrebare pentru suportul SAGA: cum se leagă
+   un GUID de un client existent (sau trimitem `Cod`-ul lor, dacă contabila ni-l dă).
+5. **Comenzile n-au cont de client** (`orders` fără `user_id`), deci cheia trebuie dedusă din comandă — de aici
+   telefonul / CUI-ul, nu un id de utilizator.
+
+**Proba, pe seria PROBA, ÎNAINTE de orice cod** — cu XML-uri descărcate („Descarcă XML”) și editate de mână,
+importate MANUAL în SAGA WEB (Diverse → Import date), FĂRĂ validare, cu contabila; numere PROBA 101, 102…
+(nu ating contorul aplicației), apoi importurile și clienții de test se șterg:
+1. același client persoană fizică, **fără GUID**, de două ori (al doilea cu numele scris ușor diferit) → SAGA
+   refolosește clientul sau creează unul nou? (comportamentul de azi);
+2. același client **cu GUID** (calculat de noi), de două ori, al doilea cu numele scris diferit → același cod?
+3. același GUID cu **adresa schimbată** → SAGA actualizează fișa sau păstrează datele vechi?
+4. o **firmă** fără GUID, de două ori → recunoscută după CUI?
+5. un client **existent** în SAGA (din facturarea manuală) cu `Cod`-ul lui → legat de cel existent?
+Abia după rezultate: implementarea (un pas separat), cu testele ei.
+
+#### Raportul trimis proprietarului (12 noiembrie 2026)
+
+- Pasul 9 împins (`37fc01f`); preview: https://autopas-3qd8qn4kl-alexandruolteanuus-projects.vercel.app
+- Răspunsurile din 12 noiembrie notate (testul de conexiune, diacriticele la pasul 10, decizia la întrebarea 16).
+- Pasul 10: ce modifică (doar obiecte noi), ce face, testele (27 SQL pe producție, Docker cu stornarea
+  simultană, 102 XML, 109 API, build), limita refacturării după storno, pașii de aplicare și proba.
+- Propunerea pentru clienți și proba ei — mai sus.
+- **Așteptat**: rularea migrării 53; push-ul pasului 10 (după migrare); decizia despre refacturarea după storno.
+
+#### Următorul
+
+Pasul 11 — textele (Integrări, Facturi, pagina comenzii) și `CLAUDE.md`. Începe doar după confirmare.

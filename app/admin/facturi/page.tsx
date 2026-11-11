@@ -45,8 +45,15 @@ export default function Facturi() {
     saga_status: SagaStatus; order_id: number; client: Record<string, string | null> };
   const [docs, setDocs] = useState<Doc[]>([]);
   const [stare, setStare] = useState<"toate" | SagaStatus>("toate");
+  // Pasul 10: facturile de PROBĂ ascunse (`facturi_ascunse`) lipsesc implicit din listă.
+  const [ascunse, setAscunse] = useState<Set<number>>(new Set());
+  const [aratAscunse, setAratAscunse] = useState(false);
   const incarcaDocs = useCallback(async () => {
     const sb = sbBrowser(); if (!sb) return;
+    {
+      const { data } = await sb.from("facturi_ascunse").select("factura_id");   // tabelă mică: doar probele
+      setAscunse(new Set(((data ?? []) as { factura_id: number }[]).map((r) => r.factura_id)));
+    }
     try {
       setDocs(await citesteTot<Doc>(() => {
         let q = sb.from("facturi").select("id,tip,serie,numar,data,total,saga_status,order_id,client", { count: "exact" })
@@ -63,6 +70,7 @@ export default function Facturi() {
   const [alese, setAlese] = useState<Set<number>>(new Set());
   const [trimit, setTrimit] = useState<{ facut: number; din: number; rezultate: string[] } | null>(null);
   const deTrimis = (d: Doc) => d.saga_status === "de_trimis" || d.saga_status === "eroare";
+  const vizibile = aratAscunse ? docs : docs.filter((d) => !ascunse.has(d.id));
   function bifeaza(id: number) {
     setAlese((v) => { const n = new Set(v); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   }
@@ -183,7 +191,12 @@ export default function Facturi() {
               {k === "toate" ? "Toate" : ETICHETE_STARE[k]}</button>
           ))}
         </div>
-        {docs.some(deTrimis) && (
+        {ascunse.size > 0 && (
+          <label className="flex items-center gap-2 text-xs mt-3 cursor-pointer w-fit">
+            <input type="checkbox" checked={aratAscunse} onChange={(e) => setAratAscunse(e.target.checked)} />
+            Arată și facturile de probă ascunse ({ascunse.size})</label>
+        )}
+        {vizibile.some(deTrimis) && (
           <div className="flex flex-wrap items-center gap-2 mt-3">
             <button type="button" className="btn-acc !py-1.5 text-xs" disabled={!!trimit && trimit.facut < trimit.din || !Array.from(alese).some((id) => docs.find((d) => d.id === id && deTrimis(d)))}
               onClick={trimiteSelectate}>Trimite selectate în SAGA{alese.size ? ` (${alese.size})` : ""}</button>
@@ -196,14 +209,14 @@ export default function Facturi() {
             <ul className="mt-1 space-y-0.5">{trimit.rezultate.map((r, i) => <li key={i}>{r}</li>)}</ul>
           </div>
         )}
-        {docs.length === 0 ? <p className="text-mut mt-3">Nicio factură{stare === "toate" ? " emisă din aplicație încă" : " în starea aleasă"}.</p> : (
+        {vizibile.length === 0 ? <p className="text-mut mt-3">Nicio factură{stare === "toate" ? " emisă din aplicație încă" : " în starea aleasă"}.</p> : (
           <div className="overflow-x-auto mt-3">
             <table className="w-full text-sm md:min-w-[640px]">
               <thead><tr className="text-left text-mut text-xs border-b border-line">
                 <th className="px-3 py-2"></th><th className="px-3 py-2">Factura</th><th className="px-3 py-2">Data</th><th className="px-3 py-2">Client</th>
                 <th className="px-3 py-2">Total</th><th className="px-3 py-2">Stare</th></tr></thead>
               <tbody className="divide-y divide-line">
-                {docs.map((d) => (
+                {vizibile.map((d) => (
                   <tr key={d.id} className="hover:bg-paper">
                     <td className="px-3 py-2">{deTrimis(d) &&
                       <input type="checkbox" aria-label={`Alege ${d.serie} ${d.numar}`} checked={alese.has(d.id)} onChange={() => bifeaza(d.id)} />}</td>
@@ -212,7 +225,7 @@ export default function Facturi() {
                     <td className="px-3 py-2 text-mut">{d.data.split("-").reverse().join(".")}</td>
                     <td className="px-3 py-2">{d.client?.firma || d.client?.nume}</td>
                     <td className="px-3 py-2 font-disp font-semibold">{lei(Number(d.total))}</td>
-                    <td className="px-3 py-2 text-xs">{ETICHETE_STARE[d.saga_status]}</td>
+                    <td className="px-3 py-2 text-xs">{ETICHETE_STARE[d.saga_status]}{ascunse.has(d.id) && <span className="text-amber-800"> · ascunsă</span>}</td>
                   </tr>
                 ))}
               </tbody>
