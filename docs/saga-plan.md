@@ -3467,3 +3467,13 @@ cele 19 teste, două apăsări simultane, anularea refuzată cu o comandă ascun
 **Comenzile de probă AP-2026-01809 / 01811**: dacă `scripts/sterge-comenzi-proba.sql` nu s-a rulat încă, după 55 se pot
 doar ascunde cu „Șterge” (facturile PROBA rămân în Facturi) — varianta mai sigură.
 **Stare**: commit local `bd39a36` (+ cele 3 de documentație de dinainte), FĂRĂ push — se așteaptă rularea și confirmarea.
+
+### Migrarea 55 RULATĂ pe producție (11 noiembrie 2026)
+
+Proprietarul: pre-verificarea 4 × true, `supabase/comenzi-sterse.sql` Success, `scripts/verifica-comenzi-sterse.sql`
+REZULTAT OK 19/19, verificarea finală 0 | true.
+- **`scripts/sterge-comenzi-proba.sql` NU s-a rulat și NU se rulează** (decizia proprietarului): comenzile de probă
+  AP-2026-01809 și AP-2026-01811 se ascund cu „Șterge” după push; facturile PROBA 1–3 rămân în Facturi.
+- **Confirmarea de la „Șterge” corectată înainte de push**: cu factură — „Comanda va dispărea din admin. Factura rămâne
+  în evidență, în Facturi. Stocul nu se modifică. Dacă vânzarea nu a avut loc, anulează comanda și stornează factura
+  înainte.”; fără factură — textul vechi, neschimbat.

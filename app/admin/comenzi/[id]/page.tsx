@@ -77,7 +77,9 @@ export default function DetaliuComanda() {
   }
 
   async function stergeComanda() {
-    if (!confirm("Ștergi definitiv comanda? Piesele revin pe stoc, iar jurnalul comenzii se pierde. Acțiunea nu poate fi anulată.")) return;
+    if (!confirm(areFactura
+      ? "Comanda va dispărea din admin. Factura rămâne în evidență, în Facturi. Stocul nu se modifică. Dacă vânzarea nu a avut loc, anulează comanda și stornează factura înainte."
+      : "Ștergi definitiv comanda? Piesele revin pe stoc, iar jurnalul comenzii se pierde. Acțiunea nu poate fi anulată.")) return;
     const sb = sbBrowser()!;
     const { data, error } = await sb.rpc("sterge_comanda", { oid: Number(id) });
     // Plasă doar pentru o bază FĂRĂ migrarea 55: atunci comanda cu factură e oprită de
