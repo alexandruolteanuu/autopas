@@ -3224,6 +3224,7 @@ După răspuns: **unirea și push-ul pe `main` doar după confirmarea proprietar
   prima factură din aplicație validată, așteptat 14208, fără salvare).
 - **Mai târziu**: formularul pentru comenzi introduse manual (vânzare la sediu / telefon).
 - **Așteptat**: confirmarea proprietarului pentru unirea ramurii în `main` și push.
+- **Confirmat (11 noiembrie 2026)**: unirea în `main` și push — vezi „Unirea în `main`” mai jos.
 
 #### Raportul trimis proprietarului (11 noiembrie 2026, după rularea migrării 54)
 
@@ -3241,3 +3242,9 @@ După răspuns: **unirea și push-ul pe `main` doar după confirmarea proprietar
 
 Pasul 11 — textele și organizarea zonei SAGA / facturare pentru folosirea zilnică (cererea din 11 noiembrie
 2026, în lista de sus, la pasul 11 — DUPĂ PORNIRE). Începe doar după confirmare.
+
+### Unirea în `main` (11 noiembrie 2026)
+
+Confirmată de proprietar. Unire prin avansare (fast-forward) a ramurii `saga-integrare` în `main`, apoi push;
+Vercel construiește producția. Regulile „doar din preview sau local” și „Date firmă nu din live” au fost scoase
+din CLAUDE.md în același commit (valabile până la terminarea deploy-ului de producție).

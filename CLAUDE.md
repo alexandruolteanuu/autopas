@@ -45,20 +45,10 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
   testa așa (concurența, care cere sesiuni separate) se testează local, într-un Postgres din
   Docker. Fiecare migrare nouă vine cu pre-verificare (doar citire) și fișier de anulare fără
   `cascade`. Asistentul nu rulează nimic pe producție; rulează proprietarul, din SQL Editor.
-- **Până la unirea ramurii `saga-integrare` în `main`, „Date firmă” NU se salvează din site-ul
-  LIVE** (Admin → Setări pe autopas-dezmembrari.ro). Codul vechi de acolo construiește obiectul
-  firmei doar din câmpurile lui și ar șterge câmpurile noi — capital, bancă, localitate, județ,
-  țară —, salvate la 10 noiembrie 2026 din serverul local al ramurii. Se salvează doar din
-  serverul local al ramurii, până la unire.
-- **Până la unirea ramurii `saga-integrare` în `main`, TOT ce ține de SAGA, date firmă și facturi
-  se face DOAR din preview-ul Vercel al ramurii sau din serverul local** (11 noiembrie 2026, decizia
-  proprietarului) — niciodată din adminul live (autopas-dezmembrari.ro): Admin → Setări (Date
-  firmă), Admin → Integrări → Saga, Admin → Facturi (serie, articole, emitere, XML) și cheia SAGA.
-  Codul vechi de pe live nu cunoaște câmpurile și tabelele noi. Preview-ul și serverul local scriu
-  în aceeași bază de PRODUCȚIE (o singură bază Supabase), deci orice salvare de acolo e reală.
-  Adresa preview-ului: Vercel → proiectul `autopas` → Deployments → filtrul de ramură
-  `saga-integrare` → ultimul deployment → „Visit” (sau linkul „Vercel” din dreptul commit-ului pe
-  GitHub). Ramura e pe GitHub din 11 noiembrie 2026 (`origin/saga-integrare`, fără unire).
+- **Ramura `saga-integrare` a fost UNITĂ în `main` la 11 noiembrie 2026** (avansare, fără conflicte). Cele
+  două reguli de dinainte — „Date firmă NU se salvează din site-ul live” și „tot ce ține de SAGA, date firmă
+  și facturi se face DOAR din preview sau local” — **nu mai sunt valabile din momentul în care deploy-ul de
+  producție de după unire s-a terminat**: adminul live are acum codul nou. Baza rămâne una singură (producția).
 - **Admin → Integrări: reîncarcă pagina ÎNAINTE de a salva un card** (10 noiembrie 2026). Orice
   salvare rescrie TOT rândul `settings.integrari` cu ce era încărcat la deschiderea paginii — o
   pagină rămasă deschisă dinaintea unei schimbări, salvată apoi pe ORICE card (FAN, Brevo…),
