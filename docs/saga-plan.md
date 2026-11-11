@@ -3403,3 +3403,67 @@ factură–comandă rămân neatinse. Excepții (intenționate): Facturi și pag
 rapoartele, cifrele de vânzări de pe Dashboard, profitul pe mașină și exportul SAGA. Detaliile: `CLAUDE.md`, migrarea 55.
 Ordinea: pre-verificarea → `supabase/comenzi-sterse.sql` → `scripts/verifica-comenzi-sterse.sql` → verificarea finală →
 abia apoi push pe `main`. Local (Docker): `scripts/verifica-saga-local.sh` trece, inclusiv două apăsări simultane.
+
+### Raportul trimis proprietarului (migrarea 55, înainte de rulare)
+
+**1. Ce face „Șterge” azi și ce face ștergerea logică**
+
+| Privința | Azi (`sterge_comanda`, comandă fără factură) | Cu factură (după 55) |
+|---|---|---|
+| Stoc | piesele revin pe stoc + `publicat = true` (dacă nu era anulată) | neatins — ca la orice comandă rămasă în bază |
+| Piesele comenzii (`order_items`) | șterse, în cascadă | rămân |
+| dez.ro | piesele repuse pe stoc pleacă singure înapoi (trigger, migrarea 39) | nimic nu pleacă |
+| AWB | NU se anulează la FAN; dispare doar din admin | rămâne exact cum e |
+| Jurnal (`order_events`) | șters, în cascadă | rămâne + notă „Comandă ștearsă din admin” (tip `stergere`) |
+| Facturi | comanda cu factură e refuzată de cheia străină (49) | facturile, liniile și legătura rămân neatinse |
+
+Comanda FĂRĂ factură din aplicație: corpul vechi al funcției, identic.
+
+**2. Ce se modifică din ce există**
+- `orders`: coloane noi, goale — `sters_la` (când), `sters_de` (cine).
+- trigger nou `orders_sters_pazeste`: din browser (`authenticated` / `anon`) cele două coloane nu se scriu direct;
+  se pun doar prin `sterge_comanda`, se scot doar din SQL Editor.
+- `sterge_comanda` rescrisă, cu gardă de amprentă: 9 = `cd1d7d0cf96d2c79014e7d7749ac1b0d` → 55 =
+  `ec5319ea6dbed417d766c2fb92157410`. Ascunderea e atomică (`update … where sters_la is null`): două apăsări
+  simultane → o singură ascundere, o singură notă.
+- RLS: NESCHIMBAT, intenționat — rapoartele (`order_items` + `orders!inner`) și `export_saga_linii` citesc comenzile
+  direct; ascunse prin RLS, ar dispărea și din ele. Ascunderea e în pagini (`.is("sters_la", null)`).
+- Dispare din: lista de comenzi + contoarele taburilor; căutarea din antet; contorul „comenzi noi” din meniu; alerta de
+  comandă nouă (`NewOrderAlert`); Dashboard (contoarele noi / confirmate, ultimele comenzi); Expedieri; Clienți; ruta
+  `/api/awb` (o tratează ca inexistentă); pagina comenzii deschisă din adresă scrie „Comanda a fost ștearsă.”
+- Rămâne în: Facturi (lista comenzilor, cu „(comandă ștearsă)”, fără link); pagina facturii („comandă ștearsă”, fără
+  link; după retragerea facturii trimite la Facturi); Rapoarte; cifrele de vânzări de pe Dashboard; profitul pe mașină;
+  exportul SAGA.
+- Neatinse: AWB-ul de retur (`/api/awb-retur`, ia doar adresa); „Contul meu” al clientului.
+- Butonul „Șterge” apare acum și pe comenzile cu factură; confirmarea e aceeași. DE DISCUTAT: textul ei („piesele
+  revin pe stoc, jurnalul se pierde”) nu e adevărat pentru comenzile cu factură.
+
+**3. Rularea (Supabase → SQL Editor)**
+- a) pre-verificarea, doar citire — **true × 4**:
+  ```sql
+  select md5(replace(prosrc, E'\r', '')) = 'cd1d7d0cf96d2c79014e7d7749ac1b0d' from pg_proc where oid = to_regprocedure('public.sterge_comanda(bigint)');
+  select to_regclass('public.facturi') is not null;
+  select count(*) = 0 from information_schema.columns where table_schema = 'public' and table_name = 'orders' and column_name in ('sters_la', 'sters_de');
+  select not exists (select 1 from pg_trigger where tgname = 'orders_sters_pazeste');
+  ```
+- b) migrarea `supabase/comenzi-sterse.sql` → „Success”;
+- c) `scripts/verifica-comenzi-sterse.sql` → căsuța roșie „REZULTAT OK: toate cele 19 verificări” (nu lasă nimic);
+- d) verificarea finală — **0 | true**:
+  ```sql
+  select (select count(*) from orders where sters_la is not null),
+         (select md5(replace(prosrc, E'\r', '')) = 'ec5319ea6dbed417d766c2fb92157410' from pg_proc where oid = to_regprocedure('public.sterge_comanda(bigint)'));
+  ```
+- e) abia apoi push pe `main` (codul cere coloana; fără ea listele din admin ies goale).
+- Reafișarea unei comenzi: SQL-ul de la finalul `scripts/anuleaza-comenzi-sterse.sql`. Anularea migrării: același
+  fișier (refuză cât există comenzi ascunse; pune înapoi exact `sterge_comanda` din 9).
+
+**Fișiere**: noi — `supabase/comenzi-sterse.sql`, `scripts/verifica-comenzi-sterse.sql`,
+`scripts/anuleaza-comenzi-sterse.sql`; modificate — `app/admin/comenzi/page.tsx`, `app/admin/comenzi/[id]/page.tsx`,
+`app/admin/page.tsx`, `app/admin/layout.tsx`, `app/admin/clienti/page.tsx`, `app/admin/expedieri/page.tsx`,
+`app/admin/facturi/page.tsx`, `app/admin/facturi/[id]/page.tsx`, `components/admin/NewOrderAlert.tsx`,
+`app/api/awb/route.ts`, `lib/types.ts`, `scripts/verifica-saga-local.sh`, `CLAUDE.md`.
+**Verificat**: `npm run build` „Compiled successfully”; `scripts/verifica-saga-local.sh` — toate trec (55 de două ori,
+cele 19 teste, două apăsări simultane, anularea refuzată cu o comandă ascunsă, apoi anularea și re-rularea).
+**Comenzile de probă AP-2026-01809 / 01811**: dacă `scripts/sterge-comenzi-proba.sql` nu s-a rulat încă, după 55 se pot
+doar ascunde cu „Șterge” (facturile PROBA rămân în Facturi) — varianta mai sigură.
+**Stare**: commit local `bd39a36` (+ cele 3 de documentație de dinainte), FĂRĂ push — se așteaptă rularea și confirmarea.
