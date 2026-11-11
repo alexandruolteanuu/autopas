@@ -2966,7 +2966,8 @@ Pasul 10b (refacturarea) — mai jos; apoi pasul 11 — textele (Integrări, Fac
   `verifica-saga-articole.sql` 13/13, `verifica-saga-stornare.sql` 27/27;
 - verificarea finală: `true | true` (amprentele 54).
 
-Codul pasului 10b împins pe ramura `saga-integrare` în aceeași zi (adresa preview-ului mai jos). Urmează proba
+Codul pasului 10b împins pe ramura `saga-integrare` în aceeași zi (commit `19c6507`, nu pe `main`); preview
+reconstruit („Deployment has completed”): https://autopas-ri6q5ikt5-alexandruolteanuus-projects.vercel.app Urmează proba
 scurtă din preview. **Pasul 11 NU a început.**
 
 #### Ce modifică din ce există (confirmat înainte de cod)
