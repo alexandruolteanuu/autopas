@@ -9,6 +9,9 @@
 //      facturată, neanulată) → „Emite factura”.
 //   3. Altfel → câmpul MANUAL de serie, ca până acum (facturile emise direct în
 //      SAGA), cu motivul pentru care emiterea din aplicație nu e disponibilă.
+// Pasul 10b (migrarea 54): când TOATE facturile comenzii sunt stornate și fiecare storno
+// e deja trimis în SAGA, sub listă apare „Emite factura nouă” (refacturarea după storno);
+// cu un storno netrimis, motivul. Decizia finală e tot a lui `emite_factura`.
 // Ascunderea butoanelor e doar comoditate: `emite_factura` din bază refuză oricum
 // tot ce nu are voie (data de start, marcajul manual, seria, rolul).
 import { useCallback, useEffect, useState } from "react";
@@ -17,7 +20,7 @@ import { sbBrowser } from "@/lib/supabase";
 import { lei } from "@/lib/format";
 import type { OrderFull, SagaStatus } from "@/lib/types";
 
-type Doc = { id: number; tip: string; serie: string; numar: number; total: number; saga_status: SagaStatus };
+type Doc = { id: number; tip: string; storno_pentru: number | null; serie: string; numar: number; total: number; saga_status: SagaStatus };
 
 export const ETICHETE_STARE: Record<SagaStatus, string> = {
   de_trimis: "De trimis în SAGA", in_curs: "Se trimite…", trimisa: "Trimisă — așteaptă validarea în SAGA",
@@ -44,7 +47,7 @@ export default function FacturaSaga({ o, laSchimbare, salveazaManual }: {
   const incarca = useCallback(async () => {
     const sb = sbBrowser(); if (!sb) return;
     const [d, rol, s] = await Promise.all([
-      sb.from("facturi").select("id,tip,serie,numar,total,saga_status").eq("order_id", o.id).order("id"),
+      sb.from("facturi").select("id,tip,storno_pentru,serie,numar,total,saga_status").eq("order_id", o.id).order("id"),
       sb.rpc("is_facturare"),
       sb.from("settings").select("valoare").eq("cheie", "integrari").maybeSingle(),
     ]);
@@ -56,9 +59,12 @@ export default function FacturaSaga({ o, laSchimbare, salveazaManual }: {
   }, [o.id]);
   useEffect(() => { incarca(); }, [incarca]);
 
-  async function emite() {
+  async function emite(nou = false) {
     const faraMentiune = mentiune ? "" : "\n\nATENȚIE: mențiunea de plată din Integrări → Saga e GOALĂ — factura iese fără ea și nu se poate adăuga ulterior prin „Modifică”.";
-    if (!confirm(`Emiți factura pentru comanda ${o.numar}? Primește următorul număr din seria activă. Înainte de trimiterea în SAGA se poate corecta sau retrage (doar ultima din serie).${faraMentiune}`)) return;
+    const intrebare = nou
+      ? `Emiți o factură NOUĂ pentru comanda ${o.numar}? Factura veche e stornată, iar stornoul e deja în SAGA. Noua factură primește următorul număr din seria activă, cu datele de ACUM ale comenzii (corectează-le în comandă înainte, dacă de aceea s-a stornat).`
+      : `Emiți factura pentru comanda ${o.numar}? Primește următorul număr din seria activă. Înainte de trimiterea în SAGA se poate corecta sau retrage (doar ultima din serie).`;
+    if (!confirm(intrebare + faraMentiune)) return;
     const sb = sbBrowser(); if (!sb) return;
     setLucru(true); setMsg(null);
     const { data, error } = await sb.rpc("emite_factura", { p_order_id: o.id });
@@ -83,6 +89,16 @@ export default function FacturaSaga({ o, laSchimbare, salveazaManual }: {
     setMsg({ bun: true, text: `✓ ${eStorno ? "Stornoul" : "Factura"} ${doc.serie} ${doc.numar} a fost ${eStorno ? "retras" : "retrasă"}.` });
     await incarca(); laSchimbare();
   }
+
+  // Refacturarea după storno (pasul 10b): toate facturile au storno, toate stornările au plecat.
+  const facturi = docs.filter((d) => d.tip === "factura");
+  const stornari = docs.filter((d) => d.tip === "storno");
+  const toateStornate = facturi.length > 0 && facturi.every((f) => stornari.some((s) => s.storno_pentru === f.id));
+  const stornoNetrimis = stornari.find((s) => s.saga_status !== "trimisa" && s.saga_status !== "confirmata");
+  const refacturare = !toateStornate || !poateFactura || o.status === "anulata" ? null
+    : stornoNetrimis ? { poate: false, text: `Stornoul ${stornoNetrimis.serie} ${stornoNetrimis.numar} trebuie întâi trimis în SAGA — abia apoi se poate emite o factură nouă (un storno netrimis se mai poate retrage).` }
+    : !dataStart ? { poate: false, text: "Data de start a facturării nu e setată — factura nouă nu se poate emite din aplicație." }
+    : { poate: true, text: "Factura e stornată, iar stornoul e în SAGA: se poate emite o factură nouă, corectă." };
 
   // De ce nu se poate emite din aplicație (în ordinea în care ar refuza și baza).
   const plasata = ziuaRo(o.created_at);
@@ -117,13 +133,20 @@ export default function FacturaSaga({ o, laSchimbare, salveazaManual }: {
               </div>
             </li>
           ))}
+          {refacturare && (
+            <li className="text-xs">
+              <p className={refacturare.poate ? "text-mut" : "text-amber-800"}>{refacturare.text}</p>
+              {refacturare.poate && <button type="button" className="btn-acc mt-2 !py-2 text-xs" disabled={lucru} onClick={() => emite(true)}>
+                {lucru ? "Se emite…" : "Emite factura nouă"}</button>}
+            </li>
+          )}
         </ul>
       ) : !motiv ? (
         <div className="mt-3">
           <p className="text-xs text-mut">Comanda se poate factura din aplicație. Factura primește următorul număr din seria activă.</p>
           {!mentiune && <p className="text-xs text-amber-800 mt-1">⚠ Mențiunea de plată (Integrări → Saga) e goală — factura ar ieși fără „ramburs in cont”.
             Se copiază la emitere și nu se poate adăuga după, prin „Modifică”.</p>}
-          <button type="button" className="btn-acc mt-2 !py-2 text-xs" disabled={lucru} onClick={emite}>
+          <button type="button" className="btn-acc mt-2 !py-2 text-xs" disabled={lucru} onClick={() => emite()}>
             {lucru ? "Se emite…" : "Emite factura"}</button>
         </div>
       ) : (

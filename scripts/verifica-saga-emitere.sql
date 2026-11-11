@@ -31,8 +31,10 @@ declare
   fx       public.facturi%rowtype;
 begin
   if (select md5(replace(prosrc, E'\r', '')) from pg_proc where oid = to_regprocedure('public.emite_factura(bigint)'))
-     is distinct from 'a1a45bbd8ce6ad03eae408ee9d2f113e' then
-    raise exception 'VERIFICARE PICATĂ: emite_factura din bază nu e versiunea din migrarea 51';
+     not in ('a1a45bbd8ce6ad03eae408ee9d2f113e',     -- migrarea 51
+             '05f9fdfb49e73145c8004f290ed6ec42')     -- migrarea 54 (refacturarea; restul identic cu 51)
+     or to_regprocedure('public.emite_factura(bigint)') is null then
+    raise exception 'VERIFICARE PICATĂ: emite_factura din bază nu e versiunea din migrarea 51 sau 54';
   end if;
   n := n + 1;
 

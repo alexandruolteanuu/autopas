@@ -52,8 +52,9 @@ sau local (regula din CLAUDE.md).
    SAGA” pe articolul implicit).
 9. ~~Pasul 10~~ — **GATA (12 noiembrie 2026)**: migrarea 53 rulată, proba pe contul real reușită (PROBA 2 cu
    diacritice → storno PROBA 3, același client în SAGA); riscul 8 închis.
-9b. **Pasul 10b — refacturarea după storno**: decis DA; proba pasului 10 făcută → **început la 12 noiembrie
-   2026** (jurnalul pasului 10b).
+9b. **Pasul 10b — refacturarea după storno: COD SCRIS (12 noiembrie 2026), migrarea 54 NErulată, neîmpins.**
+   Rămâne: migrarea 54 pe producție (proprietarul), apoi push, apoi o probă din preview (pașii în jurnalul
+   pasului 10b).
 10. Pasul 11 — textele (Integrări, Facturi, pagina comenzii) și `CLAUDE.md`.
 11. **Unirea ramurii în `main`** (după care regula „Date firmă nu se salvează din site-ul live”
     dispare din `CLAUDE.md`).
@@ -2937,5 +2938,90 @@ git; se OPREȘTE dacă diferă; amprentele exacte se calculează din git la impl
 
 #### Următorul
 
-Proba pasului 10 (proprietarul, din preview), apoi pasul 10b (refacturarea), apoi pasul 11 — textele
-(Integrări, Facturi, pagina comenzii) și `CLAUDE.md`. Fiecare doar după confirmare.
+Pasul 10b (refacturarea) — mai jos; apoi pasul 11 — textele (Integrări, Facturi, pagina comenzii) și
+`CLAUDE.md`. Fiecare doar după confirmare.
+
+### Pasul 10b — refacturarea după storno (migrarea 54)
+
+**Stare: cod scris și testat local (12 noiembrie 2026); migrarea 54 NErulată pe producție; commit local,
+NEîmpins.** Pasul 11 NU a început.
+
+#### Ce modifică din ce există (confirmat înainte de cod)
+
+- **În bază (migrarea 54, `supabase/saga-refacturare.sql`) — RESCRIE două funcții existente**, fiecare cu
+  gardă de amprentă (fără „\r”; se oprește dacă versiunea din bază nu e cea din git):
+  - `emite_factura` (din 51, `a1a45bbd8ce6ad03eae408ee9d2f113e` → 54 `05f9fdfb49e73145c8004f290ed6ec42`);
+  - `retrage_factura` (din 49, `f9f982f093a2a5fb92cbc3b34ec49ccd` → 54 `8ea9759db0a900c3043eff58663ea1fb`).
+  Nicio tabelă, nicio politică, niciun rând; `retrage_storno` (53) neatinsă.
+- **Scripturile existente care verifică amprenta lui `emite_factura`**: `verifica-saga-emitere.sql` și
+  `verifica-saga-articole.sql` acceptă și 54; `anuleaza-saga-emitere.sql` refuză cât e activă 54 („anulați
+  întâi 54”).
+- **În cod**: cardul de facturare din comandă — „Emite factura nouă” când refacturarea e permisă, altfel motivul.
+
+#### Ce s-a făcut
+
+- **Funcțiile generate din textul din git** (nu rescrise de mână), apoi comparate mecanic: față de 51, în
+  `emite_factura` dispar exact două linii (refuzul „stornata” și mesajul din jurnal), înlocuite de regula nouă;
+  față de 49, în `retrage_factura` dispare exact o linie (oglinda „de_emis”), înlocuită de ramura „stornata”.
+- **`emite_factura` (54)**: o comandă „stornata” primește o factură nouă DOAR dacă are facturi din aplicație —
+  toate stornate (garantat de verificarea „are deja o factură nestornată”, păstrată) — și fiecare storno e deja
+  „trimis” / „confirmat”. Altfel: „Stornoul … nu e încă trimis în SAGA … un storno netrimis se mai poate retrage,
+  iar factura veche ar redeveni valabilă.” O comandă „stornata” de mână, fără facturi din aplicație → refuz, ca
+  în 51. Restul — identic. Jurnalul comenzii: „Factură NOUĂ după stornare, emisă din aplicație: …”.
+- **`retrage_factura` (54)**: retragerea facturii noi readuce comanda la „stornata” + seria ultimei facturi
+  stornate; fără stornări — exact ca în 49 („de_emis”, fără serie).
+- **Cardul din comandă**: sub lista documentelor, când toate facturile au storno — „Emite factura nouă” (cu
+  confirmare: datele de ACUM ale comenzii; corectează-le înainte) sau „Stornoul … trebuie întâi trimis în SAGA”.
+- **Teste:**
+  - `scripts/verifica-saga-refacturare.sql` — **14 verificări pe PRODUCȚIE**, tranzacție anulată, pe o serie
+    „TEST …” unică: amprentele 54; refuz cu storno netrimis; factura nouă (număr, oglindă, jurnal); refuz cât
+    există o factură nestornată; retragerea facturii noi → „stornata” cu seria veche și contorul înapoi; al doilea
+    ciclu (3 facturi, 2 stornări, cu stornoul confirmat); „stornata” manuală refuzată; seria notată de mână
+    refuzată; comanda obișnuită — emitere și retragere ca înainte; drepturile;
+  - `verifica-saga-local.sh` (Docker): 54 aplicată de două ori; toate testele SQL trec pe 54 (inclusiv 49 / 50 /
+    51 / 53 — comportamentul vechi neschimbat); **două refacturări SIMULTANE pe aceeași comandă stornată → o
+    singură factură nouă**; anularea 54 refuză cât există o refacturare (nimic schimbat);
+  - separat, în Docker: pe o bază fără refacturări, **anularea 54 pune înapoi EXACT** `emite_factura` din 51
+    (`a1a45bbd…`) și `retrage_factura` din 49 (`f9f982f0…`); re-rularea 54 după anulare merge; anularea lui 51
+    refuză cât e activă 54;
+  - `verifica-saga-xml.mjs` 102/102, `verifica-saga-api.mjs` 109/109, build-ul trece.
+  - **NEverificat**: interfața în browser și o refacturare reală în SAGA.
+
+#### Fișiere
+
+Noi: `supabase/saga-refacturare.sql`, `scripts/verifica-saga-refacturare.sql`, `scripts/anuleaza-saga-refacturare.sql`.
+Modificate: `components/admin/FacturaSaga.tsx`, `scripts/verifica-saga-emitere.sql`, `scripts/verifica-saga-articole.sql`,
+`scripts/anuleaza-saga-emitere.sql`, `scripts/verifica-saga-local.sh`, `CLAUDE.md`, `docs/saga-plan.md`.
+
+#### Cum se aplică — pe PRODUCȚIE, din SQL Editor (proprietarul)
+
+1. **Pre-verificarea** (doar citire) — 3 × `true`:
+   ```sql
+   select md5(replace(prosrc, E'\r', '')) = 'a1a45bbd8ce6ad03eae408ee9d2f113e' as emite_ca_in_51
+     from pg_proc where oid = to_regprocedure('public.emite_factura(bigint)');
+   select md5(replace(prosrc, E'\r', '')) = 'f9f982f093a2a5fb92cbc3b34ec49ccd' as retrage_ca_in_49
+     from pg_proc where oid = to_regprocedure('public.retrage_factura(bigint)');
+   select to_regprocedure('public.storneaza_factura(bigint,text)') is not null as are_53;
+   ```
+   Dacă una dă `false`: NU se rulează migrarea; se trimite textul funcției (`pg_get_functiondef`) pentru comparare.
+2. **Migrarea**: `supabase/saga-refacturare.sql` → „Success. No rows returned.” (garda oprește tot dacă ceva diferă).
+3. **Testele**: `scripts/verifica-saga-refacturare.sql` → „REZULTAT OK: toate cele 14 verificări au trecut …”;
+   apoi, ca plasă, `verifica-saga-emitere.sql` (16), `verifica-saga-articole.sql` (13), `verifica-saga-stornare.sql` (27).
+4. **Verificarea finală** (doar citire) — `true | true`:
+   ```sql
+   select (select md5(replace(prosrc, E'\r', '')) from pg_proc where oid = to_regprocedure('public.emite_factura(bigint)')) = '05f9fdfb49e73145c8004f290ed6ec42' as emite_54,
+          (select md5(replace(prosrc, E'\r', '')) from pg_proc where oid = to_regprocedure('public.retrage_factura(bigint)')) = '8ea9759db0a900c3043eff58663ea1fb' as retrage_54;
+   ```
+5. Apoi push pe ramură (la confirmare).
+6. **Doar la nevoie — anularea**: `scripts/anuleaza-saga-refacturare.sql` (refuză dacă există deja o refacturare).
+
+#### Cum se verifică din preview (după push) — o probă scurtă pe seria PROBA
+
+O comandă de probă (ca la pasul 10) → PROBA n → „Trimite în SAGA” → „Stornează” → PROBA n+1 → în cardul din comandă:
+„Stornoul … trebuie întâi trimis” → „Trimite în SAGA” pe storno → în cardul din comandă: **„Emite factura nouă”** →
+PROBA n+2 → (opțional) „Retrage” → comanda revine la „stornata”. Curățenia ca la pasul 10 (importuri anulate în SAGA,
+comanda anulată, emiterea oprită, data de start golită, PROBA ascunse).
+
+#### Următorul
+
+Pasul 11 — textele (Integrări, Facturi, pagina comenzii) și `CLAUDE.md`. Începe doar după confirmare.

@@ -16,6 +16,9 @@ do $$
 declare v text;
 begin
   select md5(replace(prosrc, E'\r', '')) into v from pg_proc where oid = to_regprocedure('public.emite_factura(bigint)');
+  if v = '05f9fdfb49e73145c8004f290ed6ec42' then
+    raise exception 'OPRIT: emite_factura din bază e versiunea din migrarea 54 (refacturarea). Anulați întâi 54 (scripts/anuleaza-saga-refacturare.sql), apoi 51. Nu se anulează nimic.';
+  end if;
   if v is distinct from 'a1a45bbd8ce6ad03eae408ee9d2f113e' then
     raise exception 'OPRIT: emite_factura din bază nu e versiunea din migrarea 51 (amprenta %). Nu se anulează nimic.', coalesce(v, 'lipsă');
   end if;

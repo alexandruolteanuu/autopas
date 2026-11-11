@@ -40,9 +40,10 @@ begin
   -- Fără „\r”: SQL Editor-ul de pe Windows salvează funcțiile cu CRLF.
   if (select md5(replace(prosrc, E'\r', '')) from pg_proc where oid = to_regprocedure('public.emite_factura(bigint)'))
      not in ('8eefb50d4c81c4ea93701317e9ac67ed',    -- migrarea 50
-             'a1a45bbd8ce6ad03eae408ee9d2f113e')    -- migrarea 51 (aceeași potrivire a articolelor)
+             'a1a45bbd8ce6ad03eae408ee9d2f113e',    -- migrarea 51 (aceeași potrivire a articolelor)
+             '05f9fdfb49e73145c8004f290ed6ec42')    -- migrarea 54 (idem)
      or (select md5(replace(prosrc, E'\r', '')) from pg_proc where oid = to_regprocedure('public.emite_factura(bigint)')) is null then
-    raise exception 'VERIFICARE PICATĂ: emite_factura din bază nu e versiunea din migrarea 50 sau 51';
+    raise exception 'VERIFICARE PICATĂ: emite_factura din bază nu e versiunea din migrarea 50, 51 sau 54';
   end if;
   n := n + 1;
 

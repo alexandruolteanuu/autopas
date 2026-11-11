@@ -5,7 +5,7 @@
 # Pornește un Postgres 17 de unică folosință, îl îmbracă în imitația minimă a
 # Supabase (scripts/saga-local/stub-supabase.sql), încarcă `sterge_comanda`
 # EXACT din supabase/admin-fix.sql și date FICTIVE (scripts/saga-local/), aplică
-# migrările SAGA 47–53, apoi:
+# migrările SAGA 47–54, apoi:
 #   1. rulează aceleași teste ca pe producție (verifica-saga-*.sql);
 #   2. CONCURENȚA: 20 de `emite_factura` pornite simultan → 20 de numere
 #      distincte și consecutive, contorul exact după ele;
@@ -18,7 +18,10 @@
 #      reușește; anularea migrării 52 șterge tot, iar re-rularea o reface;
 #   8. trecerile de stare folosite de trimitere (pasul 8), pe triggerul real;
 #   9. STORNAREA (migrarea 53): aceeași factură stornată de două ori simultan → un
-#      singur storno; anularea 53 lasă documentele, re-rularea o reface.
+#      singur storno; anularea 53 lasă documentele, re-rularea o reface;
+#  10. REFACTURAREA (migrarea 54): două refacturări simultane pe aceeași comandă
+#      stornată → o singură factură nouă; anularea 54 refuză cât există o refacturare,
+#      iar pe o bază fără refacturări pune înapoi exact versiunile din 51 și 49.
 # La final containerul se șterge. Nu atinge nicio bază reală.
 #
 # Folosire: scripts/verifica-saga-local.sh   (cere Docker)
@@ -53,14 +56,14 @@ i = s.index('create or replace function public.sterge_comanda')
 print(s[i:s.index('grant execute on function public.sterge_comanda', i)])
 PY
 P < scripts/saga-local/date-fictive.sql >/dev/null 2>&1 || picat "datele fictive"
-for m in saga-calcul saga-export saga-facturi saga-articole saga-emitere saga-api saga-stornare; do
+for m in saga-calcul saga-export saga-facturi saga-articole saga-emitere saga-api saga-stornare saga-refacturare; do
   P < "supabase/$m.sql" >/dev/null 2>&1 || picat "migrarea $m"
   P < "supabase/$m.sql" >/dev/null 2>&1 || picat "migrarea $m, a doua rulare (idempotență)"
 done
-ok "migrările 47–53 (fiecare rulată de două ori)"
+ok "migrările 47–54 (fiecare rulată de două ori)"
 
 # 1. Testele de producție
-for t in calcul export facturi articole emitere api stornare; do
+for t in calcul export facturi articole emitere api stornare refacturare; do
   r="$(P < "scripts/verifica-saga-$t.sql" 2>&1)"
   grep -q "REZULTAT OK" <<<"$r" || picat "verifica-saga-$t.sql: $(grep -m1 -o 'VERIFICARE PICATĂ.*\|ERROR:.*' <<<"$r")"
   ok "verifica-saga-$t.sql — $(grep -o 'toate cele [0-9]* d*e* *verificări' <<<"$r")"
@@ -172,5 +175,27 @@ P < scripts/anuleaza-saga-stornare.sql >/dev/null 2>&1 || picat "anularea migră
   || picat "anularea migrării 53: trebuia să șteargă funcțiile și tabela, dar să lase stornările emise"
 P < supabase/saga-stornare.sql >/dev/null 2>&1 || picat "re-rularea migrării 53 după anulare"
 ok "anularea migrării 53 șterge funcțiile și tabela, lasă documentele; re-rularea o reface"
+
+# 10. Refacturarea (pasul 10b): două emiteri simultane pe aceeași comandă stornată (storno trimis)
+oid=$(Q "select f.order_id from facturi s join facturi f on f.id = s.storno_pentru join orders o on o.id = f.order_id where o.status <> 'anulata' order by s.id limit 1")
+[ -n "$oid" ] || picat "refacturarea: nu găsesc o comandă stornată"
+Q "update facturi set saga_status = 'trimisa' where tip = 'storno' and order_id = $oid and saga_status = 'de_trimis'" >/dev/null
+Q "update facturi_serii set activa = (serie = (select serie from facturi where order_id = $oid order by id limit 1))" >/dev/null
+nf0=$(Q "select count(*) from facturi where order_id = $oid and tip = 'factura'")
+refact() {
+  docker exec -i "$C" psql -U postgres -tA -q 2>&1 <<SQL | grep -v '^{"sub\|^CONTEXT'
+select set_config('request.jwt.claims', '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', false);
+select emite_factura($oid);
+SQL
+}
+refact > /tmp/saga-refact-a.out & refact > /tmp/saga-refact-b.out; wait
+ra=$(cat /tmp/saga-refact-a.out /tmp/saga-refact-b.out | grep -c '"ok" : true'); rm -f /tmp/saga-refact-[ab].out
+nf1=$(Q "select count(*) from facturi where order_id = $oid and tip = 'factura'")
+[ "$ra" = 1 ] && [ "$nf1" = "$((nf0 + 1))" ] || picat "refacturare simultană: $ra reușite, facturi $nf0 → $nf1 (aștept exact una nouă)"
+ok "refacturare simultană pe aceeași comandă stornată → o singură factură nouă"
+r="$(P < scripts/anuleaza-saga-refacturare.sql 2>&1)"   # trebuie să refuze: există o refacturare
+grep -q "au deja o factură nouă emisă după stornare" <<<"$r" || picat "anularea 54 nu a refuzat cu o refacturare existentă: $r"
+[ "$(Q "select md5(replace(prosrc, E'\r', '')) from pg_proc where proname = 'emite_factura'")" = 05f9fdfb49e73145c8004f290ed6ec42 ] || picat "anularea refuzată a schimbat totuși emite_factura"
+ok "anularea migrării 54 refuză cât există o refacturare (nimic schimbat)"
 
 echo "TOATE VERIFICĂRILE LOCALE AU TRECUT"
