@@ -2207,8 +2207,21 @@ Pasul 7 — clientul API SAGA (`saga_cheie`, `saga_blocare`, `saga_trimiteri`, `
 - `scripts/verifica-saga-api.sql` → „REZULTAT OK: toate cele 33 verificări au trecut”;
 - verificarea finală: `0 | 0 | 1 | true` (nicio cheie, niciun apel, lacătul liber).
 
-Codul pasului 7 împins pe ramura `saga-integrare` în aceeași zi (preview reconstruit). Urmează, la
-proprietar: „Salvează cheia” cu cheia reală și „Testează conexiunea”, din preview sau local.
+Codul pasului 7 împins pe ramura `saga-integrare` în aceeași zi (commit `8aff9e8`, nu pe `main`).
+Preview-ul s-a reconstruit („Deployment has completed”):
+**https://autopas-xjkco6200-alexandruolteanuus-projects.vercel.app**
+- e protejat de Vercel Authentication: din afară redirecționează spre login-ul Vercel (pagina 302,
+  ruta 401), deci asistentul NU a putut verifica în el pasul 7. Proprietarul intră logat în Vercel,
+  apoi în adminul site-ului, ca de obicei;
+- adresa se schimbă la fiecare push: cea nouă e în Vercel → `autopas` → Deployments → filtrul
+  `saga-integrare` → **Visit**. Adresa fixă a ramurii (arată mereu ultimul deployment): Vercel →
+  Deployments → deployment-ul → „Domains”.
+
+**Urmează, la proprietar** (din preview sau local, nu din adminul live):
+1. Integrări → **reîncarcă pagina** → cardul „Saga — facturare” → „Cheia SAGA”;
+2. lipește cheia → „Salvează cheia” → „Testează conexiunea” → așteptat „✓ Conectat la SAGA …”;
+3. un mesaj despre codul fiscal = riscul 9 (SAGA vrea probabil codul fără „RO”).
+
 **Pasul 8 NU a început.**
 
 #### Înainte de pas (11 noiembrie 2026)
