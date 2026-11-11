@@ -22,7 +22,7 @@ export default function NewOrderAlert() {
 
     const verifica = async () => {
       const { data } = await sb.from("orders").select("id,numar,nume,total")
-        .eq("status", "noua").order("created_at", { ascending: false }).limit(10);
+        .eq("status", "noua").is("sters_la", null).order("created_at", { ascending: false }).limit(10);
       const list = (data ?? []) as Noua[];
       if (!pornit.current) {            // prima rulare: memorăm ce există deja
         list.forEach((o) => stiute.current.add(o.id));

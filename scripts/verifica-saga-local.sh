@@ -21,7 +21,9 @@
 #      singur storno; anularea 53 lasă documentele, re-rularea o reface;
 #  10. REFACTURAREA (migrarea 54): două refacturări simultane pe aceeași comandă
 #      stornată → o singură factură nouă; anularea 54 refuză cât există o refacturare,
-#      iar pe o bază fără refacturări pune înapoi exact versiunile din 51 și 49.
+#      iar pe o bază fără refacturări pune înapoi exact versiunile din 51 și 49;
+#  11. „ȘTERGE” PE COMENZILE CU FACTURĂ (migrarea 55): testele de producție, două
+#      apăsări simultane, anularea (refuză cu comenzi ascunse) și re-rularea.
 # La final containerul se șterge. Nu atinge nicio bază reală.
 #
 # Folosire: scripts/verifica-saga-local.sh   (cere Docker)
@@ -197,5 +199,34 @@ r="$(P < scripts/anuleaza-saga-refacturare.sql 2>&1)"   # trebuie să refuze: ex
 grep -q "au deja o factură nouă emisă după stornare" <<<"$r" || picat "anularea 54 nu a refuzat cu o refacturare existentă: $r"
 [ "$(Q "select md5(replace(prosrc, E'\r', '')) from pg_proc where proname = 'emite_factura'")" = 05f9fdfb49e73145c8004f290ed6ec42 ] || picat "anularea refuzată a schimbat totuși emite_factura"
 ok "anularea migrării 54 refuză cât există o refacturare (nimic schimbat)"
+
+# 11. „ȘTERGE” PE COMENZILE CU FACTURĂ (migrarea 55)
+P < supabase/comenzi-sterse.sql >/dev/null 2>&1 || picat "migrarea 55"
+P < supabase/comenzi-sterse.sql >/dev/null 2>&1 || picat "migrarea 55, a doua rulare (idempotență)"
+ok "migrarea 55 (rulată de două ori)"
+r="$(P < scripts/verifica-comenzi-sterse.sql 2>&1)"
+grep -q "REZULTAT OK" <<<"$r" || picat "verifica-comenzi-sterse.sql: $(grep -m1 -o 'VERIFICARE PICATĂ.*\|ERROR:.*' <<<"$r")"
+ok "verifica-comenzi-sterse.sql — $(grep -o 'toate cele [0-9]* d*e* *verificări' <<<"$r")"
+oc=$(Q "select o.id from orders o where exists (select 1 from facturi f where f.order_id = o.id) order by o.id limit 1")
+sterge() {
+  docker exec -i "$C" psql -U postgres -tA -q 2>&1 <<SQL | grep -v '^{"sub\|^CONTEXT'
+select set_config('request.jwt.claims', '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated","email":"admin@test.local"}', false);
+select sterge_comanda($oc);
+SQL
+}
+sterge > /tmp/sterge-a.out & sterge > /tmp/sterge-b.out; wait
+sa=$(cat /tmp/sterge-a.out /tmp/sterge-b.out | grep -c '"ok" : true'); rm -f /tmp/sterge-[ab].out
+ne=$(Q "select count(*) from order_events where order_id = $oc and tip = 'stergere'")
+[ "$(Q "select sters_la is not null from orders where id = $oc")" = t ] || picat "comanda cu factură nu e ascunsă după „Șterge”"
+[ "$sa" = 1 ] && [ "$ne" = 1 ] || picat "„Șterge” simultan: $sa reușite, $ne note"
+ok "„Șterge” apăsat de două ori simultan pe o comandă cu factură → ascunsă o singură dată (o notă în jurnal)"
+r="$(P < scripts/anuleaza-comenzi-sterse.sql 2>&1)"   # trebuie să refuze: există o comandă ascunsă
+grep -q "comenzi sunt ascunse" <<<"$r" || picat "anularea 55 nu a refuzat cu o comandă ascunsă: $r"
+Q "update orders set sters_la = null, sters_de = null where id = $oc" >/dev/null
+P < scripts/anuleaza-comenzi-sterse.sql >/dev/null 2>&1 || picat "anularea migrării 55"
+[ "$(Q "select md5(replace(prosrc, E'\r', '')) from pg_proc where proname = 'sterge_comanda'")" = cd1d7d0cf96d2c79014e7d7749ac1b0d ] || picat "anularea 55 nu a pus înapoi sterge_comanda din 9"
+[ "$(Q "select count(*) from information_schema.columns where table_name = 'orders' and column_name like 'sters_%'")" = 0 ] || picat "anularea 55 a lăsat coloanele"
+P < supabase/comenzi-sterse.sql >/dev/null 2>&1 || picat "re-rularea migrării 55 după anulare"
+ok "anularea 55: refuză cu comenzi ascunse; altfel pune înapoi exact versiunea din 9; re-rularea merge"
 
 echo "TOATE VERIFICĂRILE LOCALE AU TRECUT"

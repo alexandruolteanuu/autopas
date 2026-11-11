@@ -32,9 +32,11 @@ export default function Dashboard() {
         .neq("status", "anulata").gte("created_at", luna0.toISOString()).order("id"), { eticheta: "comenzile lunii" }),
         citesteTot<any>(() => sb.from("orders").select("total,created_at", { count: "exact" })
         .neq("status", "anulata").gte("created_at", z7.toISOString()).order("id"), { eticheta: "comenzile săptămânii" }),
-        sb.from("orders").select("id", { count: "exact", head: true }).eq("status", "noua"),
-        sb.from("orders").select("id", { count: "exact", head: true }).eq("status", "confirmata"),
-        sb.from("orders").select("id,numar,nume,oras,total,status,created_at").order("created_at", { ascending: false }).limit(6),
+        // Contoarele de lucru și ultimele comenzi NU arată comenzile șterse (migrarea 55);
+        // cifrele de vânzări de mai sus le includ — vânzarea a avut loc.
+        sb.from("orders").select("id", { count: "exact", head: true }).eq("status", "noua").is("sters_la", null),
+        sb.from("orders").select("id", { count: "exact", head: true }).eq("status", "confirmata").is("sters_la", null),
+        sb.from("orders").select("id,numar,nume,oras,total,status,created_at").is("sters_la", null).order("created_at", { ascending: false }).limit(6),
         // PAGINAT: peste 1.000 de linii într-o lună, graficul pe categorii ar
       // arăta doar o parte din vânzări, fără să spună nimic.
       citesteTot<any>(() => sb.from("order_items")

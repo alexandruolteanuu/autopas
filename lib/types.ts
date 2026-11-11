@@ -50,6 +50,8 @@ export type OrderFull = { id: number; numar: string; tip_client: string; nume: s
   firma: string | null; cui: string | null; adresa: string; oras: string; judet: string; curier: string; plata: string;
   subtotal: number; livrare: number; total: number; status: string; gdpr: boolean; created_at: string;
   awb: string | null; nota_interna: string | null; factura_serie: string | null; factura_status: string;
+  /** Migrarea 55: comanda cu factură „ștearsă” din admin = ascunsă. Null = vizibilă. */
+  sters_la?: string | null;
   discount_cod: string | null; discount_valoare: number;
   // Costul livrării se stabilește după plasarea comenzii (vezi supabase/livrare-dupa-comanda.sql).
   // `livrare_stabilit_la` null = încă necalculat, deci comanda nu poate fi expediată.

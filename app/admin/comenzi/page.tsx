@@ -36,7 +36,8 @@ function ComenziInner() {
 
   const incarca = useCallback(async () => {
     const sb = sbBrowser(); if (!sb) return;
-    let query = sb.from("orders").select("*").order("created_at", { ascending: false }).limit(200);
+    // `sters_la is null`: comenzile cu factură șterse din admin (migrarea 55) nu mai apar.
+    let query = sb.from("orders").select("*").is("sters_la", null).order("created_at", { ascending: false }).limit(200);
     if (filtru) query = query.eq("status", filtru);
     if (q.trim()) query = query.or(`numar.ilike.%${q}%,nume.ilike.%${q}%,telefon.ilike.%${q}%,email.ilike.%${q}%`);
     const { data } = await query;
@@ -65,7 +66,7 @@ function ComenziInner() {
     // 1.000. Lista de deasupra rămâne la 200 — e o listă de lucru, nu un raport —
     // însă contorul trebuie să spună adevărul.
     const toate = await citesteTot<{ status: string }>(
-      () => sb.from("orders").select("status", { count: "exact" }).order("id"),
+      () => sb.from("orders").select("status", { count: "exact" }).is("sters_la", null).order("id"),
       { eticheta: "comenzile" });
     const c: Record<string, number> = { "": toate.length };
     toate.forEach((o) => { c[o.status] = (c[o.status] ?? 0) + 1; });

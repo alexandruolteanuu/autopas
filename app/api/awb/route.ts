@@ -80,7 +80,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: false, eroare: "Dimensiunile sunt opționale: scrie-le pe toate trei sau lasă-le pe toate goale." });
       let judet = String(body.destinatar?.judet ?? "").trim(), localitate = String(body.destinatar?.localitate ?? "").trim();
       if (body.comanda_id) {
-        const { data: o } = await sb.from("orders").select("judet,oras,plata").eq("id", Number(body.comanda_id)).maybeSingle();
+        const { data: o } = await sb.from("orders").select("judet,oras,plata").eq("id", Number(body.comanda_id)).is("sters_la", null).maybeSingle();
         if (!o) return NextResponse.json({ ok: false, eroare: "Comanda nu există." });
         judet = judet || o.judet; localitate = localitate || o.oras;
         colet.cuRamburs = o.plata === "ramburs";
@@ -91,7 +91,8 @@ export async function POST(req: Request) {
     }
 
     const id = Number(body.comanda_id);
-    const { data: o } = await sb.from("orders").select("*").eq("id", id).maybeSingle();
+    // O comandă ștearsă din admin (migrarea 55) se tratează ca inexistentă.
+    const { data: o } = await sb.from("orders").select("*").eq("id", id).is("sters_la", null).maybeSingle();
     if (!o) return NextResponse.json({ ok: false, eroare: "Comanda nu există." });
 
     // ---------- ștergerea AWB-ului: la FAN ȘI din comandă ----------
@@ -197,7 +198,7 @@ export async function GET(req: Request) {
   if (!(await esteEchipa(req))) return nuAi();
   const sb = sbAdmin();
   const id = Number(new URL(req.url).searchParams.get("comanda_id"));
-  const { data: o } = sb ? await sb.from("orders").select("awb,numar").eq("id", id).maybeSingle() : { data: null };
+  const { data: o } = sb ? await sb.from("orders").select("awb,numar").eq("id", id).is("sters_la", null).maybeSingle() : { data: null };
   if (!o?.awb) return NextResponse.json({ ok: false, eroare: "Comanda n-are AWB." }, { status: 404 });
   try {
     const pdf = await etichetaAwb(o.awb);

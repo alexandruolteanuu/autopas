@@ -3394,3 +3394,12 @@ apară în admin. Varianta aleasă: **ștergere definitivă**, nu ascundere. Scr
 (rulat de proprietar din SQL Editor) oprește paza facturilor DOAR în tranzacția lui, șterge facturile de probă
 și cele două comenzi și repune pe stoc piesele comenzilor neanulate. Se oprește fără să șteargă nimic dacă vreo
 factură a lor e pe o serie reală. Nu atinge SAGA: dacă PROBA 1–3 mai sunt acolo, le șterge contabila.
+
+## „Șterge” pe comenzile cu factură — migrarea 55 (11 noiembrie 2026, scrisă, NErulată)
+
+Cererea clientului: „Șterge” merge și pe comenzile cu factură din aplicație, iar comanda nu mai apare nicăieri în admin.
+Fără factură: neschimbat. Cu factură: comanda se ASCUNDE (`orders.sters_la` / `sters_de`). Facturile, liniile și legătura
+factură–comandă rămân neatinse. Excepții (intenționate): Facturi și pagina facturii („comandă ștearsă”, fără link),
+rapoartele, cifrele de vânzări de pe Dashboard, profitul pe mașină și exportul SAGA. Detaliile: `CLAUDE.md`, migrarea 55.
+Ordinea: pre-verificarea → `supabase/comenzi-sterse.sql` → `scripts/verifica-comenzi-sterse.sql` → verificarea finală →
+abia apoi push pe `main`. Local (Docker): `scripts/verifica-saga-local.sh` trece, inclusiv două apăsări simultane.

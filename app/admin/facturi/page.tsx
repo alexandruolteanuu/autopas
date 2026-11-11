@@ -260,7 +260,9 @@ export default function Facturi() {
           <tbody className="divide-y divide-line">
             {orders.map((o) => (
               <tr key={o.id} className="hover:bg-paper">
-                <td data-eticheta="Comandă" className="px-4 py-3"><Link href={`/admin/comenzi/${o.id}`} className="font-disp font-semibold hover:text-acc">{o.numar}</Link></td>
+                <td data-eticheta="Comandă" className="px-4 py-3">{o.sters_la
+                  ? <span className="font-disp font-semibold">{o.numar} <span className="text-xs font-normal text-mut">(comandă ștearsă)</span></span>
+                  : <Link href={`/admin/comenzi/${o.id}`} className="font-disp font-semibold hover:text-acc">{o.numar}</Link>}</td>
                 <td data-eticheta="Data" className="px-4 py-3 text-mut">{new Date(o.created_at).toLocaleDateString("ro-RO")}</td>
                 <td data-eticheta="Client" className="px-4 py-3">{o.firma ?? o.nume}</td>
                 <td data-eticheta="CUI" className="px-4 py-3 text-mut">{o.cui ?? "—"}</td>

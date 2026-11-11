@@ -58,7 +58,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const incarcaContor = useCallback(async () => {
     const sb = sbBrowser(); if (!sb) return;
     const [o, p1, p2, p3, p4, pc, pn] = await Promise.all([
-      sb.from("orders").select("id", { count: "exact", head: true }).eq("status", "noua"),
+      sb.from("orders").select("id", { count: "exact", head: true }).eq("status", "noua").is("sters_la", null),
       sb.from("part_requests").select("id", { count: "exact", head: true }).eq("status", "noua"),
       sb.from("car_intake_requests").select("id", { count: "exact", head: true }).eq("status", "noua"),
       sb.from("return_requests").select("id", { count: "exact", head: true }).eq("status", "noua"),
@@ -108,7 +108,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       if (q.trim().length < 2) { setRez([]); return; }
       const sb = sbBrowser(); if (!sb) return;
       const [o, pr] = await Promise.all([
-        sb.from("orders").select("id,numar,nume,telefon,total,status")
+        sb.from("orders").select("id,numar,nume,telefon,total,status").is("sters_la", null)
           .or(`numar.ilike.%${q}%,nume.ilike.%${q}%,telefon.ilike.%${q}%,email.ilike.%${q}%`).limit(5),
         tipareCautare(q).reduce((cerere, tipar) => cerere.filter("cautare", "imatch", tipar),
           sb.from("products").select("id,slug,nume,oem,pret_lei,stoc")).limit(5),

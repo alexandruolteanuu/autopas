@@ -24,8 +24,8 @@ export default function DetaliuComanda() {
   const router = useRouter();
   const [o, setO] = useState<OrderFull | null>(null);
   // Câte facturi emise din aplicație are comanda (pasul 6 din docs/saga-plan.md). Cu
-  // factură, comanda nu se mai poate șterge — baza refuză oricum (cheia străină
-  // `comanda_facturata_nu_se_poate_sterge`), butonul doar nu mai apare.
+  // factură, comanda nu se poate șterge din bază (cheia străină
+  // `comanda_facturata_nu_se_poate_sterge`); „Șterge” o ascunde din admin (migrarea 55).
   const [areFactura, setAreFactura] = useState(false);
   const [items, setItems] = useState<Item[]>([]);
   const [events, setEvents] = useState<OrderEvent[]>([]);
@@ -80,8 +80,8 @@ export default function DetaliuComanda() {
     if (!confirm("Ștergi definitiv comanda? Piesele revin pe stoc, iar jurnalul comenzii se pierde. Acțiunea nu poate fi anulată.")) return;
     const sb = sbBrowser()!;
     const { data, error } = await sb.rpc("sterge_comanda", { oid: Number(id) });
-    // Comanda are factură emisă din aplicație: baza o protejează prin cheia străină
-    // `comanda_facturata_nu_se_poate_sterge` (migrarea 49). Mesajul brut e tehnic.
+    // Plasă doar pentru o bază FĂRĂ migrarea 55: atunci comanda cu factură e oprită de
+    // cheia străină `comanda_facturata_nu_se_poate_sterge` (migrarea 49), cu mesaj tehnic.
     if (error?.message.includes("comanda_facturata_nu_se_poate_sterge")) {
       setMsg("Comanda are o factură emisă și nu se mai poate șterge. Factura se stornează, iar comanda se poate anula.");
       return;
@@ -93,7 +93,8 @@ export default function DetaliuComanda() {
   }
 
   if (!gata) return <div className="text-mut">Se încarcă…</div>;
-  if (!o) return <div className="card p-8 text-center"><b>Comanda nu există.</b> <Link href="/admin/comenzi" className="text-acc font-semibold block mt-2">← Înapoi la comenzi</Link></div>;
+  // Comanda cu factură ștearsă din admin (migrarea 55) arată ca una inexistentă.
+  if (!o || o.sters_la) return <div className="card p-8 text-center"><b>{o ? "Comanda a fost ștearsă." : "Comanda nu există."}</b> <Link href="/admin/comenzi" className="text-acc font-semibold block mt-2">← Înapoi la comenzi</Link></div>;
 
   const curier = curieri.find((c) => c.id === o.curier);
   const pasCurent = PASI.indexOf(o.status);
@@ -112,9 +113,9 @@ export default function DetaliuComanda() {
         <div className="flex gap-2">
           {o.status !== "anulata" && o.status !== "livrata" && (
             <button onClick={anuleaza} className="rounded-xl border-2 border-red-200 text-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-50">Anulează</button>)}
-          {!areFactura && (
-          <button onClick={stergeComanda} title="Doar administratorul; piesele revin pe stoc"
-            className="rounded-xl border-2 border-line text-mut px-4 py-2 text-sm font-semibold hover:border-red-300 hover:text-red-600">Șterge</button>)}
+          {/* Cu factură, „Șterge” o ascunde din admin (migrarea 55); fără, o șterge ca înainte. */}
+          <button onClick={stergeComanda} title={areFactura ? "Doar administratorul; comanda are factură, deci dispare din admin, iar factura rămâne în Facturi" : "Doar administratorul; piesele revin pe stoc"}
+            className="rounded-xl border-2 border-line text-mut px-4 py-2 text-sm font-semibold hover:border-red-300 hover:text-red-600">Șterge</button>
         </div>
       </div>
 

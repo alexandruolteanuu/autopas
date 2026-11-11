@@ -22,7 +22,7 @@ export default function Clienti() {
       const data = await citesteTot<any>(
         () => sb.from("orders")
           .select("id,numar,nume,email,telefon,oras,tip_client,cui,firma,total,status,created_at", { count: "exact" })
-          .neq("status", "anulata").order("id"),
+          .neq("status", "anulata").is("sters_la", null).order("id"),
         { eticheta: "comenzile" });
       const m = new Map<string, Client>();
       data.forEach((o) => {

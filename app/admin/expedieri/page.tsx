@@ -20,7 +20,7 @@ export default function Expedieri() {
     const sb = sbBrowser(); if (!sb) return;
     const stat = tab === "de_predat" ? "confirmata" : tab === "in_tranzit" ? "expediata" : "livrata";
     const list = await citesteTot<OrderFull>(
-      () => sb.from("orders").select("*", { count: "exact" }).eq("status", stat).order("id"),
+      () => sb.from("orders").select("*", { count: "exact" }).eq("status", stat).is("sters_la", null).order("id"),
       { eticheta: "comenzile de expediat" });
     setOrders(list); setSel([]);
   }, [tab]);

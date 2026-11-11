@@ -105,10 +105,18 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 36. `email-automat.sql` -> 37. `dezro.sql` -> 38. `piesa-vanduta-ramane.sql` ->
 39. `dezro-automat.sql` -> 40. `senzori-auto-despartire.sql` -> 41. `observatii-comanda.sql` ->
 42. `sugestie-clasificare.sql` -> 43. `awb-fancourier.sql` -> 44. `nomenclator-fan.sql` ->
-45. `transport-incasat-de-fan.sql` -> 46. `retur-fan.sql` -> 47. `saga-calcul.sql` -> 48. `saga-export.sql` -> 49. `saga-facturi.sql` -> 50. `saga-articole.sql` -> 51. `saga-emitere.sql` -> 52. `saga-api.sql` -> 53. `saga-stornare.sql` -> 54. `saga-refacturare.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9–54.
+45. `transport-incasat-de-fan.sql` -> 46. `retur-fan.sql` -> 47. `saga-calcul.sql` -> 48. `saga-export.sql` -> 49. `saga-facturi.sql` -> 50. `saga-articole.sql` -> 51. `saga-emitere.sql` -> 52. `saga-api.sql` -> 53. `saga-stornare.sql` -> 54. `saga-refacturare.sql` -> 55. `comenzi-sterse.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9–55.
 NU sunt încă idempotente: 1–5, 8.
 **Aplicate pe producție: 1–45 și 47–54. 46 e scrisă, NErulată** (așteaptă contul ocazional FAN).
+**55 e SCRISĂ la 11 noiembrie 2026, NErulată** — „Șterge” pe comenzile cu factură: `orders.sters_la` / `sters_de`
+(ascundere, nu ștergere), triggerul `orders_sters_pazeste` (din browser coloanele nu se scriu direct), `sterge_comanda`
+rescrisă cu gardă de amprentă (9: `cd1d7d0cf96d2c79014e7d7749ac1b0d` → 55: `ec5319ea6dbed417d766c2fb92157410`). Fără
+factură din aplicație: corpul vechi, identic. Cu factură: doar ascunsă + notă în jurnal (stoc, piese, dez.ro, AWB, facturi
+neatinse). RLS NESCHIMBAT: ascunderea e în paginile adminului (`.is("sters_la", null)`); rapoartele, cifrele de vânzări de
+pe Dashboard, profitul pe mașină, Facturi, pagina facturii și exportul SAGA includ comenzile ascunse. **Codul cere
+coloana: migrarea 55 se rulează ÎNAINTE de push pe `main`**, altfel listele din admin rămân goale. Testele:
+`scripts/verifica-comenzi-sterse.sql`; anularea și SQL-ul de reafișare: `scripts/anuleaza-comenzi-sterse.sql`.
 **52 e RULATĂ pe producție la 11 noiembrie 2026**, de proprietar, din SQL Editor (pre-verificarea 5 × true,
 `scripts/verifica-saga-api.sql` „REZULTAT OK” 33/33, verificarea finală 0 | 0 | 1 | true; pasul 7 din `docs/saga-plan.md`).
 **53 e RULATĂ pe producție la 11 noiembrie 2026** (pre-verificarea 5 × true, Success, `verifica-saga-stornare.sql` 27/27,
@@ -1511,6 +1519,8 @@ Niciuna nu e dependință a site-ului și niciuna nu rulează la build. Se cheam
 | `verifica-saga-api.sql` | după orice atingere a migrării 52. 33 de verificări pe PRODUCȚIE, în tranzacție anulată: RLS și drepturi pe cheie / lacăt / jurnal, lacătul, salvarea și rotirea cu o cheie de PROBĂ, adminul din browser nu citește cheia. Cheia reală, dacă există, rămâne neatinsă |
 | `verifica-saga-stornare.sql` | după orice atingere a migrării 53. 27 de verificări pe PRODUCȚIE, în tranzacție anulată, pe două serii cu nume unic: stornarea (antet, număr, contor, liniile = opusul, comanda „stornata”), refuzurile, `retrage_storno`, ascunderea doar pe seriile de probă, drepturile |
 | `verifica-saga-refacturare.sql` | după orice atingere a migrării 54. 14 verificări pe PRODUCȚIE, în tranzacție anulată: amprentele, refacturarea doar după storno trimis, refuzurile vechi neschimbate, retragerea facturii noi („stornata” cu seria veche), două cicluri, drepturile |
+| `verifica-comenzi-sterse.sql` | după orice atingere a migrării 55 sau a lui `sterge_comanda`. 19 verificări pe PRODUCȚIE, în tranzacție anulată, pe comenzi EXISTENTE: structura și amprenta, non-adminul refuzat, comanda cu factură ascunsă fără să se schimbe facturile, liniile, stocul, piesele sau alt câmp, nota din jurnal, a doua apăsare refuzată, rapoartele și exportul o văd, din browser coloanele nu se scriu, din SQL Editor da, comanda fără factură ștearsă ca înainte |
+| `anuleaza-comenzi-sterse.sql` | **doar la nevoie**: pune înapoi `sterge_comanda` din 9 și scoate coloanele; refuză cât există comenzi ascunse. La final: SQL-ul de REAFIȘARE a unei comenzi ascunse |
 | `anuleaza-saga-refacturare.sql` | **doar la nevoie**: pune înapoi `emite_factura` din 51 și `retrage_factura` din 49; refuză dacă funcțiile nu sunt versiunile din 54 sau dacă există deja o refacturare |
 | `anuleaza-saga-stornare.sql` | **doar la nevoie**: anulează migrarea 53 (funcțiile și `facturi_ascunse`); stornările emise rămân — sunt documente fiscale |
 | `anuleaza-saga-api.sql` | **doar la nevoie**: anulează migrarea 52 (cheia salvată se pierde — se salvează din nou din admin). Fără `cascade` |

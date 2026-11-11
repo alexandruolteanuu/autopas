@@ -40,6 +40,7 @@ export default function FacturaPagina() {
   const [f, setF] = useState<Factura | null>(null);
   const [linii, setLinii] = useState<FacturaLinie[]>([]);
   const [numarComanda, setNumarComanda] = useState("");
+  const [comandaStearsa, setComandaStearsa] = useState(false);   // migrarea 55
   const [poate, setPoate] = useState(false);
   const [setari, setSetari] = useState<Partial<Optiuni>>({});
   const [opt, setOpt] = useState<Optiuni>({ format_numar: "", format_data: "", tva_la_incasare: "", cif_persoana_fizica: "" });
@@ -84,8 +85,9 @@ export default function FacturaPagina() {
     const fx = fa.data as Factura | null;
     setF(fx); setLinii((li.data ?? []) as FacturaLinie[]); setPoate(rol.data === true);
     if (fx) {
-      const { data: o } = await sb.from("orders").select("numar").eq("id", fx.order_id).maybeSingle();
+      const { data: o } = await sb.from("orders").select("numar,sters_la").eq("id", fx.order_id).maybeSingle();
       setNumarComanda(o?.numar ?? "");
+      setComandaStearsa(!!o?.sters_la);
       setClient(Object.fromEntries(CAMPURI_CLIENT.map(([k]) => [k, String(fx.client?.[k] ?? "")])));
       setArt(Object.fromEntries(((li.data ?? []) as FacturaLinie[]).map((l) => [l.id, { cod: l.cod_articol_saga, den: l.descriere, um: l.um }])));
     }
@@ -180,7 +182,7 @@ export default function FacturaPagina() {
     const { error } = await sb.rpc(eStorno ? "retrage_storno" : "retrage_factura", { p_id: f.id });
     setLucru(false);
     if (error) { setMsg({ bun: false, text: `NU s-a retras: ${error.message}` }); return; }
-    router.push(`/admin/comenzi/${f.order_id}`);
+    router.push(comandaStearsa ? "/admin/facturi" : `/admin/comenzi/${f.order_id}`);
   }
 
   async function storneaza() {
@@ -234,7 +236,9 @@ export default function FacturaPagina() {
       <div className="flex items-end justify-between flex-wrap gap-3">
         <div>
           <div className="dim"><Link href="/admin/facturi" className="hover:text-acc">Facturi</Link>
-            {numarComanda && <> · <Link href={`/admin/comenzi/${f.order_id}`} className="hover:text-acc">comanda {numarComanda}</Link></>}</div>
+            {numarComanda && (comandaStearsa
+              ? <> · comanda {numarComanda} (comandă ștearsă)</>
+              : <> · <Link href={`/admin/comenzi/${f.order_id}`} className="hover:text-acc">comanda {numarComanda}</Link></>)}</div>
           <h1 className="font-disp font-bold text-2xl mt-1">{f.tip === "storno" ? "Storno " : "Factura "}{f.serie} {f.numar}</h1>
           <span className="text-sm text-mut">{f.data.split("-").reverse().join(".")} · {lei(Number(f.total))} ·{" "}
             <b className={f.saga_status === "confirmata" ? "text-ok" : f.saga_status === "eroare" ? "text-red-700" : ""}>{ETICHETE_STARE[f.saga_status]}</b>
