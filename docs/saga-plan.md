@@ -3335,3 +3335,18 @@ Integrări → „Saga — facturare”: doar mențiunea și articolul la vedere
 o dată și verifici că valorile din „Setări avansate” au rămas. Facturi → o factură: drumul Trimite / Marchează
 confirmată sus, „Setări avansate” jos, restrânsă. Facturi → Setări serie / Articole SAGA: fără trimiteri la
 migrări sau la contabilă.
+
+#### Raportul trimis proprietarului (11 noiembrie 2026)
+
+- **Pornirea, notată**: pasul 12 GATA în plan; CLAUDE.md actualizat — prima factură reală din aplicație PAP FE
+  14207 (comanda AP-2026-01812, 200,00 lei), validată în SAGA, trimisă în e-Factura, confirmată.
+- **Riscul 7 rămâne deschis**: în mesaj a rămas „[14208 / alt număr]” — se închide când proprietarul spune ce număr
+  a propus SAGA. Până atunci, regula „verifici numărul propus de SAGA înainte de o factură manuală” rămâne valabilă.
+- **Pasul 11**: doar texte și aranjare (lista pagină cu pagină — mai sus); câmpurile restrânse din Integrări se
+  salvează și nu se golesc; „Testează conexiunea” nu mai afișează TVA-ul din fișa articolului (încurca) și nici
+  „verifică cu contabila”. Teste 102 XML / 109 API, build-ul trece; NEvăzut pe ecran (paginile cer contul de admin).
+- **Pe `main`: 4 commit-uri locale, neîmpinse** — `aa1e4d2`, `116f32f` (notele despre unire), `8a0a758` (pornirea),
+  `aeee48d` (pasul 11); un push le duce pe toate pe site, într-un singur deploy.
+- **După push, de verificat**: Integrări — salvezi o dată cardul Saga și verifici că valorile din „Setări avansate”
+  au rămas; pagina unei facturi — drumul de zi cu zi sus, „Setări avansate” jos, restrânsă.
+- **Așteptat**: confirmarea push-ului pe `main` și numărul propus de SAGA (riscul 7).
