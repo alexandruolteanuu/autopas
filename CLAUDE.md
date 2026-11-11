@@ -120,7 +120,13 @@ Idempotente (se pot re-rula oricând): 6, 7, 9–52.
 NU sunt încă idempotente: 1–5, 8.
 **Aplicate pe producție: 1–45 și 47–52. 46 e scrisă, NErulată** (așteaptă contul ocazional FAN).
 **52 e RULATĂ pe producție la 11 noiembrie 2026**, de proprietar, din SQL Editor (pre-verificarea 5 × true,
-`scripts/verifica-saga-api.sql` „REZULTAT OK” 33/33, verificarea finală 0 | 0 | 1 | true; pasul 7 din `docs/saga-plan.md`): clientul API SAGA —
+`scripts/verifica-saga-api.sql` „REZULTAT OK” 33/33, verificarea finală 0 | 0 | 1 | true; pasul 7 din `docs/saga-plan.md`).
+**Pasul 7 verificat pe contul REAL SAGA la 11 noiembrie 2026**, din preview: cheia salvată din admin,
+„Testează conexiunea” trecut, SAGA a rotit cheia la primul apel și cea nouă s-a salvat singură;
+`X-Saga-Cod-Fiscal` = „RO36608590” acceptat. Articolul implicit: **1457070043 „ACCESORII AUTO”, BUC** —
+în fișa lui din SAGA are **TVA 19** (factura reală a ieșit cu 21) și stoc: la prima probă de import pe
+seria PROBA se verifică OBLIGATORIU cota TVA pe factura importată și dacă SAGA cere `Gestiune` pe linii
+(`docs/saga-plan.md`, riscul 10, întrebarea 5): clientul API SAGA —
 `saga_cheie` (cheia REALĂ, fără instanță de test; RLS fără nicio politică, doar `service_role`; se
 scrie doar din admin, cu „Salvează cheia”), `saga_blocare` (lacătul de 90 s), `saga_trimiteri`
 (jurnalul, fără cheie) și patru funcții doar pentru `service_role`. Doar obiecte noi. Singurul loc care

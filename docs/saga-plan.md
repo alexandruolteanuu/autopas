@@ -10,16 +10,19 @@ proprietarului.
 ## Ce a rămas de făcut (la 11 noiembrie 2026)
 
 **Acum — la proprietar:**
-1. **Mențiunea de plată** — de completat în Integrări → Saga („ramburs in cont”) ÎNAINTE de orice
-   factură reală: la proba din 11 noiembrie 2026 era goală, iar factura a ieșit fără ea.
+1. ~~Mențiunea de plată~~ — **setată „ramburs in cont”** (11 noiembrie 2026).
 2. **Importul manual al XML-ului în SAGA WEB, fără validare, împreună cu contabila** (D.4) — încă
    nefăcut. Proba prin interfață din 11 noiembrie 2026 a trecut (jurnalul pasului 6), dar doar
    importul în SAGA răspunde la: formatul numărului și al datei (riscul 6), diacriticele / UTF-8
    (riscul 8) și ce număr propune SAGA după import pe PAP FE (riscul 7). XML-ul se generează cu
    `serie_spatiu` — la probă a ieșit cu `serie_lipita`.
-3. **Cheia API REALĂ** (generată de proprietar din SAGA WEB, păstrată de el) — se introduce DOAR
-   din admin, cu „Salvează cheia” (după pasul 7). Nu se dă în chat, nu se pune în variabile de
-   mediu sau în fișiere. Decizia din 11 noiembrie 2026: **fără instanța de test SAGA**.
+3. ~~Cheia API REALĂ~~ — **salvată din admin și verificată pe contul real** (11 noiembrie 2026).
+   Rămâne regula: cheia nu se dă în chat, nu se pune în variabile de mediu sau în fișiere.
+3b. **„TVA la încasare”** — de ales în Integrări (da / nu). Nedecis în mesajul din 11 noiembrie 2026
+   („[Nu / Da]” rămas necompletat); fără el, XML-ul și trimiterea refuză.
+3c. **La prima probă de import pe seria PROBA (pasul 8), verificări OBLIGATORII**: cota și TVA-ul pe
+   factura importată (21%, nu 19% din fișa articolului — riscul 10), dacă SAGA cere `Gestiune` pe
+   linii (articolul are stoc — întrebarea 5), numărul („PROBA 1”) și data (zi-lună-an).
 
 Făcut la 11 noiembrie 2026: push-ul ramurii `saga-integrare` pe GitHub, CU preview Vercel (fără
 unire în `main`). De acum, tot ce ține de SAGA, date firmă și facturi se face doar din preview
@@ -28,7 +31,7 @@ sau local (regula din CLAUDE.md).
 **De aflat (blochează pașii următori):**
 4. De la **contabilă** — întrebările deschise din E: 1 (formatul numărului și al datei; ideal
    XML-ul-model al unei facturi PAP FE, salvat ca `docs/factura-model.xml`), 2 (ziua pornirii,
-   oprirea facturării manuale), 3 (codul articolului „ACCESORII AUTO”), 4 (persoane fizice),
+   oprirea facturării manuale), 4 (persoane fizice),
    5 (gestiune), 6 (reducerea), 7 (data facturii și scadența), 8 (momentul facturării), 9 (forma
    stornării), 10 (transportul comenzilor vechi), 11 (e-Factura prin SAGA), 12 (contorul PAP FE),
    13 (TVA la încasare), 14 (codificarea), 15 (Nr. Reg. Com. al clienților firmă).
@@ -36,10 +39,8 @@ sau local (regula din CLAUDE.md).
    raportului, durata unui import, contorul seriei.
 
 **Pașii de cod rămași** (din C, câte unul, după confirmare):
-6. Pasul 7 — clientul API: **cod scris, migrarea 52 RULATĂ pe producție la 11 noiembrie 2026**
-   (pre-verificarea 5 × true, testele 33/33, verificarea finală 0 | 0 | 1 | true), împins pe ramură.
-   Rămâne: din preview sau local, „Salvează cheia” cu cheia reală și „Testează conexiunea”. Nedovedit până atunci: forma
-   codului fiscal din antetul `X-Saga-Cod-Fiscal` („RO36608590” — riscul 9).
+6. ~~Pasul 7~~ — **GATA (11 noiembrie 2026)**: migrarea 52 rulată, cheia reală salvată, „Testează
+   conexiunea” trecut pe contul real, rotirea cheii probată pe viu.
 
 7. Pasul 8 — trimiterea („Trimite în SAGA”, reîncercare, raportul, „Marchează confirmată”,
    acțiunea în masă); blocată până sunt alese `format_numar` și `format_data`. **Probele de
@@ -800,7 +801,15 @@ obișnuite.
    contabilă (12) și pentru suportul SAGA; de verificat la proba de la pasul 6 (după importul
    manual al XML-ului de probă, ce număr propune SAGA pentru o factură nouă pe PAP FE — fără să
    o salveze).
-9. **Codul fiscal din antetul `X-Saga-Cod-Fiscal`** (pasul 7, 11 noiembrie 2026) — documentația
+10. **Cota TVA din fișa articolului vs. `ProcTVA` din XML** (risc nou, 11 noiembrie 2026) — în
+    nomenclatorul SAGA, articolul 1457070043 „ACCESORII AUTO” are **TVA 19**, tip Mărfuri, stoc 516,
+    deși factura reală PAP FE 14188 a ieșit cu 21%. La import, SAGA ar putea aplica cota din fișa
+    articolului (19) în locul lui `ProcTVA` din XML (21) — factură cu TVA greșit. Atenuare:
+    **verificare OBLIGATORIE la prima probă de import pe seria PROBA**: cota și valoarea TVA pe
+    factura importată (de ex. 500 → 413,22 + 86,78, nu 420,17 + 79,83). Dacă SAGA ia cota din fișă,
+    fișa articolului se corectează în SAGA (contabila) înainte de orice factură reală.
+9. ~~**Codul fiscal din antetul `X-Saga-Cod-Fiscal`**~~ — **ÎNCHIS la 11 noiembrie 2026**: „RO36608590”
+   e acceptat (testul de conexiune de pe contul real a trecut). Nota inițială: documentația
    scrie doar „<CUI_FIRMA>”. Trimitem forma curățată din Date firmă, „RO36608590”, aceeași ca în
    `FurnizorCIF` și în numele fișierului. Dacă SAGA o vrea fără „RO”, primul „Testează conexiunea”
    va eșua cu un mesaj de-al lor; atunci se schimbă într-un singur loc (`cif` în `lib/saga.ts`).
@@ -864,7 +873,9 @@ actuală („PAP FE”, ultimul număr 14190), capitalul social (200 RON) și ba
 2. **Seria — DECISĂ de proprietar (10 noiembrie 2026): „PAP FE”, fără serie separată.** De
    confirmat cu contabila doar: (a) ziua pornirii și cine emite ultima factură manuală; (b) că
    din acea zi nimeni nu mai emite și nu mai stornează manual pe PAP FE (riscurile 4 și 7).
-3. **Codul articolului „ACCESORII AUTO”** din gestiune. Și: reducerea și transportul tot pe
+3. ~~**Codul articolului „ACCESORII AUTO”**~~ — **ÎNCHISĂ la 11 noiembrie 2026**: codul e
+   **1457070043**, „ACCESORII AUTO”, UM BUC (pus în Integrări → articolul implicit). În SAGA are TVA 19,
+   tip Mărfuri, stoc 516 — vezi riscul 10 și întrebarea 5. Textul inițial: din gestiune. Și: reducerea și transportul tot pe
    „ACCESORII AUTO” sau pe alte articole (cu ce coduri)? Vor fi vreodată articole pe categorii
    (piese de motor, caroserie…), sau rămâne unul singur? Indiciu (manualul SAGA, vezi indiciul 4
    la întrebarea 1): articolele se recunosc după codul de bare sau codul propriu din XML — de
@@ -873,6 +884,9 @@ actuală („PAP FE”, ultimul număr 14190), capitalul social (200 RON) și ba
    „0000000000000” (forma cerută de e-Factura pentru PF fără CNP)? Le identificăm cu
    `GUID_cod_client` sau lăsăm SAGA să le recunoască după nume?
 5. **Evidență cantitativ-valorică?** Dacă da, ce cod de `Gestiune` se pune pe linii.
+   **Indiciu (11 noiembrie 2026)**: articolul 1457070043 are stoc (516), deci firma pare să țină
+   evidență cantitativ-valorică. La prima probă de import pe seria PROBA se verifică dacă SAGA cere
+   `Gestiune` pe linii.
 6. **Reducerea**: linie separată negativă sau repartizată proporțional pe piese?
 7. **Data facturii**: data comenzii, data expedierii sau data emiterii din aplicație? Scadența:
    aceeași zi?
@@ -2223,6 +2237,19 @@ Preview-ul s-a reconstruit („Deployment has completed”):
 3. un mesaj despre codul fiscal = riscul 9 (SAGA vrea probabil codul fără „RO”).
 
 **Pasul 8 NU a început.**
+
+#### Verificarea pe contul REAL, din preview (11 noiembrie 2026, raportată de proprietar)
+
+- cheia reală salvată din admin; „Testează conexiunea” → conectat, cheia acceptată;
+- **SAGA a rotit cheia la primul apel, iar cea nouă s-a salvat automat** — rotirea, probată pe viu;
+- **riscul 9 închis**: `X-Saga-Cod-Fiscal` = „RO36608590” e acceptat;
+- primul test a avertizat că articolul „PROBA” nu există (rămăsese de la proba pasului 6); codul real
+  pus în Integrări: **1457070043**, „ACCESORII AUTO”, BUC. Rezultatul celui de-al doilea test: **nereportat**
+  (în mesaj a rămas „[rezultat]”);
+- `mentiune_plata` = „ramburs in cont”, setată;
+- **din nomenclatorul SAGA**: articolul 1457070043 are TVA 19, tip Mărfuri, stoc curent 516 —
+  riscul nou 10 (cota din fișă vs. `ProcTVA`) și indiciul la întrebarea 5 (gestiune). Amândouă sunt
+  verificări obligatorii la prima probă de import pe seria PROBA.
 
 #### Înainte de pas (11 noiembrie 2026)
 
