@@ -69,9 +69,9 @@ sau local (regula din CLAUDE.md).
    - butoanele de probă (de ex. „Descarcă XML”) mutate la setările avansate.
 11. ~~Unirea ramurii în `main`~~ — **FĂCUTĂ la 11 noiembrie 2026** (`e0f512f`, deploy de producție reușit);
     regulile „până la unire” scoase din `CLAUDE.md`.
-12. Pasul 12 — proba pe contul real și pornirea, exact după „Procedura de pornire” (secțiunea C):
-    ultima factură manuală, oprirea manualului pe PAP FE, seria + numărul de start, data de start,
-    prima factură din aplicație.
+12. ~~Pasul 12~~ — **GATA: PORNIREA a reușit la 11 noiembrie 2026.** Prima factură reală din aplicație:
+    **PAP FE 14207** (comanda AP-2026-01812, 200,00 lei) — importată, validată în SAGA, trimisă în e-Factura,
+    confirmată. Rămâne doar rezultatul riscului 7 (necompletat în raport).
 
 **Mai târziu:**
 - faza 2 — facturarea automată la schimbarea stării comenzii (descrisă în C);
@@ -908,7 +908,10 @@ obișnuite.
    singur loc care o rotește (A.10, A.11); „Testează conexiunea” doar cu `GetArticol`; nicio cale de
    Import în pasul 7; probele de trimitere doar pe seria PROBA, cu `importAutomat=false`, șterse
    nevalidate de contabilă; testele automate ale clientului pe un SAGA simulat (D.5).
-7. **Contorul intern al SAGA pentru PAP FE** (risc nou, 10 noiembrie 2026) — NU știm dacă un
+7. **Contorul intern al SAGA pentru PAP FE** — **ÎNCĂ DESCHIS (11 noiembrie 2026)**: verificarea s-a făcut după
+   prima factură reală din aplicație (PAP FE 14207, validată), dar în raport numărul propus de SAGA a rămas
+   necompletat („[14208 / alt număr]”). Până la răspuns, regula facturilor manuale (riscul 4) rămâne: înainte de
+   o factură manuală se verifică numărul propus de SAGA. Textul inițial (risc nou, 10 noiembrie 2026) — NU știm dacă un
    import XML avansează contorul de numerotare din SAGA pentru seria PAP FE. Dacă nu-l
    avansează, SAGA „crede” în continuare că următorul număr e cel de la pornire, iar o factură
    emisă ulterior manual în SAGA (din greșeală sau dintr-un obicei) ar primi un număr deja folosit
@@ -3265,3 +3268,16 @@ procedura de pornire se poate face și din adminul live (autopas-dezmembrari.ro)
   încă un deploy de producție doar pentru documentație — se împinge odată cu următoarea modificare sau la cerere;
 - urmează procedura de pornire de azi: SQL-ul cu comenzile de azi și notarea seriilor facturate manual → ultimul
   număr pe PAP FE → Setări serie PAP FE 14207 → Integrări → Saga → prima factură reală.
+
+## Pornirea — 11 noiembrie 2026: REUȘITĂ (pasul 12)
+
+- **Setări serie**: PAP FE, numărul următor 14207. **Integrări → Saga**: exact după „Procedura de pornire — 11
+  noiembrie 2026”; data de start 2026-11-11.
+- **Prima factură reală din aplicație: PAP FE 14207**, comanda **AP-2026-01812**, client SIMA ION (SAGA a creat
+  clientul **18092**), **165,29 + 34,71 = 200,00 (21%)**, mențiunea „ramburs in cont; Comanda AP-2026-01812”, data
+  și scadența 11.11.2026. Importată, verificată, **validată în SAGA, trimisă în e-Factura**, marcată confirmată în
+  aplicație.
+- **Riscul 7**: numărul propus de SAGA pentru o factură manuală nouă pe PAP FE după validare — **nereportat** (în
+  mesaj a rămas „[14208 / alt număr]”). Riscul rămâne deschis; regula facturilor manuale (verificarea numărului
+  propus de SAGA înainte de fiecare factură manuală) rămâne în vigoare.
+- **Pasul 11** (curățarea zonei de facturare) — început în aceeași zi, după confirmare.

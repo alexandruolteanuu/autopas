@@ -139,7 +139,10 @@ drum scurt comandă → „Emite factura” → „Trimite în SAGA”, limbaj s
 proprietarului; o singură persoană facturează): înainte de o factură manuală se verifică în SAGA că numărul propus
 e cel de după ultima factură din aplicație; imediat după, se actualizează numărul următor în Facturi → Setări serie
 și se notează seria pe comandă. Comenzile de azi facturate manual (PAP FE 14195–14206) se notează ÎNAINTE de a
-seta data de start. Riscul 7 (contorul SAGA după import) se verifică după prima factură din aplicație validată. Pașii: jurnalul pasului 10; anularea: `scripts/anuleaza-saga-stornare.sql`.
+seta data de start. **PORNIREA A REUȘIT la 11 noiembrie 2026**: prima factură reală din aplicație, **PAP FE 14207** (comanda
+AP-2026-01812, 200,00 lei = 165,29 + 34,71), importată, validată în SAGA, trimisă în e-Factura, confirmată.
+Riscul 7 (contorul SAGA după import) — rezultatul nereportat încă; până atunci, regula facturilor manuale
+(verificarea numărului propus de SAGA) rămâne în vigoare. Pașii: jurnalul pasului 10; anularea: `scripts/anuleaza-saga-stornare.sql`.
 **Pasul 7 verificat pe contul REAL SAGA la 11 noiembrie 2026**, din preview: cheia salvată din admin,
 „Testează conexiunea” trecut, SAGA a rotit cheia la primul apel și cea nouă s-a salvat singură;
 `X-Saga-Cod-Fiscal` = „RO36608590” acceptat. Articolul implicit: **1457070043 „ACCESORII AUTO”, BUC** —
