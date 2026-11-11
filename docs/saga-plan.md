@@ -3248,3 +3248,8 @@ Pasul 11 — textele și organizarea zonei SAGA / facturare pentru folosirea zil
 Confirmată de proprietar. Unire prin avansare (fast-forward) a ramurii `saga-integrare` în `main`, apoi push;
 Vercel construiește producția. Regulile „doar din preview sau local” și „Date firmă nu din live” au fost scoase
 din CLAUDE.md în același commit (valabile până la terminarea deploy-ului de producție).
+
+**Făcut (11 noiembrie 2026)**: `main` avansat `937562e` → `e0f512f`, push. Deploy-ul de producție Vercel s-a
+terminat cu succes (deployment `7707928645`, ~10:41 UTC). Verificat pe domeniu: `POST /api/saga` (ruta nouă)
+răspunde 401 „Nu ai dreptul…” — adminul live rulează codul nou; prima pagină și `/piese` răspund 200. De acum,
+procedura de pornire se poate face și din adminul live (autopas-dezmembrari.ro).
