@@ -11,17 +11,18 @@ proprietarului.
 
 **Acum — la proprietar:**
 1. ~~Mențiunea de plată~~ — **setată „ramburs in cont”** (11 noiembrie 2026).
-2. **Importul manual al XML-ului în SAGA WEB, fără validare, împreună cu contabila** (D.4) — încă
-   nefăcut. Proba prin interfață din 11 noiembrie 2026 a trecut (jurnalul pasului 6), dar doar
-   importul în SAGA răspunde la: formatul numărului și al datei (riscul 6), diacriticele / UTF-8
-   (riscul 8) și ce număr propune SAGA după import pe PAP FE (riscul 7). XML-ul se generează cu
-   `serie_spatiu` — la probă a ieșit cu `serie_lipita`.
+2. ~~Importul în SAGA~~ — **făcut la 11 noiembrie 2026, prin API, cap-coadă** (jurnalul pasului 8):
+   formatul numărului și al datei confirmate (riscul 6 închis), cota 21% aplicată (riscul 10 închis),
+   fără `Gestiune` (întrebarea 5). **Rămân deschise**: diacriticele (riscul 8 — în raport a rămas
+   „[corecte / de verificat]”) și ce număr propune SAGA pe PAP FE după un import (riscul 7).
 3. ~~Cheia API REALĂ~~ — **salvată din admin și verificată pe contul real** (11 noiembrie 2026).
    Rămâne regula: cheia nu se dă în chat, nu se pune în variabile de mediu sau în fișiere.
-3b. **„TVA la încasare” = Nu** (decis la 11 noiembrie 2026) — de pus în Integrări → Saga (`nu`), din preview.
-3c. **La prima probă de import pe seria PROBA (pasul 8), verificări OBLIGATORII**: cota și TVA-ul pe
-   factura importată (21%, nu 19% din fișa articolului — riscul 10), dacă SAGA cere `Gestiune` pe
-   linii (articolul are stoc — întrebarea 5), numărul („PROBA 1”) și data (zi-lună-an).
+3b. **„TVA la încasare” = Nu** (decis la 11 noiembrie 2026).
+3c. ~~Verificările obligatorii la prima probă de import~~ — **făcute la 11 noiembrie 2026**: „PROBA 1”,
+   11.11.2026, cota 21% (33,06 + 6,94 = 40,00), fără `Gestiune`.
+3d. **Diacriticele** pe factura importată — de confirmat (riscul 8 rămâne deschis până atunci).
+3e. **Rezultatul lui „Testează conexiunea” cu 1457070043** — încă nereportat (de două ori „[rezultat]”).
+3f. **De discutat (nu de implementat încă): clienții creați automat de SAGA la import** — întrebarea 16.
 
 Făcut la 11 noiembrie 2026: push-ul ramurii `saga-integrare` pe GitHub, CU preview Vercel (fără
 unire în `main`). De acum, tot ce ține de SAGA, date firmă și facturi se face doar din preview
@@ -29,11 +30,9 @@ sau local (regula din CLAUDE.md).
 
 **De aflat (blochează pașii următori):**
 4. De la **contabilă** — întrebările deschise din E: 1 (formatul numărului și al datei; ideal
-   XML-ul-model al unei facturi PAP FE, salvat ca `docs/factura-model.xml`), 2 (ziua pornirii,
-   oprirea facturării manuale), 4 (persoane fizice),
-   5 (gestiune), 6 (reducerea), 7 (data facturii și scadența), 8 (momentul facturării), 9 (forma
+   2 (ziua pornirii, oprirea facturării manuale), 4 (persoane fizice), 6 (reducerea), 7 (data facturii și scadența), 8 (momentul facturării), 9 (forma
    stornării), 10 (transportul comenzilor vechi), 11 (e-Factura prin SAGA), 12 (contorul PAP FE),
-   14 (codificarea), 15 (Nr. Reg. Com. al clienților firmă).
+   14 (codificarea), 15 (Nr. Reg. Com. al clienților firmă), 16 (clienții creați automat de SAGA).
 5. De la **suportul SAGA** (nu mai blochează pasul 7) — dubla încărcare la reîncercare, formatul
    raportului, durata unui import, contorul seriei.
 
@@ -41,13 +40,9 @@ sau local (regula din CLAUDE.md).
 6. ~~Pasul 7~~ — **GATA (11 noiembrie 2026)**: migrarea 52 rulată, cheia reală salvată, „Testează
    conexiunea” trecut pe contul real, rotirea cheii probată pe viu.
 
-7. Pasul 8 — trimiterea: **COD SCRIS (11 noiembrie 2026), fără migrare nouă, neîmpins.** Rămâne:
-   push pe ramură (la confirmare), apoi, din preview, **prima probă de import pe seria PROBA**, cu
-   `import_automat` = nu, împreună cu contabila (pașii în jurnalul pasului 8), cu verificările
-   obligatorii de la 3c. Setări de pus în Integrări înainte: `format_numar` = serie_spatiu,
-   `format_data` = zi-luna-an, `tva_la_incasare` (NEDECIS), `import_automat` gol sau „nu”.
-   **Decis la 11 noiembrie 2026**: „TVA la încasare” = **Nu**; comanda de probă = varianta **(a)** (comandă
-   de probă a proprietarului, anulată după probă — vezi jurnalul pasului 8); pasul 8 împins pe ramură.
+7. ~~Pasul 8~~ — **GATA (11 noiembrie 2026)**: trimiterea în SAGA, probată cap-coadă pe contul real, pe
+   seria PROBA (comanda de probă AP-2026-01809, anulată). Factura PROBA 1 rămâne „trimisă” în aplicație
+   până la pasul 10 (ascundere / stornare).
    Lipsește încă rezultatul celui de-al doilea „Testează conexiunea” (cu 1457070043).
 8. Pasul 9 — verificarea articolelor prin `GetArticol`.
 9. Pasul 10 — stornarea (`storneaza_factura` + butonul). **Cerut de proprietar (11 noiembrie 2026):
@@ -75,7 +70,7 @@ confirmarea proprietarului înainte de pasul următor.
 | Articolul generic | **„ACCESORII AUTO”**, UM **BUC** — articolul implicit; codul vine de la contabilă | A.5 |
 | Persoane fizice | **fără CNP** pe factură | `ClientCIF` configurabil (A.17) |
 | Mențiunea de plată | **„ramburs in cont”** | configurabilă (A.17) |
-| Seria actuală din SAGA | **„PAP FE”** (cu spațiu); ultimul număr manual la 10.11.2026, după-amiaza: **14192** (facturarea manuală continuă până în ziua pornirii) | **ACEASTA e seria aplicației** — decizia din 10.11.2026 (A.4). Numărul de start se setează abia în ziua pornirii |
+| Seria actuală din SAGA | **„PAP FE”** (cu spațiu); ultimul număr manual la 10.11.2026, după-amiaza: **14192**; la **11.11.2026, ~11:00: 14202** (continuarea ar fi 14203; facturarea manuală continuă până în ziua pornirii) | **ACEASTA e seria aplicației** — decizia din 10.11.2026 (A.4). Numărul de start se setează abia în ziua pornirii |
 | Capital social, banca | **200 RON**, **BCR Piatra Neamt** | le scrie proprietarul în Admin → Setări după pasul 3 — **nu în cod** (A.16) |
 
 ---
@@ -807,7 +802,9 @@ obișnuite.
    contabilă (12) și pentru suportul SAGA; de verificat la proba de la pasul 6 (după importul
    manual al XML-ului de probă, ce număr propune SAGA pentru o factură nouă pe PAP FE — fără să
    o salveze).
-10. **Cota TVA din fișa articolului vs. `ProcTVA` din XML** (risc nou, 11 noiembrie 2026) — în
+10. ~~**Cota TVA din fișa articolului vs. `ProcTVA` din XML**~~ — **ÎNCHIS la 11 noiembrie 2026**: la
+    prima probă de import, SAGA a aplicat cota din XML (21%: 33,06 + 6,94 = 40,00), nu 19 din fișă.
+    Textul inițial (risc nou, 11 noiembrie 2026) — în
     nomenclatorul SAGA, articolul 1457070043 „ACCESORII AUTO” are **TVA 19**, tip Mărfuri, stoc 516,
     deși factura reală PAP FE 14188 a ieșit cu 21%. La import, SAGA ar putea aplica cota din fișa
     articolului (19) în locul lui `ProcTVA` din XML (21) — factură cu TVA greșit. Atenuare:
@@ -819,10 +816,15 @@ obișnuite.
    scrie doar „<CUI_FIRMA>”. Trimitem forma curățată din Date firmă, „RO36608590”, aceeași ca în
    `FurnizorCIF` și în numele fișierului. Dacă SAGA o vrea fără „RO”, primul „Testează conexiunea”
    va eșua cu un mesaj de-al lor; atunci se schimbă într-un singur loc (`cif` în `lib/saga.ts`).
-8. **Codificarea XML-ului** (pasul 6) — fișierul e UTF-8, cu declarația în antet; diacriticele
+8. **Codificarea XML-ului** (pasul 6) — **ÎNCĂ DESCHIS (11 noiembrie 2026)**: la prima probă de import,
+   rezultatul pentru diacritice a rămas necompletat în raport („[corecte / de verificat]”). Clientul
+   probei („ALEX OLTEANU TEST”) n-avea diacritice; de verificat pe o factură cu „ă/î/ș/ț” în nume sau
+   adresă. Textul inițial: fișierul e UTF-8, cu declarația în antet; diacriticele
    din nume și adrese ies corect doar dacă SAGA WEB citește UTF-8. Nedocumentat. Atenuare: proba
    manuală de la pasul 6 (D.4), pe o factură cu diacritice; întrebarea 14.
-6. **Formatul numărului necunoscut** — o factură trimisă cu `FacturaNumar` în forma greșită
+6. ~~**Formatul numărului necunoscut**~~ — **ÎNCHIS la 11 noiembrie 2026**: la prima probă de import,
+   `serie_spatiu` a dat `NR_DOC` „PROBA 1” în raportul SAGA și factura „PROBA 1” la Ieșiri, iar data
+   zi-lună-an a ieșit 11.11.2026 (scadența la fel). Textul inițial: o factură trimisă cu `FacturaNumar` în forma greșită
    poate intra în SAGA cu alt număr decât crede aplicația, sau poate să nu fie recunoscută în
    raport. La fel o dată în alt format decât așteaptă SAGA (zi și lună inversate trec
    neobservate până pe 13 ale lunii). Atenuare: formatul numărului și al datei sunt câte o
@@ -852,7 +854,8 @@ Rezolvate la 10 noiembrie 2026, de pe factura reală: regimul TVA (normal, 21%),
 articolul generic („ACCESORII AUTO”, BUC), mențiunea de plată („ramburs in cont”), seria
 actuală („PAP FE”, ultimul număr 14190), capitalul social (200 RON) și banca (BCR Piatra Neamt).
 
-1. **PRIORITAR — formatul numărului.** Pentru o serie cu spațiu, cum se completează
+1. ~~**PRIORITAR — formatul numărului.**~~ **ÎNCHISĂ la 11 noiembrie 2026** de prima probă de import
+   (`serie_spatiu`, zi-lună-an — riscul 6). Textul inițial: Pentru o serie cu spațiu, cum se completează
    `FacturaNumar` în XML: „PAP FE14193”, „PAP FE 14193” sau doar „14193” (*exemplu*), cu seria în alt câmp?
    Și cum apare `NR_DOC` în raportul de import? **Cel mai sigur răspuns: XML-ul-model al facturii
    PAP FE 14192** (sau a ultimei facturi manuale), exportat din SAGA (Ieșiri → tipărire → „Formular PDF” → fișierul din
@@ -889,7 +892,10 @@ actuală („PAP FE”, ultimul număr 14190), capitalul social (200 RON) și ba
 4. **Persoanele fizice**: la `ClientCIF` trimitem gol (ca pe factura reală), „-” sau
    „0000000000000” (forma cerută de e-Factura pentru PF fără CNP)? Le identificăm cu
    `GUID_cod_client` sau lăsăm SAGA să le recunoască după nume?
-5. **Evidență cantitativ-valorică?** Dacă da, ce cod de `Gestiune` se pune pe linii.
+5. ~~**Evidență cantitativ-valorică?**~~ **ÎNCHISĂ PENTRU ACUM (11 noiembrie 2026)**: la prima probă de
+   import SAGA NU a cerut `Gestiune` pe linii (doar avertizarea „prețul de vânzare e mai mic decât cel de
+   achiziție”, din costul mediu al articolului cu stoc). Se redeschide dacă apare o eroare de gestiune.
+   Textul inițial: dacă da, ce cod de `Gestiune` se pune pe linii.
    **Indiciu (11 noiembrie 2026)**: articolul 1457070043 are stoc (516), deci firma pare să țină
    evidență cantitativ-valorică. La prima probă de import pe seria PROBA se verifică dacă SAGA cere
    `Gestiune` pe linii.
@@ -913,6 +919,23 @@ actuală („PAP FE”, ultimul număr 14190), capitalul social (200 RON) și ba
 12. **Contorul SAGA pentru PAP FE** (riscul 7): după ce o factură intră în SAGA prin import XML,
     avansează SAGA contorul seriei PAP FE? Dacă nu, ce număr ar propune SAGA unei facturi noi
     emise manual după pornire — și se poate bloca în SAGA emiterea manuală pe PAP FE?
+16. **Clienții creați automat de SAGA la import** (de discutat, 11 noiembrie 2026 — NU de implementat
+    încă). La prima probă, SAGA a creat singur clientul „ALEX OLTEANU TEST” (cod 18086). Întrebările:
+    - același client care cumpără de mai multe ori: SAGA îl recunoaște (după ce? — nume, CIF), sau
+      creează de fiecare dată unul nou? Și clienții existenți deja în SAGA, din facturarea manuală?
+    - pentru persoane fizice fără CNP, recunoașterea după nume poate și DUBLA (același om, scris altfel),
+      și AMESTECA (doi „Ion Popescu”);
+    - `GUID_cod_client` (opțional în XML; „SAGA reține asocierea”) ar da o cheie stabilă. Comenzile n-au
+      `user_id`, deci cheia ar veni din: **CUI** pentru firme; **telefonul normalizat** pentru persoane
+      fizice (obligatoriu la checkout, cel mai stabil); e-mailul e a doua variantă. Ca text, nu telefonul
+      brut, ci o formă derivată (de ex. `AP-` + un rezumat al telefonului), ca SAGA să nu primească
+      încă o copie a lui în alt câmp;
+    - necunoscute: dacă SAGA cere un GUID în formatul standard (8-4-4-4-12), ce face când același GUID
+      vine cu nume / adresă schimbate, și cum se leagă un GUID de un client creat deja manual;
+    - alternativa contabilă: un singur client generic pentru persoanele fizice (unele firme așa lucrează)
+      — de întrebat contabila ce vrea să vadă în SAGA.
+    Propunere: întâi răspunsul contabilei (client per persoană sau generic) și un test pe seria PROBA cu
+    același client trimis de două ori (cu și fără `GUID_cod_client`); apoi decizia.
 15. **Nr. Reg. Com. al clienților firmă** (găsit la proba din 11 noiembrie 2026): `ClientNrRegCom`
     iese GOL, fiindcă checkout-ul cere doar firma și CUI-ul, nu și numărul de la Registrul
     Comerțului. E acceptabil așa (SAGA / e-Factura îl cer?), îl completează contabila în SAGA,
@@ -2513,6 +2536,26 @@ nimeni altcineva nu emite:
   factura manuală din SAGA. Variante (a) / (b) / (c) — la „Cum se verifică”, pasul 2.
 - **Așteptat de la proprietar**: „TVA la încasare”; comanda pentru probă; push-ul pasului 8 pe ramură
   (`a3a71ee`), ca preview-ul să-l aibă.
+
+#### Prima probă de import pe contul REAL — REUȘITĂ (11 noiembrie 2026, din preview)
+
+- **Comanda de probă AP-2026-01809** (Alex Olteanu Test, 40 lei); factura **PROBA 1** emisă și trimisă cu
+  „Trimite în SAGA”, `import_automat` gol. În aplicație: „Trimisă — așteaptă validarea în SAGA”.
+- **Raportul SAGA: HTTP 207** — „NR_DOC: PROBA 1 — Avertizare detaliu 1: Pretul de vanzare este mai mic
+  decat cel de achizitie.” Doar avertizare, din costul mediu al articolului ACCESORII AUTO (cu stoc).
+  `stareDupaImport` a tratat-o exact cum trebuia: „trimisă”, cu avertizarea scrisă.
+- **În SAGA, Ieșiri, factura importată (nevalidată)**: PROBA 1, data 11.11.2026, scadența 11.11.2026,
+  clientul ALEX OLTEANU TEST (creat de SAGA, cod 18086), **33,06 + 6,94 = 40,00 → cota 21%** (riscul 10
+  închis), mențiunea „ramburs in cont; Comanda AP-2026-01809”.
+- **Confirmate**: `format_numar` = serie_spatiu (NR_DOC „PROBA 1”), `format_data` = zi-luna-an (riscul 6
+  închis, întrebarea 1 închisă); SAGA NU a cerut `Gestiune` (întrebarea 5 închisă pentru acum).
+- **Diacriticele: NEconfirmate** — în raport a rămas „[corecte / de verificat]”; riscul 8 rămâne deschis.
+- **Curățenia**: importul anulat în SAGA, clientul de test șters, comanda anulată (stocul repus), emiterea
+  oprită, data de start golită. În aplicație, factura PROBA 1 rămâne „trimisă” (nu se mai retrage) —
+  ascunderea / stornarea, la pasul 10.
+- **Numerotarea manuală pe PAP FE**: 14202 (11.11.2026, ~11:00); continuarea ar fi 14203.
+- **„Testează conexiunea” cu 1457070043**: rezultatul tot nereportat („[rezultat]”).
+- **De discutat**: SAGA a creat automat clientul — întrebarea 16 (dubluri, `GUID_cod_client`).
 
 #### Răspunsurile proprietarului (11 noiembrie 2026)
 

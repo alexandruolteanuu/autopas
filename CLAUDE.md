@@ -135,7 +135,13 @@ fișier = un apel (`lib/saga-trimitere.mjs`); singurul loc cu calea „/Import�
 bifele din Integrări pornesc bifate când lipsește valoarea). Probele de import: DOAR pe seria PROBA, cu
 contabila, care șterge importul nevalidat. Prima probă: pe o comandă de PROBĂ a proprietarului, anulată apoi —
 `anuleaza_comanda` NU verifică facturile (permite anularea, fără avertisment, stocul revine); factura PROBA
-trimisă rămâne legată de comanda anulată până la pasul 10 (ascundere / stornare).: clientul API SAGA —
+trimisă rămâne legată de comanda anulată până la pasul 10 (ascundere / stornare).
+**Prima probă de import pe contul REAL a REUȘIT la 11 noiembrie 2026** (comanda de probă AP-2026-01809,
+factura PROBA 1, 40 lei): HTTP 207 doar cu avertizarea „preț de vânzare sub cel de achiziție” → „trimisă”;
+în SAGA: „PROBA 1”, 11.11.2026, 33,06 + 6,94 = 40,00 (cota 21% din XML, NU 19 din fișa articolului),
+mențiunea „ramburs in cont; Comanda …”; fără `Gestiune`. Închise: formatul numărului / datei, cota TVA.
+**Deschise**: diacriticele (neconfirmate), contorul PAP FE după import (riscul 7), clienții creați automat
+de SAGA (întrebarea 16, de discutat). Numerotarea manuală PAP FE: 14202 la 11.11.2026, ~11:00.: clientul API SAGA —
 `saga_cheie` (cheia REALĂ, fără instanță de test; RLS fără nicio politică, doar `service_role`; se
 scrie doar din admin, cu „Salvează cheia”), `saga_blocare` (lacătul de 90 s), `saga_trimiteri`
 (jurnalul, fără cheie) și patru funcții doar pentru `service_role`. Doar obiecte noi. Singurul loc care
