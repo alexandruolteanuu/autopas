@@ -17,28 +17,33 @@ proprietarului.
    importul în SAGA răspunde la: formatul numărului și al datei (riscul 6), diacriticele / UTF-8
    (riscul 8) și ce număr propune SAGA după import pe PAP FE (riscul 7). XML-ul se generează cu
    `serie_spatiu` — la probă a ieșit cu `serie_lipita`.
+3. **Push-ul ramurii `saga-integrare` pe GitHub (NU pe `main`, fără unire) — așteaptă decizia
+   proprietarului despre preview-ul Vercel.** Ramura există DOAR în Codespace (26 de commit-uri
+   față de `main`, la `e91aca0`). Verificarea istoricului e făcută și e curată; un preview Vercel
+   ar lucra, cel mai probabil, pe baza REALĂ — detaliile în jurnalul pasului 6, „Înainte de push”.
+   De ales: push cu preview, sau întâi oprirea preview-ului pentru ramură.
 
 **De aflat (blochează pașii următori):**
-3. De la **contabilă** — întrebările deschise din E: 1 (formatul numărului și al datei; ideal
+4. De la **contabilă** — întrebările deschise din E: 1 (formatul numărului și al datei; ideal
    XML-ul-model al unei facturi PAP FE, salvat ca `docs/factura-model.xml`), 2 (ziua pornirii,
    oprirea facturării manuale), 3 (codul articolului „ACCESORII AUTO”), 4 (persoane fizice),
    5 (gestiune), 6 (reducerea), 7 (data facturii și scadența), 8 (momentul facturării), 9 (forma
    stornării), 10 (transportul comenzilor vechi), 11 (e-Factura prin SAGA), 12 (contorul PAP FE),
    13 (TVA la încasare), 14 (codificarea), 15 (Nr. Reg. Com. al clienților firmă).
-4. De la **suportul SAGA** — adresa instanței de test și cheia pentru ea (fără ea pasul 7 nu
+5. De la **suportul SAGA** — adresa instanței de test și cheia pentru ea (fără ea pasul 7 nu
    începe), dubla încărcare la reîncercare, formatul raportului, durata unui import, contorul seriei.
 
 **Pașii de cod rămași** (din C, câte unul, după confirmare):
-5. Pasul 7 — clientul API (`saga_cheie`, `saga_blocare`, `saga_trimiteri`, `lib/saga.ts`,
+6. Pasul 7 — clientul API (`saga_cheie`, `saga_blocare`, `saga_trimiteri`, `lib/saga.ts`,
    „Testează conexiunea”, „Salvează cheia”).
-6. Pasul 8 — trimiterea („Trimite în SAGA”, reîncercare, raportul, „Marchează confirmată”,
+7. Pasul 8 — trimiterea („Trimite în SAGA”, reîncercare, raportul, „Marchează confirmată”,
    acțiunea în masă); blocată până sunt alese `format_numar` și `format_data`.
-7. Pasul 9 — verificarea articolelor prin `GetArticol`.
-8. Pasul 10 — stornarea (`storneaza_factura` + butonul).
-9. Pasul 11 — textele (Integrări, Facturi, pagina comenzii) și `CLAUDE.md`.
-10. **Unirea ramurii în `main`** (după care regula „Date firmă nu se salvează din site-ul live”
+8. Pasul 9 — verificarea articolelor prin `GetArticol`.
+9. Pasul 10 — stornarea (`storneaza_factura` + butonul).
+10. Pasul 11 — textele (Integrări, Facturi, pagina comenzii) și `CLAUDE.md`.
+11. **Unirea ramurii în `main`** (după care regula „Date firmă nu se salvează din site-ul live”
     dispare din `CLAUDE.md`).
-11. Pasul 12 — proba pe contul real și pornirea, exact după „Procedura de pornire” (secțiunea C):
+12. Pasul 12 — proba pe contul real și pornirea, exact după „Procedura de pornire” (secțiunea C):
     ultima factură manuală, oprirea manualului pe PAP FE, seria + numărul de start, data de start,
     prima factură din aplicație.
 
@@ -1879,6 +1884,64 @@ Editor (cod: commit `c49241a` pe `saga-integrare`, fără push):
 
 **Pasul 7 NU a început** — cerut explicit de proprietar; adresa instanței de test SAGA încă
 lipsește (riscul 5).
+
+#### După probă: ce s-a schimbat (11 noiembrie 2026, commit `e91aca0`)
+
+1. **„PROBA1” fără spațiu — generatorul nu are nicio greșeală.** Numele fișierului primit,
+   `…_PROBA1_…`, iese numai cu `serie_lipita`. Cu `serie_spatiu` ar fi fost `…_PROBA_1_…`, iar în
+   XML „PROBA 1”. Deci la descărcare s-a ales `serie_lipita`, pe care lista îl punea primul.
+   - 10 teste noi; `verifica-saga-xml.mjs` trece 73 din 73. Confirmă „PROBA 1” și „PAP FE 14193”
+     cu numele fișierelor lor, plus faptul că `serie_lipita` dă exact fișierul primit la probă.
+   - Pe pagina facturii se vede acum, înainte de „Descarcă XML”, ce va scrie în `<FacturaNumar>`
+     și cum se va numi fișierul. `serie_spatiu` e primul în listă (`FORMATE_NUMAR`).
+2. **Avertismente când lipsește mențiunea de plată:**
+   - pe cardul „Emite factura” din comandă și în fereastra de confirmare de dinaintea emiterii;
+   - pe pagina facturii, plus o notă lângă „Descarcă XML”.
+
+   Mențiunea se copiază în factură în momentul emiterii, iar „Modifică” nu o poate schimba. Pe o
+   factură deja emisă, singura reparație e retragerea și emiterea din nou. Avertismentul spune asta.
+3. **Nr. Reg. Com. gol la clienții firmă** — întrebarea 15 pentru contabilă.
+4. Jurnalul pasului 6 are proba; lista „Ce a rămas” are completarea mențiunii de plată („ramburs
+   in cont”) înaintea oricărei facturi reale și importul manual în SAGA, încă nefăcut.
+5. Build-ul a trecut. Serverul local a fost oprit pentru build. Primul `pkill -f "next start"` nu
+   l-a oprit (procesul se numește `next-server`), deci primul build a rulat cu serverul pornit;
+   s-a oprit după PID și build-ul s-a refăcut curat. **De reținut: serverul se oprește după PID
+   (`pgrep -a next-server`), nu cu `pkill -f "next start"`.**
+
+Fișiere: `lib/saga-xml.mjs`, `scripts/verifica-saga-xml.mjs`, `app/admin/facturi/[id]/page.tsx`,
+`components/admin/FacturaSaga.tsx`, `docs/saga-plan.md`, `CLAUDE.md`.
+Verificare: `node scripts/verifica-saga-xml.mjs` → 73 de verificări trecute.
+
+#### Înainte de push: verificarea istoricului (11 noiembrie 2026) — curată
+
+- **Fișiere**: niciun `.env`, `.backup/`, CSV sau XML n-a intrat vreodată în git (căutat în tot
+  istoricul, pe toate ramurile). Singurul fișier de configurare e `.env.local.example`, un șablon
+  fără valori. PDF-urile, CSV-urile și arhivele FAN din rădăcină nu sunt urmărite de git, deci nu
+  pleacă. XML-ul probei nu e în proiect.
+- **Conținutul celor 26 de commit-uri** față de `main`: nicio cheie, token sau parolă — doar
+  exemple ca `PAROLA` / `[YOUR-PASSWORD]` și nume de roluri (`service_role`). Niciun CNP. E-mailuri
+  doar fictive (`@t.ro`, `@test.local`) și `contact@autopas-dezmembrari.ro`; singurul telefon e cel
+  public al firmei. Datele de test locale (`scripts/saga-local/`) sunt „Ion Test”, „Ana Test”,
+  „Firma Client”. `docs/saga-api.md` are doar `<CHEIE_ACCES>` ca exemplu.
+
+#### Înainte de push: Vercel și ramura
+
+- **Va face un preview, aproape sigur.** Vercel construiește implicit orice ramură împinsă pe
+  GitHub, iar `vercel.json` (doar `regions`) nu oprește asta. Preview-ul primește o adresă
+  `….vercel.app`, nu domeniul. Site-ul live rămâne pe `main`, neatins.
+- **Variabilele**: cele marcate pentru mediul „Preview” în Vercel. Vercel le bifează implicit pe
+  toate trei mediile, iar proiectul are o singură bază Supabase — deci preview-ul **lucrează cel
+  mai probabil pe baza REALĂ, cu cheia de serviciu**, exact ca serverul local. NEVERIFICAT (fără
+  acces la Vercel din Codespace): se vede în Vercel → proiect → Settings → Environment Variables,
+  coloana „Environments”, mai ales la `SUPABASE_SERVICE_ROLE_KEY`.
+- **Build-ul preview-ului doar citește din bază.** Scrierile apar numai dacă cineva intră în
+  adminul preview-ului și salvează, ca local. Codul preview-ului e cel nou, deci „Date firmă”
+  salvat de acolo NU strică nimic; regula „reîncarcă Integrări înainte de a salva” rămâne.
+- **Fără preview**: înainte de push, Vercel → Settings → Git → „Ignored Build Step”, sau o linie
+  în `vercel.json` care oprește build-ul pentru `saga-integrare` — un commit în plus, care ar
+  ajunge în `main` la unire; inofensiv.
+- **Decizia proprietarului**: push cu preview, sau întâi oprirea preview-ului. Până atunci,
+  niciun push.
 
 Commit-urile acestui schimb de mesaje: `39daacf` (pasul 5 notat ca rulat, precizările despre
 pasul 4 și backup, regula paginii Integrări deschise), `c49241a` (pasul 6).
