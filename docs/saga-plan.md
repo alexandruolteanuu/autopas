@@ -3489,3 +3489,10 @@ REZULTAT OK 19/19, verificarea finală 0 | true.
   ```sql
   select numar, sters_la from orders where sters_la is not null;
   ```
+
+### Curățenie în `scripts/` (11 noiembrie 2026)
+
+Șterse (rămân în istoria git): `scripts/sterge-comenzi-proba.sql` (decis să nu se ruleze — comenzile de probă se
+ascund cu „Șterge”), `scripts/baza-test.sh` (nu există bază de test, decizia din 10 noiembrie 2026),
+`scripts/reia-dezro.sh` (plasa primei publicări mari pe dez.ro; de la 10 septembrie 2026 coada automată ține
+dez.ro la zi). Migrările din `supabase/` NU se șterg: sunt urma în git a tot ce s-a schimbat în bază.
