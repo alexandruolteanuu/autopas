@@ -10,13 +10,13 @@ proprietarului.
 ## Ce a rămas de făcut (la 11 noiembrie 2026)
 
 **Acum — la proprietar:**
-1. **Proba de emitere prin interfață, cu seria „PROBA”** (pasul 6, „Varianta 2” din jurnalul
-   pasului 6). Rezultatul și XML-ul generat se trec în jurnal. Dacă se face și importul manual în
-   SAGA WEB, fără validare, împreună cu contabila, el răspunde la trei necunoscute: formatul
-   numărului și al datei (riscul 6), diacriticele / UTF-8 (riscul 8) și ce număr propune SAGA
-   după import pe PAP FE (riscul 7).
-2. **Ramura `saga-integrare` există DOAR în Codespace** — 24 de commit-uri, niciunul împins pe
-   GitHub. Push-ul ramurii (nu pe `main`) se face doar cu aprobarea proprietarului.
+1. **Mențiunea de plată** — de completat în Integrări → Saga („ramburs in cont”) ÎNAINTE de orice
+   factură reală: la proba din 11 noiembrie 2026 era goală, iar factura a ieșit fără ea.
+2. **Importul manual al XML-ului în SAGA WEB, fără validare, împreună cu contabila** (D.4) — încă
+   nefăcut. Proba prin interfață din 11 noiembrie 2026 a trecut (jurnalul pasului 6), dar doar
+   importul în SAGA răspunde la: formatul numărului și al datei (riscul 6), diacriticele / UTF-8
+   (riscul 8) și ce număr propune SAGA după import pe PAP FE (riscul 7). XML-ul se generează cu
+   `serie_spatiu` — la probă a ieșit cu `serie_lipita`.
 
 **De aflat (blochează pașii următori):**
 3. De la **contabilă** — întrebările deschise din E: 1 (formatul numărului și al datei; ideal
@@ -24,7 +24,7 @@ proprietarului.
    oprirea facturării manuale), 3 (codul articolului „ACCESORII AUTO”), 4 (persoane fizice),
    5 (gestiune), 6 (reducerea), 7 (data facturii și scadența), 8 (momentul facturării), 9 (forma
    stornării), 10 (transportul comenzilor vechi), 11 (e-Factura prin SAGA), 12 (contorul PAP FE),
-   13 (TVA la încasare), 14 (codificarea).
+   13 (TVA la încasare), 14 (codificarea), 15 (Nr. Reg. Com. al clienților firmă).
 4. De la **suportul SAGA** — adresa instanței de test și cheia pentru ea (fără ea pasul 7 nu
    începe), dubla încărcare la reîncercare, formatul raportului, durata unui import, contorul seriei.
 
@@ -845,6 +845,11 @@ actuală („PAP FE”, ultimul număr 14190), capitalul social (200 RON) și ba
 12. **Contorul SAGA pentru PAP FE** (riscul 7): după ce o factură intră în SAGA prin import XML,
     avansează SAGA contorul seriei PAP FE? Dacă nu, ce număr ar propune SAGA unei facturi noi
     emise manual după pornire — și se poate bloca în SAGA emiterea manuală pe PAP FE?
+15. **Nr. Reg. Com. al clienților firmă** (găsit la proba din 11 noiembrie 2026): `ClientNrRegCom`
+    iese GOL, fiindcă checkout-ul cere doar firma și CUI-ul, nu și numărul de la Registrul
+    Comerțului. E acceptabil așa (SAGA / e-Factura îl cer?), îl completează contabila în SAGA,
+    sau trebuie cerut la checkout (câmp nou, opțional sau obligatoriu)? Până la răspuns, nu se
+    schimbă nimic; se poate completa de mână pe factură, prin „Modifică”, înainte de trimitere.
 
 ### Întrebări pentru SAGA (suport)
 - Adresa instanței de test și cum primim o cheie pentru ea.
@@ -1847,10 +1852,33 @@ Editor (cod: commit `c49241a` pe `saga-integrare`, fără push):
 - verificarea finală: facturi 0, serii 0, potriviri 0;
 - paginile arată corect.
 
-**Urmează (în lucru la proprietar): proba de emitere prin interfață, cu seria „PROBA”**
-(varianta 2 de mai jos); rezultatul și XML-ul generat se trec aici când sosesc. **Pasul 7 NU a
-început**: proprietarul a cerut explicit să se aștepte proba, iar adresa instanței de test SAGA
-încă lipsește (riscul 5).
+**Proba de emitere prin interfață, cu seria „PROBA” (varianta 2), făcută de proprietar
+(raportată la 11 noiembrie 2026):**
+- factura **PROBA 1** emisă pe comanda **AP-2026-01794**; XML descărcat:
+  `F_RO36608590_PROBA1_10_11_2026.xml` (nu e pus în git: are datele unui client real);
+- curățenia: factura retrasă, emiterea oprită, data de start și articolul de probă golite în
+  Integrări; verificarea SQL: facturi 0, serii active 0, comenzi marcate 0;
+- **corect în XML**: CIF-ul fără spațiu, județele NT / CT, 500 → 413.22 + 86.78, preț unitar
+  413.2200, articolul ACCESORII AUTO, numele piesei la `InformatiiSuplimentare`, ghilimelele
+  escapate;
+- **`FacturaNumar` = „PROBA1”**, fără spațiu. Cauza: la descărcare s-a folosit `serie_lipita`, nu
+  `serie_spatiu` — numele fișierului o dovedește (`serie_spatiu` ar fi dat `…_PROBA_1_…`).
+  `numarPentruSaga` și `numeFisier` sunt corecte; teste noi în `verifica-saga-xml.mjs` (73/73):
+  `serie_spatiu` → „PROBA 1” / „PAP FE 14193” și fișierele lor, `serie_lipita` → exact fișierul
+  primit la probă. Ca să nu se mai aleagă orbește: pagina facturii arată acum, înainte de
+  descărcare, ce va scrie în `<FacturaNumar>` și numele fișierului, iar `serie_spatiu` e prima în
+  listă (ca în Integrări);
+- **`FacturaInformatiiSuplimentare` = doar „Comanda AP-2026-01794”**, fără mențiunea de plată:
+  `mentiune_plata` era goală în Integrări. Mențiunea se COPIAZĂ în factură la emitere și
+  `modifica_factura` n-o poate schimba. Acum: avertisment pe cardul de emitere din comandă și în
+  confirmarea „Emiți factura?”, plus avertisment pe pagina facturii (cu reparația: retrage și
+  emite din nou, cât e ultima din serie și netrimisă) și lângă „Descarcă XML”;
+- **`ClientNrRegCom` gol** pentru clienții firmă: site-ul nu-l cere — întrebarea 15 pentru contabilă;
+- **NEFĂCUT încă: importul manual al XML-ului în SAGA WEB** (D.4), deci riscurile 6, 7 și 8 rămân
+  deschise.
+
+**Pasul 7 NU a început** — cerut explicit de proprietar; adresa instanței de test SAGA încă
+lipsește (riscul 5).
 
 Commit-urile acestui schimb de mesaje: `39daacf` (pasul 5 notat ca rulat, precizările despre
 pasul 4 și backup, regula paginii Integrări deschise), `c49241a` (pasul 6).
@@ -1965,7 +1993,7 @@ browser acum și pe server la pasul 8:
   nepermisă ignorată, articolul pe linie, totalurile și numărul neatinse); refuzurile (județ
   „Atlantis”, linia altei facturi, cod gol, factură trimisă); oprirea emiterii (seria inactivă,
   istoric, emiterea refuzată); drepturile.
-- **`scripts/verifica-saga-xml.mjs`** — 63 de verificări ale generatorului, fără bază.
+- **`scripts/verifica-saga-xml.mjs`** — 63 de verificări ale generatorului, fără bază (73 după proba din 11 noiembrie 2026).
 - Testele pașilor 4 și 5 aleg acum doar comenzi nemarcate ca facturate; testul pasului 5
   acceptă amprenta lui `emite_factura` din 50 SAU 51.
 - **Local** (`scripts/verifica-saga-local.sh`, extins cu 51): migrările 47–51 rulate de două

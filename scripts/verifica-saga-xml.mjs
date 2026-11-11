@@ -130,4 +130,22 @@ arunca(() => construiesteXml([{ ...factura, linii: [] }], opt), "factură fără
 eq(numeFisier(factura, opt), "F_RO36608590_PAP_FE_14193_03_11_2026.xml", "numele fișierului");
 eq(numeFisier(factura, { ...opt, format_numar: "doar_numar" }), "F_RO36608590_14193_03_11_2026.xml", "numele fișierului, doar număr");
 
+// --- Proba din 11 noiembrie 2026 (seria „PROBA”, nr. 1, factura din 10.11.2026) ---
+// XML-ul primit avea „PROBA1” și fișierul F_RO36608590_PROBA1_10_11_2026.xml: ăsta e
+// rezultatul lui `serie_lipita`. Cu `serie_spatiu` ar fi fost „PROBA 1” și „…_PROBA_1_…”.
+const proba = { ...factura, serie: "PROBA", numar: 1, data: "2026-11-10" };
+eq(numarPentruSaga("PROBA", 1, "serie_spatiu"), "PROBA 1", "proba: serie_spatiu → „PROBA 1”");
+eq(numarPentruSaga("PAP FE", 14193, "serie_spatiu"), "PAP FE 14193", "serie_spatiu → „PAP FE 14193”");
+eq(numarPentruSaga("PROBA", 1, "serie_lipita"), "PROBA1", "proba: serie_lipita → „PROBA1” (ce a ieșit la probă)");
+eq(numeFisier(proba, { ...opt, format_numar: "serie_spatiu" }), "F_RO36608590_PROBA_1_10_11_2026.xml", "proba: fișierul cu serie_spatiu");
+eq(numeFisier(proba, { ...opt, format_numar: "serie_lipita" }), "F_RO36608590_PROBA1_10_11_2026.xml", "proba: fișierul cu serie_lipita = cel primit la probă");
+eq(numeFisier(factura, { ...opt, format_numar: "serie_spatiu" }), "F_RO36608590_PAP_FE_14193_03_11_2026.xml", "PAP FE 14193: fișierul cu serie_spatiu");
+eq(construiesteXml([proba], { ...opt, format_numar: "serie_spatiu" }).includes("<FacturaNumar>PROBA 1</FacturaNumar>"), true, "proba: <FacturaNumar>PROBA 1</FacturaNumar> în XML");
+eq(construiesteXml([factura], { ...opt, format_numar: "serie_spatiu" }).includes("<FacturaNumar>PAP FE 14193</FacturaNumar>"), true, "<FacturaNumar>PAP FE 14193</FacturaNumar> în XML");
+
+// Fără mențiune de plată (cum a ieșit la probă): rămâne doar comanda, fără „; ” în plus.
+eq(construiesteXml([{ ...proba, mentiune_plata: null, observatii: "Comanda AP-2026-01794" }], opt)
+  .includes("<FacturaInformatiiSuplimentare>Comanda AP-2026-01794</FacturaInformatiiSuplimentare>"), true, "fără mențiune: doar comanda");
+eq(construiesteXml([factura], opt).includes("<FacturaInformatiiSuplimentare>ramburs in cont; Comanda AP-2026-01796</FacturaInformatiiSuplimentare>"), true, "cu mențiune: mențiunea, apoi comanda");
+
 console.log(`TOATE CELE ${n} VERIFICĂRI XML AU TRECUT`);

@@ -17,7 +17,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { sbBrowser } from "@/lib/supabase";
 import { lei } from "@/lib/format";
-import { construiesteXml, numeFisier, FORMATE_NUMAR, FORMATE_DATA, VARIANTE_CIF_PF } from "@/lib/saga-xml.mjs";
+import { construiesteXml, numeFisier, numarPentruSaga, FORMATE_NUMAR, FORMATE_DATA, VARIANTE_CIF_PF } from "@/lib/saga-xml.mjs";
 import { ETICHETE_STARE } from "@/components/admin/FacturaSaga";
 import type { Factura, FacturaLinie } from "@/lib/types";
 
@@ -109,6 +109,11 @@ export default function FacturaPagina() {
     router.push(`/admin/comenzi/${f.order_id}`);
   }
 
+  // Ce va scrie efectiv în XML formatul de număr ales — la proba din 11 noiembrie 2026 s-a
+  // ales din listă „serie_lipita” fără să se vadă că dă „PROBA1”, nu „PROBA 1”.
+  const exempluNumar = opt.format_numar ? numarPentruSaga(f.serie, f.numar, opt.format_numar) : "";
+  const exempluFisier = opt.format_numar ? numeFisier(f, opt) : "";
+
   const sel = (k: keyof Optiuni, variante: readonly string[]) => (
     <div className="fld"><label>{k}{setari[k] ? "" : " — nesetat în Integrări: valoare de PROBĂ, doar pentru descărcarea asta"}</label>
       <select value={opt[k]} disabled={!!setari[k]} onChange={(e) => setOpt({ ...opt, [k]: e.target.value })}>
@@ -137,6 +142,13 @@ export default function FacturaPagina() {
 
       {f.saga_eroare && <div className="card p-3 text-sm border-2 border-red-300 bg-red-50 text-red-800">Ultima eroare SAGA: {f.saga_eroare}</div>}
       {!modificabila && <p className="text-xs text-mut">Factura a plecat spre SAGA: nu se mai modifică aici. Corecturile se fac în SAGA, iar în aplicație rămâne stornarea.</p>}
+      {!f.mentiune_plata && (
+        <div className="card p-3 text-sm border-2 border-amber-300 bg-amber-50 text-amber-900">
+          ⚠ Factura NU are mențiunea de plată (pe factura reală: „ramburs in cont”) — la emitere, câmpul „Mențiunea de plată” din
+          Integrări → Saga era gol. Mențiunea se copiază în factură la emitere și nu se poate adăuga prin „Modifică”: completeaz-o în
+          Integrări, apoi {modificabila && f.saga_status === "de_trimis" ? "retrage factura și emite-o din nou (merge doar pentru ultima din serie)" : "corectura se face în SAGA"}.
+        </div>
+      )}
       {msg && <div className={`card p-3 text-sm ${msg.bun ? "text-ok" : "border-2 border-red-300 bg-red-50 text-red-800"}`}>{msg.text}</div>}
 
       <div className="grid lg:grid-cols-2 gap-4 items-start">
@@ -207,6 +219,8 @@ export default function FacturaPagina() {
           {sel("format_numar", FORMATE_NUMAR)}{sel("format_data", FORMATE_DATA)}
           {sel("tva_la_incasare", ["da", "nu"])}{sel("cif_persoana_fizica", VARIANTE_CIF_PF)}
         </div>
+        {exempluNumar && <p className="text-xs">În XML: <b>&lt;FacturaNumar&gt;{exempluNumar}&lt;/FacturaNumar&gt;</b> · fișierul <b>{exempluFisier}</b></p>}
+        {!f.mentiune_plata && <p className="text-xs text-red-700">Atenție: XML-ul pleacă fără mențiunea de plată (vezi avertismentul de mai sus).</p>}
         <button type="button" className="btn-dark !py-2 text-xs" disabled={!xmlGata} onClick={descarca}>Descarcă XML</button>
       </div>
     </div>

@@ -36,6 +36,7 @@ export default function FacturaSaga({ o, laSchimbare, salveazaManual }: {
   const [docs, setDocs] = useState<Doc[]>([]);
   const [poateFactura, setPoateFactura] = useState(false);
   const [dataStart, setDataStart] = useState<string | null>(null);
+  const [mentiune, setMentiune] = useState("");
   const [incarcat, setIncarcat] = useState(false);
   const [lucru, setLucru] = useState(false);
   const [msg, setMsg] = useState<{ bun: boolean; text: string } | null>(null);
@@ -50,12 +51,14 @@ export default function FacturaSaga({ o, laSchimbare, salveazaManual }: {
     setDocs((d.data ?? []) as Doc[]);
     setPoateFactura(rol.data === true);
     setDataStart(((s.data?.valoare as any)?.saga?.data_start_facturare ?? "").trim() || null);
+    setMentiune(String((s.data?.valoare as any)?.saga?.mentiune_plata ?? "").trim());
     setIncarcat(true);
   }, [o.id]);
   useEffect(() => { incarca(); }, [incarca]);
 
   async function emite() {
-    if (!confirm(`Emiți factura pentru comanda ${o.numar}? Primește următorul număr din seria activă. Înainte de trimiterea în SAGA se poate corecta sau retrage (doar ultima din serie).`)) return;
+    const faraMentiune = mentiune ? "" : "\n\nATENȚIE: mențiunea de plată din Integrări → Saga e GOALĂ — factura iese fără ea și nu se poate adăuga ulterior prin „Modifică”.";
+    if (!confirm(`Emiți factura pentru comanda ${o.numar}? Primește următorul număr din seria activă. Înainte de trimiterea în SAGA se poate corecta sau retrage (doar ultima din serie).${faraMentiune}`)) return;
     const sb = sbBrowser(); if (!sb) return;
     setLucru(true); setMsg(null);
     const { data, error } = await sb.rpc("emite_factura", { p_order_id: o.id });
@@ -114,6 +117,8 @@ export default function FacturaSaga({ o, laSchimbare, salveazaManual }: {
       ) : !motiv ? (
         <div className="mt-3">
           <p className="text-xs text-mut">Comanda se poate factura din aplicație. Factura primește următorul număr din seria activă.</p>
+          {!mentiune && <p className="text-xs text-amber-800 mt-1">⚠ Mențiunea de plată (Integrări → Saga) e goală — factura ar ieși fără „ramburs in cont”.
+            Se copiază la emitere și nu se poate adăuga după, prin „Modifică”.</p>}
           <button type="button" className="btn-acc mt-2 !py-2 text-xs" disabled={lucru} onClick={emite}>
             {lucru ? "Se emite…" : "Emite factura"}</button>
         </div>
