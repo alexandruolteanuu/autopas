@@ -50,8 +50,12 @@ sau local (regula din CLAUDE.md).
    împins pe ramură la 12 noiembrie 2026.** Rămâne: verificarea proprietarului din preview („Verifică în
    SAGA” pe articolul implicit).
 9. Pasul 10 — stornarea + ascunderea facturilor de probă: **COD SCRIS (12 noiembrie 2026), migrarea 53
-   NErulată, neîmpins.** Rămâne: migrarea 53 pe producție (proprietarul), push, proba din preview
-   (stornare + diacritice) — pașii în jurnalul pasului 10.
+   NErulată, neîmpins (commit `5f41384`).** Așteptat de la proprietar, în ordine: (1) rularea migrării 53
+   (pre-verificare 5 × true, migrarea, testele 27/27, verificarea finală 0 | 0); (2) confirmarea push-ului —
+   DUPĂ migrare, fiindcă paginile cheamă funcțiile din 53; (3) proba din preview cu contabila (PROBA 2 cu
+   diacritice → „Stornează” → PROBA 3, curățenia, ascunderea PROBA 1–3); (4) decizia despre refacturarea
+   după storno (azi o comandă stornată nu mai primește factură nouă din aplicație). Pașii: jurnalul pasului 10.
+   Propunerea pentru clienții SAGA (întrebarea 16) e tot acolo — neimplementată, cu proba ei înaintea codului.
 10. Pasul 11 — textele (Integrări, Facturi, pagina comenzii) și `CLAUDE.md`.
 11. **Unirea ramurii în `main`** (după care regula „Date firmă nu se salvează din site-ul live”
     dispare din `CLAUDE.md`).
@@ -2838,6 +2842,7 @@ Abia după rezultate: implementarea (un pas separat), cu testele ei.
 - Pasul 10: ce modifică (doar obiecte noi), ce face, testele (27 SQL pe producție, Docker cu stornarea
   simultană, 102 XML, 109 API, build), limita refacturării după storno, pașii de aplicare și proba.
 - Propunerea pentru clienți și proba ei — mai sus.
+- Neverificate: interfața în browser și stornoul importat în SAGA.
 - **Așteptat**: rularea migrării 53; push-ul pasului 10 (după migrare); decizia despre refacturarea după storno.
 
 #### Următorul
