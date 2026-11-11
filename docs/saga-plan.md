@@ -44,7 +44,9 @@ sau local (regula din CLAUDE.md).
    seria PROBA (comanda de probă AP-2026-01809, anulată). Factura PROBA 1 rămâne „trimisă” în aplicație
    până la pasul 10 (ascundere / stornare).
    Lipsește încă rezultatul celui de-al doilea „Testează conexiunea” (cu 1457070043).
-8. Pasul 9 — verificarea articolelor prin `GetArticol`.
+8. Pasul 9 — verificarea articolelor prin `GetArticol`: **COD SCRIS (11 noiembrie 2026), fără migrare,
+   neîmpins.** Rămâne: push pe ramură (la confirmare) și o verificare din preview (Facturi → Articole SAGA →
+   „Verifică toate în SAGA”).
 9. Pasul 10 — stornarea (`storneaza_factura` + butonul). **Cerut de proprietar (11 noiembrie 2026):
    facturile pe seria PROBA trimise în SAGA trebuie să poată fi ascunse din listă sau stornate.**
 10. Pasul 11 — textele (Integrări, Facturi, pagina comenzii) și `CLAUDE.md`.
@@ -2604,3 +2606,55 @@ nimeni altcineva nu emite:
 Pasul 9 — verificarea articolelor prin `GetArticol` în pagina de potrivire. Începe doar după confirmare
 (și, de preferat, după prima probă de import).
 
+### Pasul 9 — verificarea articolelor în SAGA (fără migrare)
+
+**Stare: cod scris și testat local (11 noiembrie 2026); fără migrare; commit local, NEîmpins.** Pasul 10
+NU a început.
+
+#### Ce modifică din ce există (răspuns dat înainte de cod)
+
+- **Baza: nimic.** Fiecare verificare se scrie singură în jurnalul existent `saga_trimiteri` (tip „get_articol”).
+- `lib/saga-api.mjs`: funcția pură nouă `comparaArticol` (cod / denumire / UM de la noi vs. fișa din
+  SAGA); `getArticol` neschimbat — același lacăt, aceeași rotire a cheii.
+- Ruta `/api/saga`: acțiunea nouă `verifica-articol` (admin, contabil) — DOAR citire.
+- Facturi → Articole SAGA: „Verifică în SAGA” pe implicit și pe fiecare categorie cu articol propriu,
+  „Verifică toate” (pe rând, câte unul — lacătul), iar în formular „Verifică codul în SAGA” cu „Preia
+  denumirea și UM din SAGA” (nimic nu se salvează fără „Salvează”). Salvarea, ștergerea și ordinea
+  potrivirilor (subcategorie → categorie → implicit) — neatinse.
+
+#### Ce s-a făcut
+
+- **`comparaArticol`**: denumirea și UM comparate fără diacritice, spații multiple și majuscule; UM goală la
+  noi = BUC; denumire goală (formular nou) nu e diferență. **Cota TVA din fișa SAGA e doar INFORMATIVĂ**
+  („TVA în fișa din SAGA: 19% (factura poartă cota ei în XML)”) — la prima probă de import SAGA a aplicat
+  cota din XML (riscul 10, închis).
+- **`verifica-articol`** în rută: cere rolul de facturare, cheamă doar `getArticol`; răspunsul: există /
+  nu există (cu mesajul SAGA) și, dacă există, denumirea, UM, TVA din fișă, diferențele.
+- **Pagina**: ✓ (verde) potrivit; ⚠ (galben) diferă — cu ce diferă; ✗ (roșu) „codul NU există în
+  gestiunea SAGA … verifică-l cu contabila”. „Verifică toate” ia implicitul plus fiecare cod propriu, o
+  singură dată pe cod, și se oprește la o problemă de cheie. „Preia denumirea și UM din SAGA” apare când
+  diferă sau când denumirea e încă goală.
+- **Teste**: `verifica-saga-api.mjs` — **109/109** (+10: compararea — identic, majuscule / spații,
+  diacritice, denumire diferită, UM diferită, UM goală, denumire goală, TVA doar informativ; ruta: rolul de
+  facturare și doar `getArticol`); `verifica-saga-xml.mjs` 95/95; build-ul trece; pe build-ul local ruta
+  refuză `verifica-articol` fără sesiune, iar pagina răspunde 200.
+- **NEverificat**: interfața în browser și apelul real (cere preview-ul și contul real).
+
+#### Fișiere
+
+Modificate: `lib/saga-api.mjs`, `app/api/saga/route.ts`, `app/admin/facturi/articole/page.tsx`,
+`scripts/verifica-saga-api.mjs`, `CLAUDE.md`, `docs/saga-plan.md`.
+
+#### Cum se verifică (din preview, după push)
+
+1. Facturi → **Articole SAGA** → la „Articolul implicit”, **„Verifică în SAGA”**. Așteptat: „✓ În SAGA:
+   ACCESORII AUTO · BUC (TVA în fișa din SAGA: 19% …)”.
+2. **„Verifică toate în SAGA”** — azi verifică doar implicitul (nicio categorie cu articol propriu).
+3. Opțional: „Articol propriu” pe o categorie → scrii un cod greșit → „Verifică codul în SAGA” → „✗ … NU
+   există”; apoi „Închide”, fără „Salvează” (nu rămâne nimic).
+4. Jurnalul: fiecare verificare apare ca „get_articol” în Integrări → Saga → „Ultimele apeluri spre SAGA”.
+
+#### Următorul
+
+Pasul 10 — stornarea (`storneaza_factura` + butonul) și, cerut de proprietar, ascunderea / stornarea
+facturilor PROBA trimise. Începe doar după confirmare.

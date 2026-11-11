@@ -7,7 +7,9 @@
 //   · `testeaza-conexiunea` — un singur `GetArticol`, DOAR citire (admin, contabil);
 //   · `trimite`             — o factură → SAGA (pasul 8; admin, contabil). Toată logica
 //                              e în lib/saga-trimitere.mjs; aici doar rolul și răspunsul;
-//   · `confirma`            — „Marchează confirmată”, după validarea în SAGA (admin, contabil).
+//   · `confirma`            — „Marchează confirmată”, după validarea în SAGA (admin, contabil);
+//   · `verifica-articol`    — un `GetArticol` pe codul dat, comparat cu denumirea / UM de la
+//                              noi (pasul 9; admin, contabil). DOAR citire.
 //
 // Cheia SAGA intră aici o singură dată, la salvare, și nu iese niciodată: niciun
 // răspuns nu o conține, iar folosirea și rotirea ei stau doar în lib/saga-api.mjs.
@@ -18,6 +20,7 @@ import { NextResponse } from "next/server";
 import { esteAdmin, esteFacturare } from "@/lib/supabase";
 import { clientSaga, stareSaga, depozitFacturi, confirmaFactura, EroareSaga } from "@/lib/saga";
 import { trimiteFactura } from "@/lib/saga-trimitere.mjs";
+import { comparaArticol } from "@/lib/saga-api.mjs";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -69,6 +72,18 @@ export async function POST(req: Request) {
       const { client, setariSaga } = await clientSaga();
       const r = await trimiteFactura({ id, client, depozit: depozitFacturi(), setariSaga, de });
       return NextResponse.json({ ok: true, ...r });
+    }
+
+    if (actiune === "verifica-articol") {
+      const de = await esteFacturare(req);
+      if (!de) return nuAi("să verifici articole în SAGA");
+      const cod = String(corp.cod ?? "").trim();
+      if (!cod) return NextResponse.json({ ok: false, eroare: "Codul articolului lipsește." }, { status: 400 });
+      const { client } = await clientSaga();
+      const r = await client.getArticol(cod, { de });
+      if (!r.exista) return NextResponse.json({ ok: true, cod, exista: false, mesaj: r.mesaj, rotita: r.rotita });
+      const cmp = comparaArticol({ denumire: String(corp.denumire ?? ""), um: String(corp.um ?? "") }, r.articol);
+      return NextResponse.json({ ok: true, cod, exista: true, articol: r.articol, ...cmp, rotita: r.rotita });
     }
 
     if (actiune === "confirma") {

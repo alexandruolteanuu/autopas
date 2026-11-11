@@ -15,7 +15,7 @@
 import http from "node:http";
 import { readFileSync, existsSync } from "node:fs";
 import {
-  creeazaClientSaga, adresaApi, parseazaArticol, faraChei, EroareSaga,
+  creeazaClientSaga, adresaApi, parseazaArticol, faraChei, EroareSaga, comparaArticol,
   URL_API_IMPLICIT, COD_PROBA_INEXISTENT, MESAJ_CHEIE_BLOCATA, LACAT_SECUNDE,
 } from "../lib/saga-api.mjs";
 import { trimiteFactura, optiuniDinSetari, MINUTE_IN_CURS_UITAT } from "../lib/saga-trimitere.mjs";
@@ -344,6 +344,26 @@ const rj = dj.jurnalRanduri.at(-1);
 ok(rj.tip === "import" && rj.fisier === "F_RO36608590_PROBA_1_10_11_2026.xml" && rj.factura_ids?.[0] === 77 && rj.de === "u-9", "jurnalul importului: tip, fișier, factura, cine");
 ok(rj.xml.includes("<FacturaNumar>PROBA 1</FacturaNumar>") && !JSON.stringify(rj).includes(K1), "jurnalul păstrează XML-ul trimis, fără cheie");
 await arunca(() => client(depozitNou()).importaFacturi({ xml: "<x/>", fisier: "factura.xml", automat: false, facturaIds: [1] }), "intrare", "nume de fișier greșit refuzat fără apel");
+
+// ============================================================
+// PASUL 9 — VERIFICAREA ARTICOLELOR (comparaArticol + GetArticol prin ruta)
+// ============================================================
+const artSaga = parseazaArticol("<Articol><Denumire>ACCESORII AUTO</Denumire><TVA>19</TVA><UM>BUC</UM></Articol>");
+let cmp = comparaArticol({ denumire: "ACCESORII AUTO", um: "BUC" }, artSaga);
+ok(cmp.potrivit && cmp.diferente.length === 0, "articol identic → potrivit");
+ok(cmp.informativ.some((t) => /TVA în fișa din SAGA: 19%/.test(t)), "cota din fișă doar informativă (factura poartă cota din XML)");
+ok(comparaArticol({ denumire: "  accesorii   auto ", um: "buc" }, artSaga).potrivit, "majuscule și spații nu contează");
+ok(comparaArticol({ denumire: "Piesă motor", um: "BUC" }, parseazaArticol("<Articol><Denumire>PIESA MOTOR</Denumire><UM>BUC</UM></Articol>")).potrivit, "diacriticele nu contează");
+cmp = comparaArticol({ denumire: "ACCESORII", um: "BUC" }, artSaga);
+ok(!cmp.potrivit && /denumirea/.test(cmp.diferente[0]), "denumire diferită → diferență");
+cmp = comparaArticol({ denumire: "ACCESORII AUTO", um: "KG" }, artSaga);
+ok(!cmp.potrivit && /UM/.test(cmp.diferente[0]), "UM diferită → diferență");
+ok(comparaArticol({ denumire: "ACCESORII AUTO", um: "" }, artSaga).potrivit, "UM goală la noi = BUC");
+ok(comparaArticol({ denumire: "", um: "BUC" }, artSaga).potrivit, "denumire goală la noi (formular nou) → nu e diferență");
+const rutaTxt = readFileSync("app/api/saga/route.ts", "utf8");
+ok(/actiune === "verifica-articol"/.test(rutaTxt) && /esteFacturare/.test(rutaTxt.split('actiune === "verifica-articol"')[1].slice(0, 200)),
+  "ruta: „verifica-articol” cere rolul de facturare");
+ok(/client\.getArticol\(/.test(rutaTxt.split('actiune === "verifica-articol"')[1].slice(0, 600)), "ruta: „verifica-articol” folosește doar GetArticol");
 
 // 15. Verificări statice: un singur loc cu cheia și cu importul, fără cheie în mediu
 const fis = ["lib/saga-api.mjs", "lib/saga.ts", "app/api/saga/route.ts", "lib/saga-trimitere.mjs"].filter((f) => existsSync(f));

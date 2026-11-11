@@ -141,7 +141,10 @@ factura PROBA 1, 40 lei): HTTP 207 doar cu avertizarea „preț de vânzare sub 
 în SAGA: „PROBA 1”, 11.11.2026, 33,06 + 6,94 = 40,00 (cota 21% din XML, NU 19 din fișa articolului),
 mențiunea „ramburs in cont; Comanda …”; fără `Gestiune`. Închise: formatul numărului / datei, cota TVA.
 **Deschise**: diacriticele (neconfirmate), contorul PAP FE după import (riscul 7), clienții creați automat
-de SAGA (întrebarea 16, de discutat). Numerotarea manuală PAP FE: 14202 la 11.11.2026, ~11:00.: clientul API SAGA —
+de SAGA (întrebarea 16, de discutat). Numerotarea manuală PAP FE: 14202 la 11.11.2026, ~11:00.
+**Pasul 9 (verificarea articolelor) — cod scris la 11 noiembrie 2026, fără migrare**: Facturi → Articole
+SAGA → „Verifică în SAGA” / „Verifică toate” (DOAR `GetArticol`, prin ruta `/api/saga`, acțiunea
+`verifica-articol`); cota TVA din fișa SAGA e doar informativă (factura poartă cota din XML).: clientul API SAGA —
 `saga_cheie` (cheia REALĂ, fără instanță de test; RLS fără nicio politică, doar `service_role`; se
 scrie doar din admin, cu „Salvează cheia”), `saga_blocare` (lacătul de 90 s), `saga_trimiteri`
 (jurnalul, fără cheie) și patru funcții doar pentru `service_role`. Doar obiecte noi. Singurul loc care
@@ -1477,7 +1480,7 @@ Niciuna nu e dependință a site-ului și niciuna nu rulează la build. Se cheam
 | `anuleaza-saga-emitere.sql` | **doar la nevoie**: pune înapoi `emite_factura` din 50 și șterge `modifica_factura` și `opreste_emiterea`. Se oprește dacă funcția din bază nu e versiunea din 51 |
 | `anuleaza-saga-articole.sql` | **doar la nevoie**: pune înapoi `emite_factura` din 49 și șterge `saga_articole`. Se oprește dacă funcția din bază nu e versiunea din 50 |
 | `anuleaza-saga-facturi.sql` | **doar la nevoie**: anulează migrarea 49. REFUZĂ dacă `facturi` are vreun rând — ar șterge documente fiscale |
-| `verifica-saga-api.mjs` | după orice atingere a lui `lib/saga-api.mjs`, `lib/saga.ts` sau `app/api/saga/`. 99 de verificări pe un SAGA SIMULAT (pasul 8 inclus: trimiterea cap-coadă — multipart, stările după fiecare răspuns, revendicarea atomică, „in_curs” uitat, două trimiteri simultane) pe 127.0.0.1, fără cheia reală și fără rețea: antetele, rotirea cheii ÎNAINTE de corp și pe erori, 401/403 → cheie blocată, un singur apel o dată, lacăt expirat, timeout, „Testează conexiunea” fără Import, cheia absentă din jurnal și din erori, plus verificări statice (nicio cale de Import, nicio cheie din variabile de mediu). `node scripts/verifica-saga-api.mjs` |
+| `verifica-saga-api.mjs` | după orice atingere a lui `lib/saga-api.mjs`, `lib/saga.ts` sau `app/api/saga/`. 109 de verificări pe un SAGA SIMULAT (pașii 8–9 incluși: compararea articolelor cu fișa din SAGA, trimiterea cap-coadă — multipart, stările după fiecare răspuns, revendicarea atomică, „in_curs” uitat, două trimiteri simultane) pe 127.0.0.1, fără cheia reală și fără rețea: antetele, rotirea cheii ÎNAINTE de corp și pe erori, 401/403 → cheie blocată, un singur apel o dată, lacăt expirat, timeout, „Testează conexiunea” fără Import, cheia absentă din jurnal și din erori, plus verificări statice (nicio cale de Import, nicio cheie din variabile de mediu). `node scripts/verifica-saga-api.mjs` |
 | `verifica-saga-api.sql` | după orice atingere a migrării 52. 33 de verificări pe PRODUCȚIE, în tranzacție anulată: RLS și drepturi pe cheie / lacăt / jurnal, lacătul, salvarea și rotirea cu o cheie de PROBĂ, adminul din browser nu citește cheia. Cheia reală, dacă există, rămâne neatinsă |
 | `anuleaza-saga-api.sql` | **doar la nevoie**: anulează migrarea 52 (cheia salvată se pierde — se salvează din nou din admin). Fără `cascade` |
 | `anuleaza-saga-calcul.sql` | **doar la nevoie**: anulează migrarea 47 (trei funcții + `judete_coduri`). Fără `cascade` — se oprește dacă ceva depinde de ele |
