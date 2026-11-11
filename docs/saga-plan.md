@@ -2902,6 +2902,23 @@ git; se OPREȘTE dacă diferă; amprentele exacte se calculează din git la impl
   cu gardă (se oprește dacă funcțiile din bază nu sunt versiunile din 54); refuză dacă există deja o factură
   emisă prin refacturare (ar rămâne o comandă cu două facturi, fără regula care le explică).
 
+#### Raportul trimis proprietarului (12 noiembrie 2026, după rularea migrării 53)
+
+- Migrarea 53 notată ca rulată (5 × true, Success, 27/27, 0 | 0) în jurnalul pasului 10 și în CLAUDE.md;
+  migrările aplicate pe producție: 1–45 și 47–53.
+- Push-ul pasului 10 pe `saga-integrare` (`a929a79`, nu pe `main`); preview reconstruit:
+  https://autopas-k5ohacys3-alexandruolteanuus-projects.vercel.app — protejat de login-ul Vercel. Adresa e
+  notată aici printr-un commit local (`93d2bb0`), neîmpins, ca adresa preview-ului să nu se schimbe din nou.
+- Decizia despre clienți notată: propunerea cu GUID e acceptată; proba PROBA 2 + PROBA 3 arată deja dacă SAGA
+  refolosește clientul fără GUID.
+- Propunerea pentru pasul 10b (refacturarea după storno), neimplementată — secțiunea de mai sus: migrarea 54
+  rescrie `emite_factura` și `retrage_factura` cu gărzi de amprentă; factură nouă doar dacă „stornata” vine din
+  aplicație, fiecare factură are storno și fiecare storno e deja trimis în SAGA; retragerea facturii noi readuce
+  comanda la „stornata” cu seria veche; „Emite factura nouă” în cardul din comandă; testele (SQL pe producție,
+  două refacturări simultane în Docker, anularea la versiunile din 51 și 49).
+- Urmează proba pasului 10 din preview, cu contabila; pasul 10b abia după probă și după confirmare; pasul 11
+  NU a început.
+
 #### Următorul
 
 Proba pasului 10 (proprietarul, din preview), apoi pasul 10b (refacturarea), apoi pasul 11 — textele
