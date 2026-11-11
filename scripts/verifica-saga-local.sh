@@ -117,4 +117,35 @@ P < scripts/anuleaza-saga-api.sql >/dev/null 2>&1 || picat "anularea migrării 5
 P < supabase/saga-api.sql >/dev/null 2>&1 || picat "re-rularea migrării 52 după anulare"
 ok "anularea migrării 52 șterge tot; re-rularea o reface"
 
+# 8. Trecerile de stare folosite de trimitere (pasul 8), pe triggerul REAL din 49
+r=$(docker exec -i "$C" psql -U postgres -tA -q -v ON_ERROR_STOP=1 2>&1 <<'SQL'
+do $$
+declare v bigint; e boolean; t timestamptz;
+begin
+  select id into v from facturi where saga_status = 'de_trimis' order by id limit 1;
+  update facturi set saga_status = 'in_curs' where id = v and saga_status = 'de_trimis';          -- revendicare
+  update facturi set saga_status = 'de_trimis', saga_eroare = 'lacat ocupat' where id = v;        -- revenire
+  update facturi set saga_status = 'in_curs' where id = v;
+  update facturi set saga_status = 'eroare', saga_eroare = 'Rezultat necunoscut' where id = v;    -- timeout
+  update facturi set saga_status = 'in_curs' where id = v and saga_status = 'eroare';
+  begin update facturi set mentiune_plata = 'alta' where id = v; e := false; exception when others then e := true; end;
+  if not e then raise exception 'PICAT: conținutul s-a schimbat cât factura e in_curs'; end if;
+  select updated_at into t from facturi where id = v;
+  update facturi set saga_status = 'in_curs' where id = v and saga_status = 'in_curs' and updated_at = t;  -- „in_curs” uitat, CAS
+  if not found then raise exception 'PICAT: revendicarea unui in_curs după updated_at'; end if;
+  update facturi set saga_status = 'trimisa', saga_eroare = null, saga_trimisa_la = now() where id = v;
+  begin update facturi set saga_status = 'eroare' where id = v; e := false; exception when others then e := true; end;
+  if not e then raise exception 'PICAT: o factură trimisă a putut trece în eroare'; end if;
+  begin update facturi set saga_status = 'in_curs' where id = v; e := false; exception when others then e := true; end;
+  if not e then raise exception 'PICAT: o factură trimisă a putut fi revendicată din nou'; end if;
+  update facturi set saga_status = 'confirmata', confirmata_la = now() where id = v and saga_status = 'trimisa';
+  begin update facturi set saga_status = 'trimisa' where id = v; e := false; exception when others then e := true; end;
+  if not e then raise exception 'PICAT: o factură confirmată a dat înapoi'; end if;
+  raise notice 'TRECERI OK';
+end $$;
+SQL
+)
+grep -q "TRECERI OK" <<<"$r" || picat "trecerile de stare ale trimiterii: $r"
+ok "trimiterea (pasul 8): de_trimis/eroare ⇄ in_curs → trimisă → confirmată permise; trimisă → eroare / in_curs și confirmată → înapoi refuzate"
+
 echo "TOATE VERIFICĂRILE LOCALE AU TRECUT"

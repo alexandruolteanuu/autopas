@@ -6,7 +6,7 @@
 // ============================================================
 import {
   cifCurat, numarPentruSaga, dataPentruSaga, cifPersoanaFizica, esc, suma, cantitate,
-  numeFisier, construiesteXml,
+  numeFisier, construiesteXml, parseazaRaport, stareDupaImport, acelasiNumar,
 } from "../lib/saga-xml.mjs";
 
 let n = 0;
@@ -147,5 +147,45 @@ eq(construiesteXml([factura], { ...opt, format_numar: "serie_spatiu" }).includes
 eq(construiesteXml([{ ...proba, mentiune_plata: null, observatii: "Comanda AP-2026-01794" }], opt)
   .includes("<FacturaInformatiiSuplimentare>Comanda AP-2026-01794</FacturaInformatiiSuplimentare>"), true, "fără mențiune: doar comanda");
 eq(construiesteXml([factura], opt).includes("<FacturaInformatiiSuplimentare>ramburs in cont; Comanda AP-2026-01796</FacturaInformatiiSuplimentare>"), true, "cu mențiune: mențiunea, apoi comanda");
+
+// --- Răspunsul la import (pasul 8) ---
+// Exemplul de raport din documentația API (docs/saga-api.md, secțiunea 2).
+const RAPORT_DOC = `Raport Import F_123123_15_09_2026.xml
+
+Factura 1.
+     NR_DOC: A100
+     Eroare antet: Factura a fost importata sau operata manual deja.
+Factura 3.
+     NR_DOC: A1002
+     Eroare: Completati clientul.
+`;
+const bl = parseazaRaport(RAPORT_DOC);
+eq(bl.length, 2, "raportul din documentație: două facturi");
+eq(bl[0].nrDoc, "A100", "raport: NR_DOC prima");
+eq(bl[1].mesaje[0], "Eroare: Completati clientul.", "raport: mesajul celei de-a doua");
+eq(parseazaRaport("Raport Import x.xml\r\nFactura 1.\r\n  NR_DOC: PROBA 1\r\n  Avertizare: ceva\r\n")[0].nrDoc, "PROBA 1", "raport cu CRLF");
+eq(parseazaRaport("").length, 0, "raport gol");
+eq(acelasiNumar("PROBA 1", "PROBA1"), true, "numere: spațiul nu contează");
+eq(acelasiNumar("PAP FE 1", "PAP FE 14"), false, "numere: prefix ≠ același număr");
+eq(acelasiNumar("", ""), false, "numere: gol nu se potrivește cu gol");
+
+const st = (r, nr, o) => stareDupaImport(r, nr, o);
+eq(st({ status: 200, text: '{"success":true,"message":"ok"}' }, "PROBA 1").stare, "trimisa", "200 → trimisă (import manual)");
+eq(st({ status: 200, text: '{"success":true}' }, "PROBA 1", { automat: true }).stare, "confirmata", "200 cu import automat → confirmată");
+eq(st({ status: 200, text: '{"success":false,"message":"x"}' }, "PROBA 1").stare, "eroare", "200 cu success:false → eroare");
+const s400 = st({ status: 400, text: '{"success":false,"message":"Fisier XML invalid."}' }, "PROBA 1");
+eq(s400.stare === "eroare" && s400.nota.includes("Fisier XML invalid."), true, "400 → eroare cu mesajul SAGA");
+const dub = st({ status: 422, text: RAPORT_DOC }, "A100");
+eq(dub.stare, "trimisa", "422 „importata sau operata manual deja” → trimisă (SAGA o are deja)");
+const s422 = st({ status: 422, text: RAPORT_DOC }, "A1002");
+eq(s422.stare === "eroare" && s422.nota.includes("Completati clientul"), true, "422 cu eroarea facturii → eroare cu mesajul");
+eq(st({ status: 422, text: "ceva fara format" }, "PROBA 1").stare, "eroare", "422 neînțeles → eroare");
+eq(st({ status: 207, text: "Factura 1.\n NR_DOC: PROBA 1\n Avertizare: pret modificat" }, "PROBA 1").stare, "trimisa", "207 cu avertizare pe factura noastră → trimisă");
+eq(st({ status: 207, text: "Factura 1.\n NR_DOC: PROBA 1\n Avertizare: x" }, "PROBA 1", { automat: true }).stare, "trimisa", "207 cu import automat → tot trimisă (avertizările le vede un om)");
+eq(st({ status: 207, text: "Factura 1.\n NR_DOC: PROBA 1\n Eroare: Completati clientul." }, "PROBA 1").stare, "eroare", "207 cu eroare pe factura noastră → eroare");
+eq(st({ status: 207, text: "Factura 1.\n NR_DOC: ALTA 9\n Avertizare: x" }, "PROBA 1").stare, "eroare", "207 care nu numește factura → eroare (niciodată trimisă din oficiu)");
+eq(st({ status: 207, text: "" }, "PROBA 1").stare, "eroare", "207 gol → eroare");
+eq(st({ status: 500, text: "boom" }, "PROBA 1").stare, "eroare", "500 → eroare");
+eq(st({ status: 207, text: "Factura 1.\n NR_DOC: PROBA1\n Avertizare: x" }, "PROBA 1").stare, "trimisa", "207: NR_DOC fără spațiu se potrivește tot");
 
 console.log(`TOATE CELE ${n} VERIFICĂRI XML AU TRECUT`);

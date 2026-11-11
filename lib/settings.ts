@@ -45,7 +45,9 @@ export type Integrari = {
            articol_reducere?: string; articol_reducere_denumire?: string;
            articol_transport?: string; articol_transport_denumire?: string;
            // Pasul 7: adresa API-ului (gol = cea din documentație). Cheia NU stă aici: e în `saga_cheie`.
-           url_api?: string };
+           url_api?: string;
+           // Pasul 8: „da” = importAutomat=true la trimitere; gol sau „nu” = doar încărcare.
+           import_automat?: string };
   ga4?: { id?: string; activ?: boolean };
   // E-mailurile automate (7 septembrie 2026). `cheie` e cheia API a
   // furnizorului, `notificari` e adresa pe care ajung anunțurile interne, iar

@@ -11,7 +11,10 @@
 //     `lib/saga-xml.mjs`. Formatul numărului, al datei și „TVA la încasare” vin din
 //     setări; cât nu sunt alese, se aleg AICI, doar pentru descărcarea asta (probă
 //     manuală în SAGA, D.4) — nu se salvează nicăieri.
-// Trimiterea în SAGA și „Marchează confirmată” vin la pasul 8.
+//   · „Trimite în SAGA” / „Reîncearcă” (pasul 8) — prin ruta /api/saga, cu formatele
+//     SALVATE în Integrări (nu cu cele alese aici pentru descărcare); blocat cât lipsesc;
+//   · „Marchează confirmată” — după ce omul a validat importul în SAGA (Diverse → Import date);
+//   · jurnalul trimiterilor (`saga_trimiteri`), cu raportul SAGA întreg.
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -42,15 +45,24 @@ export default function FacturaPagina() {
   const [editez, setEditez] = useState(false);
   const [client, setClient] = useState<Record<string, string>>({});
   const [art, setArt] = useState<Record<number, { cod: string; den: string; um: string }>>({});
+  // Pasul 8: dacă trimiterea e posibilă (setările din Integrări) și jurnalul apelurilor.
+  const [lipsaTrimitere, setLipsaTrimitere] = useState<string[]>([]);
+  const [automat, setAutomat] = useState(false);
+  type Apel = { id: number; created_at: string; http_status: number | null; durata_ms: number | null;
+    cheie_rotita: boolean; eroare: string | null; raspuns: string | null; fisier: string | null };
+  const [apeluri, setApeluri] = useState<Apel[]>([]);
 
   const incarca = useCallback(async () => {
     const sb = sbBrowser(); if (!sb) return;
-    const [fa, li, rol, s] = await Promise.all([
+    const [fa, li, rol, s, ap] = await Promise.all([
       sb.from("facturi").select("*").eq("id", id).maybeSingle(),
       sb.from("facturi_linii").select("*").eq("factura_id", id).order("nr_crt"),
       sb.rpc("is_facturare"),
       sb.from("settings").select("valoare").eq("cheie", "integrari").maybeSingle(),
+      sb.from("saga_trimiteri").select("id,created_at,http_status,durata_ms,cheie_rotita,eroare,raspuns,fisier")
+        .contains("factura_ids", [Number(id)]).order("id", { ascending: false }).limit(20),
     ]);
+    setApeluri((ap.data ?? []) as Apel[]);
     const fx = fa.data as Factura | null;
     setF(fx); setLinii((li.data ?? []) as FacturaLinie[]); setPoate(rol.data === true);
     if (fx) {
@@ -64,6 +76,13 @@ export default function FacturaPagina() {
     for (const k of ["format_numar", "format_data", "tva_la_incasare", "cif_persoana_fizica"] as const)
       if (String(saga[k] ?? "").trim()) din[k] = String(saga[k]).trim();
     setSetari(din);
+    // Aceleași condiții ca `optiuniDinSetari` din lib/saga-trimitere.mjs (serverul decide oricum).
+    const lipsa: string[] = [];
+    if (!din.format_numar) lipsa.push("formatul numărului");
+    if (!din.format_data) lipsa.push("formatul datei");
+    if (din.tva_la_incasare !== "da" && din.tva_la_incasare !== "nu") lipsa.push("„TVA la încasare”");
+    setLipsaTrimitere(lipsa);
+    setAutomat(String(saga.import_automat ?? "").trim().toLowerCase() === "da");
     setOpt((v) => ({ ...v, ...din, cif_persoana_fizica: din.cif_persoana_fizica ?? (v.cif_persoana_fizica || "gol") }));
     setGata(true);
   }, [id]);
@@ -97,6 +116,39 @@ export default function FacturaPagina() {
     setLucru(false);
     if (error) { setMsg({ bun: false, text: `NU s-a salvat: ${error.message}` }); return; }
     setMsg({ bun: true, text: "✓ Factura a fost corectată." }); setEditez(false); incarca();
+  }
+
+  async function catreSaga(corp: Record<string, unknown>) {
+    const sb = sbBrowser();
+    const token = sb ? (await sb.auth.getSession()).data.session?.access_token : null;
+    const r = await fetch("/api/saga", { method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` }, body: JSON.stringify(corp) });
+    return r.json().catch(() => ({ ok: false, eroare: `Răspuns neașteptat (HTTP ${r.status}).` }));
+  }
+
+  async function trimite() {
+    if (!f) return;
+    const cum = automat
+      ? "IMPORT AUTOMAT („import_automat” = da): SAGA o finalizează singură."
+      : "Doar se ÎNCARCĂ în SAGA; o validezi apoi de mână, în SAGA WEB → Diverse → Import date.";
+    if (!confirm(`Trimiți factura ${f.serie} ${f.numar} în SAGA? ${cum} După trimitere nu se mai modifică și nu se mai retrage aici.`)) return;
+    setLucru(true); setMsg(null);
+    const j = await catreSaga({ actiune: "trimite", factura_id: f.id });
+    setLucru(false);
+    if (!j?.ok) setMsg({ bun: false, text: `NU s-a trimis: ${j?.eroare ?? "eroare necunoscută"}` });
+    else setMsg({ bun: j.stare !== "eroare", text: j.stare === "eroare"
+      ? `SAGA nu a primit-o: ${j.nota}`
+      : `✓ ${j.stare === "confirmata" ? "Importată și finalizată în SAGA" : "Încărcată în SAGA — valideaz-o în SAGA WEB → Diverse → Import date, apoi apasă „Marchează confirmată”"} (fișierul ${j.fisier}).${j.nota ? ` ${j.nota}` : ""}` });
+    incarca();
+  }
+
+  async function confirma() {
+    if (!f || !confirm(`Ai validat factura ${f.serie} ${f.numar} în SAGA (Diverse → Import date) și arată corect — seria, numărul, clientul, liniile, cota și TVA-ul, totalul?`)) return;
+    setLucru(true); setMsg(null);
+    const j = await catreSaga({ actiune: "confirma", factura_id: f.id });
+    setLucru(false);
+    setMsg(j?.ok ? { bun: true, text: j.mesaj } : { bun: false, text: `NU s-a marcat: ${j?.eroare ?? "eroare necunoscută"}` });
+    incarca();
   }
 
   async function retrage() {
@@ -140,7 +192,46 @@ export default function FacturaPagina() {
         )}
       </div>
 
-      {f.saga_eroare && <div className="card p-3 text-sm border-2 border-red-300 bg-red-50 text-red-800">Ultima eroare SAGA: {f.saga_eroare}</div>}
+      {f.saga_eroare && (f.saga_status === "eroare" || f.saga_status === "de_trimis"
+        ? <div className="card p-3 text-sm border-2 border-red-300 bg-red-50 text-red-800">Ultima eroare SAGA: {f.saga_eroare}</div>
+        : <div className="card p-3 text-sm border-2 border-amber-300 bg-amber-50 text-amber-900">Nota SAGA: {f.saga_eroare}</div>)}
+
+      {poate && (
+        <div className="card p-5 text-sm grid gap-2">
+          <b className="font-disp font-semibold text-[13px]">Trimiterea în SAGA</b>
+          {(f.saga_status === "de_trimis" || f.saga_status === "eroare") && (lipsaTrimitere.length ? (
+            <p className="text-xs text-red-700">Trimiterea e blocată până se aleg în Integrări → Saga: {lipsaTrimitere.join(", ")}.</p>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" className="btn-acc !py-2 text-xs" disabled={lucru || editez} onClick={trimite}>
+                {lucru ? "Se trimite…" : f.saga_status === "eroare" ? "Reîncearcă trimiterea" : "Trimite în SAGA"}</button>
+              <span className="text-xs text-mut">{automat ? "Import AUTOMAT (setarea „import_automat” = da)." : "Doar încărcare — validarea se face de mână în SAGA (Diverse → Import date)."}</span>
+            </div>
+          ))}
+          {f.saga_status === "in_curs" && <p className="text-xs text-mut">Se trimite… Dacă rămâne așa peste 3 minute, trimiterea s-a întrerupt: reîncarcă pagina și apasă din nou — SAGA spune singur dacă o are deja.</p>}
+          {f.saga_status === "in_curs" && !lipsaTrimitere.length && (
+            <button type="button" className="rounded-xl border-2 border-line px-3 py-1.5 text-xs font-semibold w-fit" disabled={lucru} onClick={trimite}>Reîncearcă (doar dacă a trecut de 3 minute)</button>)}
+          {f.saga_status === "trimisa" && (
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" className="btn-acc !py-2 text-xs" disabled={lucru} onClick={confirma}>Marchează confirmată</button>
+              <span className="text-xs text-mut">După validarea în SAGA WEB → Diverse → Import date. Verifică acolo seria, numărul, clientul, cota și TVA-ul, totalul.</span>
+            </div>)}
+          {f.saga_status === "confirmata" && <p className="text-xs text-ok">Confirmată în SAGA{f.confirmata_la ? ` la ${new Date(f.confirmata_la).toLocaleString("ro-RO", { timeZone: "Europe/Bucharest" })}` : ""}.</p>}
+          {apeluri.length > 0 && (
+            <details className="text-xs mt-1"><summary className="cursor-pointer text-mut">Jurnalul trimiterilor ({apeluri.length})</summary>
+              <ul className="mt-2 space-y-2">
+                {apeluri.map((a) => (
+                  <li key={a.id} className="rounded-lg border-2 border-line p-2">
+                    <div>{new Date(a.created_at).toLocaleString("ro-RO", { timeZone: "Europe/Bucharest" })} · HTTP {a.http_status ?? "—"} · {a.durata_ms ?? "—"} ms
+                      {a.fisier ? ` · ${a.fisier}` : ""}{a.cheie_rotita ? " · cheie rotită" : ""}</div>
+                    {a.eroare && <div className="text-red-700">{a.eroare}</div>}
+                    {a.raspuns && <pre className="whitespace-pre-wrap break-words text-[11px] text-mut mt-1">{a.raspuns}</pre>}
+                  </li>
+                ))}
+              </ul></details>
+          )}
+        </div>
+      )}
       {!modificabila && <p className="text-xs text-mut">Factura a plecat spre SAGA: nu se mai modifică aici. Corecturile se fac în SAGA, iar în aplicație rămâne stornarea.</p>}
       {!f.mentiune_plata && (
         <div className="card p-3 text-sm border-2 border-amber-300 bg-amber-50 text-amber-900">

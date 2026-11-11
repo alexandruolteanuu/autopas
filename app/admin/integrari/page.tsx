@@ -103,6 +103,9 @@ const CAMPURI: Record<string, { k: string; l: string; tip?: string }[]> = {
     // Pasul 7: adresa API-ului. Cheia NU e aici — se salvează separat, mai sus, în
     // caseta „Cheia SAGA”, și ajunge doar în tabela `saga_cheie` (invizibilă din browser).
     { k: "url_api", l: "Adresa API-ului SAGA (gol = https://web.sagasoft.ro/api/v20260225, din documentația lor)" },
+    // Pasul 8: text da/nu, NU bifă — bifele de aici pornesc bifate când valoarea lipsește,
+    // iar importul automat s-ar fi pornit singur la prima salvare a cardului.
+    { k: "import_automat", l: "Import automat în SAGA: da / nu (gol = nu). Cu „nu”, factura doar se încarcă și se validează de mână în SAGA (Diverse → Import date). Rămâne „nu” la primele facturi reale" },
   ],
   "FAN Courier (SelfAWB)": [{ k: "client_id", l: "Client ID" }, { k: "user", l: "Utilizator selfawb.ro" }, { k: "parola", l: "Parolă selfawb.ro", tip: "password" },
     // Bifă: nesalvată încă înseamnă „da" (vezi `configFan` din lib/fancourier.ts).
@@ -438,6 +441,7 @@ export default function Integrari() {
         ["format_data", ["zi-luna-an", "zi.luna.an", "an-luna-zi"]],
         ["tva_la_incasare", ["da", "nu"]],
         ["cif_persoana_fizica", ["gol", "liniuta", "treisprezece_zerouri"]],
+        ["import_automat", ["da", "nu"]],
       ];
       for (const [k, permise] of inchise) {
         const v = String(valori[k] ?? "").trim();

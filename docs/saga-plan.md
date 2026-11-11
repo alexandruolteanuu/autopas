@@ -42,10 +42,11 @@ sau local (regula din CLAUDE.md).
 6. ~~Pasul 7~~ — **GATA (11 noiembrie 2026)**: migrarea 52 rulată, cheia reală salvată, „Testează
    conexiunea” trecut pe contul real, rotirea cheii probată pe viu.
 
-7. Pasul 8 — trimiterea („Trimite în SAGA”, reîncercare, raportul, „Marchează confirmată”,
-   acțiunea în masă); blocată până sunt alese `format_numar` și `format_data`. **Probele de
-   trimitere: pe seria PROBA, cu `importAutomat=false`, împreună cu contabila**, care șterge
-   importul nevalidat din Diverse → Import date. PAP FE nu se folosește la probe.
+7. Pasul 8 — trimiterea: **COD SCRIS (11 noiembrie 2026), fără migrare nouă, neîmpins.** Rămâne:
+   push pe ramură (la confirmare), apoi, din preview, **prima probă de import pe seria PROBA**, cu
+   `import_automat` = nu, împreună cu contabila (pașii în jurnalul pasului 8), cu verificările
+   obligatorii de la 3c. Setări de pus în Integrări înainte: `format_numar` = serie_spatiu,
+   `format_data` = zi-luna-an, `tva_la_incasare` (NEDECIS), `import_automat` gol sau „nu”.
 8. Pasul 9 — verificarea articolelor prin `GetArticol`.
 9. Pasul 10 — stornarea (`storneaza_factura` + butonul).
 10. Pasul 11 — textele (Integrări, Facturi, pagina comenzii) și `CLAUDE.md`.
@@ -2377,5 +2378,114 @@ Preview-ul scrie în baza REALĂ (o singură bază Supabase) — regula din CLAU
 
 Pasul 8 — trimiterea („Trimite în SAGA”), probată pe seria PROBA cu `importAutomat=false`, împreună cu
 contabila. Începe doar după confirmare, după ce „Testează conexiunea” a trecut pe contul real și după
-ce sunt alese `format_numar` și `format_data`.
+ce sunt alese `format_numar` și `format_data`. **Confirmat la 11 noiembrie 2026 — vezi pasul 8.**
+
+### Pasul 8 — trimiterea în SAGA (fără migrare nouă)
+
+**Stare: cod scris și testat local (11 noiembrie 2026); fără migrare; commit local, NEîmpins.** Prima
+probă de import pe contul real NU s-a făcut. Pasul 9 NU a început.
+
+#### Deciziile proprietarului (11 noiembrie 2026)
+
+- `format_numar` = **serie_spatiu**, `format_data` = **zi-luna-an** — se confirmă la prima probă de import
+  pe seria PROBA;
+- `tva_la_incasare` = **NEDECIS** (în mesaj a rămas „[Nu / Da]”). Fără el, trimiterea e blocată;
+- setarea nouă **`import_automat`** (oprită implicit): pornită, trimiterea folosește `importAutomat=true`.
+  Rămâne oprită la primele facturi reale.
+
+#### Ce modifică din ce există (răspuns dat înainte de cod)
+
+- **Baza: nimic.** Folosește coloanele existente (`saga_status`, `saga_eroare`, `saga_trimisa_la`,
+  `confirmata_*`) și jurnalul `saga_trimiteri` (tipul „import” exista). Starea o scrie doar serverul;
+  triggerul `facturi_pazeste` din 49, neatins, decide în continuare ce trecere e permisă.
+- `lib/saga-api.mjs`: `importaFacturi` — singurul loc cu calea „/Import”, prin același `cere()` (lacăt,
+  rotire). `lib/saga-xml.mjs`: `parseazaRaport`, `stareDupaImport`, `acelasiNumar` — cele vechi neschimbate.
+- Nou: `lib/saga-trimitere.mjs`; ruta `/api/saga` — acțiunile `trimite` și `confirma`.
+- Pagina facturii: „Trimite în SAGA” / „Reîncearcă”, „Marchează confirmată”, jurnalul trimiterilor.
+  Lista din Facturi: bife + „Trimite selectate” (pe rând, câte una).
+- Integrări → Saga: câmpul `import_automat` ca TEXT da / nu (gol = nu), nu bifă — bifele de acolo
+  pornesc BIFATE când valoarea lipsește, iar importul automat s-ar fi pornit singur la prima salvare.
+
+#### Ce s-a făcut
+
+- **O factură = un fișier = un apel.** „Trimite selectate” cheamă ruta de mai multe ori, din browser:
+  fiecare apel încape în 60 s, iar un răspuns privește o singură factură. Se oprește singur la cheie
+  respinsă, setări lipsă sau cheie lipsă.
+- **`trimiteFactura`** (`lib/saga-trimitere.mjs`), în ordinea care dă siguranța:
+  1. setările obligatorii (`format_numar`, `format_data`, `tva_la_incasare`; `import_automat` doar da / nu /
+     gol) — lipsă = nimic atins, niciun apel;
+  2. XML-ul și numele fișierului construite ÎNAINTE de a atinge factura (o factură fără linii nu pleacă);
+  3. **revendicarea atomică**: `in_curs` doar dacă starea e încă cea citită (pentru un `in_curs` uitat —
+     peste 3 minute, peste termenul lacătului — și `updated_at` neschimbat). Două tab-uri sau un tab
+     rămas în urmă nu pot trimite aceeași factură de două ori;
+  4. importul (`importAutomat` din setare);
+  5. starea: lacăt ocupat / fără cheie / cheie respinsă (401/403) → factura REVINE unde era, cu motivul
+     scris; timeout / rețea / rotire pierdută → „eroare”, „Rezultat necunoscut … La «Reîncearcă», SAGA
+     spune singur dacă o are deja”; altfel `stareDupaImport`.
+- **`stareDupaImport`** (o factură pe fișier; regula riscului 3 — niciodată „trimisă” din oficiu):
+  200 → „trimisă” (cu `import_automat` → „confirmată”, cu cine și când); 400 → „eroare” cu mesajul SAGA;
+  422 → „eroare” cu mesajele facturii, DAR „importata sau operata manual deja” → „trimisă” (SAGA o are);
+  207 → „trimisă” cu avertizările scrise, doar dacă raportul numește factura și fără „Eroare” — și cu import
+  automat rămâne „trimisă”, ca un om să vadă avertizările; raport care nu numește factura → „eroare”.
+  `NR_DOC` se compară fără spații („PROBA1” = „PROBA 1”).
+- **„Marchează confirmată”** — doar din „trimisă” (`update … where saga_status = 'trimisa'`), cu întrebarea
+  „ai validat în SAGA și arată corect — seria, numărul, clientul, liniile, cota și TVA-ul, totalul?”.
+- Pagina facturii: nota SAGA pe „trimisă” apare galbenă (avertizare), nu roșie; „in_curs” explică ce faci
+  dacă rămâne așa peste 3 minute; jurnalul cu raportul SAGA întreg.
+- **Teste:**
+  - `verifica-saga-xml.mjs` — **95/95** (+22): raportul din documentație, CRLF, potrivirea numerelor,
+    fiecare cod de răspuns (200, 200 fără succes, 400, 422, dubluri, 207 cu avertizare / cu eroare / fără
+    factura noastră / gol, 500). Testul a prins o greșeală reală: expresia pentru „importata … deja” nu
+    recunoștea „importata” — corectată;
+  - `verifica-saga-api.mjs` — **99/99** (+40), cap-coadă pe SAGA-ul simulat: setările lipsă (niciun apel),
+    multipart-ul (`file` cu numele F_RO36608590_PROBA_1_10_11_2026.xml, `importAutomat` false / true),
+    XML-ul („PROBA 1”, „10-11-2026”, „Nu”, 1457070043, cota 21), cheia doar în antet, 200 / import automat /
+    422 / reîncercare cu dublură / timeout / 401 și lacăt ocupat (revenire) / „in_curs” recent și uitat /
+    două trimiteri simultane / tab rămas în urmă / fără linii, jurnalul (fișier, factura, XML, fără cheie),
+    „/Import” o singură dată în tot codul. Verificat că pică fără revendicare și fără revenirea stării;
+  - `verifica-saga-local.sh` (Docker): trecerile folosite de trimitere, pe triggerul REAL din 49 — de_trimis /
+    eroare ⇄ in_curs → trimisă → confirmată permise; conținutul nu se schimbă în `in_curs`; trimisă → eroare /
+    in_curs și confirmată → înapoi refuzate; toate verificările mai vechi trec;
+  - build-ul trece; ruta, pe build-ul local, refuză `trimite` și `confirma` fără sesiune.
+  - **NEverificat**: interfața în browser și primul import real.
+
+#### Fișiere
+
+Nou: `lib/saga-trimitere.mjs`. Modificate: `lib/saga-api.mjs`, `lib/saga-xml.mjs`, `lib/saga.ts`,
+`app/api/saga/route.ts`, `app/admin/facturi/[id]/page.tsx`, `app/admin/facturi/page.tsx`,
+`app/admin/integrari/page.tsx`, `lib/settings.ts`, `scripts/verifica-saga-xml.mjs`,
+`scripts/verifica-saga-api.mjs`, `scripts/verifica-saga-local.sh`, `CLAUDE.md`, `docs/saga-plan.md`.
+
+#### Cum se verifică — prima probă de import pe contul REAL (cu contabila)
+
+Nicio migrare. După push-ul pe ramură, din PREVIEW (nu din adminul live), în câteva minute în care
+nimeni altcineva nu emite:
+1. **Integrări → Saga** (reîncarcă întâi): `format_numar` = serie_spatiu, `format_data` = zi-luna-an,
+   `tva_la_incasare` = da / nu (de la contabilă), `import_automat` gol. Salvează.
+2. **Facturi → Setări serie**: seria **„PROBA”**, numărul următor **1** (NU „PAP FE”). Integrări → Saga:
+   data de start = data comenzii alese.
+   **⚠ DECIZIE ÎNAINTEA PROBEI — ce comandă:** spre deosebire de proba de la pasul 6, o factură PROBA
+   TRIMISĂ nu se mai retrage (triggerul din 49). Ea rămâne legată definitiv de comanda pe care a fost
+   emisă: comanda nu se mai poate șterge, nu mai poate primi altă factură din aplicație, iar câmpul manual
+   de serie e blocat pe ea — adică factura ei reală, emisă manual în SAGA, nu se mai poate nota în
+   aplicație. Variante: (a) o comandă de probă a proprietarului (fără client real); (b) o comandă reală
+   deja rezolvată, acceptând că nota manuală nu se mai poate scrie pe ea; (c) o schimbare de cod înainte
+   de probă (de exemplu stornarea / ascunderea facturilor PROBA la pasul 10). De ales de proprietar.
+3. Pagina comenzii → „Emite factura” → „Deschide factura” → **„Trimite în SAGA”**. Așteptat: „Încărcată în
+   SAGA — valideaz-o în SAGA WEB …”. Jurnalul trimiterilor arată HTTP-ul și raportul.
+4. **În SAGA WEB, Diverse → Import date, FĂRĂ validare**, cu contabila — verificările OBLIGATORII (3c):
+   numărul „PROBA 1” și data zi-lună-an; **cota 21% și TVA-ul** pe factura importată (nu 19 din fișa
+   articolului — riscul 10); dacă SAGA cere `Gestiune` pe linii (întrebarea 5); diacriticele; ce număr
+   propune SAGA apoi pentru PAP FE (riscul 7). Apoi contabila **șterge importul nevalidat**.
+5. Opțional, a doua apăsare (după ce factura e „trimisă” nu se mai poate; se probează pe altă factură
+   PROBA): dacă SAGA răspunde „importata … deja” la o retrimitere (riscul 2).
+6. Curățenie: factura PROBA rămâne în aplicație „trimisă” (nu se mai retrage — e corect: a plecat). Ea NU
+   se marchează „confirmată” (n-a fost validată). Setări serie → „Oprește emiterea”; golești data de start.
+   **O factură PROBA trimisă rămâne în listă ca urmă a probei** — de discutat dacă se ascund sau se
+   stornează la pasul 10.
+
+#### Următorul
+
+Pasul 9 — verificarea articolelor prin `GetArticol` în pagina de potrivire. Începe doar după confirmare
+(și, de preferat, după prima probă de import).
 

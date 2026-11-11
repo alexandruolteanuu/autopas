@@ -38,7 +38,7 @@ export async function clientSaga() {
     cere(sb.from("settings").select("valoare").eq("cheie", "integrari").maybeSingle(), "setări"),
     cere(sb.from("settings").select("valoare").eq("cheie", "firma").maybeSingle(), "date firmă"),
   ]);
-  const saga = ((integrari as any)?.valoare?.saga ?? {}) as { url_api?: string; articol_implicit?: string };
+  const saga = ((integrari as any)?.valoare?.saga ?? {}) as Record<string, string | undefined>;
   const cif = cifCurat((firma as any)?.valoare?.cui);
 
   const depozit = {
@@ -62,7 +62,8 @@ export async function clientSaga() {
     jurnal: async (r: Record<string, unknown>) => { await cere(sb.from("saga_trimiteri").insert(r), "jurnal"); },
   };
 
-  return { client: creeazaClientSaga({ depozit, url: saga.url_api, cif }), articolImplicit: saga.articol_implicit ?? "", adresa: adresaApi(saga.url_api), cif };
+  return { client: creeazaClientSaga({ depozit, url: saga.url_api, cif }), articolImplicit: saga.articol_implicit ?? "",
+           adresa: adresaApi(saga.url_api), cif, setariSaga: saga };
 }
 
 /** Starea cheii și ultimele apeluri, pentru panou. Fără cheie, fără corpul răspunsurilor. */
@@ -80,4 +81,47 @@ export async function stareSaga(): Promise<{ cheie: StareCheieSaga; apeluri: Rec
     },
     apeluri: (j as any[]) ?? [],
   };
+}
+
+// ------------------------------------------------------------
+// FACTURILE (pasul 8): depozitul pentru lib/saga-trimitere.mjs. Starea facturii o scrie
+// DOAR serverul (cheia de serviciu); triggerul `facturi_pazeste` din migrarea 49 decide
+// în continuare ce trecere e permisă (o factură trimisă nu mai dă înapoi).
+// ------------------------------------------------------------
+export function depozitFacturi() {
+  const sb = admin();
+  return {
+    citesteFactura: async (id: number) => {
+      const f = await cere(sb.from("facturi").select("*").eq("id", id).maybeSingle(), "factura");
+      if (!f) return null;
+      const linii = await cere(sb.from("facturi_linii").select("*").eq("factura_id", id).order("nr_crt"), "liniile facturii");
+      return { ...(f as any), linii: linii ?? [] };
+    },
+    // Atomic: scrie „in_curs” doar dacă starea e încă cea văzută (un „in_curs” doar dacă
+    // e cel uitat — `updated_at` neschimbat). Două tab-uri: unul singur câștigă.
+    revendica: async (id: number, vazuta: string) => {
+      let q = sb.from("facturi").update({ saga_status: "in_curs" }).eq("id", id).eq("saga_status", vazuta);
+      if (vazuta === "in_curs") {
+        const f = await cere(sb.from("facturi").select("updated_at").eq("id", id).maybeSingle(), "factura");
+        q = q.eq("updated_at", (f as any)?.updated_at ?? "");
+      }
+      const rand = await cere(q.select("id"), "revendicarea facturii");
+      return Array.isArray(rand) && rand.length === 1;
+    },
+    seteazaStare: async (id: number, campuri: Record<string, unknown>) => {
+      const rand = await cere(sb.from("facturi").update(campuri).eq("id", id).select("id"), "starea facturii");
+      if (!Array.isArray(rand) || rand.length !== 1) throw new EroareSaga(`Starea facturii ${id} nu s-a putut scrie.`, { cod: "baza" });
+    },
+  };
+}
+
+/** „Marchează confirmată”: doar din „trimisă”, după validarea făcută de om în SAGA. */
+export async function confirmaFactura(id: number, de: string) {
+  const sb = admin();
+  const rand = await cere(sb.from("facturi")
+    .update({ saga_status: "confirmata", confirmata_la: new Date().toISOString(), confirmata_de: de })
+    .eq("id", id).eq("saga_status", "trimisa").select("id,serie,numar"), "confirmarea facturii");
+  if (!Array.isArray(rand) || rand.length !== 1)
+    throw new EroareSaga("Factura nu e în starea „trimisă” (poate a fost confirmată deja). Reîncarcă pagina.", { cod: "stare" });
+  return rand[0] as { id: number; serie: string; numar: number };
 }

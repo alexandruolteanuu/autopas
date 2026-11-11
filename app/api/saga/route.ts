@@ -4,8 +4,10 @@
 // Acțiuni (POST, JSON `{ actiune }`):
 //   · `stare`               — starea cheii + ultimele apeluri (admin, contabil);
 //   · `salveaza-cheie`      — cheia REALĂ, scrisă de om în Integrări (doar admin);
-//   · `testeaza-conexiunea` — un singur `GetArticol`, DOAR citire (admin, contabil).
-// În pasul 7 nu există nicio acțiune de Import.
+//   · `testeaza-conexiunea` — un singur `GetArticol`, DOAR citire (admin, contabil);
+//   · `trimite`             — o factură → SAGA (pasul 8; admin, contabil). Toată logica
+//                              e în lib/saga-trimitere.mjs; aici doar rolul și răspunsul;
+//   · `confirma`            — „Marchează confirmată”, după validarea în SAGA (admin, contabil).
 //
 // Cheia SAGA intră aici o singură dată, la salvare, și nu iese niciodată: niciun
 // răspuns nu o conține, iar folosirea și rotirea ei stau doar în lib/saga-api.mjs.
@@ -14,7 +16,8 @@
 // ============================================================
 import { NextResponse } from "next/server";
 import { esteAdmin, esteFacturare } from "@/lib/supabase";
-import { clientSaga, stareSaga, EroareSaga } from "@/lib/saga";
+import { clientSaga, stareSaga, depozitFacturi, confirmaFactura, EroareSaga } from "@/lib/saga";
+import { trimiteFactura } from "@/lib/saga-trimitere.mjs";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -56,6 +59,25 @@ export async function POST(req: Request) {
           ? `⚠ Conectat la SAGA (cheia e acceptată), dar articolul implicit „${r.cod}” NU există în gestiune: ${r.mesaj}. Verifică codul cu contabila.`
           : `✓ Conectat la SAGA (cheia e acceptată). Proba s-a făcut cu un cod inexistent, fiindcă articolul implicit nu e setat — SAGA a răspuns: ${r.mesaj}.`;
       return NextResponse.json({ ok: true, avertisment: !r.exista && !!articolImplicit, mesaj, rotita: r.rotita, ...(await stareSaga()) });
+    }
+
+    if (actiune === "trimite") {
+      const de = await esteFacturare(req);
+      if (!de) return nuAi("să trimiți facturi în SAGA");
+      const id = Number(corp.factura_id);
+      if (!Number.isInteger(id) || id <= 0) return NextResponse.json({ ok: false, eroare: "Factura lipsește din cerere." }, { status: 400 });
+      const { client, setariSaga } = await clientSaga();
+      const r = await trimiteFactura({ id, client, depozit: depozitFacturi(), setariSaga, de });
+      return NextResponse.json({ ok: true, ...r });
+    }
+
+    if (actiune === "confirma") {
+      const de = await esteFacturare(req);
+      if (!de) return nuAi("să confirmi facturi");
+      const id = Number(corp.factura_id);
+      if (!Number.isInteger(id) || id <= 0) return NextResponse.json({ ok: false, eroare: "Factura lipsește din cerere." }, { status: 400 });
+      const f = await confirmaFactura(id, de);
+      return NextResponse.json({ ok: true, mesaj: `✓ Factura ${f.serie} ${f.numar} e marcată confirmată în SAGA.` });
     }
 
     return NextResponse.json({ ok: false, eroare: `Acțiune necunoscută: „${actiune}”.` }, { status: 400 });

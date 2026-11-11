@@ -18,6 +18,7 @@ import {
   creeazaClientSaga, adresaApi, parseazaArticol, faraChei, EroareSaga,
   URL_API_IMPLICIT, COD_PROBA_INEXISTENT, MESAJ_CHEIE_BLOCATA, LACAT_SECUNDE,
 } from "../lib/saga-api.mjs";
+import { trimiteFactura, optiuniDinSetari, MINUTE_IN_CURS_UITAT } from "../lib/saga-trimitere.mjs";
 
 let n = 0;
 function ok(cond, ce) { if (!cond) { console.error(`PICAT: ${ce}`); process.exit(1); } n++; }
@@ -67,8 +68,15 @@ const cereri = [];          // ce a primit serverul
 let raspuns = null;         // (req, res) => void — comportamentul următor
 let finalCorpLa = null;
 const server = http.createServer((req, res) => {
-  cereri.push({ metoda: req.method, cale: req.url, auth: req.headers.authorization, cif: req.headers["x-saga-cod-fiscal"] });
-  (raspuns ?? ((_, r) => { r.writeHead(500); r.end("fără comportament"); }))(req, res);
+  const c = { metoda: req.method, cale: req.url, auth: req.headers.authorization, cif: req.headers["x-saga-cod-fiscal"],
+              tipCorp: req.headers["content-type"] ?? "", corp: "" };
+  cereri.push(c);
+  const bucati = [];
+  req.on("data", (b) => bucati.push(b));
+  req.on("end", () => {
+    c.corp = Buffer.concat(bucati).toString("utf8");
+    (raspuns ?? ((_, r) => { r.writeHead(500); r.end("fără comportament"); }))(req, res);
+  });
 });
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const port = server.address().port;
@@ -206,11 +214,143 @@ ok(!totText.includes(K1) && !totText.includes(K2) && /\[cheie ascunsă\]/.test(J
 ok(faraChei("a CHEIE-SIMULATA b", ["CHEIE-SIMULATA"]) === "a [cheie ascunsă] b", "faraChei");
 ok(parseazaArticol("<Articol><UM>KG</UM></Articol>").denumire === null, "parseazaArticol: câmp lipsă → null");
 
-// 15. Verificări statice: un singur loc cu cheia, fără Import în pasul 7, fără cheie în mediu
-const fis = ["lib/saga-api.mjs", "lib/saga.ts", "app/api/saga/route.ts"].filter((f) => existsSync(f));
-ok(fis.length === 3, "fișierele pasului 7 există");
+// ============================================================
+// PASUL 8 — TRIMITEREA (lib/saga-trimitere.mjs + importaFacturi), pe SAGA-ul simulat
+// ============================================================
+const SETARI = { format_numar: "serie_spatiu", format_data: "zi-luna-an", tva_la_incasare: "nu", import_automat: "" };
+function facturaNoua(extra = {}) {
+  return {
+    id: 77, serie: "PROBA", numar: 1, data: "2026-11-10", scadenta: "2026-11-10", saga_status: "de_trimis",
+    updated_at: new Date().toISOString(), saga_eroare: null, mentiune_plata: "ramburs in cont", observatii: "Comanda AP-2026-01794",
+    furnizor: { denumire: "PIESE AUTO PAS SRL", cui: "RO 36608590", cod_judet: "NT", tara: "RO" },
+    client: { tip: "pf", nume: "Ion Test", cod_judet: "CT", tara: "RO" },
+    linii: [{ nr_crt: 1, descriere: "ACCESORII AUTO", cod_articol_saga: "1457070043", denumire_site: "Far \"stânga\"", um: "BUC",
+              cantitate: 1, pret_fara_tva: 413.22, valoare: 413.22, cota_tva: 21, tva: 86.78, total: 500 }],
+    ...extra,
+  };
+}
+function facturiNoi(f) {
+  const db = { f, scrieri: [] };
+  return {
+    db,
+    citesteFactura: async (id) => (id === db.f.id ? JSON.parse(JSON.stringify(db.f)) : null),
+    revendica: async (id, vazuta) => {
+      if (id !== db.f.id || db.f.saga_status !== vazuta) return false;
+      db.f.saga_status = "in_curs"; db.f.updated_at = new Date().toISOString(); return true;
+    },
+    seteazaStare: async (id, c) => { db.scrieri.push(c); Object.assign(db.f, c); db.f.updated_at = new Date().toISOString(); },
+  };
+}
+const trimite = (fd, setari = SETARI, extra = {}) =>
+  trimiteFactura({ id: 77, client: client(depozitNou(), extra.client), depozit: fd, setariSaga: setari, de: "u-1", ...extra.op });
+
+// 16. Setările obligatorii: lipsă → nimic atins, niciun apel
+let fd = facturiNoi(facturaNoua());
+let inainte3 = cereri.length;
+for (const [k, v] of [["format_numar", ""], ["format_data", ""], ["tva_la_incasare", ""], ["import_automat", "poate"]]) {
+  await arunca(() => trimite(fd, { ...SETARI, [k]: v }), "config", `trimitere fără „${k}” corect → blocată`);
+}
+ok(cereri.length === inainte3 && fd.db.f.saga_status === "de_trimis" && fd.db.scrieri.length === 0, "setări lipsă: niciun apel, factura neatinsă");
+ok(optiuniDinSetari(SETARI).automat === false && optiuniDinSetari({ ...SETARI, import_automat: "da" }).automat === true, "import_automat: gol = nu, „da” = da");
+
+// 17. 200 → „trimisă”; ce a primit SAGA
+raspuns = raspunde(200, JSON.stringify({ success: true, message: "ok" }), { "content-type": "application/json" });
+let rt = await trimite(fd);
+c = cereri.at(-1);
+ok(rt.stare === "trimisa" && fd.db.f.saga_status === "trimisa" && fd.db.f.saga_trimisa_la, "200 → factura „trimisă”, cu data trimiterii");
+ok(c.metoda === "POST" && c.cale === "/api/v20260225/Import" && /^multipart\/form-data/.test(c.tipCorp), "POST /Import, multipart");
+ok(c.corp.includes('name="file"; filename="F_RO36608590_PROBA_1_10_11_2026.xml"'), "fișierul: câmpul „file”, numele F_<CIF>_<număr>_<dată>.xml");
+ok(/name="importAutomat"\r\n\r\nfalse\r\n/.test(c.corp), "importAutomat=false (setarea goală)");
+ok(c.corp.includes("<FacturaNumar>PROBA 1</FacturaNumar>") && c.corp.includes("<FacturaData>10-11-2026</FacturaData>"), "XML-ul: numărul „PROBA 1” și data zi-lună-an");
+ok(c.corp.includes("<FacturaTVAIncasare>Nu</FacturaTVAIncasare>"), "XML-ul: TVA la încasare din setări („nu” → Nu)");
+ok(c.corp.includes("<CodArticolClient>1457070043</CodArticolClient>") && c.corp.includes("<ProcTVA>21</ProcTVA>"), "XML-ul: articolul 1457070043 și cota 21");
+ok(c.auth === `Bearer ${K1}` && !c.corp.includes(K1), "cheia doar în antet, nu în fișier");
+await arunca(() => trimite(fd), "stare", "o factură „trimisă” nu se mai trimite");
+
+// 18. import_automat = da → importAutomat=true, „confirmată”
+fd = facturiNoi(facturaNoua());
+rt = await trimite(fd, { ...SETARI, import_automat: "da" });
+ok(/name="importAutomat"\r\n\r\ntrue\r\n/.test(cereri.at(-1).corp), "importAutomat=true când setarea e „da”");
+ok(fd.db.f.saga_status === "confirmata" && fd.db.f.confirmata_de === "u-1" && fd.db.f.confirmata_la, "200 cu import automat → „confirmată”, cu cine și când");
+
+// 19. 422 cu eroare → „eroare”; reîncercarea cu „deja” → „trimisă”
+fd = facturiNoi(facturaNoua());
+raspuns = raspunde(422, "Raport Import F.xml\n\nFactura 1.\n     NR_DOC: PROBA 1\n     Eroare: Completati clientul.\n");
+rt = await trimite(fd);
+ok(rt.stare === "eroare" && fd.db.f.saga_status === "eroare" && /Completati clientul/.test(fd.db.f.saga_eroare), "422 → „eroare”, cu mesajul SAGA");
+raspuns = raspunde(422, "Factura 1.\n     NR_DOC: PROBA 1\n     Eroare antet: Factura a fost importata sau operata manual deja.\n");
+rt = await trimite(fd);
+ok(rt.stare === "trimisa" && fd.db.f.saga_status === "trimisa", "reîncercare: SAGA o are deja → „trimisă”");
+
+// 20. Timeout → „eroare” cu rezultat necunoscut (nu „de trimis”: poate a ajuns)
+fd = facturiNoi(facturaNoua());
+raspuns = () => { /* atârnă */ };
+rt = await trimiteFactura({ id: 77, client: creeazaClientSaga({ depozit: depozitNou(), url: URL_SIM, cif: CIF, timeoutMs: 200 }), depozit: fd, setariSaga: SETARI });
+ok(rt.stare === "eroare" && /Rezultat necunoscut/.test(fd.db.f.saga_eroare), "timeout → „eroare”, rezultat necunoscut, reîncercabilă");
+
+// 21. Cheie respinsă / lacăt ocupat → factura revine unde era
+for (const [stareInit, cum] of [["de_trimis", "401"], ["eroare", "401"], ["de_trimis", "ocupat"]]) {
+  fd = facturiNoi(facturaNoua({ saga_status: stareInit }));
+  const dd = depozitNou();
+  if (cum === "ocupat") dd.lacat = { detinator: "altul", pana: Date.now() + 60_000 };
+  raspuns = raspunde(401, "Unauthorized");
+  const nr0 = cereri.length;
+  await arunca(() => trimiteFactura({ id: 77, client: creeazaClientSaga({ depozit: dd, url: URL_SIM, cif: CIF }), depozit: fd, setariSaga: SETARI }),
+    cum === "ocupat" ? "ocupat" : "cheie_blocata", `${cum} din „${stareInit}” → eroare`);
+  ok(fd.db.f.saga_status === stareInit && fd.db.f.saga_eroare, `${cum}: factura revine în „${stareInit}”, cu motivul scris`);
+  if (cum === "ocupat") ok(cereri.length === nr0, "lacăt ocupat: niciun apel la SAGA");
+}
+
+// 22. „in_curs”: recent → refuz fără apel; uitat (peste 3 minute) → se reia
+fd = facturiNoi(facturaNoua({ saga_status: "in_curs", updated_at: new Date().toISOString() }));
+let nr1 = cereri.length;
+await arunca(() => trimite(fd), "ocupat", "„in_curs” recent → refuz");
+ok(cereri.length === nr1 && fd.db.f.saga_status === "in_curs", "„in_curs” recent: niciun apel, neatinsă");
+fd = facturiNoi(facturaNoua({ saga_status: "in_curs", updated_at: new Date(Date.now() - (MINUTE_IN_CURS_UITAT + 1) * 60_000).toISOString() }));
+raspuns = raspunde(200, JSON.stringify({ success: true }));
+rt = await trimite(fd);
+ok(rt.stare === "trimisa", "„in_curs” uitat → reluată și trimisă");
+
+// 23. Două trimiteri simultane ale aceleiași facturi → un singur apel la SAGA
+fd = facturiNoi(facturaNoua());
+const ddComun = depozitNou();
+raspuns = (_, res) => setTimeout(() => { res.writeHead(200); res.end(JSON.stringify({ success: true })); }, 200);
+let nr2 = cereri.length;
+const doua = await Promise.allSettled([1, 2].map(() =>
+  trimiteFactura({ id: 77, client: creeazaClientSaga({ depozit: ddComun, url: URL_SIM, cif: CIF }), depozit: fd, setariSaga: SETARI })));
+ok(doua.filter((x) => x.status === "fulfilled").length === 1 && cereri.length - nr2 === 1, "aceeași factură de două ori simultan: un singur import");
+ok(fd.db.f.saga_status === "trimisa", "după cele două: „trimisă”");
+
+// 23b. Tab rămas în urmă: a citit factura „de trimis”, dar alt tab a trimis-o între timp.
+// Lacătul SAGA nu ajută aici (apelurile nu se suprapun) — doar revendicarea atomică.
+fd = facturiNoi(facturaNoua({ saga_status: "trimisa" }));
+const copieVeche = JSON.parse(JSON.stringify({ ...fd.db.f, saga_status: "de_trimis" }));
+fd.citesteFactura = async () => JSON.parse(JSON.stringify(copieVeche));
+let nr3 = cereri.length;
+await arunca(() => trimite(fd), "ocupat", "factură citită veche („de trimis”), dar deja trimisă → refuz");
+ok(cereri.length === nr3 && fd.db.f.saga_status === "trimisa" && fd.db.scrieri.length === 0, "tab rămas în urmă: niciun al doilea import, factura neatinsă");
+
+// 24. XML imposibil (fără linii) → nimic atins
+fd = facturiNoi(facturaNoua({ linii: [] }));
+await arunca(() => trimite(fd), "xml", "factură fără linii → refuz înainte de orice");
+ok(fd.db.f.saga_status === "de_trimis" && fd.db.scrieri.length === 0, "fără linii: factura neatinsă");
+
+// 25. Jurnalul importului: tip, fișier, factura, XML — fără cheie
+const dj = depozitNou();
+fd = facturiNoi(facturaNoua());
+raspuns = raspunde(200, JSON.stringify({ success: true }));
+await trimiteFactura({ id: 77, client: creeazaClientSaga({ depozit: dj, url: URL_SIM, cif: CIF }), depozit: fd, setariSaga: SETARI, de: "u-9" });
+const rj = dj.jurnalRanduri.at(-1);
+ok(rj.tip === "import" && rj.fisier === "F_RO36608590_PROBA_1_10_11_2026.xml" && rj.factura_ids?.[0] === 77 && rj.de === "u-9", "jurnalul importului: tip, fișier, factura, cine");
+ok(rj.xml.includes("<FacturaNumar>PROBA 1</FacturaNumar>") && !JSON.stringify(rj).includes(K1), "jurnalul păstrează XML-ul trimis, fără cheie");
+await arunca(() => client(depozitNou()).importaFacturi({ xml: "<x/>", fisier: "factura.xml", automat: false, facturaIds: [1] }), "intrare", "nume de fișier greșit refuzat fără apel");
+
+// 15. Verificări statice: un singur loc cu cheia și cu importul, fără cheie în mediu
+const fis = ["lib/saga-api.mjs", "lib/saga.ts", "app/api/saga/route.ts", "lib/saga-trimitere.mjs"].filter((f) => existsSync(f));
+ok(fis.length === 4, "fișierele pașilor 7–8 există");
 const continut = Object.fromEntries(fis.map((f) => [f, readFileSync(f, "utf8")]));
-ok(fis.every((f) => !/["'`]\/Import/.test(continut[f])), "nicio cale „/Import” în codul pasului 7");
+ok((continut["lib/saga-api.mjs"].match(/["'`]\/Import/g) ?? []).length === 1, "calea „/Import” apare o singură dată, în lib/saga-api.mjs");
+ok(fis.filter((f) => f !== "lib/saga-api.mjs").every((f) => !/["'`]\/Import/.test(continut[f])), "nicio altă cale „/Import” (saga.ts, ruta, trimiterea)");
 ok(fis.every((f) => !/process\.env\.\w*SAGA\w*(CHEIE|KEY|TOKEN)/i.test(continut[f])), "cheia SAGA nu se citește din variabile de mediu");
 ok(!/x-saga-refresh-token|saga_roteste_cheia/i.test(continut["app/api/saga/route.ts"]), "ruta nu rotește cheia (o face doar lib/saga-api.mjs)");
 ok(/saga_roteste_cheia/.test(continut["lib/saga.ts"]) && !/X-Saga-Refresh-Token|ANTET_ROTIRE/i.test(continut["lib/saga.ts"]), "lib/saga.ts doar dă depozitul; antetul de rotire îl citește doar lib/saga-api.mjs");
