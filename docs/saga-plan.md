@@ -36,10 +36,10 @@ sau local (regula din CLAUDE.md).
    raportului, durata unui import, contorul seriei.
 
 **Pașii de cod rămași** (din C, câte unul, după confirmare):
-6. Pasul 7 — clientul API (`saga_cheie`, `saga_blocare`, `saga_trimiteri`, `lib/saga.ts`,
-   „Testează conexiunea”, „Salvează cheia”), direct pe contul REAL: cheia doar din admin;
-   „Testează conexiunea” doar cu citiri (`GetArticol`), niciodată Import; un singur loc care
-   folosește și rotește cheia; cheia blocată → regenerată din SAGA WEB și salvată din nou în admin.
+6. Pasul 7 — clientul API: **COD SCRIS (11 noiembrie 2026), migrarea 52 NErulată.** Rămâne: rularea
+   migrării 52 pe producție (proprietarul, din SQL Editor — jurnalul pasului 7), apoi, din preview sau
+   local, „Salvează cheia” cu cheia reală și „Testează conexiunea”. Nedovedit până atunci: forma
+   codului fiscal din antetul `X-Saga-Cod-Fiscal` („RO36608590” — riscul 9).
 7. Pasul 8 — trimiterea („Trimite în SAGA”, reîncercare, raportul, „Marchează confirmată”,
    acțiunea în masă); blocată până sunt alese `format_numar` și `format_data`. **Probele de
    trimitere: pe seria PROBA, cu `importAutomat=false`, împreună cu contabila**, care șterge
@@ -799,6 +799,10 @@ obișnuite.
    contabilă (12) și pentru suportul SAGA; de verificat la proba de la pasul 6 (după importul
    manual al XML-ului de probă, ce număr propune SAGA pentru o factură nouă pe PAP FE — fără să
    o salveze).
+9. **Codul fiscal din antetul `X-Saga-Cod-Fiscal`** (pasul 7, 11 noiembrie 2026) — documentația
+   scrie doar „<CUI_FIRMA>”. Trimitem forma curățată din Date firmă, „RO36608590”, aceeași ca în
+   `FurnizorCIF` și în numele fișierului. Dacă SAGA o vrea fără „RO”, primul „Testează conexiunea”
+   va eșua cu un mesaj de-al lor; atunci se schimbă într-un singur loc (`cif` în `lib/saga.ts`).
 8. **Codificarea XML-ului** (pasul 6) — fișierul e UTF-8, cu declarația în antet; diacriticele
    din nume și adrese ies corect doar dacă SAGA WEB citește UTF-8. Nedocumentat. Atenuare: proba
    manuală de la pasul 6 (D.4), pe o factură cu diacritice; întrebarea 14.
@@ -2192,5 +2196,114 @@ PAP FE nu e atinsă în niciun pas: numerele ei se setează abia în ziua pornir
 
 Pasul 7 — clientul API SAGA (`saga_cheie`, `saga_blocare`, `saga_trimiteri`, `lib/saga.ts`,
 „Testează conexiunea” și „Salvează cheia”). Direct pe contul real, fără instanță de test (riscul 5).
-Începe doar după confirmare.
+Începe doar după confirmare. **Confirmat la 11 noiembrie 2026 — vezi pasul 7.**
+
+### Pasul 7 — clientul API SAGA, pe contul REAL (migrarea 52)
+
+**Stare: cod scris și testat local (11 noiembrie 2026), migrarea 52 NErulată pe producție, pasul 7
+neîmpins pe GitHub.** Pasul 8 NU a început.
+
+#### Înainte de pas (11 noiembrie 2026)
+
+- **Push-ul ramurii `saga-integrare` pe GitHub, CU preview Vercel**, fără unire în `main` (decizia
+  proprietarului). Preview-ul s-a construit („Deployment has completed”). Regula nouă în CLAUDE.md:
+  până la unire, tot ce ține de SAGA, date firmă și facturi se face DOAR din preview sau local.
+- **Decizia: fără instanță de test SAGA.** Cheia REALĂ (generată de proprietar, păstrată de el) se
+  introduce doar din admin; planul actualizat la riscul 5, A.10, D.5, pașii 7–8 din C și în lista de sus.
+
+#### Ce modifică din ce există (răspuns dat înainte de cod)
+
+- **În bază (migrarea 52, `supabase/saga-api.sql`), doar obiecte NOI**: `saga_cheie` (RLS, nicio
+  politică), `saga_blocare` (un rând, lacătul), `saga_trimiteri` (jurnalul; citire `is_facturare()`),
+  funcțiile `saga_ia_blocarea`, `saga_elibereaza`, `saga_salveaza_cheia`, `saga_roteste_cheia` — doar
+  `service_role`. Nu înlocuiește nicio funcție, nu atinge niciun rând și nicio politică existentă.
+- **În cod, doar adăugiri**: `lib/supabase.ts` — `esteFacturare` / `esteAdmin` lângă `esteEchipa`
+  (neatinsă); `lib/settings.ts` — câmpul `url_api`; Integrări → cardul Saga — câmpul „Adresa
+  API-ului SAGA” (verificat https la salvare) și caseta „Cheia SAGA”. Celelalte carduri, neschimbate.
+- **Nicio cale de Import** în pasul 7.
+
+#### Ce s-a făcut
+
+- **`lib/saga-api.mjs` — SINGURUL loc care folosește și rotește cheia** (`cere()`):
+  - lacătul din bază înainte de orice apel; al doilea apel simultan e refuzat („o operație SAGA e
+    deja în curs”), nu pus în paralel; lacătul se eliberează în `finally`, iar termenul de 90 s îl
+    eliberează și dacă funcția e omorâtă;
+  - antetele `Authorization: Bearer <cheie>` și `X-Saga-Cod-Fiscal` (CIF-ul curățat din Date firmă);
+  - **rotirea**: `X-Saga-Refresh-Token` se citește imediat după antete și se salvează ÎNAINTE de corp,
+    la orice cod de răspuns, condiționat de cheia veche (`saga_roteste_cheia`), cu 3 încercări. Dacă
+    tot nu se salvează: eroare „cheie nouă primită, dar nesalvată”, cheia marcată, mesaj de regenerare;
+  - **401 / 403** → cheia marcată blocată; mesajul: „Generați o cheie nouă din SAGA WEB (Utilizatori →
+    Integrare API → Generează cheie de acces), apoi salvați-o aici, cu „Salvează cheia”.” Aplicația nu
+    încearcă nimic singură;
+  - timeout 25 s; fiecare apel scris în `saga_trimiteri` (tip, HTTP, durată, rotire, eroare, corpul
+    răspunsului cu orice apariție a cheii înlocuită cu „[cheie ascunsă]”); jurnalul căzut nu strică apelul;
+  - `getArticol(cod)`: 200 → articolul (denumire, UM, TVA, coduri); 400 → „cod inexistent”, nu eroare;
+  - `testeazaConexiunea()`: DOAR `GetArticol` — pe articolul implicit, sau, dacă nu e setat, pe un cod
+    inexistent („AUTOPAS-TEST-CONEXIUNE”), al cărui 400 tot dovedește că cheia e acceptată;
+  - `salveazaCheia()`: validare (≥ 10 caractere, fără spații) și scriere SUB LACĂT, ca un apel în curs
+    să nu rotească cheia veche peste cea nouă.
+- **`lib/saga.ts`** — doar depozitul real (RPC-urile și tabelele din 52) și starea pentru panou (fără cheie).
+  Cheia se trimite la bază în CORPUL cererii (RPC), nu în adresă, ca să nu rămână în jurnalele de acces.
+- **`app/api/saga/route.ts`** — `stare` (admin, contabil), `salveaza-cheie` (doar admin),
+  `testeaza-conexiunea` (admin, contabil). Niciun răspuns nu conține cheia.
+- **Integrări → Saga**: caseta „Cheia SAGA” — starea (salvată / rotită de câte ori / folosită ultima dată
+  / blocată, cu mesajul de regenerare), câmpul parolă care nu se precompletează niciodată, „Salvează
+  cheia” (cu confirmare dacă înlocuiește una), „Testează conexiunea”, ultimele 5 apeluri.
+- **Teste:**
+  - `scripts/verifica-saga-api.mjs` — **59/59**, pe un SAGA SIMULAT pe 127.0.0.1, fără cheia reală:
+    antetele, calea, 200 / 400 / 401 / 403 / 422, rotirea înainte de corp (măsurat pe un corp întârziat)
+    și pe erori, cheia nouă folosită la apelul următor, rotirea nesalvată, două apeluri simultane (unul
+    singur ajunge la SAGA), lacăt expirat, timeout, port închis, fără cheie / fără CIF (niciun apel),
+    „Testează conexiunea” fără Import, salvarea sub lacăt, cheia absentă din jurnal și din erori, plus
+    verificări statice (nicio cale „/Import”, nicio cheie SAGA din variabile de mediu, rotirea doar în
+    `lib/saga-api.mjs`). Verificat că pică dacă rotirea se mută după corp sau dacă se scoate lacătul;
+  - `scripts/verifica-saga-api.sql` — 33 de verificări pe PRODUCȚIE, în tranzacție anulată: RLS, zero
+    politici pe cheie / lacăt, drepturile `anon` / `authenticated` pe tabele și funcții, lacătul (luat,
+    refuzat, eliberat doar de deținător, expirat, ~90 s), salvarea și rotirea condiționată cu o cheie de
+    PROBĂ, cheile greșite, adminul din browser NU citește cheia și NU scrie în jurnal, dar vede jurnalul;
+    un utilizator fără rol nu-l vede;
+  - `scripts/verifica-saga-local.sh` (Docker): 52 aplicată de două ori, testul SQL 33/33, **20 de
+    `saga_ia_blocarea` simultane → exact una reușește**, anularea 52 șterge tot și re-rularea o reface;
+    toate testele 47–51 trec în continuare;
+  - build-ul trece; ruta, pe build-ul local, refuză fără sesiune (401) toate cele trei acțiuni.
+  - **NEverificat**: interfața în browser și apelul real la SAGA — cer migrarea 52 și cheia reală.
+
+#### Fișiere
+
+Noi: `supabase/saga-api.sql`, `lib/saga-api.mjs`, `lib/saga.ts`, `app/api/saga/route.ts`,
+`scripts/verifica-saga-api.mjs`, `scripts/verifica-saga-api.sql`, `scripts/anuleaza-saga-api.sql`.
+Modificate: `lib/supabase.ts`, `lib/settings.ts`, `app/admin/integrari/page.tsx`,
+`scripts/verifica-saga-local.sh`, `CLAUDE.md`, `docs/saga-plan.md`.
+
+#### Cum se aplică — pe PRODUCȚIE, din SQL Editor (proprietarul)
+
+1. **Pre-verificarea** (doar citire) — 5 × `true`:
+   ```sql
+   select to_regprocedure('public.is_facturare()') is not null as are_is_facturare,
+          to_regclass('public.saga_cheie')     is null as fara_saga_cheie,
+          to_regclass('public.saga_blocare')   is null as fara_saga_blocare,
+          to_regclass('public.saga_trimiteri') is null as fara_saga_trimiteri,
+          not exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace
+                       and proname in ('saga_ia_blocarea', 'saga_elibereaza', 'saga_salveaza_cheia', 'saga_roteste_cheia')) as fara_functii;
+   ```
+2. **Migrarea**: `supabase/saga-api.sql` → „Success. No rows returned.”
+3. **Testele**: `scripts/verifica-saga-api.sql` → căsuța roșie „REZULTAT OK: toate cele 33 verificări
+   au trecut”.
+4. **Verificarea finală** (doar citire) — `0 | 0 | 1 | true`:
+   ```sql
+   select (select count(*) from saga_cheie) as chei, (select count(*) from saga_trimiteri) as apeluri,
+          (select count(*) from saga_blocare) as lacate, (select pana < now() from saga_blocare) as lacat_liber;
+   ```
+5. **Cheia** — din PREVIEW sau din serverul local (nu din adminul live), ca administrator:
+   Integrări → **reîncarcă pagina** → cardul „Saga — facturare” → „Cheia SAGA” → lipești cheia →
+   „Salvează cheia” → „Testează conexiunea”. Așteptat: „✓ Conectat la SAGA …”. Dacă articolul implicit
+   e completat, mesajul spune și dacă există în gestiunea SAGA. Un eșec cu un mesaj despre codul fiscal
+   → riscul 9. Un 401 / 403 → cheia se regenerează din SAGA WEB și se salvează din nou.
+6. **Doar la nevoie — anularea**: `scripts/anuleaza-saga-api.sql`.
+
+#### Următorul
+
+Pasul 8 — trimiterea („Trimite în SAGA”), probată pe seria PROBA cu `importAutomat=false`, împreună cu
+contabila. Începe doar după confirmare, după ce „Testează conexiunea” a trecut pe contul real și după
+ce sunt alese `format_numar` și `format_data`.
 

@@ -5,7 +5,7 @@
 # Pornește un Postgres 17 de unică folosință, îl îmbracă în imitația minimă a
 # Supabase (scripts/saga-local/stub-supabase.sql), încarcă `sterge_comanda`
 # EXACT din supabase/admin-fix.sql și date FICTIVE (scripts/saga-local/), aplică
-# migrările SAGA 47–51, apoi:
+# migrările SAGA 47–52, apoi:
 #   1. rulează aceleași teste ca pe producție (verifica-saga-*.sql);
 #   2. CONCURENȚA: 20 de `emite_factura` pornite simultan → 20 de numere
 #      distincte și consecutive, contorul exact după ele;
@@ -13,7 +13,9 @@
 #   4. ORA-LIMITĂ: comanda de la 00:30 ora României (22:30 UTC, ziua dinainte)
 #      e acceptată, cea de la 23:30 ora României din ziua dinainte e refuzată;
 #   5. `sterge_comanda` pe o comandă facturată → refuzată, stocul neatins;
-#   6. anularea migrării 49 refuză cât timp există facturi.
+#   6. anularea migrării 49 refuză cât timp există facturi;
+#   7. LACĂTUL SAGA (migrarea 52): 20 de `saga_ia_blocarea` simultane → exact una
+#      reușește; anularea migrării 52 șterge tot, iar re-rularea o reface.
 # La final containerul se șterge. Nu atinge nicio bază reală.
 #
 # Folosire: scripts/verifica-saga-local.sh   (cere Docker)
@@ -48,14 +50,14 @@ i = s.index('create or replace function public.sterge_comanda')
 print(s[i:s.index('grant execute on function public.sterge_comanda', i)])
 PY
 P < scripts/saga-local/date-fictive.sql >/dev/null 2>&1 || picat "datele fictive"
-for m in saga-calcul saga-export saga-facturi saga-articole saga-emitere; do
+for m in saga-calcul saga-export saga-facturi saga-articole saga-emitere saga-api; do
   P < "supabase/$m.sql" >/dev/null 2>&1 || picat "migrarea $m"
   P < "supabase/$m.sql" >/dev/null 2>&1 || picat "migrarea $m, a doua rulare (idempotență)"
 done
-ok "migrările 47–51 (fiecare rulată de două ori)"
+ok "migrările 47–52 (fiecare rulată de două ori)"
 
 # 1. Testele de producție
-for t in calcul export facturi articole emitere; do
+for t in calcul export facturi articole emitere api; do
   r="$(P < "scripts/verifica-saga-$t.sql" 2>&1)"
   grep -q "REZULTAT OK" <<<"$r" || picat "verifica-saga-$t.sql: $(grep -m1 -o 'VERIFICARE PICATĂ.*\|ERROR:.*' <<<"$r")"
   ok "verifica-saga-$t.sql — $(grep -o 'toate cele [0-9]* d*e* *verificări' <<<"$r")"
@@ -103,5 +105,16 @@ r="$(P < scripts/anuleaza-saga-facturi.sql 2>&1)"   # psql iese cu eroare: refuz
 grep -q "OPRIT: există facturi" <<<"$r" || picat "anularea migrării 49 nu a refuzat"
 [ "$(Q "select to_regclass('public.facturi') is not null")" = t ] || picat "anularea a șters tabela facturi"
 ok "anularea migrării 49 refuză cât timp există facturi"
+
+# 7. Lacătul SAGA: 20 de cereri simultane, exact una îl primește
+Q "update saga_blocare set detinator = null, pana = '-infinity'" >/dev/null
+for g in $(seq 1 20); do Q "select saga_ia_blocarea(gen_random_uuid(), 90)" > "/tmp/saga-lacat-$g.out" & done; wait
+reusite=$(cat /tmp/saga-lacat-*.out | grep -c '^t$'); rm -f /tmp/saga-lacat-*.out
+[ "$reusite" = 1 ] || picat "lacătul SAGA: $reusite din 20 de cereri simultane l-au primit (trebuia exact 1)"
+ok "lacătul SAGA: 20 de cereri simultane → exact una îl primește"
+P < scripts/anuleaza-saga-api.sql >/dev/null 2>&1 || picat "anularea migrării 52"
+[ "$(Q "select to_regclass('public.saga_cheie') is null and to_regclass('public.saga_trimiteri') is null")" = t ] || picat "anularea migrării 52 a lăsat tabele"
+P < supabase/saga-api.sql >/dev/null 2>&1 || picat "re-rularea migrării 52 după anulare"
+ok "anularea migrării 52 șterge tot; re-rularea o reface"
 
 echo "TOATE VERIFICĂRILE LOCALE AU TRECUT"

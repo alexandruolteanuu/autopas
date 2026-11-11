@@ -100,6 +100,9 @@ const CAMPURI: Record<string, { k: string; l: string; tip?: string }[]> = {
     { k: "articol_reducere_denumire", l: "Articolul pentru reducere — denumirea (dacă are cod propriu)" },
     { k: "articol_transport", l: "Articolul pentru transport — codul (gol = articolul implicit)" },
     { k: "articol_transport_denumire", l: "Articolul pentru transport — denumirea (dacă are cod propriu)" },
+    // Pasul 7: adresa API-ului. Cheia NU e aici — se salvează separat, mai sus, în
+    // caseta „Cheia SAGA”, și ajunge doar în tabela `saga_cheie` (invizibilă din browser).
+    { k: "url_api", l: "Adresa API-ului SAGA (gol = https://web.sagasoft.ro/api/v20260225, din documentația lor)" },
   ],
   "FAN Courier (SelfAWB)": [{ k: "client_id", l: "Client ID" }, { k: "user", l: "Utilizator selfawb.ro" }, { k: "parola", l: "Parolă selfawb.ro", tip: "password" },
     // Bifă: nesalvată încă înseamnă „da" (vezi `configFan` din lib/fancourier.ts).
@@ -210,6 +213,100 @@ function UneltFanRetur() {
       <button type="button" onClick={verifica} disabled={lucru} className="rounded-xl border-2 border-line px-3 py-1.5 text-xs font-bold hover:border-acc">
         {lucru ? "Se verifică…" : "Verifică retururile"}</button>
       {rez && <p className={`mt-2 text-xs ${rez.bun ? "text-ok" : "text-red-600"}`}>{rez.text}</p>}
+    </div>
+  );
+}
+
+/**
+ * CHEIA SAGA (pasul 7, docs/saga-plan.md). Cheia REALĂ se scrie aici de om și
+ * pleacă direct la ruta /api/saga, care o pune în `saga_cheie` — tabelă pe care
+ * browserul n-o poate citi, nici ca admin. Câmpul nu se precompletează niciodată:
+ * panoul vede doar „salvată / rotită / blocată”. „Testează conexiunea” face DOAR
+ * o citire (`GetArticol`), niciodată un import.
+ */
+type StareSaga = {
+  cheie: { setata: boolean; salvata_la: string | null; rotita_la: string | null; rotiri: number;
+           folosita_la: string | null; blocata_la: string | null; blocata_motiv: string | null };
+  apeluri: { id: number; created_at: string; tip: string; http_status: number | null; durata_ms: number | null; cheie_rotita: boolean; eroare: string | null }[];
+  adresa?: string; cif?: string;
+};
+const cand = (v: string | null) => v ? new Date(v).toLocaleString("ro-RO", { timeZone: "Europe/Bucharest" }) : "—";
+
+function UneltSaga() {
+  const [stare, setStare] = useState<StareSaga | null>(null);
+  const [cheie, setCheie] = useState("");
+  const [lucru, setLucru] = useState<"" | "salvez" | "test">("");
+  const [rez, setRez] = useState<{ bun: boolean; text: string } | null>(null);
+
+  const cheama = useCallback(async (corp: Record<string, unknown>) => {
+    const sb = sbBrowser();
+    const token = sb ? (await sb.auth.getSession()).data.session?.access_token : null;
+    const r = await fetch("/api/saga", { method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+      body: JSON.stringify(corp) });
+    return r.json().catch(() => ({ ok: false, eroare: `Răspuns neașteptat (HTTP ${r.status}).` }));
+  }, []);
+
+  const citeste = useCallback(async () => {
+    const j = await cheama({ actiune: "stare" });
+    if (j?.ok) setStare(j); else setRez({ bun: false, text: j?.eroare ?? "Starea legăturii cu SAGA nu s-a putut citi." });
+  }, [cheama]);
+  useEffect(() => { citeste(); }, [citeste]);
+
+  async function salveaza() {
+    if (!cheie.trim()) return;
+    if (stare?.cheie.setata && !confirm("Înlocuiești cheia SAGA salvată? Cea veche nu se mai folosește.")) return;
+    setLucru("salvez"); setRez(null);
+    const j = await cheama({ actiune: "salveaza-cheie", cheie });
+    setLucru("");
+    if (j?.ok) { setCheie(""); setStare(j); setRez({ bun: true, text: j.mesaj }); }
+    else setRez({ bun: false, text: j?.eroare ?? "Cheia nu s-a salvat." });
+  }
+  async function testeaza() {
+    setLucru("test"); setRez(null);
+    const j = await cheama({ actiune: "testeaza-conexiunea" });
+    setLucru("");
+    if (j?.ok) { setStare(j); setRez({ bun: !j.avertisment, text: j.mesaj + (j.rotita ? " SAGA a rotit cheia; cea nouă e salvată." : "") }); }
+    else { setRez({ bun: false, text: j?.eroare ?? "Testul nu s-a putut face." }); citeste(); }
+  }
+
+  const k = stare?.cheie;
+  return (
+    <div className="mt-4 pt-3 border-t border-line text-sm grid gap-2">
+      <b className="text-xs">Cheia SAGA (legătura prin API)</b>
+      {k?.blocata_la && (
+        <p className="text-xs rounded-lg border-2 border-red-300 bg-red-50 text-red-800 p-2">
+          ⚠ Cheia a fost respinsă / pierdută la {cand(k.blocata_la)} ({k.blocata_motiv}). Generați o cheie nouă din SAGA WEB
+          (Utilizatori → Integrare API → Generează cheie de acces) și salvați-o mai jos.</p>
+      )}
+      <p className="text-xs text-mut">
+        {!stare ? "Se citește starea…" : k?.setata
+          ? <>Cheie salvată la {cand(k.salvata_la)}{k.rotiri ? ` · rotită de SAGA de ${k.rotiri} ori (ultima: ${cand(k.rotita_la)})` : ""} · folosită ultima dată: {cand(k.folosita_la)}.</>
+          : "Nicio cheie salvată."}
+        {stare?.adresa && <> Adresa: {stare.adresa} · cod fiscal în antet: {stare.cif || "LIPSEȘTE (Setări → Date firmă)"}.</>}
+      </p>
+      <p className="text-xs text-mut">Cheia se generează în SAGA WEB de un utilizator Admin (Utilizatori → Integrare API → Generează cheie de acces)
+        și se lipește doar aici. Nu se trimite pe chat, pe e-mail și nu se pune în Vercel. După salvare nu se mai poate vedea — doar înlocui.</p>
+      <div className="fld"><label>Cheia nouă de acces SAGA</label>
+        <input type="password" autoComplete="new-password" value={cheie} onChange={(e) => setCheie(e.target.value)} placeholder="lipește cheia din SAGA WEB" /></div>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" onClick={salveaza} disabled={!!lucru || !cheie.trim()} className="btn-dark !py-1.5 text-xs">
+          {lucru === "salvez" ? "Se salvează…" : "Salvează cheia"}</button>
+        <button type="button" onClick={testeaza} disabled={!!lucru || !k?.setata}
+          className="rounded-xl border-2 border-line px-3 py-1.5 text-xs font-bold hover:border-acc">
+          {lucru === "test" ? "Se testează…" : "Testează conexiunea"}</button>
+      </div>
+      <p className="text-[11px] text-mut">„Testează conexiunea” doar CITEȘTE din SAGA articolul implicit (GetArticol) — nu importă nimic.</p>
+      {rez && <p className={`text-xs ${rez.bun ? "text-ok" : "text-red-600"}`}>{rez.text}</p>}
+      {!!stare?.apeluri.length && (
+        <details className="text-xs"><summary className="cursor-pointer text-mut">Ultimele apeluri spre SAGA</summary>
+          <ul className="mt-1 space-y-0.5">
+            {stare.apeluri.map((a) => (
+              <li key={a.id}>{cand(a.created_at)} · {a.tip} · HTTP {a.http_status ?? "—"} · {a.durata_ms ?? "—"} ms
+                {a.cheie_rotita ? " · cheie rotită" : ""}{a.eroare ? <span className="text-red-600"> · {a.eroare}</span> : ""}</li>
+            ))}
+          </ul></details>
+      )}
     </div>
   );
 }
@@ -350,6 +447,13 @@ export default function Integrari() {
           return;
         }
       }
+      // Adresa API-ului: doar https (cheia pleacă spre ea în antet).
+      const urlApi = String(valori.url_api ?? "").trim();
+      valori.url_api = urlApi;
+      if (urlApi !== "" && !/^https:\/\/[^\s]+$/i.test(urlApi)) {
+        setMsg(`Adresa API-ului SAGA („${urlApi}”) trebuie să înceapă cu https://. Lasă gol pentru adresa din documentația SAGA.`);
+        return;
+      }
       const regim = String(valori.regim_tva ?? "").trim().toLowerCase();
       if (regim !== "" && regim !== "normal") {
         setMsg(regim === "marja" || regim === "marjă"
@@ -422,6 +526,7 @@ export default function Integrari() {
                   {i.nume === "E-mail automat (Brevo)" && <UneltEmail implicit={conf.email?.notificari ?? ""} />}
                   {i.nume === "FAN Courier (SelfAWB)" && <UneltFan />}
                   {i.nume === "FAN Courier — retururi" && <UneltFanRetur />}
+                  {i.nume === "Saga — facturare" && <UneltSaga />}
                   {CAMPURI[i.nume] && (
                     <form onSubmit={(e) => { e.preventDefault();
                       const f = new FormData(e.currentTarget);

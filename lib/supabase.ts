@@ -205,3 +205,24 @@ export async function esteEchipa(req: Request): Promise<boolean> {
   const { data, error } = await sb.rpc("is_staff");
   return !error && data === true;
 }
+
+// Ca `esteEchipa`, dar pentru un rol anume (SAGA, pasul 7 din docs/saga-plan.md):
+// întreabă baza cu token-ul sesiunii (`is_facturare` = admin sau contabil,
+// `is_admin` = doar admin) și întoarce ID-UL utilizatorului dacă are rolul, altfel
+// `null`. ID-ul ajunge în jurnalul apelurilor SAGA (`saga_trimiteri.de`).
+async function utilizatorCuRol(req: Request, functie: "is_facturare" | "is_admin"): Promise<string | null> {
+  if (!url || !key) return null;
+  const antet = req.headers.get("authorization") ?? "";
+  const token = antet.toLowerCase().startsWith("bearer ") ? antet.slice(7).trim() : "";
+  if (!token) return null;
+  const sb = createClient(url, key, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const [{ data: rol, error }, { data: u }] = await Promise.all([sb.rpc(functie), sb.auth.getUser(token)]);
+  return !error && rol === true && u.user?.id ? u.user.id : null;
+}
+/** Admin sau contabil → id-ul utilizatorului; altfel `null`. */
+export const esteFacturare = (req: Request) => utilizatorCuRol(req, "is_facturare");
+/** Doar admin → id-ul utilizatorului; altfel `null`. */
+export const esteAdmin = (req: Request) => utilizatorCuRol(req, "is_admin");
