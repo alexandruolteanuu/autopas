@@ -2716,7 +2716,8 @@ facturilor PROBA trimise. Începe doar după confirmare.
 - `scripts/verifica-saga-stornare.sql` → „REZULTAT OK”, 27/27;
 - verificarea finală: `0 | 0` (nicio factură ascunsă, nicio stornare).
 
-Codul pasului 10 împins pe ramura `saga-integrare` în aceeași zi (preview reconstruit — adresa mai jos).
+Codul pasului 10 împins pe ramura `saga-integrare` în aceeași zi (commit `a929a79`, nu pe `main`); preview
+reconstruit („Deployment has completed”): https://autopas-k5ohacys3-alexandruolteanuus-projects.vercel.app
 Urmează proba pasului 10 din preview, cu contabila. **Pasul 10b (refacturarea) și pasul 11 NU au început.**
 
 #### Ce modifică din ce există (răspuns dat înainte de cod)
