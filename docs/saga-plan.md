@@ -17,11 +17,13 @@ proprietarului.
    importul în SAGA răspunde la: formatul numărului și al datei (riscul 6), diacriticele / UTF-8
    (riscul 8) și ce număr propune SAGA după import pe PAP FE (riscul 7). XML-ul se generează cu
    `serie_spatiu` — la probă a ieșit cu `serie_lipita`.
-3. **Push-ul ramurii `saga-integrare` pe GitHub (NU pe `main`, fără unire) — așteaptă decizia
-   proprietarului despre preview-ul Vercel.** Ramura există DOAR în Codespace (26 de commit-uri
-   față de `main`, la `e91aca0`). Verificarea istoricului e făcută și e curată; un preview Vercel
-   ar lucra, cel mai probabil, pe baza REALĂ — detaliile în jurnalul pasului 6, „Înainte de push”.
-   De ales: push cu preview, sau întâi oprirea preview-ului pentru ramură.
+3. **Cheia API REALĂ** (generată de proprietar din SAGA WEB, păstrată de el) — se introduce DOAR
+   din admin, cu „Salvează cheia” (după pasul 7). Nu se dă în chat, nu se pune în variabile de
+   mediu sau în fișiere. Decizia din 11 noiembrie 2026: **fără instanța de test SAGA**.
+
+Făcut la 11 noiembrie 2026: push-ul ramurii `saga-integrare` pe GitHub, CU preview Vercel (fără
+unire în `main`). De acum, tot ce ține de SAGA, date firmă și facturi se face doar din preview
+sau local (regula din CLAUDE.md).
 
 **De aflat (blochează pașii următori):**
 4. De la **contabilă** — întrebările deschise din E: 1 (formatul numărului și al datei; ideal
@@ -30,14 +32,18 @@ proprietarului.
    5 (gestiune), 6 (reducerea), 7 (data facturii și scadența), 8 (momentul facturării), 9 (forma
    stornării), 10 (transportul comenzilor vechi), 11 (e-Factura prin SAGA), 12 (contorul PAP FE),
    13 (TVA la încasare), 14 (codificarea), 15 (Nr. Reg. Com. al clienților firmă).
-5. De la **suportul SAGA** — adresa instanței de test și cheia pentru ea (fără ea pasul 7 nu
-   începe), dubla încărcare la reîncercare, formatul raportului, durata unui import, contorul seriei.
+5. De la **suportul SAGA** (nu mai blochează pasul 7) — dubla încărcare la reîncercare, formatul
+   raportului, durata unui import, contorul seriei.
 
 **Pașii de cod rămași** (din C, câte unul, după confirmare):
 6. Pasul 7 — clientul API (`saga_cheie`, `saga_blocare`, `saga_trimiteri`, `lib/saga.ts`,
-   „Testează conexiunea”, „Salvează cheia”).
+   „Testează conexiunea”, „Salvează cheia”), direct pe contul REAL: cheia doar din admin;
+   „Testează conexiunea” doar cu citiri (`GetArticol`), niciodată Import; un singur loc care
+   folosește și rotește cheia; cheia blocată → regenerată din SAGA WEB și salvată din nou în admin.
 7. Pasul 8 — trimiterea („Trimite în SAGA”, reîncercare, raportul, „Marchează confirmată”,
-   acțiunea în masă); blocată până sunt alese `format_numar` și `format_data`.
+   acțiunea în masă); blocată până sunt alese `format_numar` și `format_data`. **Probele de
+   trimitere: pe seria PROBA, cu `importAutomat=false`, împreună cu contabila**, care șterge
+   importul nevalidat din Diverse → Import date. PAP FE nu se folosește la probe.
 8. Pasul 9 — verificarea articolelor prin `GetArticol`.
 9. Pasul 10 — stornarea (`storneaza_factura` + butonul).
 10. Pasul 11 — textele (Integrări, Facturi, pagina comenzii) și `CLAUDE.md`.
@@ -383,6 +389,16 @@ rotiri int default 0, cheie_anterioara_hash text)`. **RLS pornit, NICIO politic�
 Se scrie doar din ruta `/api/saga` (acțiunea „salvează cheia”), după `is_facturare()`.
 Panoul vede doar „cheie setată: da / nu, rotită ultima dată la …”.
 
+**Decizia din 11 noiembrie 2026 — cheia e cea REALĂ, fără instanță de test:**
+- cheia se introduce DOAR din admin („Salvează cheia”) și ajunge DOAR în `saga_cheie`. Nu trece
+  prin chat, prin variabile de mediu (Vercel sau `.env.local`) sau prin fișiere; asistentul n-o vede;
+- **un singur loc o citește, o folosește și o rotește**: `cere()` din `lib/saga.ts`, sub lacătul
+  din A.11. Niciun script nu are copia lui de cheie — un al doilea deținător al cheii ar rata o
+  rotire și ar bloca-o (docs/saga-api.md, secțiunea 1);
+- **cheia blocată** (401/403 de la SAGA) se regenerează din SAGA WEB (Utilizatori → Integrare
+  API → Generează cheie de acces) și se salvează din nou în admin. Mesajul din panou spune exact
+  asta; aplicația nu încearcă nimic singură.
+
 ### A.11 Blocarea: `saga_blocare` + funcții
 
 `saga_blocare (unic boolean PK default true check (unic), detinator uuid, pana timestamptz
@@ -519,7 +535,7 @@ ca azi). Valorile le scrie proprietarul din formular — **nu se pun în cod și
 | `app/admin/facturi/articole/page.tsx` | potrivirea categorie → articol SAGA, cu „Verifică în SAGA” (`GetArticol`) |
 | `components/admin/FacturaSaga.tsx` | cardul de facturare refolosit în pagina comenzii și în detaliu |
 | `scripts/verifica-saga.mjs` | verificările fără rețea: rotunjirea (cazuri limită, storno), XML-ul (structură, escape, nume fișier), parsarea raportului (exemplul din documentație + variante), județele |
-| `scripts/verifica-saga-api.mjs` | verificările pe instanța de TEST SAGA (D.5) |
+| `scripts/verifica-saga-api.mjs` | verificările clientului API pe un SAGA SIMULAT local, fără cheia reală și fără rețea (D.5) |
 | `docs/saga-plan.md` | acest fișier |
 
 ### Modificate
@@ -570,9 +586,13 @@ la confirmarea proprietarului.
    câmpul „Data de start a facturării” intră în cardul Saga din Integrări. **Aici factura există complet,
    fără niciun apel la SAGA** — se poate importa manual în SAGA WEB, ca probă, XML-ul descărcat.
 7. **Clientul API** — `saga_cheie`, `saga_blocare`, `saga_trimiteri`, `lib/saga.ts`,
-   „Testează conexiunea” și „Salvează cheia” în Integrări. Prima atingere a SAGA, pe instanța de test.
+   „Testează conexiunea” și „Salvează cheia” în Integrări. Prima atingere a SAGA, **direct pe
+   contul REAL** (decizia din 11 noiembrie 2026, fără instanță de test): cheia doar din admin;
+   „Testează conexiunea” face doar citiri (`GetArticol`), niciodată Import.
 8. **Trimiterea** — „Trimite în SAGA”, „Reîncearcă”, parsarea raportului, „Marchează confirmată”,
    jurnalul în detaliu, acțiunea în masă. **Blocată până sunt alese `format_numar` și `format_data`.**
+   Probele: pe seria **PROBA**, cu `importAutomat=false`, împreună cu contabila, care șterge
+   importul nevalidat din Diverse → Import date. **PAP FE nu se folosește la probe.**
 9. **Verificarea articolelor** prin `GetArticol` în pagina de potrivire.
 10. **Stornarea** — `storneaza_factura` + butonul.
 11. **Textele** — Integrări, Facturi, pagina comenzii; `CLAUDE.md`.
@@ -700,25 +720,38 @@ Ce se verifică (pe producție în tranzacții anulate, cu seria „TEST”; con
 Emite → modifică → retrage → emite iar (același număr) → descarcă XML. Rolurile: operatorul nu
 vede „Facturi”, contabilul vede tot în afară de Integrări.
 
-### D.4 XML-ul importat MANUAL în SAGA WEB de test
+### D.4 XML-ul importat MANUAL în SAGA WEB (contul real, fără validare)
 Înainte de orice cod de API: XML-ul descărcat (pasul 6) se încarcă de mână în SAGA, din
 Diverse → Import date. Așa aflăm dacă SAGA îl acceptă, cum arată numărul, ce face cu
 `InformatiiSuplimentare` — fără să riscăm cheia.
 
-### D.5 API-ul, pe instanța de TEST SAGA — `scripts/verifica-saga-api.mjs`
-Cu cheia de test, în variabile de mediu (niciodată în bază):
-1. `GetArticol` pe un cod existent și pe unul inexistent (200 / 400).
-2. Import cu o factură bună → 200; verificat în SAGA că apare la Import date, nevalidată.
-3. Aceeași factură din nou → raportul „importata … deja” → tratat ca `trimisa`.
-4. O factură cu clientul gol → 422 → `eroare` cu mesajul din raport.
-5. Un fișier cu una bună și una greșită → 207 → fiecare cu starea ei.
-6. XML stricat → 400.
-7. **Rotirea cheii**: după fiecare apel, se verifică dacă a venit `X-Saga-Refresh-Token` și că
-   apelul următor folosește cheia nouă. Plus: două apeluri pornite simultan → al doilea
-   așteaptă sau refuză („o trimitere e deja în curs”), niciodată paralel.
-8. Funcție omorâtă la mijloc (simulat: lacătul luat, procesul oprit) → după 90 s lacătul expiră.
-9. **Niciun log, niciun răspuns către browser nu conține cheia** — căutare textuală în jurnal
-   și în răspunsurile rutei.
+### D.5 API-ul — fără instanță de test (decizia din 11 noiembrie 2026)
+
+**Nu există instanță de test**: se lucrează direct pe contul REAL, cu cheia reală, pe care o ține
+proprietarul și o introduce doar din admin (A.10). De aici trei niveluri:
+
+**1. `scripts/verifica-saga-api.mjs` — pe un SAGA SIMULAT, fără cheie reală și fără rețea.**
+Pornește un server HTTP local care imită SAGA (răspunsuri 200 / 207 / 400 / 401 / 422, antetul
+`X-Saga-Refresh-Token`, întârzieri) și cheamă funcțiile REALE din `lib/saga.ts`, cu depozitul de
+cheie și lacătul înlocuite de imitații în memorie. Verifică:
+1. antetele trimise (`Authorization: Bearer …`, `X-Saga-Cod-Fiscal` cu CIF-ul curățat);
+2. **rotirea**: cheia nouă din antet se salvează ÎNAINTE de citirea corpului, inclusiv la răspunsuri
+   de eroare, iar apelul următor o folosește;
+3. două apeluri simultane → al doilea refuză („o operație SAGA e deja în curs”), niciodată paralel;
+4. lacătul se eliberează și la eroare, și la timeout;
+5. 401 / 403 → mesajul „cheie blocată: regenerați din SAGA WEB și salvați-o din nou în admin”;
+6. `GetArticol`: 200 XML → articolul citit; 400 JSON → „cod inexistent”;
+7. **cheia nu apare nicăieri**: nici în rezultatele întoarse, nici în rândurile de jurnal, nici în
+   mesajele de eroare (căutare textuală).
+
+**2. „Testează conexiunea” din admin, pe contul real — DOAR citiri.** Face un singur `GetArticol`
+(codul articolului implicit, dacă e setat; altfel un cod care nu există → 400, care tot dovedește
+că cheia e acceptată). **Niciodată `Import`**: nu există cale de import în pasul 7.
+
+**3. Trimiterile (pasul 8), pe contul real — doar pe seria PROBA**, cu `importAutomat=false`,
+împreună cu contabila, care șterge importul nevalidat din Diverse → Import date. PAP FE nu se
+folosește la probe. Cazurile de probat atunci: o factură bună (200), aceeași din nou (dublură),
+una cu clientul gol (422), un fișier cu una bună și una greșită (207).
 
 ### D.6 Proba pe contul real
 O singură factură, pe o comandă reală, după ce contabila a validat XML-ul de la D.4. Se verifică
@@ -752,8 +785,12 @@ obișnuite.
    Atenuare: **din ziua pornirii, facturarea manuală pe PAP FE se oprește complet** — și
    stornările (regula de la A.15) —; numărul de start se ia în aceeași zi, după ultima factură
    manuală (Procedura de pornire); confirmarea explicită din admin (A.4).
-5. **Instanța de test SAGA** — documentația o pomenește, dar adresa ei nu apare. Fără ea,
-   pasul 7 (clientul API) nu poate începe.
+5. **Fără instanță de test — totul pe contul REAL** (decizia din 11 noiembrie 2026; înlocuiește
+   riscul vechi „adresa instanței de test lipsește”). Riscul: o probă greșită ajunge în SAGA-ul
+   real, iar o cheie rotită și pierdută blochează contul real. Atenuare: cheia doar din admin, un
+   singur loc care o rotește (A.10, A.11); „Testează conexiunea” doar cu `GetArticol`; nicio cale de
+   Import în pasul 7; probele de trimitere doar pe seria PROBA, cu `importAutomat=false`, șterse
+   nevalidate de contabilă; testele automate ale clientului pe un SAGA simulat (D.5).
 7. **Contorul intern al SAGA pentru PAP FE** (risc nou, 10 noiembrie 2026) — NU știm dacă un
    import XML avansează contorul de numerotare din SAGA pentru seria PAP FE. Dacă nu-l
    avansează, SAGA „crede” în continuare că următorul număr e cel de la pornire, iar o factură
@@ -857,7 +894,6 @@ actuală („PAP FE”, ultimul număr 14190), capitalul social (200 RON) și ba
     schimbă nimic; se poate completa de mână pe factură, prin „Modifică”, înainte de trimitere.
 
 ### Întrebări pentru SAGA (suport)
-- Adresa instanței de test și cum primim o cheie pentru ea.
 - Dublura la reîncărcare cu `importAutomat=false` (riscul 2).
 - Formatul garantat al raportului 207/422.
 - Cât timp poate dura un import (pentru timeout-uri, sub limita de 60 s a funcțiilor).
@@ -1882,8 +1918,8 @@ Editor (cod: commit `c49241a` pe `saga-integrare`, fără push):
 - **NEFĂCUT încă: importul manual al XML-ului în SAGA WEB** (D.4), deci riscurile 6, 7 și 8 rămân
   deschise.
 
-**Pasul 7 NU a început** — cerut explicit de proprietar; adresa instanței de test SAGA încă
-lipsește (riscul 5).
+**Pasul 7 NU a început** la data probei — cerut explicit de proprietar. (Adresa instanței de test
+nu mai e necesară: decizia din 11 noiembrie 2026, riscul 5.)
 
 #### După probă: ce s-a schimbat (11 noiembrie 2026, commit `e91aca0`)
 
@@ -1940,8 +1976,8 @@ Verificare: `node scripts/verifica-saga-xml.mjs` → 73 de verificări trecute.
 - **Fără preview**: înainte de push, Vercel → Settings → Git → „Ignored Build Step”, sau o linie
   în `vercel.json` care oprește build-ul pentru `saga-integrare` — un commit în plus, care ar
   ajunge în `main` la unire; inofensiv.
-- **Decizia proprietarului**: push cu preview, sau întâi oprirea preview-ului. Până atunci,
-  niciun push.
+- **Decizia proprietarului (11 noiembrie 2026)**: push CU preview, fără unire. Făcut:
+  `origin/saga-integrare`; Vercel a pornit build-ul preview-ului.
 
 Commit-urile acestui schimb de mesaje: `39daacf` (pasul 5 notat ca rulat, precizările despre
 pasul 4 și backup, regula paginii Integrări deschise), `c49241a` (pasul 6).
@@ -2155,6 +2191,6 @@ PAP FE nu e atinsă în niciun pas: numerele ei se setează abia în ziua pornir
 #### Următorul
 
 Pasul 7 — clientul API SAGA (`saga_cheie`, `saga_blocare`, `saga_trimiteri`, `lib/saga.ts`,
-„Testează conexiunea” și „Salvează cheia”). Cere adresa instanței de test SAGA (riscul 5).
+„Testează conexiunea” și „Salvează cheia”). Direct pe contul real, fără instanță de test (riscul 5).
 Începe doar după confirmare.
 

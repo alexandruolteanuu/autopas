@@ -151,9 +151,9 @@ Toate `GET`, prefix `https://web.sagasoft.ro/api/v20260225/Situatii/`:
 1. Import cu `importAutomat = false` → clientul verifică și poate schimba denumirea în SAGA înainte de validare.
 2. Fiecare factură primește `GUID_factura` = ID-ul intern din aplicație (identificare sigură, evită dublurile).
 3. Linii: articolul din gestiunea SAGA (prin tabela de potrivire categorie site → `CodArticolClient`), iar numele complet al piesei în `InformatiiSuplimentare`.
-4. Serie de facturi separată pentru aplicație (ex: `APD`), stabilită cu contabila, ca să nu se suprapună cu facturile emise manual în SAGA.
+4. ~~Serie de facturi separată~~ — decizia din 10.11.2026: aplicația continuă seria **„PAP FE”** (vezi `docs/saga-plan.md`, A.4).
 5. Cheia API în baza de date, cu rotire automată și apeluri serializate (vezi secțiunea 1).
-6. Testare întâi pe instanța de test SAGA, apoi pe contul real.
+6. ~~Testare întâi pe instanța de test SAGA~~ — decizia din 11.11.2026: **fără instanță de test**, direct pe contul real; cheia doar din admin, „Testează conexiunea” doar cu `GetArticol`, probele de import pe seria PROBA cu `importAutomat = false` (vezi `docs/saga-plan.md`, D.5).
 
 ## 7. De confirmat cu contabila / clientul
 
