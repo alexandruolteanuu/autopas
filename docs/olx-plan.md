@@ -597,3 +597,23 @@ Se schimbă din Admin → Anunțuri OLX → Potrivirea categoriilor; o potrivire
 Riscuri — doar raportate, nu blochează: 203 titluri cu peste 50% majuscule dacă se numără doar literele; 118 coduri care pot fi luate drept telefon; 1 piesă fără poze. Corecturi automate: 31 de descrieri cu semne repetate, 1 titlu la majuscule, 1 descriere completată (prea scurtă). Setările anunțurilor (oraș, contact) sunt complete.
 
 **Urmează**: proba pe UN anunț real (de preferat o piesă dintr-o categorie sigură, ex. un far, care are și cod de piesă — ca să vedem dacă OLX îl ia drept telefon). Fără publicare în masă până la pasul 3.
+
+### Regula după titlu pentru cele două categorii amestecate (13 noiembrie 2026, decizia proprietarului)
+Peste potrivirea pe categorie, DOAR pentru acestea două (`REGULI_TITLU` / `categorieDinTitlu` în `lib/olx-anunt.mjs`;
+titlul comparat fără diacritice, cu litere mici). Restul celor „de verificat” rămân cum au fost alese.
+
+| Categoria noastră | Titlul conține | → Frunza OLX | Piese | Altfel → | Piese |
+|---|---|---|---|---|---|
+| 18 EGR și Clapetă accelerație | „EGR”, „răcitor (de) gaze” | Motoare și accesorii › Recirculare gaze EGR (3630) | 164 | Clapete de accelerație (3629) | 160 |
+| 20 Radiatoare și Ventilatoare | „ventilator(oare)”, „electroventilator(oare)”, „GMV” / „GMW” | Sistem de răcire a motorului › Ventilatoare radiator (3587) | 109 | Radiatoare (3578) | 120 |
+
+Față de regula cerută („EGR”; „ventilator / electroventilator / GMV”) s-au adăugat, după măsurare: pluralul
+(„Ventilatoare”, „Panou electroventilatoare” — ~15 piese ar fi rămas la Radiatoare), forma „GMW” (scrisă așa în
+titluri) și „răcitor gaze” (~40 de răcitoare EGR fără cuvântul „EGR” ar fi ajuns la Clapete). `contextAnunt()`
+încarcă și frunzele regulilor. Raportul după regulă: tot 8.746 / 8.746 gata.
+
+### Proba pe UN anunț real — piesa aleasă: AP-001983 (id 1983)
+„Injectoare BMW F31 F10 F07 F20 X1 F48 X3 F25 X4 F26 F32 F36 F11 2.0 d B47D20A 2015 2016”, 500 lei, stoc 1, 2 poze.
+Categoria: Piese auto › Sistem de alimentare cu combustibil › Injectoare (sigură, din sugestii). Lămurește ambele riscuri:
+titlul are 67% majuscule numărate pe litere (sub 50% pe tot textul, deci pleacă neschimbat) și descrierea conține
+„COD: 0445110743” (cod Bosch de 10 cifre care începe cu 0). Nicio piesă-far nu le avea pe amândouă.

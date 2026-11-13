@@ -8,6 +8,7 @@ import { sbAdmin } from "@/lib/supabase";
 import { creeazaClientOlx, EroareOlx } from "@/lib/olx-api.mjs";
 import { SITE_URL } from "@/lib/config";
 import { pozaCsv } from "@/lib/feed-pieseauto";
+import { REGULI_TITLU } from "@/lib/olx-anunt.mjs";
 
 export { EroareOlx };
 
@@ -111,7 +112,8 @@ export async function contextAnunt() {
   ]);
   const mapari = new Map<number, { olx_categorie_id: number; atribute: { code: string; value: string }[] }>(
     ((m as any[]) ?? []).map((r) => [Number(r.categorie_id), r]));
-  const ids = Array.from(new Set(Array.from(mapari.values()).map((r) => r.olx_categorie_id)));
+  // Frunzele potrivirilor + ale regulilor după titlu (lib/olx-anunt.mjs, REGULI_TITLU).
+  const ids = Array.from(new Set([...Array.from(mapari.values()).map((r) => r.olx_categorie_id), ...REGULI_TITLU.map((r) => r.olx_categorie_id)]));
   const cats = ids.length
     ? ((await cere(sb.from("olx_categorii").select("id,cale,nume,photos_limit,atribute").in("id", ids), "categoriile OLX")) as any[])
     : [];
