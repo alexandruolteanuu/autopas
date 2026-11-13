@@ -253,3 +253,22 @@ nu se ating (activare / ștergere / preluare) și nu contează la garda de dublu
 Pasul „Citește anunțurile existente / câte par aceleași piese” a fost scos din plan. Garda din `lib/olx-publicare.mjs`
 preia acum doar un anunț cu același `external_id` creat DUPĂ revendicarea rândului (marjă de 6 h pentru fusul orar).
 Pasul 2 (partea cu OLX) unit în `main`.
+
+**Potrivirea categoriilor — făcută automat (13 noiembrie 2026), `scripts/olx-potriveste-categorii.mjs`.**
+Catalogul OLX adus întreg dintr-o cerere (`GET /categories` = 2.502 categorii; 280 de frunze sub „Piese auto”) în
+`olx_categorii`, cu căile. Cheia = categoria pe care o folosește generatorul (subcategoria piesei, altfel categoria):
+**291 de chei, 8.746 de piese**. Pentru fiecare: `/categories/suggestion` pe 5 titluri reale + pe numele categoriei.
+202 au ieșit sigure (≥ 60% + numele, sau ≥ 80% din ≥ 3); 89 se contraziceau și au fost alese după nume, din lista
+frunzelor; plus 9 corecturi la cele „sigure” care nimeriseră greșit (Planșă bord → Airbag-uri, Volantă → Ambreiaje,
+Spoilere → Bare…). Toate deciziile după nume: `scripts/olx-corectii-categorii.json` (`--corectii=`).
+**Atributele**: nicio frunză aleasă nu cere un atribut obligatoriu; se trimite peste tot `state = used`
+(„Second Hand”), opțional. „Marca”, „Model”, „Codul piesei”, „Poziție” există ca opționale — neatinse deocamdată.
+**De verificat de om** (scrise, dar alese cu îndoială): „EGR și Clapetă accelerație” (amestec, → Clapete),
+„Radiatoare și Ventilatoare” (amestec, → Radiatoare), „Alternator” (OLX n-are frunză, → Electromotoare și piese),
+cele patru categorii-sac („Alte piese de caroserie”, „Alte piese Electrică & Electronică”, „Diverse”, „Diverse
+accesorii auto”), „Calculator ABS” și „Senzor MAP” (alese după nume; piesele din ele par puse greșit la noi).
+**Limită măsurată**: OLX (CloudFront) a blocat IP-ul cu 403 „Request blocked” după ~700 de sugestii la rând; s-a
+ridicat singur în câteva minute. Scriptul are pauză de 1,5 s între sugestii și cache (`--cache=`).
+**Raportul pe catalog după potrivire**: 8.746 / 8.746 gata de publicat, 0 blocate. Riscuri (doar raportate):
+203 titluri cu > 50% majuscule numărate pe litere, 118 coduri care pot părea telefon, 1 piesă fără poze.
+Corecturi automate: 31 de descrieri cu semne repetate, 1 titlu la majuscule, 1 descriere completată.

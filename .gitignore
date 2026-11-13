@@ -27,3 +27,4 @@ dbg*.mjs
 # (docs/saga-plan.md, jurnalul pasului 4). Conțin datele clienților: NU se
 # comit niciodată. Bara din față: doar folderul din rădăcină.
 /.backup/
+olx-potriviri-propuse.json
