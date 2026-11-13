@@ -10,6 +10,9 @@ Lucrul: ramura `olx-integrare`, fără push pe `main` până la confirmare. Trei
   (pachete, promovări, `/paid-features`, `/packets`, comanda `extend`) aruncă eroare înainte de rețea. Un anunț
   `limited` doar se marchează și apare în panou; nu se activează niciodată un anunț `limited`.
 - Fără mesaje OLX în admin (nu se folosește `/threads`).
+- **Anunțurile vechi de pe cont (peste 2.000, puse manual, inactive) NU se ating** (decizia proprietarului,
+  13 noiembrie 2026): nici activare, nici ștergere, nici preluare, și nu contează la garda de dublură. Tot catalogul
+  se publică ca anunțuri NOI. Garda preia doar un anunț creat de aplicație (după revendicarea rândului piesei).
 - Tokenii și `client_secret` stau DOAR în tabela `olx_cont` (RLS fără nicio politică → doar serverul). Nu ajung în
   browser, în `settings.integrari` sau în jurnal. De aceea OLX NU are formular în cardul din Integrări (care rescrie tot
   rândul `integrari`): are propriile butoane, care merg la `/api/olx`.
@@ -72,8 +75,8 @@ conexiunea” pe contul real.
 - Coada (trigger → pg_net → `/api/olx-coada`), cu decizia luată la procesare din starea piesei de atunci:
   publicată + stoc → POST/PUT; stoc 0 → deactivate (`is_success: true`); înapoi pe stoc → activate (nu dacă `limited`);
   nepublicată / ștearsă → deactivate + delete. Plasa de 20% la retrageri, ca la dez.ro.
-- „Anunțuri OLX”: filtrele active / respinse / limited / erori; „Citește anunțurile existente” (câte, câte par aceleași
-  piese după titlu); „Publică tot catalogul pe OLX” în ritm controlat, cu progres și „Oprește”.
+- „Anunțuri OLX”: filtrele active / respinse / limited / erori; „Publică tot catalogul pe OLX” în ritm controlat, cu
+  progres și „Oprește”. (Pasul „Citește anunțurile existente” a fost SCOS — vezi decizia din 13 noiembrie 2026.)
 - **Verificare:** o piesă vândută de probă își retrage anunțul; lotul de 20 trimis fără dubluri.
 
 ---
@@ -243,3 +246,10 @@ Apoi confirmi, iar ramura se unește în `main` (codul cere tabela — de aceea 
 3. Schimbi prețul piesei, salvezi → „Actualizează pe OLX” → prețul nou pe OLX.
 4. „Dezactivează” → stare „dezactivat”; „Activează” → „activ” din nou.
 5. Îmi trimiți ce s-a văzut, plus: textul la majuscule / cod Bosch (dacă piesa are), poze, `auto_extend`, orice eroare.
+
+**Rezultat (13 noiembrie 2026):** migrarea 57 rulată — pre-verificarea 3 × true, Success, `verifica-olx-anunturi.sql`
+REZULTAT OK. **Decizie**: cele peste 2.000 de anunțuri vechi de pe cont sunt puse manual, inactive, și nu se reactivează —
+nu se ating (activare / ștergere / preluare) și nu contează la garda de dublură; catalogul se publică ca anunțuri noi.
+Pasul „Citește anunțurile existente / câte par aceleași piese” a fost scos din plan. Garda din `lib/olx-publicare.mjs`
+preia acum doar un anunț cu același `external_id` creat DUPĂ revendicarea rândului (marjă de 6 h pentru fusul orar).
+Pasul 2 (partea cu OLX) unit în `main`.
