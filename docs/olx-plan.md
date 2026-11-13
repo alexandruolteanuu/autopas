@@ -75,3 +75,38 @@ conexiunea” pe contul real.
 - „Anunțuri OLX”: filtrele active / respinse / limited / erori; „Citește anunțurile existente” (câte, câte par aceleași
   piese după titlu); „Publică tot catalogul pe OLX” în ritm controlat, cu progres și „Oprește”.
 - **Verificare:** o piesă vândută de probă își retrage anunțul; lotul de 20 trimis fără dubluri.
+
+---
+
+## Jurnalul pasului 1 (13 noiembrie 2026) — cod scris, migrarea 56 NErulată
+Commit pe ramura `olx-integrare` (fără push). `npm run build`: „Compiled successfully”. Pe OLX nu s-a rulat încă nimic.
+
+**Ce face**
+- **Tokenii** stau doar în `olx_cont` (nici adminul din browser nu-i vede). Singurul loc care îi folosește:
+  `lib/olx-api.mjs`. Reînnoire singură cu o oră înainte de expirare; tokenul nou se scrie în bază ÎNAINTE de folosire.
+- **Nimic nu se plătește singur**: listă închisă de apeluri — pachetele, promovările, `extend` și mesajele sunt refuzate
+  înainte de rețea. Verificată pe 12 cazuri: corectă.
+- **Conectarea**: Integrări → „OLX — anunțuri”: „Salvează aplicația”, „Conectează OLX”, „Testează conexiunea” (contul +
+  câte anunțuri are deja), orașul (căutat după coordonate) și contactul. `state`-ul merge o singură dată, 10 minute.
+- **Categoriile**: meniul „Anunțuri OLX” → `/admin/olx/categorii`, ca „Articole SAGA”: „Adu categoriile OLX”, căutare,
+  „Propune (OLX)”, atributele obligatorii.
+
+**De rulat în SQL Editor, în ordine**
+1. `scripts/pre-verifica-olx-conexiune.sql` → **4 × true**.
+2. `supabase/olx-conexiune.sql` (migrarea 56) → **Success**.
+3. `scripts/verifica-olx-conexiune.sql` → căsuța roșie: **„REZULTAT OK: …”**.
+
+**Verificarea pe contul real** (cere push pe ramura `olx-integrare` → preview Vercel; de confirmat de proprietar)
+- „Callback URL”-ul înregistrat la OLX trebuie să fie EXACT cel afișat în card (`https://<domeniu>/api/olx/callback`);
+  altfel conectarea pică cu eroare de la ei.
+1. Salvezi `client_id` și `client_secret`.
+2. „Conectează OLX” → „Testează conexiunea”: numele contului, „(cont business)”, numărul de anunțuri existente.
+3. Cauți orașul după coordonate, completezi contactul → „Salvează setările”.
+4. „Anunțuri OLX” → „Adu categoriile OLX” → potrivești câteva categorii.
+
+**Fișiere** — noi: `supabase/olx-conexiune.sql`, `scripts/pre-verifica-olx-conexiune.sql`,
+`scripts/verifica-olx-conexiune.sql`, `scripts/anuleaza-olx-conexiune.sql`, `lib/olx-api.mjs`, `lib/olx.ts`,
+`app/api/olx/route.ts`, `app/api/olx/callback/route.ts`, `app/admin/olx/categorii/page.tsx`, `docs/olx/olx-api.yaml`.
+Modificate: `app/admin/integrari/page.tsx`, `app/admin/layout.tsx`, `CLAUDE.md`.
+
+**Urmează**: pasul 2 (generatorul de anunț + primul anunț real), după confirmare.
