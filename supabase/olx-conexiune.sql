@@ -76,15 +76,21 @@ end $$;
 -- ---------- state-ul OAuth: o singură folosire, 10 minute ----------
 -- Întoarce cine a cerut conectarea, sau null dacă state-ul e greșit / expirat / folosit.
 -- State-ul merge în CORPUL cererii (RPC), nu într-un filtru din adresă.
+-- ATENȚIE (corectat 13 noiembrie 2026): `update … returning stare_oauth_de` întoarce valoarea
+-- DE DUPĂ `set`, adică null. De aceea se citește întâi (cu `for update`), apoi se golește.
+-- `for update` face consumarea atomică: a doua cerere simultană așteaptă, apoi nu mai găsește rândul.
 create or replace function public.olx_consuma_starea(p_stare text)
 returns uuid language plpgsql set search_path = public as $$
 declare v_de uuid;
 begin
   if p_stare is null or length(p_stare) < 32 then return null; end if;
+  select stare_oauth_de into v_de from public.olx_cont
+   where unic and stare_oauth = p_stare and stare_oauth_expira > now()
+   for update;
+  if not found then return null; end if;
   update public.olx_cont
      set stare_oauth = null, stare_oauth_expira = null, stare_oauth_de = null
-   where unic and stare_oauth = p_stare and stare_oauth_expira > now()
-  returning stare_oauth_de into v_de;
+   where unic;
   return v_de;
 end $$;
 

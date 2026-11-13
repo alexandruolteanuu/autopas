@@ -110,3 +110,9 @@ Commit pe ramura `olx-integrare` (fără push). `npm run build`: „Compiled suc
 Modificate: `app/admin/integrari/page.tsx`, `app/admin/layout.tsx`, `CLAUDE.md`.
 
 **Urmează**: pasul 2 (generatorul de anunț + primul anunț real), după confirmare.
+
+**Corectura din 13 noiembrie 2026 (testul pasului 1 a picat: „state-ul corect nu a fost acceptat”)**
+Cauza: `olx_consuma_starea` făcea `update … set stare_oauth_de = null … returning stare_oauth_de` — `RETURNING` dă
+valoarea DE DUPĂ `set`, deci întorcea mereu null. Rândul unic din `olx_cont` exista. Corectat în
+`supabase/olx-conexiune.sql`: citire cu `for update`, apoi golire. Amprenta corectă (fără `\r`):
+`3b6e1dee251e95633806cf41792c3fca`. Pași: re-rulezi migrarea 56 (idempotentă), apoi testul.
