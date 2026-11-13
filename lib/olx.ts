@@ -18,6 +18,8 @@ export type SetariOlx = {
   contact_nume?: string; contact_telefon?: string;
   /** false după ce OLX a refuzat „external_url” pentru contul nostru (pasul 2). */
   external_url?: boolean;
+  /** Categoriile OLX în care curierul a fost refuzat („serviciul de curierat nu este disponibil”). */
+  fara_curier?: number[];
 };
 
 /** Ce vede panoul despre cont — niciodată tokenii sau secretul. */
@@ -157,6 +159,12 @@ export function depozitAnunturi() {
     faraExternalUrl: async () => {
       const s = ((await cere(sb.from("olx_cont").select("setari").eq("unic", true).maybeSingle(), "setări")) as any)?.setari ?? {};
       await cere(sb.from("olx_cont").update({ setari: { ...s, external_url: false } }).eq("unic", true).select("unic"), "setări");
+    },
+    // OLX nu oferă curier în categoria asta (ex. Uși): se reține, ca anunțurile din ea să plece fără.
+    faraCurier: async (categorieOlx: number) => {
+      const s = ((await cere(sb.from("olx_cont").select("setari").eq("unic", true).maybeSingle(), "setări")) as any)?.setari ?? {};
+      const lista = Array.from(new Set([...(s.fara_curier ?? []), Number(categorieOlx)]));
+      await cere(sb.from("olx_cont").update({ setari: { ...s, fara_curier: lista } }).eq("unic", true).select("unic"), "setări");
     },
   };
 }
