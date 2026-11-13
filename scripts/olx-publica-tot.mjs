@@ -1,7 +1,12 @@
 // ============================================================
 // PUBLICAREA ÎNTREGULUI CATALOG PE OLX, DIN TERMINAL (13 noiembrie 2026, cerut de proprietar)
 //
-//   node scripts/olx-publica-tot.mjs [--limita=N] [--uscat] [--pauza-ms=1500]
+//   node scripts/olx-publica-tot.mjs [--limita=N] [--uscat] [--pauza-ms=1500] [--parte=K/N]
+//
+// `--parte=0/2` și `--parte=1/2`, rulate în paralel, împart piesele după id (id % N = K): două
+// trimiteri deodată, fără să se calce (și oricum rândul piesei se revendică înainte de POST).
+// Măsurat la 13 noiembrie 2026: o piesă = ~2,7 s la OLX (POST) + 0,1 s căutarea + scrierile;
+// cu două părți și pauză 0,5 s, ~1 cerere / s în total — sub ritmul la care OLX a blocat IP-ul.
 //
 // Folosește EXACT `publica` din lib/olx-publicare.mjs — aceeași funcție ca butonul de pe
 // pagina piesei, cu aceleași gărzi: un singur anunț pe piesă (rândul se revendică înainte de
@@ -25,13 +30,15 @@ const arg = (n) => process.argv.find((a) => a.startsWith(`--${n}=`))?.split("=")
 const LIMITA = Number(arg("limita")) || Infinity;
 const USCAT = process.argv.includes("--uscat");
 const PAUZA_MS = Number(arg("pauza-ms")) || 1500;
+const [PARTE, PARTI] = (arg("parte") ?? "0/1").split("/").map(Number);
+if (!(PARTI >= 1 && PARTE >= 0 && PARTE < PARTI)) { console.error("--parte=K/N greșit (ex. 0/2)."); process.exit(2); }
 const SITE = (arg("site") ?? "https://autopas-dezmembrari.ro").replace(/\/+$/, "");
 const COLOANE = "id,nume,slug,stare_nota,ani,compat,oem,cod_intern,pret_lei,pret_sufix,poze,stoc,publicat,categorie_id,subcategorie_id";
 
 const { url, antete, rest } = bazaRest();
 const client = clientOlxRest();
 const asteapta = (ms) => new Promise((r) => setTimeout(r, ms));
-const acum = () => new Date().toLocaleTimeString("ro-RO", { timeZone: "Europe/Bucharest" });
+const acum = () => new Date().toLocaleTimeString("ro-RO", { timeZone: "Europe/Bucharest" }) + (process.argv.some((a) => a.startsWith("--parte=")) ? ` [${arg("parte")}]` : "");
 
 /** Geamănul lui `pozaCsv` din lib/feed-pieseauto.ts (fișier TS, nu se poate importa de aici). */
 function poza(u) {
@@ -92,7 +99,7 @@ const DE_REACTIVAT = ["removed_by_user", "outdated"];
 const existente = await citesteTotRest(url, antete, "olx_anunturi?select=product_id,advert_id,status&advert_id=not.is.null&order=id", { eticheta: "anunțuri" });
 const viu = new Set(existente.filter((r) => !DE_REACTIVAT.includes(r.status)).map((r) => r.product_id));
 const reactivat = new Set(existente.filter((r) => DE_REACTIVAT.includes(r.status)).map((r) => r.product_id));
-const deFacut = piese.filter((p) => !viu.has(p.id)).slice(0, LIMITA);
+const deFacut = piese.filter((p) => !viu.has(p.id) && p.id % PARTI === PARTE).slice(0, LIMITA);
 console.log(`${acum()} ${piese.length} piese publicate cu stoc; ${viu.size} au deja anunț viu; de trimis acum: ${deFacut.length}` +
   ` (din care ${deFacut.filter((p) => reactivat.has(p.id)).length} de reactivat)${USCAT ? " (USCAT — nu se trimite nimic)" : ""}.`);
 if (USCAT) process.exit(0);
