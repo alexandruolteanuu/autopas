@@ -49,12 +49,13 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
   două reguli de dinainte — „Date firmă NU se salvează din site-ul live” și „tot ce ține de SAGA, date firmă
   și facturi se face DOAR din preview sau local” — **nu mai sunt valabile din momentul în care deploy-ul de
   producție de după unire s-a terminat**: adminul live are acum codul nou. Baza rămâne una singură (producția).
-- **Admin → Integrări: reîncarcă pagina ÎNAINTE de a salva un card** (10 noiembrie 2026). Orice
-  salvare rescrie TOT rândul `settings.integrari` cu ce era încărcat la deschiderea paginii — o
-  pagină rămasă deschisă dinaintea unei schimbări, salvată apoi pe ORICE card (FAN, Brevo…),
-  readuce valorile vechi pe toate, inclusiv pe Saga. Valabil și pe site-ul live, și pe ramură.
-  Cardul Saga salvat din site-ul LIVE (cod vechi) NU șterge câmpurile noi — pornește din
-  configurarea existentă și suprascrie doar `serie` și `activ` (verificat în codul de pe `main`).
+- **Admin → Integrări: salvarea unui card atinge DOAR acel card** (corectat la 13 noiembrie 2026). Până atunci
+  orice salvare rescria TOT rândul `settings.integrari` cu ce era încărcat la deschiderea paginii — o pagină
+  rămasă deschisă readucea valorile vechi pe toate cardurile (regula era „reîncarcă pagina înainte de a salva”).
+  Acum `salveaza` recitește rândul din bază chiar înainte de scriere și pune peste el doar câmpurile cardului
+  apăsat (ce a scris serverul între timp, de ex. tokenul dez.ro, rămâne). Pagina e o listă compactă: un rând pe
+  integrare, cu starea REALĂ (bifa „Activă” salvată, contul FAN din variabile, contul OLX conectat), se deschide
+  câte una, ancora din adresă (`#olx`, `#saga`…) o deschide direct.
 - **Serverul local se oprește ÎNAINTE de `npm run build`** (10 noiembrie 2026). Un `next start`
   rămas pornit își reîmprospătează paginile (`revalidate = 300`) și poate rescrie în `.next` o
   pagină VECHE peste build-ul nou — s-a întâmplat cu `/admin/setari`, care arăta formularul vechi.

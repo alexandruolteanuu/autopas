@@ -1,84 +1,102 @@
 "use client";
-// INTEGRĂRI — starea reală a fiecărei conexiuni + ce trebuie făcut ca s-o activezi.
+// INTEGRĂRI — o listă compactă: un rând pe integrare, cu starea REALĂ (din configurarea
+// salvată) și o propoziție. Se deschide câte una (adresa păstrează ancora: #olx, #saga…),
+// iar pașii de configurare stau restrânși — deschiși doar cât integrarea nu e pornită.
 import { useEffect, useState, useCallback } from "react";
 import { sbBrowser, scrieVerificat } from "@/lib/supabase";
 import { golesteCachePublic } from "@/lib/settings";
 
-type Stare = { nume: string; grup: string; stare: "activ" | "pregatit" | "viitor"; desc: string; pasi: string[] };
+type Stare = "activ" | "pregatit" | "viitor";
+type Integrare = {
+  id: string; nume: string; grup: string;
+  /** Starea când configurarea nu spune altceva (integrările fără bifă „Activă”). */
+  stare: Stare;
+  rezumat: string; desc: string; pasi: string[];
+};
 
-const INTEGRARI: Stare[] = [
-  { nume: "WhatsApp Business", grup: "Comunicare", stare: "activ",
-    desc: "Buton plutitor pe tot site-ul + mesaje precompletate cu numele piesei și codul OEM. Din admin: buton direct pe fiecare comandă și cerere.",
-    pasi: ["Schimbi numărul din Vercel → Settings → Environment Variables → NEXT_PUBLIC_WHATSAPP_PHONE (format 40722XXXXXX)"] },
-  { nume: "E-mail automat (Brevo)", grup: "Comunicare", stare: "pregatit",
-    desc: "Confirmarea de comandă către client, anunțul de comandă nouă către tine și confirmările la formulare. Rândul intră în coadă în ACEEAȘI tranzacție cu comanda, deci un client care închide tabul imediat după plasare nu te lasă neanunțat. Cât timp câmpurile de mai jos sunt goale, nu pleacă niciun mesaj și nu se pierde nimic — coada așteaptă. Confirmarea NU conține costul livrării: acela se stabilește după cântărire și se comunică la telefon.",
-    pasi: ["Cutia contact@ trebuie să existe întâi (ImprovMX) și domeniul verificat la Brevo — vezi docs/email.md",
+const INTEGRARI: Integrare[] = [
+  { id: "whatsapp", nume: "WhatsApp Business", grup: "Comunicare", stare: "activ",
+    rezumat: "Butonul de pe site și mesajele precompletate din admin.",
+    desc: "Buton plutitor pe tot site-ul, cu mesaje precompletate (numele piesei și codul OEM). În admin: buton direct pe fiecare comandă și cerere.",
+    pasi: ["Numărul se schimbă din Vercel → Settings → Environment Variables → NEXT_PUBLIC_WHATSAPP_PHONE (format 40722XXXXXX)"] },
+  { id: "email", nume: "E-mail automat (Brevo)", grup: "Comunicare", stare: "pregatit",
+    rezumat: "Confirmarea comenzii către client și anunțul de comandă nouă către tine.",
+    desc: "Rândul intră în coadă în aceeași tranzacție cu comanda, deci un client care închide tabul imediat după plasare nu te lasă neanunțat. Cât timp integrarea e oprită, nu pleacă niciun mesaj și nu se pierde nimic — coada așteaptă. Confirmarea NU conține costul livrării.",
+    pasi: ["Domeniul verificat la Brevo și redirecționarea contact@ (ImprovMX) — vezi docs/email.md",
            "Brevo → SMTP & API → Generate a new API key → o lipești mai jos",
-           "Adresa de notificări: unde vrei să primești anunțul de comandă nouă (ex. pieseneamt@yahoo.ro)",
-           "Bifezi „Activă”, salvezi, apoi apeși „Trimite un test” și verifici INCLUSIV folderul Spam",
-           "⚠ Înainte de activare: politica de confidențialitate trebuie să îl treacă pe Brevo la destinatari (e deja actualizată)"] },
-  { nume: "Saga — facturare", grup: "Facturare", stare: "activ",
-    desc: "Facturile se emit din pagina comenzii și se trimit în SAGA cu un buton. În SAGA le verifici și le validezi, apoi le trimiți în e-Factura tot din SAGA. Comenzile facturate direct în SAGA se notează pe comandă.",
+           "Adresa de notificări: unde primești anunțul de comandă nouă",
+           "Bifezi „Activă”, salvezi, apoi „Trimite un test” (verifici și Spam)"] },
+  { id: "saga", nume: "Saga — facturare", grup: "Facturare", stare: "activ",
+    rezumat: "Facturile se emit din comandă și se trimit în SAGA cu un buton.",
+    desc: "În SAGA le verifici și le validezi, apoi le trimiți în e-Factura tot din SAGA. Comenzile facturate direct în SAGA se notează pe comandă.",
     pasi: ["Comanda → „Emite factura”", "Factura → „Trimite în SAGA”",
            "În SAGA: Diverse → Import date → verifici și validezi; apoi e-Factura din SAGA",
            "Înapoi în admin: „Marchează confirmată”"] },
-  { nume: "FAN Courier (SelfAWB)", grup: "Curieri", stare: "pregatit",
-    desc: "Generezi AWB-ul direct din pagina comenzii: scrii câte colete, kilogramele și cele trei dimensiuni, apeși „Generează AWB”. Destinatarul, rambursul și conținutul vin singure din comandă. Eticheta se printează din același loc, iar AWB-ul apare și pe selfawb.ro, în Borderou. Transportul îl plătește firma la FAN (clientul îl plătește în ramburs, fiindcă e inclus în totalul comenzii).",
+  { id: "efactura", nume: "e-Factura ANAF (SPV)", grup: "Facturare", stare: "activ",
+    rezumat: "Se trimite din SAGA, după validare — din admin nu pleacă nimic la ANAF.",
+    desc: "Facturile ajung în e-Factura din SAGA, după ce le validezi acolo. Așa nu pleacă nicio factură de două ori.",
+    pasi: ["Validezi factura în SAGA", "O trimiți în e-Factura din SAGA"] },
+  { id: "fan", nume: "FAN Courier (SelfAWB)", grup: "Curieri", stare: "pregatit",
+    rezumat: "Calculul transportului și AWB-ul, direct din pagina comenzii.",
+    desc: "În comandă scrii coletele și kilogramele (dimensiunile sunt opționale): calculatorul dă prețul FAN, apoi „Generează AWB”. Destinatarul și rambursul (doar valoarea pieselor) vin din comandă. Transportul îl încasează FAN direct de la client. Eticheta se printează din același loc; AWB-ul apare și pe selfawb.ro.",
     pasi: ["Pe selfawb.ro: Client ID-ul e în dreapta sus → Editare cont → Opțiuni sucursală",
            "Completezi mai jos Client ID, utilizatorul și parola de pe selfawb.ro, salvezi",
-           "Apeși „Verifică conexiunea” — trebuie să apară serviciile contului",
-           "⚠ AWB-ul singur nu cheamă curierul: ori ceri la comenzi@fancourier.ro o ridicare zilnică automată, ori comanzi curierul din selfawb.ro"] },
-  { nume: "FAN Courier — retururi", grup: "Curieri", stare: "viitor",
-    desc: "AWB de RETUR: curierul merge la client și aduce coletul la depozit. Se generează din Admin → Cereri → Retururi, direct pe cererea clientului — adresa vine singură din comanda lui. Pe lângă AWB se plasează automat și comanda de curier (fără ea nu vine nimeni), iar eticheta o aduce curierul printată: clientul care returnează o piesă n-are de ce să aibă imprimantă. Codul e gata și testat pe contul de probă al FAN; așteaptă doar contul vostru.",
-    pasi: ["Creezi în SelfAWB un cont de client OCAZIONAL (fără contract) — e altul decât contul de livrare",
+           "„Verifică conexiunea” — trebuie să apară serviciile contului"] },
+  { id: "fan_retur", nume: "FAN Courier — retururi", grup: "Curieri", stare: "viitor",
+    rezumat: "AWB de retur cu ridicare de la client — așteaptă contul ocazional FAN.",
+    desc: "Se generează din Admin → Cereri → Retururi, pe cererea clientului; adresa vine din comanda lui. Comanda de curier se plasează automat, iar eticheta o aduce curierul printată. Codul e gata și testat pe contul de probă FAN.",
+    pasi: ["Creezi în SelfAWB un cont de client OCAZIONAL (fără contract) — altul decât contul de livrare",
            "Trimiți la cristian.branzan@fancourier.ro adresa de e-mail a contului și numele clientului cu contract de care se asociază plata",
-           "FAN îți răspunde cu Client ID-ul contului ocazional și cu valoarea pentru câmpul „payment” — le pui mai jos",
-           "Apeși „Verifică retururile” — trebuie să apară serviciile contului",
-           "⚠ Valoarea „payment” NU se ghicește: API-ul acceptă orice valoare fără să dea eroare, dar plata ajunge pe cine nu trebuie. Se pune exact ce transmite FAN"] },
-  { nume: "Plată cu cardul (Netopia / Stripe)", grup: "Plăți", stare: "viitor",
-    desc: "Acum: ramburs și transfer bancar. Cardul online necesită contract cu procesatorul și verificare KYC.",
-    pasi: ["Clientul deschide cont la procesator", "Primim cheile API", "Adăugăm pasul de plată în checkout"] },
-  { nume: "e-Factura ANAF (SPV)", grup: "Facturare", stare: "activ",
-    desc: "Facturile ajung în e-Factura din SAGA, după ce le validezi acolo. Din admin nu se trimite nimic la ANAF — așa nu pleacă nicio factură de două ori.",
-    pasi: ["Validezi factura în SAGA", "O trimiți în e-Factura din SAGA"] },
-  { nume: "Google Analytics 4", grup: "Analiză", stare: "pregatit",
-    desc: "Codul e scris și așteaptă doar ID-ul. Cât timp câmpul de mai jos e gol, în site NU se încarcă niciun script și nu pleacă nicio cerere către Google. Evenimentele de comerț (vizualizare piesă, adăugare în coș, comandă) sunt deja legate. Măsurarea pornește doar pentru vizitatorii care apasă „Accept toate” în bannerul de cookie-uri; traficul din /admin nu se numără niciodată.",
-    pasi: ["Cont GA4 → ID de măsurare (G-XXXXXXX)", "Îl lipești în câmpul de mai jos și salvezi — atât", "Verifici în GA4 → Rapoarte → Timp real că apari", "⚠ Înainte de a-l activa: Politica de cookies trebuie actualizată (vezi docs/google-analytics.md)"] },
-  { nume: "dez.ro — anunțuri", grup: "Reclame", stare: "pregatit",
-    desc: "Piesele publicate de pe site ajung ca anunțuri pe dez.ro, cu poze, preț și descriere. Prețul se ține la zi singur, iar anunțul unei piese vândute se retrage automat — piesele noastre sunt unicat, deci un anunț rămas în aer înseamnă un telefon degeaba. Cheia de aplicație e primită de la ei; utilizatorul și parola sunt ale contului nostru de pe dez.ro. Publicarea propriu-zisă se face din Admin → Anunțuri dez.ro.",
-    pasi: ["Lipești mai jos cheia API primită de la dez.ro",
-           "Pui utilizatorul și parola contului de pe dez.ro (contul care va apărea ca vânzător)",
-           "Bifezi „Activă”, salvezi, apoi mergi la Admin → Anunțuri dez.ro → „Testează conexiunea”",
-           "Acolo: aduci catalogul lor, potrivești mărcile și categoriile, publici o piesă de probă, apoi pornești tot",
-           "⚠ Locul de livrare (județ/localitate) îl iau ei din profilul contului de pe dez.ro — verifică-l acolo, nu se trimite din cod"] },
-  { nume: "OLX — anunțuri", grup: "Reclame", stare: "pregatit",
-    desc: "Piesele publicate de pe site ajung ca anunțuri pe contul OLX business al firmei, prin OLX Partner API. Aplicația NU cumpără nimic niciodată (pachete, promovări): un anunț care iese „limited” doar se marchează. Datele aplicației și tokenii stau doar în bază, într-o tabelă pe care browserul n-o poate citi.",
-    pasi: ["Lipești mai jos client_id și client_secret primite de la OLX → „Salvează aplicația”",
-           "„Conectează OLX” → te autentifici pe OLX cu contul business și accepți aplicația",
-           "„Testează conexiunea” → trebuie să apară numele contului și câte anunțuri are deja",
-           "Cauți orașul sediului după coordonate și pui numele de contact → „Salvează setările”",
-           "Admin → Anunțuri OLX → Categorii: aduci catalogul OLX și potrivești categoriile"] },
-  { nume: "Google Merchant Center", grup: "Reclame", stare: "activ",
-    desc: "Feed-ul de produse există și se reîmprospătează singur la 3 ore: /feed/google.xml. Conține toate piesele publicate, cu poză și preț. Adresa completă și numărul de produse le vezi în Admin → Feed și export.",
-    pasi: ["Cont Merchant Center → revendici domeniul (e deja verificat în Search Console)",
-           "Produse → Feeduri → Adaugă → „Preluare programată” → lipești adresa /feed/google.xml",
-           "Setări → Livrare: pui un tarif fix (costul real se comunică după comandă, deci Google are nevoie de o valoare)",
-           "ID-ul contului îl treci mai jos, doar ca să știm de care e vorba"] },
-  { nume: "Google Ads", grup: "Reclame", stare: "pregatit",
-    desc: "Codul de urmărire e scris și așteaptă ID-ul. Conversia „comandă plasată” pleacă automat cu valoarea calculată de server și cu numărul comenzii, deci nu se poate număra de două ori. Se încarcă DOAR pentru vizitatorii care acceptă cookie-urile de publicitate.",
-    pasi: ["Google Ads → Instrumente → Conversii → creezi acțiunea „Achiziție” (Site web, valoare din cod)",
-           "Copiezi ID-ul contului (AW-XXXXXXXXX) și eticheta conversiei (partea de după bară)",
-           "Le lipești mai jos și salvezi",
-           "Legi Google Ads cu GA4 și cu Merchant Center (din interfața Google Ads), ca să ai audiențe și Shopping"] },
-  { nume: "Meta — Facebook și Instagram", grup: "Reclame", stare: "pregatit",
-    desc: "Pixelul Meta și catalogul de produse. Catalogul se ia singur de la /feed/meta.csv. Pixelul trimite aceleași evenimente ca Analytics (vizualizare, adăugare în coș, checkout, comandă), cu ACELEAȘI id-uri de produs ca feed-ul — condiția fără de care reclamele dinamice nu funcționează.",
+           "FAN răspunde cu Client ID-ul contului ocazional și cu valoarea pentru „payment” — le pui mai jos",
+           "„Verifică retururile” — trebuie să apară serviciile contului",
+           "⚠ „payment” NU se ghicește: API-ul acceptă orice valoare, dar plata ajunge pe cine nu trebuie"] },
+  { id: "card", nume: "Plată cu cardul (Netopia / Stripe)", grup: "Plăți", stare: "viitor",
+    rezumat: "Plata online — acum se plătește doar ramburs la livrare.",
+    desc: "Cardul online cere contract cu procesatorul și verificare KYC.",
+    pasi: ["Contul la procesator", "Cheile API", "Pasul de plată în checkout"] },
+  { id: "dezro", nume: "dez.ro — anunțuri", grup: "Anunțuri și reclame", stare: "pregatit",
+    rezumat: "Piesele publicate pleacă automat ca anunțuri; vândutele se retrag singure.",
+    desc: "Prețul se ține la zi singur, iar anunțul unei piese vândute se retrage automat. Publicarea și potrivirile se fac din Admin → Anunțuri dez.ro. Locul de livrare îl iau ei din profilul contului de pe dez.ro.",
+    pasi: ["Cheia API primită de la dez.ro, utilizatorul și parola contului (vânzătorul)",
+           "Bifezi „Activă”, salvezi, apoi Admin → Anunțuri dez.ro → „Testează conexiunea”"] },
+  { id: "olx", nume: "OLX — anunțuri", grup: "Anunțuri și reclame", stare: "pregatit",
+    rezumat: "Anunțuri pe contul OLX business, prin OLX Partner API.",
+    desc: "Aplicația NU cumpără nimic (pachete, promovări). Datele aplicației și tokenii stau doar în bază, într-o tabelă pe care browserul n-o poate citi. Anunțurile vechi, puse manual pe cont, nu se ating.",
+    pasi: ["client_id și client_secret de la OLX → „Salvează aplicația”",
+           "„Conectează OLX” → autentificare cu contul business și acceptarea aplicației",
+           "„Testează conexiunea” → numele contului",
+           "Orașul (după coordonate) și numele de contact → „Salvează setările”",
+           "Potrivirea categoriilor OLX (link mai jos)"] },
+  { id: "merchant", nume: "Google Merchant Center", grup: "Anunțuri și reclame", stare: "activ",
+    rezumat: "Feed-ul de produse pentru Google Shopping: /feed/google.xml.",
+    desc: "Feed-ul se reîmprospătează singur la 3 ore și conține toate piesele publicate, cu poză și preț. Adresa completă și numărul de produse: Admin → Feed și export.",
+    pasi: ["Merchant Center → revendici domeniul (e verificat în Search Console)",
+           "Produse → Feeduri → Adaugă → „Preluare programată” → adresa /feed/google.xml",
+           "Setări → Livrare: un tarif fix (costul real se comunică după comandă)"] },
+  { id: "google_ads", nume: "Google Ads", grup: "Anunțuri și reclame", stare: "pregatit",
+    rezumat: "Conversia „comandă plasată”, cu valoarea calculată de server.",
+    desc: "Se încarcă DOAR pentru vizitatorii care acceptă cookie-urile de publicitate. Conversia pleacă cu numărul comenzii, deci nu se poate număra de două ori.",
+    pasi: ["Google Ads → Instrumente → Conversii → acțiunea „Achiziție” (Site web, valoare din cod)",
+           "ID-ul contului (AW-…) și eticheta conversiei (partea de după bară) → mai jos, salvezi",
+           "Legi Google Ads cu GA4 și cu Merchant Center"] },
+  { id: "meta", nume: "Meta — Facebook și Instagram", grup: "Anunțuri și reclame", stare: "pregatit",
+    rezumat: "Pixelul și catalogul pentru reclamele Facebook / Instagram.",
+    desc: "Catalogul se ia singur de la /feed/meta.csv. Pixelul trimite aceleași evenimente ca Analytics, cu aceleași id-uri de produs ca feed-ul.",
     pasi: ["Business Manager → Evenimente → creezi pixelul, copiezi ID-ul (15 cifre)",
-           "Business Manager → Setări → Domenii → adaugi domeniul și copiezi codul de verificare",
-           "Le lipești pe amândouă mai jos și salvezi (codul de verificare intră singur în pagină)",
-           "Commerce Manager → Catalog → Surse de date → Feed programat → lipești adresa /feed/meta.csv, la 4-6 ore"] },
+           "Business Manager → Setări → Domenii → codul de verificare",
+           "Le lipești mai jos și salvezi",
+           "Commerce Manager → Catalog → Surse de date → Feed programat → /feed/meta.csv, la 4–6 ore"] },
+  { id: "ga4", nume: "Google Analytics 4", grup: "Analiză", stare: "pregatit",
+    rezumat: "Statistici de vizitare — doar pentru cine acceptă cookie-urile.",
+    desc: "Cât timp ID-ul lipsește, în site nu se încarcă niciun script Google. Evenimentele de comerț sunt deja legate; traficul din /admin nu se numără.",
+    pasi: ["Cont GA4 → ID de măsurare (G-XXXXXXX) → mai jos, salvezi", "GA4 → Rapoarte → Timp real: verifici că apari"] },
 ];
 
-const CULORI = { activ: ["bg-ok/10 text-ok border-ok/30", "Activ ✓"], pregatit: ["bg-yellow-50 text-yellow-700 border-yellow-200", "Pregătit — așteaptă cont"], viitor: ["bg-paper text-mut border-line", "Fază următoare"] } as const;
+const ETICHETE: Record<Stare, [string, string]> = {
+  activ: ["bg-ok/10 text-ok border-ok/30", "Activ"],
+  pregatit: ["bg-yellow-50 text-yellow-800 border-yellow-300", "De configurat"],
+  viitor: ["bg-paper text-mut border-line", "Fază următoare"],
+};
 
 // câmpurile de configurare salvate în baza de date (settings → integrari)
 // `avansat`: câmpul stă în „Setări avansate”, restrânsă — setări care nu se mai schimbă după pornire.
@@ -536,19 +554,39 @@ function UneltEmail({ implicit }: { implicit: string }) {
   );
 }
 
+/** Un câmp al formularului de configurare. `autoComplete` NU e cosmetic (7 septembrie 2026):
+ *  Chrome vede un câmp `password` lângă unul text, crede că e un formular de autentificare
+ *  și pune peste amândouă contul cu care ești logat în /admin — utilizatorul dez.ro apărea
+ *  după un refresh ca adresa adminului, iar „Salvează” l-ar fi scris așa în bază.
+ *  `new-password` pe parole oprește euristica; `off` singur nu e respectat de Chrome. */
+function Camp({ c, valoare }: { c: { k: string; l: string; tip?: string }; valoare: any }) {
+  if (c.tip === "bifa")
+    return (
+      <label className="flex items-start gap-2 text-xs cursor-pointer">
+        {/* Bifă: nesalvată încă înseamnă „da” (vezi `configFan` din lib/fancourier.ts). */}
+        <input type="checkbox" name={c.k} className="mt-0.5" defaultChecked={(valoare ?? "on") === "on"} />
+        {c.l}</label>
+    );
+  return (
+    <div className="fld"><label>{c.l}</label>
+      <input name={c.k} type={c.tip ?? "text"} autoComplete={c.tip === "password" ? "new-password" : "off"} defaultValue={valoare ?? ""} /></div>
+  );
+}
+
+const Sageata = ({ deschis }: { deschis: boolean }) => (
+  <svg viewBox="0 0 20 20" className={`w-4 h-4 shrink-0 text-mut transition-transform ${deschis ? "rotate-180" : ""}`} aria-hidden="true">
+    <path d="M5 7.5l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 export default function Integrari() {
   const [env, setEnv] = useState<Record<string, boolean>>({});
   const [conf, setConf] = useState<Record<string, any>>({});
-  const [msg, setMsg] = useState("");
+  const [olxConectat, setOlxConectat] = useState(false);
+  const [deschis, setDeschis] = useState<string | null>(null);
   const [salvez, setSalvez] = useState<string | null>(null);
-  // Rezultatul ultimei salvări, legat de integrarea atinsă.
-  //
-  // DE CE nu ajunge `msg` (7 septembrie 2026): mesajul acela se afișează O
-  // SINGURĂ DATĂ, sus, deasupra grupurilor. Cine salvează un card din josul
-  // paginii — dez.ro e ultimul din „Reclame" — nu vede nimic: câmpurile își
-  // păstrează valorile, bifa rămâne bifată, deci ecranul arată exact ca înainte
-  // de apăsare. Prima reacție e „nu s-a salvat" și se apasă din nou, deși
-  // scrierea reușise. Confirmarea trebuie să fie lângă butonul apăsat.
+  // Rezultatul ultimei salvări (sau al verificării dinainte), lângă butonul apăsat —
+  // un mesaj afișat sus nu se vede când salvezi un card din josul paginii (7 septembrie 2026).
   const [rezultat, setRezultat] = useState<{ cheie: string; text: string; bun: boolean } | null>(null);
 
   const incarca = useCallback(async () => {
@@ -556,34 +594,55 @@ export default function Integrari() {
     const { data } = await sb.from("settings").select("valoare").eq("cheie", "integrari").single();
     setConf((data?.valoare as any) ?? {});
   }, []);
-  useEffect(() => { fetch("/api/integrari").then((r) => r.json()).then(setEnv).catch(() => {}); incarca(); }, [incarca]);
 
-  async function salveaza(cheie: string, valori: any) {
-    // Adresa pe care o cheamă baza de date TREBUIE să fie o adresă web. La
-    // 7 septembrie 2026 a ajuns acolo, din greșeală, o adresă de e-mail —
-    // `admin@autopas-dezmembrari.ro` — iar pg_net a refuzat-o cu „Bad scheme".
-    // Comanda AP-2026-01004 a rămas cu e-mailurile în coadă, nesemnalate nicăieri
-    // în panou. Câmpul se verifică acum ÎNAINTE de salvare: o adresă greșită se
-    // observă în două secunde, nu la a doua comandă pierdută.
+  useEffect(() => {
+    fetch("/api/integrari").then((r) => r.json()).then(setEnv).catch(() => {});
+    incarca();
+    // Starea OLX stă în tabela ei (nu în `settings`): se întreabă ruta, doar pentru etichetă.
+    (async () => {
+      const sb = sbBrowser();
+      const token = sb ? (await sb.auth.getSession()).data.session?.access_token : null;
+      const r = await fetch("/api/olx", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ actiune: "stare" }) }).catch(() => null);
+      const j = await r?.json().catch(() => null);
+      if (j?.ok) setOlxConectat(!!j.conectat);
+    })();
+    // Ancora din adresă deschide cardul (ex. întoarcerea de la OLX: …#olx).
+    const h = location.hash.slice(1);
+    if (INTEGRARI.some((i) => i.id === h)) setDeschis(h);
+  }, [incarca]);
+
+  function comuta(id: string) {
+    const nou = deschis === id ? null : id;
+    setDeschis(nou);
+    history.replaceState(null, "", `${location.pathname}${location.search}${nou ? `#${nou}` : ""}`);
+  }
+
+  /** Starea reală: bifa „Activă” salvată / contul conectat bat starea scrisă în listă. */
+  function stareReala(i: Integrare): Stare {
+    if (i.id === "fan" && env.fan) return "activ";
+    if (i.id === "olx" && olxConectat) return "activ";
+    const cheie = CHEI[i.nume];
+    if (cheie && conf[cheie]?.activ === true) return "activ";
+    return i.stare;
+  }
+
+  /** Verificările de dinainte de salvare. Întoarce mesajul de eroare sau null. */
+  function verifica(cheie: string, valori: any): string | null {
+    // Adresa chemată de baza de date TREBUIE să fie o adresă web: la 7 septembrie 2026 a ajuns
+    // acolo o adresă de e-mail, pg_net a refuzat-o („Bad scheme”) și e-mailurile au rămas în coadă.
     if (cheie === "email" || cheie === "dezro") {
       const u = String(valori.webhook_url ?? "").trim();
-      if (u !== "" && !/^https?:\/\/[^\s]+$/i.test(u)) {
-        setMsg("„Adresa pe care o cheamă baza de date” trebuie să fie o adresă web, nu una de e-mail. " +
-               `Valoarea corectă: https://autopas-dezmembrari.ro/api/${cheie === "email" ? "email-coada" : "dezro-coada"}`);
-        return;
-      }
+      if (u !== "" && !/^https?:\/\/[^\s]+$/i.test(u))
+        return "„Adresa pe care o cheamă baza de date” trebuie să fie o adresă web, nu una de e-mail. " +
+               `Valoarea corectă: https://autopas-dezmembrari.ro/api/${cheie === "email" ? "email-coada" : "dezro-coada"}`;
     }
-    // Cota și regimul TVA se verifică ÎNAINTE de salvare, cu aceleași reguli ca în
-    // bază (`saga_cota_tva`): o cotă scrisă greșit ar opri exportul abia la
-    // contabilitate. Aici se vede în două secunde.
+    // Saga: aceleași reguli ca în bază (`saga_cota_tva`) și listele închise ale pasului 6 —
+    // o valoare greșită ar opri exportul / XML-ul abia când e nevoie de el.
     if (cheie === "saga") {
       const cota = String(valori.cota_tva ?? "").trim().replace(",", ".").replace("%", "").trim();
-      if (cota !== "" && !(/^[0-9]+(\.[0-9]+)?$/.test(cota) && Number(cota) < 100)) {
-        setMsg(`Cota TVA „${valori.cota_tva}” nu e validă: scrie un număr între 0 și 99 (de exemplu 21), sau lasă gol pentru 21.`);
-        return;
-      }
-      // Listele închise ale pasului 6: o valoare scrisă greșit ar opri descărcarea XML-ului
-      // abia când e nevoie de el. Goală = încă nealeasă (permis).
+      if (cota !== "" && !(/^[0-9]+(\.[0-9]+)?$/.test(cota) && Number(cota) < 100))
+        return `Cota TVA „${valori.cota_tva}” nu e validă: scrie un număr între 0 și 99 (de exemplu 21), sau lasă gol pentru 21.`;
       const inchise: [string, string[]][] = [
         ["format_numar", ["serie_spatiu", "serie_lipita", "doar_numar"]],
         ["format_data", ["zi-luna-an", "zi.luna.an", "an-luna-zi"]],
@@ -594,168 +653,152 @@ export default function Integrari() {
       for (const [k, permise] of inchise) {
         const v = String(valori[k] ?? "").trim();
         valori[k] = v;
-        if (v !== "" && !permise.includes(v)) {
-          setMsg(`„${v}” nu e o valoare permisă pentru ${k}. Variante: ${permise.join(" / ")} (sau gol).`);
-          return;
-        }
+        if (v !== "" && !permise.includes(v)) return `„${v}” nu e o valoare permisă pentru ${k}. Variante: ${permise.join(" / ")} (sau gol).`;
       }
       // Adresa API-ului: doar https (cheia pleacă spre ea în antet).
       const urlApi = String(valori.url_api ?? "").trim();
       valori.url_api = urlApi;
-      if (urlApi !== "" && !/^https:\/\/[^\s]+$/i.test(urlApi)) {
-        setMsg(`Adresa SAGA („${urlApi}”) trebuie să înceapă cu https://. Lasă gol pentru adresa standard.`);
-        return;
-      }
+      if (urlApi !== "" && !/^https:\/\/[^\s]+$/i.test(urlApi))
+        return `Adresa SAGA („${urlApi}”) trebuie să înceapă cu https://. Lasă gol pentru adresa standard.`;
       const regim = String(valori.regim_tva ?? "").trim().toLowerCase();
-      if (regim !== "" && regim !== "normal") {
-        setMsg(regim === "marja" || regim === "marjă"
+      if (regim !== "" && regim !== "normal")
+        return regim === "marja" || regim === "marjă"
           ? "Regimul „marjă” nu e implementat. Lasă gol sau scrie „normal”."
-          : `Regimul TVA „${valori.regim_tva}” nu e cunoscut. Lasă gol sau scrie „normal”.`);
-        return;
-      }
+          : `Regimul TVA „${valori.regim_tva}” nu e cunoscut. Lasă gol sau scrie „normal”.`;
     }
-    // Schimbarea contului dez.ro invalidează token-ul memorat: el aparține
-    // utilizatorului cu care s-a făcut autentificarea, iar la ei e valabil 30 de
-    // zile indiferent de parolă. Fără linia asta, după mutarea pe alt cont am
-    // continua să publicăm în numele celui vechi, fără niciun semn.
-    if (cheie === "dezro") {
-      const vechi = conf.dezro ?? {};
-      if (valori.utilizator !== vechi.utilizator || valori.parola !== vechi.parola) {
-        valori.token = null;
-        valori.token_expira = null;
-      }
-    }
-    const sb = sbBrowser()!; setMsg(""); setRezultat(null); setSalvez(cheie);
-    const nou = { ...conf, [cheie]: valori };
-    // Ca la Setări: un UPDATE oprit de RLS nu dă eroare, dă zero rânduri. Aici
-    // conta dublu — credențialele de curier salvate „cu succes" în gol înseamnă
-    // AWB-uri care nu se generează, descoperite abia la primul colet.
-    const r = await scrieVerificat(sb.from("settings").update({ valoare: nou }).eq("cheie", "integrari"));
-    setSalvez(null);
-    if (!r.ok) {
-      setMsg(`Nu s-a salvat: ${r.eroare}`);
-      setRezultat({ cheie, text: `Nu s-a salvat: ${r.eroare}`, bun: false });
-      return;
-    }
-    // Aceeași regulă ca la Setări și la modul vacanță: după o salvare confirmată
-    // se golește cache-ul paginilor publice. Google Analytics nu depinde de el —
-    // își cere id-ul din browser, tocmai ca să nu rămână prins în HTML-ul static —
-    // dar orice altă valoare de aici care ar ajunge vreodată pe site are nevoie.
-    await golesteCachePublic();
-    setConf(nou);
-    setMsg("✓ Salvat.");
-    setRezultat({ cheie, text: "✓ Salvat.", bun: true });
-    incarca();
+    return null;
   }
 
+  /**
+   * Salvează DOAR câmpurile cardului apăsat, peste rândul RECITIT din bază chiar acum.
+   * Înainte (până la 13 noiembrie 2026) se rescria tot `settings.integrari` cu ce era
+   * încărcat la deschiderea paginii: o pagină veche, salvată pe ORICE card, readucea
+   * valorile vechi pe toate (inclusiv tokenul dez.ro, scris de server între timp).
+   */
+  async function salveaza(cheie: string, campuri: Record<string, any>) {
+    setRezultat(null);
+    const eroare = verifica(cheie, campuri);
+    if (eroare) { setRezultat({ cheie, text: eroare, bun: false }); return; }
+    const sb = sbBrowser()!; setSalvez(cheie);
+    const { data, error } = await sb.from("settings").select("valoare").eq("cheie", "integrari").single();
+    if (error) { setSalvez(null); setRezultat({ cheie, text: `Nu s-a salvat: ${error.message}`, bun: false }); return; }
+    const proaspat = ((data?.valoare as any) ?? {}) as Record<string, any>;
+    const vechi = proaspat[cheie] ?? {};
+    const valori = { ...vechi, ...campuri };
+    // Alt cont dez.ro = tokenul memorat nu mai e al lui (la ei e valabil 30 de zile,
+    // indiferent de parolă): fără asta am publica în continuare în numele celui vechi.
+    if (cheie === "dezro" && (valori.utilizator !== vechi.utilizator || valori.parola !== vechi.parola)) {
+      valori.token = null; valori.token_expira = null;
+    }
+    const nou = { ...proaspat, [cheie]: valori };
+    // Un UPDATE oprit de RLS nu dă eroare, dă zero rânduri — de aici `scrieVerificat`.
+    const r = await scrieVerificat(sb.from("settings").update({ valoare: nou }).eq("cheie", "integrari"));
+    setSalvez(null);
+    if (!r.ok) { setRezultat({ cheie, text: `Nu s-a salvat: ${r.eroare}`, bun: false }); return; }
+    // Ca la Setări: după o salvare confirmată se golește cache-ul paginilor publice.
+    await golesteCachePublic();
+    setConf(nou);
+    setRezultat({ cheie, text: "✓ Salvat.", bun: true });
+  }
+
+  const stari = INTEGRARI.map((i) => stareReala(i));
+  const numar = (s: Stare) => stari.filter((x) => x === s).length;
   const grupuri = Array.from(new Set(INTEGRARI.map((i) => i.grup)));
 
   return (
-    <div className="space-y-5">
-      <div><div className="dim">Administrare</div><h1 className="font-disp font-bold text-2xl mt-1">Integrări</h1>
-        <p className="text-sm text-mut mt-1">Starea reală a fiecărei conexiuni. Nimic nu e „pe jumătate": ce e activ funcționează, ce e pregătit așteaptă doar credențialele clientului.</p></div>
+    <div className="space-y-5 max-w-4xl">
+      <div>
+        <div className="dim">Administrare</div>
+        <h1 className="font-disp font-bold text-2xl mt-1">Integrări</h1>
+        <p className="text-sm text-mut mt-1">Apasă pe o integrare ca să vezi detaliile și configurarea.</p>
+        <div className="flex flex-wrap gap-2 mt-3 text-xs font-bold">
+          {(["activ", "pregatit", "viitor"] as Stare[]).map((s) => (
+            <span key={s} className={`px-2.5 py-1 rounded-full border ${ETICHETE[s][0]}`}>{numar(s)} · {ETICHETE[s][1]}</span>
+          ))}
+        </div>
+      </div>
 
-      {msg && <p className="text-sm">{msg}</p>}
       {grupuri.map((g) => (
-        <div key={g}>
+        <section key={g}>
           <div className="dim mb-2">{g}</div>
-          <div className="grid md:grid-cols-2 gap-3">
+          <div className="card divide-y divide-line overflow-hidden">
             {INTEGRARI.filter((i) => i.grup === g).map((i) => {
-              const conectat = i.nume.includes("FAN") ? env.fan : undefined;
-              const stare = conectat === true ? "activ" : i.stare;
-              const [cls, txt] = CULORI[stare as keyof typeof CULORI];
+              const stare = stareReala(i);
+              const [cls, txt] = ETICHETE[stare];
+              const eDeschis = deschis === i.id;
+              const cheie = CHEI[i.nume];
+              const campuri = CAMPURI[i.nume] ?? [];
               return (
-                <div key={i.nume} className="card p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <b className="font-disp text-base">{i.nume}</b>
-                    <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${cls} whitespace-nowrap`}>
-                      {conectat === true ? "Conectat ✓" : txt}</span>
-                  </div>
-                  <p className="text-sm text-mut mt-2">{i.desc}</p>
-                  <ol className="mt-3 space-y-1 text-xs text-steel">
-                    {i.pasi.map((p, n) => <li key={n} className="flex gap-2"><span className="text-acc font-bold">{n + 1}.</span>{p}</li>)}
-                  </ol>
-                  {i.nume === "E-mail automat (Brevo)" && <UneltEmail implicit={conf.email?.notificari ?? ""} />}
-                  {i.nume === "FAN Courier (SelfAWB)" && <UneltFan />}
-                  {i.nume === "FAN Courier — retururi" && <UneltFanRetur />}
-                  {i.nume === "Saga — facturare" && <UneltSaga />}
-                  {i.nume === "OLX — anunțuri" && <UneltOlx />}
-                  {CAMPURI[i.nume] && (
-                    <form onSubmit={(e) => { e.preventDefault();
-                      const f = new FormData(e.currentTarget);
-                      const cheie = CHEI[i.nume];
-                      const v: any = { ...(conf[cheie] ?? {}) };
-                      CAMPURI[i.nume].forEach((c) => { v[c.k] = String(f.get(c.k) ?? ""); });
-                      v.activ = f.get("activ") === "on";
-                      salveaza(cheie, v); }}
-                      autoComplete="off"
-                      className="mt-4 pt-3 border-t border-line grid gap-2 text-sm">
-                      {CAMPURI[i.nume].filter((c) => !c.avansat).map((c) => c.tip === "bifa" ? (
-                        <label key={c.k} className="flex items-start gap-2 text-xs cursor-pointer">
-                          <input type="checkbox" name={c.k} className="mt-0.5"
-                            defaultChecked={(conf[CHEI[i.nume]]?.[c.k] ?? "on") === "on"} />
-                          {c.l}</label>
-                      ) : (
-                        <div className="fld" key={c.k}><label>{c.l}</label>
-                          {/* `autoComplete` NU e cosmetică aici (7 septembrie 2026).
-                              Chrome vede un câmp `password` lângă unul text, hotărăște
-                              că e formular de autentificare și pune peste amândouă
-                              contul cu care ești logat în /admin. Utilizatorul dez.ro
-                              scris de om („autopas") apărea, după un simplu refresh,
-                              ca adresa de e-mail a adminului — iar o apăsare pe
-                              „Salvează" ar fi scris-o chiar așa în bază, peste
-                              valoarea bună, fără ca nimeni să înțeleagă de ce nu mai
-                              merge integrarea.
-                              `new-password` pe câmpurile de parolă e ce oprește
-                              euristica; `off` singur nu e respectat de Chrome. */}
-                          <input name={c.k} type={c.tip ?? "text"}
-                            autoComplete={c.tip === "password" ? "new-password" : "off"}
-                            defaultValue={conf[CHEI[i.nume]]?.[c.k] ?? ""} /></div>
-                      ))}
-                      {CAMPURI[i.nume].some((c) => c.avansat) && (
-                        <details className="rounded-xl border-2 border-line px-3 py-2">
-                          <summary className="cursor-pointer text-xs font-semibold">Setări avansate (nu se schimbă de obicei)</summary>
-                          <div className="grid gap-2 mt-2">
-                            {CAMPURI[i.nume].filter((c) => c.avansat).map((c) => c.tip === "bifa" ? (
-                        <label key={c.k} className="flex items-start gap-2 text-xs cursor-pointer">
-                          <input type="checkbox" name={c.k} className="mt-0.5"
-                            defaultChecked={(conf[CHEI[i.nume]]?.[c.k] ?? "on") === "on"} />
-                          {c.l}</label>
-                      ) : (
-                        <div className="fld" key={c.k}><label>{c.l}</label>
-                          {/* `autoComplete` NU e cosmetică aici (7 septembrie 2026).
-                              Chrome vede un câmp `password` lângă unul text, hotărăște
-                              că e formular de autentificare și pune peste amândouă
-                              contul cu care ești logat în /admin. Utilizatorul dez.ro
-                              scris de om („autopas") apărea, după un simplu refresh,
-                              ca adresa de e-mail a adminului — iar o apăsare pe
-                              „Salvează" ar fi scris-o chiar așa în bază, peste
-                              valoarea bună, fără ca nimeni să înțeleagă de ce nu mai
-                              merge integrarea.
-                              `new-password` pe câmpurile de parolă e ce oprește
-                              euristica; `off` singur nu e respectat de Chrome. */}
-                          <input name={c.k} type={c.tip ?? "text"}
-                            autoComplete={c.tip === "password" ? "new-password" : "off"}
-                            defaultValue={conf[CHEI[i.nume]]?.[c.k] ?? ""} /></div>
-                      ))}
+                <div key={i.id} id={i.id} className={eDeschis ? "bg-paper/50" : ""}>
+                  <button type="button" onClick={() => comuta(i.id)} aria-expanded={eDeschis}
+                    className="w-full flex items-center gap-3 px-4 py-3 min-h-[56px] text-left hover:bg-paper">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-sm">{i.nume}</div>
+                      <div className="text-xs text-mut truncate">{i.rezumat}</div>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold border whitespace-nowrap ${cls}`}>{txt}</span>
+                    <Sageata deschis={eDeschis} />
+                  </button>
+
+                  {eDeschis && (
+                    <div className="px-4 pb-5 pt-1 text-sm">
+                      <p className="text-mut">{i.desc}</p>
+                      <details className="mt-3 text-xs" open={stare !== "activ"}>
+                        <summary className="cursor-pointer font-semibold text-steel">Cum se configurează ({i.pasi.length} {i.pasi.length === 1 ? "pas" : "pași"})</summary>
+                        <ol className="mt-2 space-y-1 text-steel">
+                          {i.pasi.map((p, n) => <li key={n} className="flex gap-2"><span className="text-acc font-bold">{n + 1}.</span>{p}</li>)}
+                        </ol>
+                      </details>
+
+                      {i.id === "email" && <UneltEmail implicit={conf.email?.notificari ?? ""} />}
+                      {i.id === "fan" && <UneltFan />}
+                      {i.id === "fan_retur" && <UneltFanRetur />}
+                      {i.id === "saga" && <UneltSaga />}
+                      {i.id === "olx" && <UneltOlx />}
+
+                      {campuri.length > 0 && (
+                        // `key` cu valorile salvate: câmpurile (necontrolate) se reîncarcă după citirea din bază.
+                        <form key={JSON.stringify(conf[cheie] ?? {})} autoComplete="off"
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            const f = new FormData(e.currentTarget);
+                            const v: Record<string, any> = {};
+                            campuri.forEach((c) => { v[c.k] = c.tip === "bifa" ? (f.get(c.k) === "on" ? "on" : "") : String(f.get(c.k) ?? ""); });
+                            v.activ = f.get("activ") === "on";
+                            salveaza(cheie, v);
+                          }}
+                          className="mt-4 pt-3 border-t border-line grid gap-2">
+                          <b className="text-xs">Configurare</b>
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            {campuri.filter((c) => !c.avansat).map((c) => <Camp key={c.k} c={c} valoare={conf[cheie]?.[c.k]} />)}
                           </div>
-                        </details>
+                          {campuri.some((c) => c.avansat) && (
+                            <details className="rounded-xl border-2 border-line px-3 py-2">
+                              <summary className="cursor-pointer text-xs font-semibold">Setări avansate (nu se schimbă de obicei)</summary>
+                              <div className="grid gap-2 mt-2">
+                                {campuri.filter((c) => c.avansat).map((c) => <Camp key={c.k} c={c} valoare={conf[cheie]?.[c.k]} />)}
+                              </div>
+                            </details>
+                          )}
+                          <div className="flex flex-wrap items-center gap-3 mt-1">
+                            <label className="flex items-center gap-2 text-xs cursor-pointer">
+                              <input type="checkbox" name="activ" defaultChecked={conf[cheie]?.activ ?? false} />
+                              Activă (folosește această integrare)</label>
+                            <button className="btn-dark !py-2 text-xs ml-auto" disabled={salvez !== null}>
+                              {salvez === cheie ? "Se salvează…" : "Salvează configurarea"}</button>
+                          </div>
+                          {rezultat?.cheie === cheie && (
+                            <p className={`text-xs ${rezultat.bun ? "text-ok" : "text-red-600"}`}>{rezultat.text}</p>
+                          )}
+                        </form>
                       )}
-                      <label className="flex items-center gap-2 text-xs cursor-pointer">
-                        <input type="checkbox" name="activ" defaultChecked={conf[CHEI[i.nume]]?.activ ?? false} />
-                        Activă (folosește această integrare)</label>
-                      <button className="btn-dark !py-2 text-xs" disabled={salvez !== null}>
-                        {salvez === CHEI[i.nume] ? "Se salvează…" : "Salvează configurarea"}</button>
-                      {rezultat?.cheie === CHEI[i.nume] && (
-                        <p className={`text-xs ${rezultat.bun ? "text-ok" : "text-red-600"}`}>{rezultat.text}</p>
-                      )}
-                    </form>
+                    </div>
                   )}
                 </div>
               );
             })}
           </div>
-        </div>
+        </section>
       ))}
     </div>
   );
