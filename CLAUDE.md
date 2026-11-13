@@ -596,6 +596,12 @@ sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
     suplimentari), 148.419 rânduri de „străzi", din care se păstrează 121.744: se sar cele 13.833 goale
     (una pe localitate), 9.530 de PayPoint-uri și 3.311 lockere — altfel apăreau la checkout ca străzi.
     Se reface cu `scripts/actualizeaza-nomenclator-fan.mjs`.
+  · **Strada NU se golește niciodată singură** (13 noiembrie 2026, defect găsit în producție: AP-2026-01844, 01850,
+    01856, 01857 fără stradă). Câmpul Localitate golea strada la orice tastare și la alegerea din listă: clientul scria
+    localitatea de mână, apoi strada și numărul, browserul cerea „Alege localitatea din listă”, clientul o alegea — și
+    strada dispărea tăcut. Reprodus cu Playwright pe site-ul live, apoi verificat corectat. Tot atunci: scrierile
+    întârziate (alegerea la ieșirea din câmp, încărcarea localităților) porneau de la o copie VECHE a adresei; acum
+    pornesc de la ultima valoare (`schimba` / `cur()` din `components/AlegeAdresa.tsx`).
   · Dacă nomenclatorul nu se poate citi, câmpurile devin text liber: o comandă pierdută costă mai mult
     decât o adresă corectată la AWB.
   · Aceeași componentă (fără stradă, `stil="admin"`) alege județul și localitatea în panoul de adresă

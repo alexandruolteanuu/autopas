@@ -56,6 +56,16 @@ export default function AlegeAdresa({ value, onChange, cuStrada = true, stil = "
   const [deschisStr, setDeschisStr] = useState(false);
   const [activ, setActiv] = useState(0);
   const refLoc = useRef<HTMLInputElement>(null);
+  // ADRESA CURENTĂ, nu cea prinsă în închidere (defect găsit la 13 noiembrie 2026: comenzi fără
+  // stradă). Alegerea întârziată de la ieșirea din câmp (150 ms) și efectul care încarcă
+  // localitățile din rețea scriau `{ ...value }` cu o copie VECHE a adresei — fără strada scrisă
+  // între timp. Orice scriere pornește acum de la `cur()`, adică de la ultima valoare primită.
+  const ultima = useRef(value);
+  ultima.current = value;
+  const cur = () => ultima.current;
+  // Se ține minte și aici, nu doar la randare: două schimbări în același moment (completarea
+  // automată a browserului umple mai multe câmpuri deodată) nu se calcă una pe alta.
+  const schimba = (p: Partial<Adresa>) => { const n = { ...cur(), ...p }; ultima.current = n; onChange(n); };
 
   // Forma FAN a județului ales („Neamt"), oricum ar fi scris în `value`.
   const judetFan = useMemo(
@@ -75,7 +85,7 @@ export default function AlegeAdresa({ value, onChange, cuStrada = true, stil = "
 
   // O valoare venită din afară („Neamț", „neamt") se aduce la forma afișată.
   useEffect(() => {
-    if (judetFan && value.judet !== numeJudet(judetFan)) onChange({ ...value, judet: numeJudet(judetFan) });
+    if (judetFan && cur().judet !== numeJudet(judetFan)) schimba({ judet: numeJudet(judetFan) });
   }, [judetFan]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- localitățile județului ----
@@ -89,11 +99,12 @@ export default function AlegeAdresa({ value, onChange, cuStrada = true, stil = "
         if (anulat) return;
         setLocalitati(l);
         // București are o singură localitate: se alege singură.
-        if (l.length === 1 && value.localitate !== l[0].localitate) onChange({ ...value, judet: numeJudet(judetFan), localitate: l[0].localitate });
+        const v = cur();
+        if (l.length === 1 && v.localitate !== l[0].localitate) schimba({ judet: numeJudet(judetFan), localitate: l[0].localitate });
         // Localitatea venită din afară („Piatra Neamț") se potrivește pe forma FAN.
-        else if (value.localitate && !l.some((x) => x.localitate === value.localitate)) {
-          const gasita = l.filter((x) => cheie(x.localitate) === cheie(value.localitate));
-          if (gasita.length === 1) onChange({ ...value, judet: numeJudet(judetFan), localitate: gasita[0].localitate });
+        else if (v.localitate && !l.some((x) => x.localitate === v.localitate)) {
+          const gasita = l.filter((x) => cheie(x.localitate) === cheie(v.localitate));
+          if (gasita.length === 1) schimba({ judet: numeJudet(judetFan), localitate: gasita[0].localitate });
         }
       })
       .catch(() => { if (!anulat) setIndisponibil(true); });
@@ -144,18 +155,23 @@ export default function AlegeAdresa({ value, onChange, cuStrada = true, stil = "
 
   if (indisponibil) {
     return (<>
-      {camp("Județ *", <><input required value={value.judet} onChange={(e) => onChange({ ...value, judet: e.target.value })} autoComplete="address-level1" className={cls} /></>)}
-      {camp("Localitate *", <><input required value={value.localitate} onChange={(e) => onChange({ ...value, localitate: e.target.value })} autoComplete="address-level2" className={cls} /></>)}
-      {cuStrada && camp("Adresa (stradă, număr, bloc, ap.) *", <><input required value={value.strada} onChange={(e) => onChange({ ...value, strada: e.target.value, numar: "" })} autoComplete="address-line1" className={cls} /></>, true)}
+      {camp("Județ *", <><input required value={value.judet} onChange={(e) => schimba({ judet: e.target.value })} autoComplete="address-level1" className={cls} /></>)}
+      {camp("Localitate *", <><input required value={value.localitate} onChange={(e) => schimba({ localitate: e.target.value })} autoComplete="address-level2" className={cls} /></>)}
+      {cuStrada && camp("Adresa (stradă, număr, bloc, ap.) *", <><input required value={value.strada} onChange={(e) => schimba({ strada: e.target.value, numar: "" })} autoComplete="address-line1" className={cls} /></>, true)}
     </>);
   }
 
-  const alege = (l: Localitate) => { onChange({ ...value, localitate: l.localitate, strada: value.localitate === l.localitate ? value.strada : "" }); setDeschisLoc(false); };
+  // Strada NU se mai golește când se schimbă localitatea (13 noiembrie 2026). Scenariul care a
+  // dat comenzi fără stradă: clientul scria localitatea de mână, apoi strada și numărul; la
+  // trimitere browserul cerea „Alege localitatea din listă”; clientul o alegea — și strada
+  // dispărea tăcut, numărul rămânea. O stradă scrisă pentru altă localitate se corectează la AWB;
+  // una pierdută, nu.
+  const alege = (l: Localitate) => { schimba({ localitate: l.localitate }); setDeschisLoc(false); };
 
   return (<>
     {camp("Județ *", <>
       <select required value={judetFan} disabled={!judete} autoComplete="address-level1" className={cls}
-        onChange={(e) => onChange({ judet: numeJudet(e.target.value), localitate: "", strada: "", numar: value.numar })}>
+        onChange={(e) => schimba({ judet: numeJudet(e.target.value), localitate: "" })}>
         <option value="">{judete ? "Alege județul" : "Se încarcă…"}</option>
         {(judete ?? []).map((j) => <option key={j} value={j}>{numeJudet(j)}</option>)}
       </select>
@@ -170,9 +186,10 @@ export default function AlegeAdresa({ value, onChange, cuStrada = true, stil = "
           setDeschisLoc(false);
           // Scris complet, dar neales din listă: dacă o singură localitate se
           // potrivește exact (fără diacritice/cratime), se alege ea.
-          if (!aleasa) { const g = localitati.filter((l) => cheie(l.localitate) === cheie(value.localitate)); if (g.length === 1) alege(g[0]); }
+          const v = cur();
+          if (!localitati.some((l) => l.localitate === v.localitate)) { const g = localitati.filter((l) => cheie(l.localitate) === cheie(v.localitate)); if (g.length === 1) alege(g[0]); }
         }, 150)}
-        onChange={(e) => { onChange({ ...value, localitate: e.target.value, strada: "" }); setDeschisLoc(true); setActiv(0); }}
+        onChange={(e) => { schimba({ localitate: e.target.value }); setDeschisLoc(true); setActiv(0); }}
         onKeyDown={(e) => {
           if (!deschisLoc || !potrivite.length) return;
           if (e.key === "ArrowDown") { e.preventDefault(); setActiv((a) => Math.min(a + 1, potrivite.length - 1)); }
@@ -201,19 +218,19 @@ export default function AlegeAdresa({ value, onChange, cuStrada = true, stil = "
         <input value={value.strada} autoComplete="address-line1" className={cls}
           placeholder="Scrie numele străzii (dacă are)"
           onFocus={() => setDeschisStr(true)} onBlur={() => setTimeout(() => setDeschisStr(false), 150)}
-          onChange={(e) => { onChange({ ...value, strada: e.target.value }); setDeschisStr(true); }} />
+          onChange={(e) => { schimba({ strada: e.target.value }); setDeschisStr(true); }} />
         {deschisStr && strazi.length > 0 && (
           <div role="listbox" className={lista}>
             {strazi.map((s) => (
               <button type="button" key={s.id} role="option" aria-selected={false} className={rand(false)}
-                onMouseDown={(e) => { e.preventDefault(); onChange({ ...value, strada: s.nume }); setDeschisStr(false); }}>{s.nume}</button>
+                onMouseDown={(e) => { e.preventDefault(); schimba({ strada: s.nume }); setDeschisStr(false); }}>{s.nume}</button>
             ))}
           </div>
         )}
       </>)}
       {camp("Număr, bloc, scară, apartament *", <>
         <input required value={value.numar} autoComplete="address-line2" placeholder="ex. nr. 12, bl. A3, ap. 5" className={cls}
-          onChange={(e) => onChange({ ...value, numar: e.target.value })} />
+          onChange={(e) => schimba({ numar: e.target.value })} />
       </>)}
     </>)}
   </>);
