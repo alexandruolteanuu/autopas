@@ -272,3 +272,328 @@ ridicat singur în câteva minute. Scriptul are pauză de 1,5 s între sugestii 
 **Raportul pe catalog după potrivire**: 8.746 / 8.746 gata de publicat, 0 blocate. Riscuri (doar raportate):
 203 titluri cu > 50% majuscule numărate pe litere, 118 coduri care pot părea telefon, 1 piesă fără poze.
 Corecturi automate: 31 de descrieri cu semne repetate, 1 titlu la majuscule, 1 descriere completată.
+
+### Potrivirile scrise în olx_mapari (13 noiembrie 2026) — lista completă
+291 de categorii, 8.746 de piese publicate cu stoc. Toate căile OLX încep cu „Piese și accesorii ›”. Atributul trimis peste tot: `state = used` („Second Hand”). Coloana „Cum” spune de unde vine alegerea: **sugestii** = majoritatea sugestiilor OLX pe titluri (+ nume); **nume** = sugestiile se contraziceau, ales după numele categoriei; **corectat** = sugestiile nimeriseră greșit, ales după nume; ⚠ = de verificat de om (tabelul de mai jos).
+
+| # | Categoria noastră | Categoria OLX | Piese | Cum |
+|---|---|---|---|---|
+| 1 | Optică și faruri › Faruri | Piese auto › Iluminare › Faruri și elemente de iluminat | 360 | sugestii |
+| 2 | Caroserie și exterior › Grile și ornamente | Piese auto › Piese de caroserie › Ornamente caroserie | 347 | sugestii |
+| 3 | Motor și anexe › EGR și Clapetă acceleratie | Piese auto › Motoare și accesorii › Clapete de accelerație | 324 | ⚠ nume |
+| 4 | Caroserie și exterior › Bară spate | Piese auto › Piese de caroserie › Bare de protecție | 290 | sugestii |
+| 5 | Optică și faruri › Stopuri | Piese auto › Iluminare › Lămpi spate și elemente | 257 | sugestii |
+| 6 | Caroserie și exterior › Bară față | Piese auto › Piese de caroserie › Bare de protecție | 253 | sugestii |
+| 7 | Motor și anexe › Radiatoare și Ventilatoare | Piese auto › Sistem de răcire a motorului › Radiatoare | 229 | ⚠ nume |
+| 8 | Caroserie și exterior › Oglinzi complete | Piese auto › Piese de caroserie › Oglinzi exterioare | 224 | sugestii |
+| 9 | Motor și anexe › Electromotor | Piese auto › Sistem electric, aprindere › Electromotoare și piese | 190 | sugestii |
+| 10 | Electrice și senzori › Airbag-uri și centuri | Piese auto › Echipament interior › Airbag-uri | 189 | sugestii |
+| 11 | Caroserie și exterior › Ușă spate | Piese auto › Piese de caroserie › Uși | 150 | sugestii |
+| 12 | Electrice și senzori › Alternator | Piese auto › Sistem electric, aprindere › Electromotoare și piese | 144 | ⚠ nume |
+| 13 | Cutie de viteze și transmisie › Cutie de viteze | Piese auto › Sistem de transmisie › Cutii de viteze | 140 | sugestii |
+| 14 | Caroserie și exterior › Grilă radiator | Piese auto › Piese de caroserie › Grile radiator | 140 | sugestii |
+| 15 | Cutie de viteze și transmisie › Planetare și cardan | Piese auto › Sistem de transmisie › Planetare, articulații arbori | 138 | sugestii |
+| 16 | Motor și anexe › Injectoare și rampă | Piese auto › Sistem de alimentare cu combustibil › Injectoare | 136 | sugestii |
+| 17 | Climatizare (AC) și încălzire › Compresor AC | Piese auto › Sistem de climatizare › Compresoare de aer condiționat | 133 | sugestii |
+| 18 | Caroserie și exterior › Ușă față | Piese auto › Piese de caroserie › Uși | 126 | sugestii |
+| 19 | Motor și anexe › Turbine | Piese auto › Motoare și accesorii › Turbocompresoare | 124 | sugestii |
+| 20 | Caroserie și exterior › Ștergătoare și spălare parbriz | Piese auto › Ștergătoare și pulverizatoare › Mecanisme ștergătoare | 122 | sugestii |
+| 21 | Motor și anexe › Intercooler | Piese auto › Sistem de răcire a motorului › Intercoolere | 120 | sugestii |
+| 22 | Electrice și senzori › Calculator ECU | Piese auto › Sistem electric, aprindere › Unități de control motor | 111 | sugestii |
+| 23 | Caroserie și exterior › Capotă | Piese auto › Piese de caroserie › Capote | 105 | sugestii |
+| 24 | Caroserie și exterior › Aripă față | Piese auto › Piese de caroserie › Aripi | 101 | sugestii |
+| 25 | Motor și anexe › Motor complet | Piese auto › Motoare și accesorii › Motoare complete | 98 | sugestii |
+| 26 | Sistem de frânare › Pompă ABS | Piese auto › Sistem de frânare › Sistem ABS și ESP | 97 | sugestii |
+| 27 | Optică și faruri › Bloc xenon și balast | Piese auto › Iluminare › Controlere lumini | 91 | sugestii |
+| 28 | Caroserie și exterior › Haion | Piese auto › Piese de caroserie › Capace de portbagaj | 89 | sugestii |
+| 29 | Suspensie și direcție › Fuzete și rulmenți | Piese auto › Sistem de suspensie › Fuzete | 84 | sugestii |
+| 30 | Suspensie și direcție › Pompă servodirecție | Piese auto › Sistem de direcție › Pompe de servo | 82 | sugestii |
+| 31 | Caroserie și exterior › Aripă spate | Piese auto › Piese de caroserie › Aripi | 81 | sugestii |
+| 32 | Filtre auto › Carcasă filtru aer | Piese auto › Motoare și accesorii › Carcase filtre aer | 80 | sugestii |
+| 33 | Caroserie și exterior › Alte piese de caroserie | Piese auto › Piese de caroserie › Elemente de caroserie | 78 | ⚠ nume |
+| 34 | Motor și anexe › Pompă injecție | Piese auto › Sistem de alimentare cu combustibil › Pompe de injecție | 74 | sugestii |
+| 35 | Caroserie și exterior › Trager | Piese auto › Piese de caroserie › Panouri față și spate | 74 | nume |
+| 36 | Caroserie și exterior › Vas lichid parbriz | Piese auto › Ștergătoare și pulverizatoare › Rezervoare lichid de parbriz | 74 | sugestii |
+| 37 | Electrice și senzori › Calculator lumini | Piese auto › Iluminare › Controlere lumini | 73 | nume |
+| 38 | Caroserie și exterior › Spoilere | Piese auto › Piese de caroserie › Spoilere | 71 | corectat |
+| 39 | Climatizare (AC) și încălzire › Radiator AC (condensator) | Piese auto › Sistem de climatizare › Radiator de climatizare | 70 | sugestii |
+| 40 | Suspensie și direcție › Casetă direcție | Piese auto › Sistem de direcție › Casete de direcție | 68 | sugestii |
+| 41 | Roți, jante și anvelope › Jante | Anvelope și jante › Jante › Pentru mașini | 64 | sugestii |
+| 42 | Motor și anexe › Capac motor | Piese auto › Motoare și accesorii › Capace motor | 63 | sugestii |
+| 43 | Caroserie și exterior › Praguri | Piese auto › Piese de caroserie › Praguri | 62 | sugestii |
+| 44 | Electrice și senzori › Senzori motor | Piese auto › Motoare și accesorii › Debitmetre | 60 | sugestii |
+| 45 | Climatizare (AC) și încălzire › Aerotermă | Piese auto › Sistem de ventilație › Motoare ventilatoare | 59 | sugestii |
+| 46 | Caroserie și exterior › Armatură bară față | Piese auto › Piese de caroserie › Bare de protecție | 59 | sugestii |
+| 47 | Caroserie și exterior › Carenaj roată | Piese auto › Piese de caroserie › Aripi interioare | 56 | sugestii |
+| 48 | Caroserie și exterior › Broaște și încuietori | Piese auto › Piese de caroserie › Încuietoare uși | 54 | sugestii |
+| 49 | Climatizare (AC) și încălzire › Conducte și furtunuri AC | Piese auto › Sistem de climatizare › Conducte de climatizare | 53 | sugestii |
+| 50 | Motor și anexe › Pompă vacuum | Piese auto › Motoare și accesorii › Pompe de vid | 52 | sugestii |
+| 51 | Accesorii auto › Senzori parcare | Piese auto › Sistem electric, aprindere › Senzori | 52 | sugestii |
+| 52 | Motor și anexe › Rampă injectoare | Piese auto › Sistem de alimentare cu combustibil › Rampe de injecție | 47 | sugestii |
+| 53 | Caroserie și exterior › Grilă bară | Piese auto › Piese de caroserie › Grile radiator | 46 | sugestii |
+| 54 | Interior și tapițerie › Ceasuri bord | Piese auto › Echipament interior › Instrumente de bord, ceasuri | 45 | sugestii |
+| 55 | Electrice și senzori › Alte piese Electrică & Electronică | Piese auto › Sistem electric, aprindere › Echipament electric | 44 | ⚠ nume |
+| 56 | Optică și faruri › Proiectoare auto | Piese auto › Iluminare › Faruri și elemente de iluminat | 44 | sugestii |
+| 57 | Electrice și senzori › Calculator confort | Piese auto › Sistem electric, aprindere › Echipament electric | 43 | nume |
+| 58 | Motor și anexe › Pompă motorină din rezervor | Piese auto › Sistem de alimentare cu combustibil › Pompe de combustibil | 43 | sugestii |
+| 59 | Motor și anexe › Pompă apă | Piese auto › Sistem de răcire a motorului › Pompe de apă | 42 | sugestii |
+| 60 | Caroserie și exterior › Grilă proiector | Piese auto › Piese de caroserie › Grile radiator | 41 | sugestii |
+| 61 | Caroserie și exterior › Armatură bară spate | Piese auto › Piese de caroserie › Bare de protecție | 40 | sugestii |
+| 62 | Cutie de viteze și transmisie › Volantă | Piese auto › Sistem de transmisie › Volante de inerție | 40 | corectat |
+| 63 | Electrice și senzori › Bloc lumini | Piese auto › Iluminare › Controlere lumini | 39 | sugestii |
+| 64 | Interior și tapițerie › Guri ventilație | Piese auto › Echipament interior › Grile de ventilație | 39 | sugestii |
+| 65 | Electrice și senzori › Motoraș ștergătoare | Piese auto › Ștergătoare și pulverizatoare › Motoare ștergătoare | 38 | sugestii |
+| 66 | Interior și tapițerie › Display | Piese auto › Echipament interior › Echipament audio de fabrică | 36 | nume |
+| 67 | Caroserie și exterior › Difuzor bara spate | Piese auto › Piese de caroserie › Bare de protecție | 35 | sugestii |
+| 68 | Suspensie și direcție › Brațe și bascule | Piese auto › Sistem de suspensie › Brațe de suspensie și elemente | 33 | sugestii |
+| 69 | Optică și faruri › Lumini de zi | Piese auto › Iluminare › Faruri și elemente de iluminat | 33 | nume |
+| 70 | Motor și anexe › Baie ulei | Piese auto › Motoare și accesorii › Ungere motor | 32 | sugestii |
+| 71 | Motor și anexe › Galerie admisie | Piese auto › Motoare și accesorii › Galerii de admisie | 32 | sugestii |
+| 72 | Sistem de frânare › Tulumbă frână | Piese auto › Sistem de frânare › Asistență la frânare | 30 | sugestii |
+| 73 | Electrice și senzori › Panou de siguranțe | Piese auto › Sistem electric, aprindere › Cutii de siguranțe | 29 | sugestii |
+| 74 | Suspensie și direcție › Punte spate | Piese auto › Sistem de suspensie › Grinzi de suspensie | 29 | sugestii |
+| 75 | Electrice și senzori › Radar distronic (ACC) | Piese auto › Sistem electric, aprindere › Senzori | 29 | sugestii |
+| 76 | Caroserie și exterior › Suport far | Piese auto › Piese de caroserie › Suporturi, prinderi | 29 | sugestii |
+| 77 | Interior și tapițerie › Plansa bord | Piese auto › Echipament interior › Planșe de bord, console | 28 | corectat |
+| 78 | Motor și anexe › Suporți motor | Piese auto › Motoare și accesorii › Suspensie motor | 28 | sugestii |
+| 79 | Sistem de frânare › Etriere | Piese auto › Sistem de frânare › Frâne cu disc | 27 | nume |
+| 80 | Interior și tapițerie › Volane | Piese auto › Echipament interior › Volane | 26 | sugestii |
+| 81 | Caroserie și exterior › Cadru motor | Piese auto › Sistem de suspensie › Grinzi de suspensie | 25 | sugestii |
+| 82 | Caroserie și exterior › Capotă portbagaj | Piese auto › Piese de caroserie › Capote | 25 | sugestii |
+| 83 | Caroserie și exterior › Broască haion | Piese auto › Piese de caroserie › Încuietoare uși | 24 | sugestii |
+| 84 | Interior și tapițerie › Ornamente | Piese auto › Piese de caroserie › Ornamente caroserie | 24 | sugestii |
+| 85 | Motor și anexe › Ornament tobă | Piese auto › Sistem de evacuare › Capete de eșapament | 23 | nume |
+| 86 | Accesorii auto › Cameră video auto | Accesorii auto › Electronică auto › Senzori și camere de marșarier | 22 | nume |
+| 87 | Interior și tapițerie › Centuri de siguranță | Piese auto › Echipament interior › Centuri de siguranță | 22 | sugestii |
+| 88 | Electrice și senzori › Contact și cheie | Piese auto › Sistem electric, aprindere › Contacte și chei | 22 | sugestii |
+| 89 | Caroserie și exterior › Braț ștergător | Piese auto › Ștergătoare și pulverizatoare › Brațe ștergătoare | 21 | sugestii |
+| 90 | Interior și tapițerie › Torpedou | Piese auto › Echipament interior › Compartimente, rafturi | 21 | sugestii |
+| 91 | Caroserie și exterior › Balamale | Piese auto › Piese de caroserie › Piese de montaj | 20 | nume |
+| 92 | Caroserie și exterior › Flaps bară | Piese auto › Piese de caroserie › Bare de protecție | 20 | sugestii |
+| 93 | Electrice și senzori › Senzor presiune gaze evacuare | Piese auto › Sistem de evacuare › Senzori de presiune gaze de eșapament | 20 | sugestii |
+| 94 | Caroserie și exterior › Emblemă | Accesorii auto › Embleme | 18 | nume |
+| 95 | Motor și anexe › Bobină inducție | Piese auto › Sistem electric, aprindere › Bobine de inducție | 17 | sugestii |
+| 96 | Cutie de viteze și transmisie › Cutie de transfer | Piese auto › Sistem de transmisie › Cutii de viteze | 17 | sugestii |
+| 97 | Cutie de viteze și transmisie › Cardan | Piese auto › Sistem de transmisie › Cardane și arbori de transmisie | 16 | sugestii |
+| 98 | Interior și tapițerie › Poliță portbagaj | Piese auto › Echipament interior › Rafturi spate | 16 | sugestii |
+| 99 | Motor și anexe › Vas expansiune | Piese auto › Sistem de răcire a motorului › Rezervoare de expansiune | 16 | sugestii |
+| 100 | Interior și tapițerie › Butoane geamuri electrice | Piese auto › Echipament interior › Intrerupatoare, panouri de control | 15 | sugestii |
+| 101 | Electrice și senzori › Calculator parcare | Piese auto › Sistem electric, aprindere › Senzori | 15 | sugestii |
+| 102 | Motor și anexe › Capac chiulasă | Piese auto › Motoare și accesorii › Capace motor | 15 | sugestii |
+| 103 | Motor și anexe › Furtun intercooler turbo | Piese auto › Motoare și accesorii › Conducte aer | 15 | nume |
+| 104 | Climatizare (AC) și încălzire › Panou comandă AC climă | Piese auto › Sistem de climatizare › Unități de control climatizare | 15 | sugestii |
+| 105 | Electrice și senzori › Senzor impact pietoni | Piese auto › Echipament interior › Airbag-uri | 15 | sugestii |
+| 106 | Caroserie și exterior › Spălător faruri | Piese auto › Ștergătoare și pulverizatoare › Duze faruri | 15 | sugestii |
+| 107 | Suspensie și direcție › Ansamblu amortizor arc | Piese auto › Sistem de suspensie › Amortizoare și elemente | 13 | sugestii |
+| 108 | Motor și anexe › Carcasă filtru ulei | Piese auto › Motoare și accesorii › Ungere motor | 13 | sugestii |
+| 109 | Car audio › CD player auto | Piese auto › Echipament interior › Echipament audio de fabrică | 13 | sugestii |
+| 110 | Motor și anexe › Fulie vibrochen | Piese auto › Motoare și accesorii › Sistem curea accesorii | 13 | sugestii |
+| 111 | Electrice și senzori › Macara geam electric | Piese auto › Echipament interior › Manivele geamuri | 13 | nume |
+| 112 | Caroserie și exterior › Scut motor plastic | Piese auto › Piese de caroserie › Scuturi și protecții | 13 | sugestii |
+| 113 | Caroserie și exterior › Scut sub bară | Piese auto › Piese de caroserie › Scuturi și protecții | 13 | sugestii |
+| 114 | Electrice și senzori › Senzor unghi mort | Piese auto › Sistem electric, aprindere › Senzori | 13 | sugestii |
+| 115 | Motor și anexe › Tubulatură intercooler | Piese auto › Motoare și accesorii › Conducte aer | 13 | sugestii |
+| 116 | Suspensie și direcție › Amortizoare | Piese auto › Sistem de suspensie › Amortizoare și elemente | 12 | sugestii |
+| 117 | Suspensie și direcție › Coloană direcție | Piese auto › Sistem de direcție › Coloane de direcție | 12 | sugestii |
+| 118 | Electrice și senzori › Motoraș macara geam | Piese auto › Echipament interior › Manivele geamuri | 12 | corectat |
+| 119 | Navigație GPS › Navigație originală | Piese auto › Echipament interior › Echipament audio de fabrică | 12 | sugestii |
+| 120 | Electrice și senzori › Senzor NOx | Piese auto › Sistem de evacuare › Sonde lambda | 12 | nume |
+| 121 | Cutie de viteze și transmisie › Suport cutie viteze | Piese auto › Sistem de transmisie › Piese cutie de viteze | 12 | sugestii |
+| 122 | Car audio › Boxe auto | Piese auto › Echipament interior › Echipament audio de fabrică | 11 | sugestii |
+| 123 | Motor și anexe › Chiulasă | Piese auto › Motoare și accesorii › Chiulase cilindri | 11 | sugestii |
+| 124 | Tuning › Eleron | Piese auto › Piese de caroserie › Spoilere | 11 | nume |
+| 125 | Motor și anexe › Pompă rezervor | Piese auto › Sistem de alimentare cu combustibil › Pompe de combustibil | 11 | sugestii |
+| 126 | Electrice și senzori › Calculator airbag | Piese auto › Echipament interior › Airbag-uri | 10 | sugestii |
+| 127 | Accesorii auto › Cameră marșarier | Accesorii auto › Electronică auto › Senzori și camere de marșarier | 10 | sugestii |
+| 128 | Interior și tapițerie › Oglindă retrovizoare | Piese auto › Piese de caroserie › Oglinzi exterioare | 10 | nume |
+| 129 | Motor și anexe › Rampă retur injectoare | Piese auto › Sistem de alimentare cu combustibil › Rampe de injecție | 10 | sugestii |
+| 130 | Caroserie și exterior › Suporți prindere bară | Piese auto › Piese de caroserie › Suporturi, prinderi | 10 | sugestii |
+| 131 | Motor și anexe › Alte piese răcire | Piese auto › Sistem de răcire a motorului › Altele | 9 | nume |
+| 132 | Electrice și senzori › Baterie și borne | Piese auto › Sistem electric, aprindere › Carcase baterii | 9 | corectat |
+| 133 | Climatizare (AC) și încălzire › Climatronic | Piese auto › Sistem de climatizare › Unități de control climatizare | 9 | sugestii |
+| 134 | Motor și anexe › Curele și distribuție | Piese auto › Motoare și accesorii › Distribuție | 9 | sugestii |
+| 135 | Motor și anexe › Electrovalvă | Piese auto › Motoare și accesorii › Supape de vacuum | 9 | sugestii |
+| 136 | Caroserie și exterior › Mâner haion | Piese auto › Piese de caroserie › Încuietoare uși | 9 | nume |
+| 137 | Motor și anexe › Pistoane | Piese auto › Motoare și accesorii › Pistoane, segmenți și biele | 9 | sugestii |
+| 138 | Caroserie și exterior › Suport baterie auto | Piese auto › Piese de caroserie › Suporturi, prinderi | 9 | sugestii |
+| 139 | Interior și tapițerie › Alte butoane | Piese auto › Echipament interior › Intrerupatoare, panouri de control | 8 | sugestii |
+| 140 | Electrice și senzori › Calculator frână mână | Piese auto › Sistem de frânare › Frâne de parcare | 8 | sugestii |
+| 141 | Cutie de viteze și transmisie › Diferențiale | Piese auto › Sistem de transmisie › Diferențiale | 8 | sugestii |
+| 142 | Electrice și senzori › Manetă tempomat | Piese auto › Echipament interior › Intrerupatoare, panouri de control | 8 | sugestii |
+| 143 | Electrice și senzori › Pedală accelerație | Piese auto › Echipament interior › Pedale | 8 | sugestii |
+| 144 | Motor și anexe › Pompă ulei | Piese auto › Motoare și accesorii › Ungere motor | 8 | nume |
+| 145 | Motor și anexe › Radiator ulei termoflot | Piese auto › Motoare și accesorii › Ungere motor | 8 | sugestii |
+| 146 | Electrice și senzori › Senzor impact airbag | Piese auto › Echipament interior › Airbag-uri | 8 | sugestii |
+| 147 | Electrice și senzori › Senzor nivel faruri | Piese auto › Iluminare › Senzori | 8 | sugestii |
+| 148 | Filtre auto › Tubulatură admisie | Piese auto › Motoare și accesorii › Conducte aer | 8 | sugestii |
+| 149 | Car audio › Antenă radio | Piese auto › Echipament interior › Echipament audio de fabrică | 7 | sugestii |
+| 150 | Suspensie și direcție › Arcuri auto | Piese auto › Sistem de suspensie › Arcuri de suspensie | 7 | sugestii |
+| 151 | Interior și tapițerie › Buton frână de mână | Piese auto › Sistem de frânare › Frâne de parcare | 7 | sugestii |
+| 152 | Electrice și senzori › Claxon | Piese auto › Sistem electric, aprindere › Claxoane | 7 | sugestii |
+| 153 | Caroserie și exterior › Difuzor bară față | Piese auto › Piese de caroserie › Bare de protecție | 7 | sugestii |
+| 154 | Caroserie și exterior › Grilă ștergătoare | Piese auto › Piese de caroserie › Apărători ștergătoare | 7 | sugestii |
+| 155 | Motor și anexe › Pompă benzină | Piese auto › Sistem de alimentare cu combustibil › Pompe de combustibil | 7 | sugestii |
+| 156 | Motor și anexe › Releu bujii | Piese auto › Sistem electric, aprindere › Relee | 7 | sugestii |
+| 157 | Interior și tapițerie › Rulou portbagaj | Piese auto › Echipament interior › Rulouri portbagaj | 7 | sugestii |
+| 158 | Motor și anexe › Tobă eșapament | Piese auto › Sistem de evacuare › Tobe de eșapament | 7 | sugestii |
+| 159 | Caroserie și exterior › Ușă culisantă | Piese auto › Piese de caroserie › Uși | 7 | sugestii |
+| 160 | Accesorii auto › Cârlig remorcare | Accesorii auto › Cricuri și transportoare › Cârlige de remorcare și accesorii | 6 | sugestii |
+| 161 | Cutie de viteze și transmisie › Cutie viteze automată | Piese auto › Sistem de transmisie › Cutii de viteze | 6 | sugestii |
+| 162 | Diverse › Diverse | Piese auto › Altele | 6 | ⚠ nume |
+| 163 | Interior și tapițerie › Fețe uși | Piese auto › Echipament interior › Panouri laterale uși | 6 | nume |
+| 164 | Caroserie și exterior › Geamuri | Piese auto › Piese de caroserie › Geamuri uși | 6 | sugestii |
+| 165 | Electrice și senzori › Instalație electrică | Piese auto › Sistem electric, aprindere › Cablaje auto | 6 | nume |
+| 166 | Sistem de frânare › Motoraș etrier | Piese auto › Sistem de frânare › Altele | 6 | sugestii |
+| 167 | Suspensie și direcție › Punte față | Piese auto › Sistem de suspensie › Grinzi de suspensie | 6 | sugestii |
+| 168 | Motor și anexe › Sondă lambda | Piese auto › Sistem de evacuare › Sonde lambda | 6 | sugestii |
+| 169 | Electrice și senzori › Alarme auto | Piese auto › Sistem electric, aprindere › Claxoane | 5 | nume |
+| 170 | Electrice și senzori › Calculator cutie automată | Piese auto › Sistem de transmisie › Piese cutie de viteze | 5 | sugestii |
+| 171 | Electrice și senzori › Calculator injecție | Piese auto › Sistem de alimentare cu combustibil › Unități de control și controlere | 5 | nume |
+| 172 | Motor și anexe › Pompă amorsare | Piese auto › Sistem de alimentare cu combustibil › Pompe de combustibil | 5 | nume |
+| 173 | Electrice și senzori › Rezistență aerotermă | Piese auto › Sistem de ventilație › Rezistențe ventilatoare | 5 | sugestii |
+| 174 | Motor și anexe › Suport alternator | Piese auto › Motoare și accesorii › Sistem curea accesorii | 5 | nume |
+| 175 | Motor și anexe › Alte piese evacuare | Piese auto › Sistem de evacuare › Clapete de evacuare | 4 | nume |
+| 176 | Motor și anexe › Axe came | Piese auto › Motoare și accesorii › Distribuție | 4 | nume |
+| 177 | Interior și tapițerie › Buton Start Stop | Piese auto › Echipament interior › Intrerupatoare, panouri de control | 4 | sugestii |
+| 178 | Motor și anexe › Catalizator auto | Piese auto › Sistem de evacuare › Catalizatoare | 4 | sugestii |
+| 179 | Interior și tapițerie › Consolă centrală | Piese auto › Echipament interior › Planșe de bord, console | 4 | nume |
+| 180 | Interior și tapițerie › Cotieră auto | Piese auto › Echipament interior › Cotiere | 4 | sugestii |
+| 181 | Electrice și senzori › Manetă semnalizare | Piese auto › Echipament interior › Intrerupatoare, panouri de control | 4 | sugestii |
+| 182 | Sistem de frânare › Pompă servofrână | Piese auto › Sistem de frânare › Asistență la frânare | 4 | sugestii |
+| 183 | Electrice și senzori › Relee | Piese auto › Sistem electric, aprindere › Relee | 4 | sugestii |
+| 184 | Motor și anexe › Rezervor AdBlue | Piese auto › Sistem de evacuare › Altele | 4 | nume |
+| 185 | Electrice și senzori › Senzori ploaie | Piese auto › Ștergătoare și pulverizatoare › Senzori de ploaie | 4 | nume |
+| 186 | Caroserie și exterior › Sticlă oglindă | Piese auto › Piese de caroserie › Oglinzi exterioare | 4 | sugestii |
+| 187 | Motor și anexe › Suport filtru ulei | Piese auto › Motoare și accesorii › Ungere motor | 4 | sugestii |
+| 188 | Motor și anexe › Suport rolă accesorii | Piese auto › Motoare și accesorii › Sistem curea accesorii | 4 | corectat |
+| 189 | Suspensie și direcție › Vas lichid servodirecție | Piese auto › Sistem de direcție › Rezervoare lichid servo | 4 | sugestii |
+| 190 | Car audio › Alte componente car audio | Piese auto › Echipament interior › Echipament audio de fabrică | 3 | sugestii |
+| 191 | Sistem de frânare › Alte elemente frână | Piese auto › Sistem de frânare › Altele | 3 | nume |
+| 192 | Suspensie și direcție › Bare stabilizatoare | Piese auto › Sistem de suspensie › Stabilizatoare și elemente | 3 | sugestii |
+| 193 | Electrice și senzori › Borne baterie | Piese auto › Sistem electric, aprindere › Materiale de instalare | 3 | nume |
+| 194 | Caroserie și exterior › Broască capotă | Piese auto › Piese de caroserie › Capote | 3 | nume |
+| 195 | Filtre auto › Canistră carbon | Piese auto › Sistem de alimentare cu combustibil › Altele | 3 | sugestii |
+| 196 | Climatizare (AC) și încălzire › Electroventilator climă AC | Piese auto › Sistem de climatizare › Ventilatoare A/C | 3 | corectat |
+| 197 | Filtre auto › Filtru epurator | Piese auto › Filtre › Alte filtre | 3 | sugestii |
+| 198 | Electrice și senzori › Kit pornire | Piese auto › Sistem electric, aprindere › Unități de control motor | 3 | sugestii |
+| 199 | Caroserie și exterior › Lunetă | Piese auto › Piese de caroserie › Geamuri spate | 3 | sugestii |
+| 200 | Electrice și senzori › Manetă ștergătoare | Piese auto › Echipament interior › Intrerupatoare, panouri de control | 3 | sugestii |
+| 201 | Caroserie și exterior › Mâner ușă | Piese auto › Piese de caroserie › Încuietoare uși | 3 | sugestii |
+| 202 | Interior și tapițerie › Nucă schimbător | Piese auto › Echipament interior › Mânere și manșoane | 3 | sugestii |
+| 203 | Suspensie și direcție › Perne aer | Piese auto › Sistem de suspensie › Altele | 3 | sugestii |
+| 204 | Tuning › Prelungire bara spate | Piese auto › Piese de caroserie › Bare de protecție | 3 | sugestii |
+| 205 | Tuning › Prelungire bară față | Piese auto › Piese de caroserie › Spoilere | 3 | nume |
+| 206 | Electrice și senzori › Releu pompă combustibil | Piese auto › Sistem electric, aprindere › Relee | 3 | corectat |
+| 207 | Electrice și senzori › Releu ventilator | Piese auto › Sistem electric, aprindere › Relee | 3 | nume |
+| 208 | Optică și faruri › Semnalizatoare | Piese auto › Iluminare › Semnalizatoare | 3 | sugestii |
+| 209 | Electrice și senzori › Senzor ESP | Piese auto › Sistem de frânare › Sistem ABS și ESP | 3 | sugestii |
+| 210 | Motor și anexe › Simeringuri | Piese auto › Motoare și accesorii › Garnituri și seturi de garnituri | 3 | nume |
+| 211 | Cutie de viteze și transmisie › Timonerie | Piese auto › Sistem de transmisie › Piese cutie de viteze | 3 | sugestii |
+| 212 | Motor și anexe › Vascocuplaj | Piese auto › Sistem de răcire a motorului › Ventilatoare radiator | 3 | sugestii |
+| 213 | Motor și anexe › Vibrochen | Piese auto › Motoare și accesorii › Pistoane, segmenți și biele | 3 | nume |
+| 214 | Motor și anexe › Actuator turbo | Piese auto › Motoare și accesorii › Turbocompresoare | 2 | sugestii |
+| 215 | Climatizare (AC) și încălzire › Alte piese climă auto | Piese auto › Sistem de climatizare › Altele | 2 | nume |
+| 216 | Interior și tapițerie › Alte piese interior | Piese auto › Echipament interior › Altele | 2 | nume |
+| 217 | Suspensie și direcție › Alte piese suspensie | Piese auto › Sistem de suspensie › Altele | 2 | nume |
+| 218 | Cutie de viteze și transmisie › Alte piese transmisie | Piese auto › Sistem de transmisie › Altele | 2 | nume |
+| 219 | Caroserie și exterior › Amortizoare haion | Piese auto › Echipament interior › Amortizoare cu gaz | 2 | sugestii |
+| 220 | Caroserie și exterior › Broască portbagaj | Piese auto › Piese de caroserie › Încuietoare uși | 2 | nume |
+| 221 | Interior și tapițerie › Buton reglaj oglinzi | Piese auto › Echipament interior › Intrerupatoare, panouri de control | 2 | sugestii |
+| 222 | Electrice și senzori › Calculator ABS | Piese auto › Sistem de frânare › Sistem ABS și ESP | 2 | ⚠ nume |
+| 223 | Caroserie și exterior › Capac oglindă | Piese auto › Piese de caroserie › Oglinzi exterioare | 2 | sugestii |
+| 224 | Roți, jante și anvelope › Capace roți | Anvelope și jante › Accesorii și unelte pentru roți | 2 | nume |
+| 225 | Filtre auto › Carcasă filtru motorină | Piese auto › Sistem de alimentare cu combustibil › Carcase filtre combustibil | 2 | nume |
+| 226 | Motor și anexe › Conducte alimentare | Piese auto › Sistem de alimentare cu combustibil › Conducte de combustibil | 2 | nume |
+| 227 | Suspensie și direcție › Conducte servodirecție | Piese auto › Sistem de direcție › Conducte sistem servo | 2 | sugestii |
+| 228 | Motor și anexe › Filtru de particule | Piese auto › Sistem de evacuare › Filtre DPF/FAP | 2 | nume |
+| 229 | Suspensie și direcție › Foi de arc | Piese auto › Sistem de suspensie › Arcuri de suspensie | 2 | sugestii |
+| 230 | Motor și anexe › Furtun admisie | Piese auto › Motoare și accesorii › Conducte aer | 2 | sugestii |
+| 231 | Motor și anexe › Galerie evacuare | Piese auto › Sistem de evacuare › Galerii de evacuare | 2 | sugestii |
+| 232 | Motor și anexe › Litrometru | Piese auto › Sistem de alimentare cu combustibil › Pompe de combustibil | 2 | sugestii |
+| 233 | Electrice și senzori › Motoraș deschidere portbagaj | Piese auto › Piese de caroserie › Capace de portbagaj | 2 | nume |
+| 234 | Caroserie și exterior › Ornament far | Piese auto › Piese de caroserie › Ornamente caroserie | 2 | nume |
+| 235 | Motor și anexe › Pompă AdBlue | Piese auto › Sistem de evacuare › Altele | 2 | nume |
+| 236 | Motor și anexe › Regulator presiune | Piese auto › Sistem de alimentare cu combustibil › Regulatoare de presiune combustibil | 2 | nume |
+| 237 | Electrice și senzori › Senzor ax came | Piese auto › Sistem electric, aprindere › Senzori | 2 | sugestii |
+| 238 | Electrice și senzori › Senzor MAP | Piese auto › Motoare și accesorii › Senzori MAP | 2 | ⚠ nume |
+| 239 | Electrice și senzori › Senzor nivel suspensie | Piese auto › Sistem de suspensie › Suspensie hidraulică și pneumatică | 2 | nume |
+| 240 | Electrice și senzori › Senzor temperatură gaze evacuare | Piese auto › Sistem de evacuare › Senzori de temperatură gaze de eșapament | 2 | sugestii |
+| 241 | Caroserie și exterior › Suport număr înmatriculare | Piese auto › Piese de caroserie › Suporturi, prinderi | 2 | sugestii |
+| 242 | Motor și anexe › Alte piese aprindere | Piese auto › Sistem electric, aprindere › Altele | 1 | nume |
+| 243 | Suspensie și direcție › Alte piese direcție | Piese auto › Sistem de direcție › Altele | 1 | nume |
+| 244 | Optică și faruri › Alte piese lumini auto | Piese auto › Iluminare › Altele | 1 | nume |
+| 245 | Car audio › Amplificator audio | Piese auto › Echipament interior › Echipament audio de fabrică | 1 | nume |
+| 246 | Optică și faruri › Angel eyes | Piese auto › Iluminare › Faruri și elemente de iluminat | 1 | nume |
+| 247 | Roți, jante și anvelope › Apăratori noroi | Piese auto › Piese de caroserie › Apărători de noroi | 1 | nume |
+| 248 | Caroserie și exterior › Aripă | Piese auto › Piese de caroserie › Aripi | 1 | sugestii |
+| 249 | Accesorii auto › Bare longitudinale | Accesorii auto › Portbagaje | 1 | nume |
+| 250 | Optică și faruri › Becuri Xenon | Piese auto › Iluminare › Becuri | 1 | nume |
+| 251 | Cutie de viteze și transmisie › Bloc valve cutie | Piese auto › Sistem de transmisie › Piese cutie de viteze | 1 | sugestii |
+| 252 | Suspensie și direcție › Blocaj volan | Piese auto › Sistem de direcție › Coloane de direcție | 1 | nume |
+| 253 | Caroserie și exterior › Braț oglindă | Piese auto › Piese de caroserie › Oglinzi exterioare | 1 | sugestii |
+| 254 | Caroserie și exterior › Capac bară | Piese auto › Piese de caroserie › Bare de protecție | 1 | nume |
+| 255 | Motor și anexe › Carcasă termostat | Piese auto › Sistem de răcire a motorului › Termostate | 1 | sugestii |
+| 256 | Caroserie și exterior › Catadioptru | Piese auto › Iluminare › Reflectoare | 1 | nume |
+| 257 | Caroserie și exterior › Chedere | Piese auto › Piese de caroserie › Piese de montaj | 1 | nume |
+| 258 | Scule auto › Chei | Piese auto › Sistem electric, aprindere › Contacte și chei | 1 | sugestii |
+| 259 | Interior și tapițerie › Comenzi volan | Piese auto › Echipament interior › Intrerupatoare, panouri de control | 1 | nume |
+| 260 | Cutie de viteze și transmisie › Convertizor | Piese auto › Sistem de transmisie › Piese cutie de viteze | 1 | sugestii |
+| 261 | Roți, jante și anvelope › Cric | Anvelope și jante › Accesorii și unelte pentru roți | 1 | nume |
+| 262 | Accesorii auto › Cui tractare | Accesorii auto › Cricuri și transportoare › Cârlige de remorcare și accesorii | 1 | nume |
+| 263 | Accesorii auto › Deflector capotă | Piese auto › Piese de caroserie › Ornamente caroserie | 1 | nume |
+| 264 | Accesorii auto › Diverse accesorii auto | Piese auto › Altele | 1 | ⚠ nume |
+| 265 | Suspensie și direcție › Flanșe amortizor | Piese auto › Sistem de suspensie › Amortizoare și elemente | 1 | sugestii |
+| 266 | Motor și anexe › Fulie ax came | Piese auto › Motoare și accesorii › Distribuție | 1 | nume |
+| 267 | Motor și anexe › Fulie pompa servo | Piese auto › Sistem de direcție › Pompe de servo | 1 | sugestii |
+| 268 | Motor și anexe › Fulie pompă apă | Piese auto › Motoare și accesorii › Sistem curea accesorii | 1 | nume |
+| 269 | Caroserie și exterior › Grilă | Piese auto › Piese de caroserie › Grile radiator | 1 | nume |
+| 270 | Cutie de viteze și transmisie › Kit ambreiaj | Piese auto › Sistem de transmisie › Ambreiaje | 1 | sugestii |
+| 271 | Suspensie și direcție › Kit brațe | Piese auto › Sistem de suspensie › Brațe de suspensie și elemente | 1 | sugestii |
+| 272 | Car audio › Magazie CD | Piese auto › Echipament interior › Echipament audio de fabrică | 1 | sugestii |
+| 273 | Caroserie și exterior › Mâner deschidere capotă | Piese auto › Piese de caroserie › Capote | 1 | nume |
+| 274 | Interior și tapițerie › Mâner frână mână | Piese auto › Sistem de frânare › Frâne de parcare | 1 | sugestii |
+| 275 | Car audio › Modulator FM | Piese auto › Echipament interior › Echipament audio de fabrică | 1 | nume |
+| 276 | Navigație GPS › Navigație auto | Accesorii auto › Electronică auto › Navigație și accesorii GPS | 1 | nume |
+| 277 | Caroserie și exterior › Opritor ușă | Piese auto › Piese de caroserie › Piese de montaj | 1 | nume |
+| 278 | Interior și tapițerie › Pedale | Piese auto › Echipament interior › Pedale | 1 | sugestii |
+| 279 | Caroserie și exterior › Perie geam | Piese auto › Piese de caroserie › Piese de montaj | 1 | nume |
+| 280 | Interior și tapițerie › Plafonieră | Piese auto › Echipament interior › Iluminare cabină | 1 | sugestii |
+| 281 | Roți, jante și anvelope › Roată de rezervă | Anvelope și jante › Roți (jante cu anvelope) › Roți de rezervă | 1 | nume |
+| 282 | Motor și anexe › Rolă întinzătoare accesorii | Piese auto › Motoare și accesorii › Sistem curea accesorii | 1 | sugestii |
+| 283 | Roți, jante și anvelope | Anvelope și jante › Accesorii și unelte pentru roți | 1 | nume |
+| 284 | Interior și tapițerie › Scrumieră | Piese auto › Echipament interior › Scrumiere | 1 | sugestii |
+| 285 | Optică și faruri › Semnalizare oglindă | Piese auto › Iluminare › Semnalizatoare | 1 | nume |
+| 286 | Electrice și senzori › Senzor deschidere haion | Piese auto › Sistem electric, aprindere › Senzori | 1 | nume |
+| 287 | Electrice și senzori › Senzor nivel ulei | Piese auto › Motoare și accesorii › Ungere motor | 1 | sugestii |
+| 288 | Electrice și senzori › Senzor unghi volan | Piese auto › Sistem de direcție › Senzori de unghi de viraj | 1 | nume |
+| 289 | Electrice și senzori › Senzori ABS și parcare | Piese auto › Sistem electric, aprindere › Senzori | 1 | nume |
+| 290 | Motor și anexe › Set curea transmisie | Piese auto › Motoare și accesorii › Sistem curea accesorii | 1 | nume |
+| 291 | Climatizare (AC) și încălzire › Webasto | Piese auto › Încălzire staționară și răcire › Încălzire auxiliară | 1 | sugestii |
+
+### De verificat de om (scrise, dar alese cu îndoială)
+
+| Categoria | Ales | Piese | De ce |
+|---|---|---|---|
+| EGR și Clapetă acceleratie | Piese auto › Motoare și accesorii › Clapete de accelerație | 324 | categorie amestecată: supape EGR + clapete de accelerație; OLX are frunze separate („Recirculare gaze EGR”) |
+| Radiatoare și Ventilatoare | Piese auto › Sistem de răcire a motorului › Radiatoare | 229 | categorie amestecată: radiatoare + electroventilatoare; OLX are și „Ventilatoare radiator” |
+| Alternator | Piese auto › Sistem electric, aprindere › Electromotoare și piese | 144 | OLX n-are frunză de alternatoare; clasificatorul lor a ales „Electromotoare și piese” la 3 din 5 titluri |
+| Alte piese de caroserie | Piese auto › Piese de caroserie › Elemente de caroserie | 78 | categorie-sac („Alte piese de caroserie”) |
+| Alte piese Electrică & Electronică | Piese auto › Sistem electric, aprindere › Echipament electric | 44 | categorie-sac („Alte piese Electrică & Electronică”): calculatoare, siguranțe, module diverse |
+| Diverse | Piese auto › Altele | 6 | categoria „Diverse” — piese de tot felul |
+| Calculator ABS | Piese auto › Sistem de frânare › Sistem ABS și ESP | 2 | ales după nume, dar piesele din ea sunt calculatoare de frână de mână (par puse greșit la noi) |
+| Senzor MAP | Piese auto › Motoare și accesorii › Senzori MAP | 2 | ales după nume, dar piesele din ea sunt senzori de presiune diferențială DPF (par puse greșit la noi) |
+| Diverse accesorii auto | Piese auto › Altele | 1 | categorie-sac („Diverse accesorii auto”) |
+
+Se schimbă din Admin → Anunțuri OLX → Potrivirea categoriilor; o potrivire pusă de om nu mai e suprascrisă de script (`--scrie` sare rândurile cu `actualizat_de` completat).
+
+### Raportul pe catalog după potrivire (13 noiembrie 2026)
+
+| | Piese |
+|---|---|
+| Publicate cu stoc (verificate) | 8.746 |
+| **Gata de publicat** | **8.746** |
+| Blocate | 0 |
+
+Riscuri — doar raportate, nu blochează: 203 titluri cu peste 50% majuscule dacă se numără doar literele; 118 coduri care pot fi luate drept telefon; 1 piesă fără poze. Corecturi automate: 31 de descrieri cu semne repetate, 1 titlu la majuscule, 1 descriere completată (prea scurtă). Setările anunțurilor (oraș, contact) sunt complete.
+
+**Urmează**: proba pe UN anunț real (de preferat o piesă dintr-o categorie sigură, ex. un far, care are și cod de piesă — ca să vedem dacă OLX îl ia drept telefon). Fără publicare în masă până la pasul 3.
