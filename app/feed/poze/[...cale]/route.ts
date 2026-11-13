@@ -15,7 +15,8 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const CALE_VALIDA = /^[A-Za-z0-9._\-]+(\/[A-Za-z0-9._\-]+)*\.(webp|jpe?g|png)$/i;
+// GIF acceptat de la 13 noiembrie 2026 (AP-010086 avea o poză GIF; OLX a refuzat anunțul cu „Remote file not exists”).
+const CALE_VALIDA = /^[A-Za-z0-9._\-]+(\/[A-Za-z0-9._\-]+)*\.(webp|jpe?g|png|gif)$/i;
 
 export async function GET(_req: Request, { params }: { params: { cale: string[] } }) {
   const brut = (params.cale ?? []).map((c) => decodeURIComponent(c)).join("/");
