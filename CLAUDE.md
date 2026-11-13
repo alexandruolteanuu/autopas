@@ -105,10 +105,11 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 36. `email-automat.sql` -> 37. `dezro.sql` -> 38. `piesa-vanduta-ramane.sql` ->
 39. `dezro-automat.sql` -> 40. `senzori-auto-despartire.sql` -> 41. `observatii-comanda.sql` ->
 42. `sugestie-clasificare.sql` -> 43. `awb-fancourier.sql` -> 44. `nomenclator-fan.sql` ->
-45. `transport-incasat-de-fan.sql` -> 46. `retur-fan.sql` -> 47. `saga-calcul.sql` -> 48. `saga-export.sql` -> 49. `saga-facturi.sql` -> 50. `saga-articole.sql` -> 51. `saga-emitere.sql` -> 52. `saga-api.sql` -> 53. `saga-stornare.sql` -> 54. `saga-refacturare.sql` -> 55. `comenzi-sterse.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9–55.
+45. `transport-incasat-de-fan.sql` -> 46. `retur-fan.sql` -> 47. `saga-calcul.sql` -> 48. `saga-export.sql` -> 49. `saga-facturi.sql` -> 50. `saga-articole.sql` -> 51. `saga-emitere.sql` -> 52. `saga-api.sql` -> 53. `saga-stornare.sql` -> 54. `saga-refacturare.sql` -> 55. `comenzi-sterse.sql` -> 56. `olx-conexiune.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9–56.
 NU sunt încă idempotente: 1–5, 8.
 **Aplicate pe producție: 1–45 și 47–55. 46 e scrisă, NErulată** (așteaptă contul ocazional FAN).
+**56 (OLX, pasul 1 din `docs/olx-plan.md`, ramura `olx-integrare`) e scrisă, NErulată**: `olx_cont` (aplicația + tokenii, fără politici RLS), lacătul, `olx_consuma_starea`, `olx_apeluri`, `olx_categorii`, `olx_mapari`. Doar obiecte noi. Pre-verificare: `scripts/pre-verifica-olx-conexiune.sql`; test: `scripts/verifica-olx-conexiune.sql`; anulare: `scripts/anuleaza-olx-conexiune.sql`. Singurul loc care folosește tokenii OLX: `lib/olx-api.mjs` (listă închisă de apeluri — nu cumpără nimic).
 **55 e RULATĂ pe producție la 11 noiembrie 2026** (pre-verificarea 4 × true, Success, `verifica-comenzi-sterse.sql` 19/19, verificarea finală 0 | true) — „Șterge” pe comenzile cu factură: `orders.sters_la` / `sters_de`
 (ascundere, nu ștergere), triggerul `orders_sters_pazeste` (din browser coloanele nu se scriu direct), `sterge_comanda`
 rescrisă cu gardă de amprentă (9: `cd1d7d0cf96d2c79014e7d7749ac1b0d` → 55: `ec5319ea6dbed417d766c2fb92157410`). Fără

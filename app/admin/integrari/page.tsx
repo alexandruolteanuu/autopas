@@ -51,6 +51,13 @@ const INTEGRARI: Stare[] = [
            "Bifezi „Activă”, salvezi, apoi mergi la Admin → Anunțuri dez.ro → „Testează conexiunea”",
            "Acolo: aduci catalogul lor, potrivești mărcile și categoriile, publici o piesă de probă, apoi pornești tot",
            "⚠ Locul de livrare (județ/localitate) îl iau ei din profilul contului de pe dez.ro — verifică-l acolo, nu se trimite din cod"] },
+  { nume: "OLX — anunțuri", grup: "Reclame", stare: "pregatit",
+    desc: "Piesele publicate de pe site ajung ca anunțuri pe contul OLX business al firmei, prin OLX Partner API. Aplicația NU cumpără nimic niciodată (pachete, promovări): un anunț care iese „limited” doar se marchează. Datele aplicației și tokenii stau doar în bază, într-o tabelă pe care browserul n-o poate citi.",
+    pasi: ["Lipești mai jos client_id și client_secret primite de la OLX → „Salvează aplicația”",
+           "„Conectează OLX” → te autentifici pe OLX cu contul business și accepți aplicația",
+           "„Testează conexiunea” → trebuie să apară numele contului și câte anunțuri are deja",
+           "Cauți orașul sediului după coordonate și pui numele de contact → „Salvează setările”",
+           "Admin → Anunțuri OLX → Categorii: aduci catalogul OLX și potrivești categoriile"] },
   { nume: "Google Merchant Center", grup: "Reclame", stare: "activ",
     desc: "Feed-ul de produse există și se reîmprospătează singur la 3 ore: /feed/google.xml. Conține toate piesele publicate, cu poză și preț. Adresa completă și numărul de produse le vezi în Admin → Feed și export.",
     pasi: ["Cont Merchant Center → revendici domeniul (e deja verificat în Search Console)",
@@ -321,6 +328,141 @@ function UneltSaga() {
 }
 
 /**
+ * OLX (pasul 1, docs/olx-plan.md). Nimic de aici nu trece prin `settings.integrari`:
+ * client_secret și tokenii merg direct la /api/olx și stau în `olx_cont`, tabelă pe
+ * care browserul n-o poate citi. Panoul vede doar „salvat / conectat / reînnoit”.
+ */
+type StareOlx = {
+  aplicatie: boolean; client_id: string | null; conectat: boolean; conectat_la: string | null; reinnoit_la: string | null;
+  access_expira: string | null; folosit_la: string | null; deconectat_la: string | null; deconectat_motiv: string | null;
+  utilizator: { name?: string; email?: string; is_business?: boolean } | null;
+  setari: { city_id?: number | null; district_id?: number | null; oras?: string; contact_nume?: string; contact_telefon?: string };
+  apeluri: { id: number; created_at: string; tip: string; metoda: string | null; cale: string | null; http_status: number | null; durata_ms: number | null; eroare: string | null }[];
+  categorii: number; mapari: number; callback?: string;
+};
+
+function UneltOlx() {
+  const [stare, setStare] = useState<StareOlx | null>(null);
+  const [app, setApp] = useState({ client_id: "", client_secret: "" });
+  const [set, setSet] = useState({ city_id: "", district_id: "", oras: "", contact_nume: "", contact_telefon: "" });
+  const [coord, setCoord] = useState("");
+  const [locatii, setLocatii] = useState<{ city_id: number; oras: string; district_id: number | null; cartier: string | null }[]>([]);
+  const [lucru, setLucru] = useState("");
+  const [rez, setRez] = useState<{ bun: boolean; text: string } | null>(null);
+
+  const cheama = useCallback(async (corp: Record<string, unknown>) => {
+    const sb = sbBrowser();
+    const token = sb ? (await sb.auth.getSession()).data.session?.access_token : null;
+    const r = await fetch("/api/olx", { method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` }, body: JSON.stringify(corp) });
+    return r.json().catch(() => ({ ok: false, eroare: `Răspuns neașteptat (HTTP ${r.status}).` }));
+  }, []);
+  const aplica = (j: any) => {
+    if (!j?.aplicatie && j?.aplicatie !== false) return;
+    setStare(j);
+    const s = j.setari ?? {};
+    setSet({ city_id: s.city_id ? String(s.city_id) : "", district_id: s.district_id ? String(s.district_id) : "", oras: s.oras ?? "",
+             contact_nume: s.contact_nume ?? "", contact_telefon: s.contact_telefon ?? "" });
+  };
+  useEffect(() => {
+    // Mesajul întors de callback-ul OLX (?olx=ok|eroare&mesaj=…).
+    const q = new URLSearchParams(location.search);
+    if (q.get("olx")) setRez({ bun: q.get("olx") === "ok", text: q.get("mesaj") ?? "" });
+    cheama({ actiune: "stare" }).then((j) => j?.ok ? aplica(j) : setRez({ bun: false, text: j?.eroare ?? "Starea OLX nu s-a putut citi." }));
+  }, [cheama]);
+
+  async function fa(actiune: string, extra: Record<string, unknown> = {}) {
+    setLucru(actiune); setRez(null);
+    const j = await cheama({ actiune, ...extra });
+    setLucru("");
+    if (j?.ok) { aplica(j); if (j.mesaj) setRez({ bun: true, text: j.mesaj }); }
+    else setRez({ bun: false, text: j?.eroare ?? "Operația n-a mers." });
+    return j;
+  }
+  async function conecteaza() {
+    const j = await fa("conecteaza");
+    if (j?.ok && j.url) location.href = j.url;
+  }
+  async function cautaOras() {
+    const [lat, lon] = coord.split(/[,; ]+/).filter(Boolean);
+    const j = await fa("cauta-oras", { lat, lon });
+    if (j?.ok) { setLocatii(j.locatii ?? []); if (!j.locatii?.length) setRez({ bun: false, text: "OLX n-a găsit nicio localitate la coordonatele astea." }); }
+  }
+
+  const s = stare;
+  return (
+    <div id="olx" className="mt-4 pt-3 border-t border-line text-sm grid gap-2">
+      <b className="text-xs">Legătura cu OLX</b>
+      <p className="text-xs text-mut">
+        {!s ? "Se citește starea…" : !s.aplicatie ? "Aplicația OLX nu e salvată."
+          : s.conectat ? <>Conectat{s.utilizator?.name ? <> ca <b>{s.utilizator.name}</b>{s.utilizator.is_business ? " (business)" : ""}</> : ""} din {cand(s.conectat_la)}.
+              Token reînnoit: {cand(s.reinnoit_la)}; valabil până la {cand(s.access_expira)}.</>
+          : "Aplicația e salvată, contul nu e conectat."}
+      </p>
+      {s?.deconectat_la && <p className="text-xs rounded-lg border-2 border-red-300 bg-red-50 text-red-800 p-2">
+        ⚠ Deconectat la {cand(s.deconectat_la)} ({s.deconectat_motiv}). Apasă „Conectează OLX”.</p>}
+
+      <details open={!s?.aplicatie} className="text-xs">
+        <summary className="cursor-pointer text-mut">{s?.aplicatie ? `Schimbă aplicația (client_id ${s.client_id})` : "Salvează aplicația OLX"}</summary>
+        <div className="fld mt-1"><label>client_id</label>
+          <input autoComplete="off" value={app.client_id} onChange={(e) => setApp({ ...app, client_id: e.target.value })} /></div>
+        <div className="fld mt-1"><label>client_secret (nu se mai poate vedea după salvare)</label>
+          <input type="password" autoComplete="new-password" value={app.client_secret} onChange={(e) => setApp({ ...app, client_secret: e.target.value })} /></div>
+        {s?.callback && <p className="text-mut mt-1">Callback URL-ul înregistrat la OLX trebuie să fie exact: <code>{s.callback}</code></p>}
+        <button type="button" disabled={!!lucru || !app.client_id.trim() || !app.client_secret.trim()} className="btn-dark !py-1.5 text-xs mt-2"
+          onClick={async () => { const j = await fa("salveaza-aplicatia", app); if (j?.ok) setApp({ client_id: "", client_secret: "" }); }}>
+          {lucru === "salveaza-aplicatia" ? "Se salvează…" : "Salvează aplicația"}</button>
+      </details>
+
+      <div className="flex flex-wrap gap-2">
+        <button type="button" onClick={conecteaza} disabled={!!lucru || !s?.aplicatie} className="btn-dark !py-1.5 text-xs">
+          {lucru === "conecteaza" ? "Se deschide OLX…" : s?.conectat ? "Reconectează OLX" : "Conectează OLX"}</button>
+        <button type="button" onClick={() => fa("testeaza")} disabled={!!lucru || !s?.conectat}
+          className="rounded-xl border-2 border-line px-3 py-1.5 text-xs font-bold hover:border-acc">
+          {lucru === "testeaza" ? "Se testează…" : "Testează conexiunea"}</button>
+        {s?.conectat && <button type="button" disabled={!!lucru} className="text-xs text-red-700 underline"
+          onClick={() => confirm("Deconectezi contul OLX? Tokenii se șterg; anunțurile de pe OLX rămân.") && fa("deconecteaza")}>Deconectează</button>}
+      </div>
+      <p className="text-[11px] text-mut">„Testează conexiunea” doar citește: contul și lista anunțurilor existente.</p>
+
+      {s?.conectat && (
+        <details className="text-xs" open={!s.setari?.city_id}>
+          <summary className="cursor-pointer text-mut">Setările anunțurilor (oraș, contact){s.setari?.oras ? ` — ${s.setari.oras}` : ""}</summary>
+          <div className="fld mt-1"><label>Coordonatele depozitului (latitudine, longitudine — din Google Maps)</label>
+            <div className="flex gap-2"><input value={coord} onChange={(e) => setCoord(e.target.value)} placeholder="46.95, 26.30" />
+              <button type="button" onClick={cautaOras} disabled={!!lucru || !coord.trim()} className="rounded-xl border-2 border-line px-3 text-xs font-bold whitespace-nowrap">
+                {lucru === "cauta-oras" ? "Caut…" : "Caută pe OLX"}</button></div></div>
+          {locatii.map((l) => (
+            <button key={`${l.city_id}-${l.district_id}`} type="button" className="block text-left underline mt-1"
+              onClick={() => setSet({ ...set, city_id: String(l.city_id), district_id: l.district_id ? String(l.district_id) : "", oras: l.oras + (l.cartier ? `, ${l.cartier}` : "") })}>
+              {l.oras}{l.cartier ? ` · ${l.cartier}` : ""} (city_id {l.city_id})</button>
+          ))}
+          <p className="mt-1">Orașul ales: <b>{set.oras || "—"}</b> {set.city_id && `(city_id ${set.city_id}${set.district_id ? `, district_id ${set.district_id}` : ""})`}</p>
+          <div className="fld mt-1"><label>Numele de contact de pe anunț</label>
+            <input value={set.contact_nume} onChange={(e) => setSet({ ...set, contact_nume: e.target.value })} /></div>
+          <div className="fld mt-1"><label>Telefonul de contact (câmpul OLX „contact”, nu în descriere)</label>
+            <input value={set.contact_telefon} onChange={(e) => setSet({ ...set, contact_telefon: e.target.value })} /></div>
+          <button type="button" disabled={!!lucru || !set.city_id || !set.contact_nume.trim()} onClick={() => fa("salveaza-setari", set)} className="btn-dark !py-1.5 text-xs mt-2">
+            {lucru === "salveaza-setari" ? "Se salvează…" : "Salvează setările"}</button>
+        </details>
+      )}
+      {s?.conectat && <p className="text-xs"><a href="/admin/olx/categorii" className="underline font-bold">Potrivirea categoriilor OLX →</a>
+        <span className="text-mut"> ({s.mapari} potriviri, {s.categorii} categorii OLX aduse)</span></p>}
+      {rez && <p className={`text-xs ${rez.bun ? "text-ok" : "text-red-600"}`}>{rez.text}</p>}
+      {!!s?.apeluri.length && (
+        <details className="text-xs"><summary className="cursor-pointer text-mut">Ultimele apeluri spre OLX</summary>
+          <ul className="mt-1 space-y-0.5">
+            {s.apeluri.map((a) => (
+              <li key={a.id}>{cand(a.created_at)} · {a.tip} · {a.metoda} {a.cale} · HTTP {a.http_status ?? "—"} · {a.durata_ms ?? "—"} ms
+                {a.eroare ? <span className="text-red-600"> · {a.eroare}</span> : ""}</li>
+            ))}
+          </ul></details>
+      )}
+    </div>
+  );
+}
+
+/**
  * Testul și golirea manuală a cozii.
  *
  * Testul trece prin ACELAȘI drum ca un e-mail adevărat — aceeași rută, aceeași
@@ -537,6 +679,7 @@ export default function Integrari() {
                   {i.nume === "FAN Courier (SelfAWB)" && <UneltFan />}
                   {i.nume === "FAN Courier — retururi" && <UneltFanRetur />}
                   {i.nume === "Saga — facturare" && <UneltSaga />}
+                  {i.nume === "OLX — anunțuri" && <UneltOlx />}
                   {CAMPURI[i.nume] && (
                     <form onSubmit={(e) => { e.preventDefault();
                       const f = new FormData(e.currentTarget);
