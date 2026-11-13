@@ -66,7 +66,7 @@ const INTEGRARI: Integrare[] = [
            "„Conectează OLX” → autentificare cu contul business și acceptarea aplicației",
            "„Testează conexiunea” → numele contului",
            "Orașul (după coordonate) și numele de contact → „Salvează setările”",
-           "Potrivirea categoriilor OLX (link mai jos)"] },
+           "Potrivirea categoriilor OLX — făcută; se schimbă doar la o categorie nouă (link mai jos)"] },
   { id: "merchant", nume: "Google Merchant Center", grup: "Anunțuri și reclame", stare: "activ",
     rezumat: "Feed-ul de produse pentru Google Shopping: /feed/google.xml.",
     desc: "Feed-ul se reîmprospătează singur la 3 ore și conține toate piesele publicate, cu poză și preț. Adresa completă și numărul de produse: Admin → Feed și export.",

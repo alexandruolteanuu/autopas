@@ -31,11 +31,11 @@ export const eticheta = (c: string) => {
 
 type Anunt = { advert_id: number | null; status: string; url: string | null; valid_to: string | null; motiv_moderare: string | null;
                eroare: string | null; amprenta: string | null; publicat_la: string | null; actualizat_la: string };
-const STARI: Record<string, string> = {
-  in_curs: "se publică…", new: "nou — în moderare la OLX", active: "activ pe OLX", limited: "LIMITED — peste limita gratuită (nu se plătește nimic)",
+export const STARI: Record<string, string> = {
+  in_curs: "se publică…", new: "nou — în moderare la OLX", active: "activ pe OLX", limited: "neplătit — peste limita gratuită; se activează din contul OLX, după plată",
   removed_by_user: "dezactivat", outdated: "expirat", moderated: "RESPINS de moderare", blocked: "BLOCAT de moderare",
   disabled: "dezactivat de moderare (în verificare)", removed_by_moderator: "șters de moderator", eroare: "eroare la publicare",
-  unconfirmed: "așteaptă confirmare", unpaid: "așteaptă plată (nu se plătește nimic din aplicație)",
+  unconfirmed: "așteaptă confirmare", unpaid: "așteaptă plata — se plătește din contul OLX",
 };
 
 async function cheama(corp: Record<string, unknown>) {
@@ -115,7 +115,7 @@ export default function OlxPiesa({ id }: { id: number }) {
               onClick={() => fa("activeaza")}>Activează</button>
           </>}
         </div>
-        <p className="text-[11px] text-mut">Butoanele folosesc datele SALVATE ale piesei. Aplicația nu cumpără nimic pe OLX (pachete, promovări).</p>
+        <p className="text-[11px] text-mut">Butoanele folosesc datele SALVATE ale piesei. Plata (pachete, promovări) și activarea unui anunț neplătit se fac din contul OLX, nu de aici.</p>
         {rez && <p className={`text-xs ${rez.bun ? "text-ok" : "text-red-700"}`}>{rez.text}</p>}
       </div>
       {p && !p.corp && <p className="text-xs text-red-700 mt-2">{p.eroare}</p>}

@@ -94,11 +94,16 @@ export default function CategoriiOlx() {
   return (
     <div className="space-y-4">
       <div>
-        <div className="dim"><Link href="/admin/integrari#olx" className="hover:text-acc">Integrări → OLX</Link> → Categorii</div>
+        <div className="dim"><Link href="/admin/olx" className="hover:text-acc">Anunțuri OLX</Link> → Categorii</div>
         <h1 className="font-disp font-bold text-2xl mt-1">Categoriile OLX</h1>
         <p className="text-sm text-mut mt-1">
           În ce categorie OLX intră piesele fiecărei categorii de pe site. Ordinea: subcategoria piesei, apoi categoria ei.
           Fără potrivire, piesa nu se publică pe OLX. Pe OLX se poate alege doar o categorie finală (fără subcategorii).
+        </p>
+        <p className="text-xs text-mut mt-1">
+          Excepție, după titlul piesei: la „EGR și Clapetă accelerație”, titlurile cu „EGR” / „răcitor gaze” merg la Recirculare
+          gaze EGR; la „Radiatoare și Ventilatoare”, cele cu „ventilator” / „GMV” merg la Ventilatoare radiator. Regula e în cod
+          și bate potrivirea de aici.
         </p>
       </div>
 

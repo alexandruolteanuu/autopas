@@ -658,3 +658,13 @@ titlul are 67% majuscule numărate pe litere (sub 50% pe tot textul, deci pleac�
   automatically extended when it expires”) — verificat pe 311922114: `auto_extend_enabled: true`, `valid_to` 13.12.2026.
   Deci OLX prelungește singur anunțurile active la expirare, fără niciun apel de la noi. Comanda `extend` (prelungire
   manuală, prin API) rămâne refuzată. DE CONFIRMAT cu OLX: prelungirea automată costă ceva / consumă din pachet?
+
+### Curățarea paginii „Anunțuri OLX” (13 noiembrie 2026)
+- Textul „Publicarea începe după aprobarea aplicației de către OLX” scos (aplicația e aprobată și conectată).
+- Sus: anunțurile create din aplicație (`olx_anunturi`, ultimele 100 + totalul), cu starea, valabilitatea, linkul OLX și
+  avertismentul pentru cele neplătite (`limited` / `unpaid`). Lista completă, cu filtre, rămâne la pasul 3.
+- Raportul: fără tabelul „textul brut ar fi fost refuzat” (dubla tabelul „Corectat automat”); „De urmărit” arată doar
+  piesele fără poze — riscurile „cod luat drept telefon” și „majuscule pe litere” au fost scoase din generator, fiindcă
+  proba reală le-a închis.
+- Potrivirea categoriilor: link discret la final; pagina ei explică excepția după titlu (EGR / ventilatoare).
+- Starea `limited` se scrie „neplătit — se activează din contul OLX, după plată” (nu „LIMITED — nu se plătește nimic”).
