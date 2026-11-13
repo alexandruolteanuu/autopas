@@ -13,11 +13,14 @@
 // Pasul 2 (doar citire, toată echipa; NU cheamă OLX):
 //   · previzualizeaza     — anunțul generat pentru o piesă (`product_id`);
 //   · raport              — generatorul rulat pe tot catalogul publicat cu stoc.
+// Pasul 2, cu OLX (doar admin; `product_id`): publica · actualizeaza · dezactiveaza (`vanduta`)
+//   · activeaza · improspateaza. Toată logica: lib/olx-publicare.mjs.
 // Tokenii și secretul intră aici doar la salvare și nu ies în niciun răspuns.
 // ============================================================
 import { NextResponse } from "next/server";
 import { esteAdmin, esteEchipa, citesteTot } from "@/lib/supabase";
-import { clientOlx, stareOlx, admin, cere, adresaCallback, contextAnunt, COLOANE_PIESA, EroareOlx, type SetariOlx } from "@/lib/olx";
+import { clientOlx, stareOlx, admin, cere, adresaCallback, contextAnunt, depozitAnunturi, COLOANE_PIESA, EroareOlx, type SetariOlx } from "@/lib/olx";
+import { publica, actualizeaza, improspateaza, comanda } from "@/lib/olx-publicare.mjs";
 import { construiesteAnunt, incalcariBrute } from "@/lib/olx-anunt.mjs";
 import { adresaAutorizare, dinData } from "@/lib/olx-api.mjs";
 
@@ -60,6 +63,23 @@ export async function POST(req: Request) {
 
     const de = await esteAdmin(req);
     if (!de) return nuAi();
+
+    if (["publica", "actualizeaza", "dezactiveaza", "activeaza", "improspateaza"].includes(actiune)) {
+      const id = Number(corp.product_id);
+      if (!Number.isInteger(id) || id <= 0) return greseala("Piesa lipsește.");
+      const client = clientOlx(), depozit = depozitAnunturi();
+      let r: Record<string, unknown>;
+      if (actiune === "improspateaza") r = await improspateaza({ productId: id, client, depozit, de });
+      else if (actiune === "dezactiveaza") r = await comanda({ productId: id, comanda: "deactivate", vanduta: !!corp.vanduta, client, depozit, de });
+      else if (actiune === "activeaza") r = await comanda({ productId: id, comanda: "activate", client, depozit, de });
+      else {
+        const piesa = await cere(sb.from("products").select(COLOANE_PIESA).eq("id", id).maybeSingle(), "piesa");
+        if (!piesa) return greseala("Piesa nu există.");
+        const ctx = await contextAnunt();
+        r = actiune === "publica" ? await publica({ piesa, ctx, client, depozit, de }) : await actualizeaza({ piesa, ctx, client, depozit, de });
+      }
+      return NextResponse.json({ ok: true, ...r, anunt: await depozit.citeste(id) });
+    }
 
     if (actiune === "stare") return NextResponse.json({ ok: true, ...(await stareOlx()), callback: adresaCallback(req) });
 

@@ -206,3 +206,40 @@ OLX” până se fac potrivirile.
 `/admin/olx` răspunde 200; `/api/olx` fără sesiune → 401 (corect). **În așteptare**: aprobarea aplicației de către OLX.
 După ea, proprietarul pune client_id / client_secret în Integrări → „OLX — anunțuri”, se conectează, testează conexiunea;
 apoi: potrivirea categoriilor și primul anunț real (restul pasului 2).
+
+---
+
+## Pasul 2, partea cu OLX (13 noiembrie 2026) — ramura `olx-integrare`, fără push
+**Starea contului** (citită din bază, fără tokeni): aplicația 201031 aprobată; conectat ca „AutoPas”, cont business;
+scope `v2 read write`; setări: Bistrița, Neamț (`city_id` 42861), contact „Autopas Dezmembrari”, 0743627151.
+⚠ „Testează conexiunea” a citit 21 de pagini de câte 100 → **contul are deja peste 2.000 de anunțuri pe OLX**. Înainte
+de publicarea în masă (pasul 3) se lămurește de unde vin (manual? altă sincronizare, de ex. pieseauto.ro?) — altfel se
+dublează catalogul pe OLX. Pentru proba pe O piesă nu contează.
+
+**Ce s-a făcut**
+- Migrarea 57 `supabase/olx-anunturi.sql`: `olx_anunturi` — un singur rând pe piesă (`product_id` unic), `advert_id`
+  unic, `on delete set null` (anunțul unei piese șterse rămâne cunoscut, ca să poată fi retras). Scrie doar serverul.
+- `lib/olx-publicare.mjs` — `publica`, `actualizeaza` (PUT), `improspateaza` (stare + motivul de moderare),
+  `comanda` (deactivate cu `is_success` / activate). **Un singur anunț pe piesă**: rândul se revendică înainte de POST,
+  iar înainte de POST se caută la OLX un anunț cu același `external_id` (cod_intern) și, dacă există, se preia.
+  **Nimic plătit**: `activate` e refuzat pe un anunț „limited”. `external_url` refuzat de OLX → se renunță la el
+  automat și definitiv (setarea `external_url: false`).
+- Ruta `/api/olx`: `publica`, `actualizeaza`, `dezactiveaza` (`vanduta`), `activeaza`, `improspateaza` — doar admin.
+- Pagina piesei, caseta „OLX”: starea anunțului, link „vezi pe OLX”, motivul respingerii, ultima eroare; butoanele
+  Publică / Actualizează / Reîmprospătează / Dezactivează / Dezactivează — vândută / Activează (dezactivat pe „limited”).
+
+**Ce rulezi (SQL Editor), în ordine**
+1. `scripts/pre-verifica-olx-anunturi.sql` → **3 × true**.
+2. `supabase/olx-anunturi.sql` → **Success**.
+3. `scripts/verifica-olx-anunturi.sql` → căsuța roșie: **„REZULTAT OK: un singur anunț pe piesă, advert_id unic,
+   browserul nu scrie, anunțul supraviețuiește piesei …”**.
+Apoi confirmi, iar ramura se unește în `main` (codul cere tabela — de aceea migrarea întâi).
+
+**Proba pe un anunț real (după deploy)**
+1. Anunțuri OLX → Potrivirea categoriilor → „Adu categoriile OLX”; potrivești categoria piesei de probă (ex. „Faruri”)
+   cu categoria finală OLX și atributele cerute (starea: folosit).
+2. Pe pagina piesei: „Previzualizează anunțul OLX” → fără motive de blocare → „Publică pe OLX”. Stare: „nou — în
+   moderare”; după câteva secunde „Reîmprospătează starea” → „activ”, cu link. Verifici anunțul pe OLX.
+3. Schimbi prețul piesei, salvezi → „Actualizează pe OLX” → prețul nou pe OLX.
+4. „Dezactivează” → stare „dezactivat”; „Activează” → „activ” din nou.
+5. Îmi trimiți ce s-a văzut, plus: textul la majuscule / cod Bosch (dacă piesa are), poze, `auto_extend`, orice eroare.

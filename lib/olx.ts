@@ -124,3 +124,37 @@ export async function contextAnunt() {
     poza: (u: string) => pozaCsv(u),
   };
 }
+
+// ------------------------------------------------------------
+// PASUL 2 — depozitul anunțurilor (`olx_anunturi`, migrarea 57) pentru lib/olx-publicare.mjs.
+// ------------------------------------------------------------
+export function depozitAnunturi() {
+  const sb = admin();
+  return {
+    citeste: async (productId: number) =>
+      (await cere(sb.from("olx_anunturi").select("*").eq("product_id", productId).maybeSingle(), "anunțul OLX")) as any,
+    // Revendicarea: rând nou „in_curs” (unic pe piesă) sau preluarea unuia rămas fără anunț
+    // (eroare / „in_curs” uitat de un proces mort). Atomic: o singură cerere câștigă.
+    revendica: async (productId: number, cod: string, expiraMs: number) => {
+      const nou = await cere(sb.from("olx_anunturi").upsert({ product_id: productId, cod_intern: cod, status: "in_curs" },
+        { onConflict: "product_id", ignoreDuplicates: true }).select("id"), "revendicarea anunțului");
+      if (Array.isArray(nou) && nou.length === 1) return true;
+      const r = (await cere(sb.from("olx_anunturi").select("id,status,advert_id,actualizat_la").eq("product_id", productId).maybeSingle(), "anunțul OLX")) as any;
+      if (!r || r.advert_id) return false;
+      if (r.status === "in_curs" && Date.now() - Date.parse(r.actualizat_la) < expiraMs) return false;
+      const luat = await cere(sb.from("olx_anunturi").update({ status: "in_curs", actualizat_la: new Date().toISOString() })
+        .eq("id", r.id).eq("actualizat_la", r.actualizat_la).is("advert_id", null).select("id"), "revendicarea anunțului");
+      return Array.isArray(luat) && luat.length === 1;
+    },
+    scrie: async (productId: number, campuri: Record<string, unknown>) => {
+      const r = await cere(sb.from("olx_anunturi").update({ ...campuri, actualizat_la: new Date().toISOString() })
+        .eq("product_id", productId).select("id"), "anunțul OLX");
+      if (!Array.isArray(r) || r.length !== 1) throw new EroareOlx("Starea anunțului OLX nu s-a putut scrie în bază.", { cod: "baza" });
+    },
+    // OLX a refuzat `external_url` pentru contul nostru: se reține, ca să nu-l mai trimitem.
+    faraExternalUrl: async () => {
+      const s = ((await cere(sb.from("olx_cont").select("setari").eq("unic", true).maybeSingle(), "setări")) as any)?.setari ?? {};
+      await cere(sb.from("olx_cont").update({ setari: { ...s, external_url: false } }).eq("unic", true).select("unic"), "setări");
+    },
+  };
+}
