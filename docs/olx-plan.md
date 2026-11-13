@@ -151,3 +151,7 @@ select
    singură dată, lacătul e exclusiv …”**.
 
 Dacă la pasul 3 amprenta iese altfel, rezultatul se trimite înainte de test.
+
+**Rezultat (13 noiembrie 2026):** migrarea 56 corectată, re-rulată Success; `verifica-olx-conexiune.sql` REZULTAT OK.
+Pasul 1 unit în `main` și trimis pe producție. Callback-ul înregistrat la OLX: `https://autopas-dezmembrari.ro/api/olx/callback`
+(aplicația e în așteptarea confirmării OLX).
