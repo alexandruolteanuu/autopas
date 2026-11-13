@@ -111,8 +111,43 @@ Modificate: `app/admin/integrari/page.tsx`, `app/admin/layout.tsx`, `CLAUDE.md`.
 
 **Urmează**: pasul 2 (generatorul de anunț + primul anunț real), după confirmare.
 
-**Corectura din 13 noiembrie 2026 (testul pasului 1 a picat: „state-ul corect nu a fost acceptat”)**
-Cauza: `olx_consuma_starea` făcea `update … set stare_oauth_de = null … returning stare_oauth_de` — `RETURNING` dă
-valoarea DE DUPĂ `set`, deci întorcea mereu null. Rândul unic din `olx_cont` exista. Corectat în
-`supabase/olx-conexiune.sql`: citire cu `for update`, apoi golire. Amprenta corectă (fără `\r`):
-`3b6e1dee251e95633806cf41792c3fca`. Pași: re-rulezi migrarea 56 (idempotentă), apoi testul.
+**Corectura din 13 noiembrie 2026 — testul pasului 1 a picat**
+Rezultatul la prima rulare: pre-verificarea 4 × true, migrarea 56 Success, dar `scripts/verifica-olx-conexiune.sql` a dat
+„VERIFICARE PICATĂ: state-ul corect nu a fost acceptat”.
+
+*Cauza.* Rândul unic din `olx_cont` EXISTĂ (migrarea îl creează cu `insert … on conflict do nothing`). Defectul era în
+`olx_consuma_starea`:
+```sql
+update public.olx_cont
+   set stare_oauth = null, stare_oauth_expira = null, stare_oauth_de = null
+ where … stare_oauth = p_stare …
+returning stare_oauth_de into v_de;
+```
+`RETURNING` întoarce valorile DE DUPĂ `SET`. `stare_oauth_de` tocmai fusese pus pe null, deci funcția întorcea mereu
+null, chiar la un state corect. Fără corectură, „Conectează OLX” ar fi răspuns mereu „cererea nu e recunoscută”.
+Testul a prins exact defectul ăsta.
+
+*Corectura* (direct în `supabase/olx-conexiune.sql`, fără migrare nouă — funcția e nouă și n-o folosește nimic încă):
+citește întâi cine a cerut conectarea, blocând rândul cu `for update`, apoi golește câmpurile. Blocarea păstrează și
+garanția „o singură folosire” la două cereri simultane. Migrarea se poate re-rula fără efecte: tabelele și rândul există,
+politicile se refac la fel, funcțiile se înlocuiesc. Amprenta corectă (fără `\r`): `3b6e1dee251e95633806cf41792c3fca`.
+Commit `89aa803` pe `olx-integrare`, nimic pe `main`.
+
+*SQL doar de citire, pentru confirmare:*
+```sql
+select
+  (select count(*) from public.olx_cont where unic)                                    as randuri_olx_cont,      -- așteptat: 1
+  pg_get_functiondef('public.olx_consuma_starea(text)'::regprocedure)
+    ~ 'returning stare_oauth_de'                                                        as are_returning_gresit,  -- înainte de corectură: true
+  md5(replace((select prosrc from pg_proc where oid = 'public.olx_consuma_starea(text)'::regprocedure), E'\r', ''))
+                                                                                         as amprenta;
+```
+
+*Ce rulezi, în ordine, din SQL Editor:*
+1. SQL-ul de mai sus → `1 | true | <altă amprentă>` (cauza confirmată).
+2. `supabase/olx-conexiune.sql`, tot, din nou → **Success**.
+3. SQL-ul de mai sus, din nou → `1 | false | 3b6e1dee251e95633806cf41792c3fca`.
+4. `scripts/verifica-olx-conexiune.sql` → căsuța roșie: **„REZULTAT OK: browserul nu vede tokenii, state-ul merge o
+   singură dată, lacătul e exclusiv …”**.
+
+Dacă la pasul 3 amprenta iese altfel, rezultatul se trimite înainte de test.
