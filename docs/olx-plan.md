@@ -201,3 +201,8 @@ OLX” până se fac potrivirile.
 
 **De lămurit la proba reală**: majusculele (un titlu din cele 203), un cod Bosch în descriere, `auto_extend_enabled`
 (cost?), `product_safety_regulation`, `external_url` permis sau nu.
+
+**Deploy (13 noiembrie 2026):** pasul 2 fără OLX unit în `main` (fast-forward, `51c22b5`), push, deploy gata în ~75 s:
+`/admin/olx` răspunde 200; `/api/olx` fără sesiune → 401 (corect). **În așteptare**: aprobarea aplicației de către OLX.
+După ea, proprietarul pune client_id / client_secret în Integrări → „OLX — anunțuri”, se conectează, testează conexiunea;
+apoi: potrivirea categoriilor și primul anunț real (restul pasului 2).
