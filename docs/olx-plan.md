@@ -631,4 +631,20 @@ titlul are 67% majuscule numărate pe litere (sub 50% pe tot textul, deci pleac�
    „Actualizează pe OLX”.
 6. „Dezactivează” → „dezactivat”; „Activează” → „activ”.
 7. Se notează și dacă reînnoirea automată (`auto_extend_enabled`) apare pe OLX ca plătită.
-**Rezultatul probei**: _(de completat)_.
+**Rezultatul probei (13 noiembrie 2026)** — anunțul OLX 311922114, creat la 12:47 (ora lor):
+- **Închise**: titlul cu multe majuscule a fost acceptat neschimbat; codul 0445110743 din descriere a rămas și NU a fost
+  luat drept telefon. Categoria (Injectoare, 3525), 500 lei, „Second Hand”, livrare prin curier, Bistrița, Neamț — corecte.
+- `external_url`: primul POST a răspuns 400 „Partner is not allowed to use external URL”; al doilea a plecat fără el
+  (plasa din `lib/olx-publicare.mjs` a mers cum trebuia).
+- **Starea: `limited`** — după specificația lor, „advert exceeded limit of free adverts in selected category”: anunțul NU
+  e vizibil public până nu se cumpără un pachet (pe anunț sau pe categorie) și se activează. Butonul „Activează” din lista
+  OLX e exact pasul acela (plătit). Aplicația nu cumpără și nu activează un anunț `limited` (decizia din pasul 1).
+  Proprietarul confirmă: anunțul nu e plătit încă. **Consecință pentru pasul 3**: publicarea în masă ar produce anunțuri
+  `limited` — înainte de ea trebuie decis și cumpărat pachetul de pe OLX (de om, nu din aplicație).
+- **Pozele**: adresele trimise (`https://autopas-dezmembrari.ro/feed/poze/2026/…webp.jpg`) răspund 200, `image/jpeg`, fără
+  redirect, 1024×485 și 485×1024, ~90 KB. POST-ul a fost ACCEPTAT (OLX verifică adresele la creare și refuză cu
+  „Image error: Remote file not exists”; nu a refuzat) și lista OLX arată miniatura — deci OLX are pozele. Totuși
+  `GET /adverts/311922114` întoarce `images: []`, iar „Editează” pe OLX nu arată poze. Cel mai probabil e legat de starea
+  `limited` (anunț neactivat); NU s-a refăcut nimic (un PUT n-ar schimba starea). Se verifică din nou după activare:
+  dacă anunțul activ tot n-are poze, se face un PUT cu aceleași poze și se compară.
+- Pagina publică OLX răspunde 403 la cererile din Codespace (CloudFront) — nu se ocolește; se verifică din browser.
