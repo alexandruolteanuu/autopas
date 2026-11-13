@@ -10,11 +10,15 @@
 //   · aduce-categorii     — catalogul OLX (ramura „Auto…”), în `olx_categorii`;
 //   · atribute            — atributele unei frunze, salvate lângă ea;
 //   · sugestie            — GET /categories/suggestion pe un titlu de piesă.
+// Pasul 2 (doar citire, toată echipa; NU cheamă OLX):
+//   · previzualizeaza     — anunțul generat pentru o piesă (`product_id`);
+//   · raport              — generatorul rulat pe tot catalogul publicat cu stoc.
 // Tokenii și secretul intră aici doar la salvare și nu ies în niciun răspuns.
 // ============================================================
 import { NextResponse } from "next/server";
-import { esteAdmin, citesteTot } from "@/lib/supabase";
-import { clientOlx, stareOlx, admin, cere, adresaCallback, EroareOlx, type SetariOlx } from "@/lib/olx";
+import { esteAdmin, esteEchipa, citesteTot } from "@/lib/supabase";
+import { clientOlx, stareOlx, admin, cere, adresaCallback, contextAnunt, COLOANE_PIESA, EroareOlx, type SetariOlx } from "@/lib/olx";
+import { construiesteAnunt, incalcariBrute } from "@/lib/olx-anunt.mjs";
 import { adresaAutorizare, dinData } from "@/lib/olx-api.mjs";
 
 export const dynamic = "force-dynamic";
@@ -34,11 +38,29 @@ const lista = (j: unknown): CatOlx[] => { const d = dinData(j); return Array.isA
 export async function POST(req: Request) {
   const corp = await req.json().catch(() => ({} as Record<string, any>));
   const actiune = String(corp.actiune ?? "");
-  const de = await esteAdmin(req);
-  if (!de) return nuAi();
   const sb = admin();
 
   try {
+    // Pasul 2: doar citire, fără niciun apel spre OLX — deschise întregii echipe.
+    if (actiune === "previzualizeaza" || actiune === "raport") {
+      if (!(await esteEchipa(req))) return NextResponse.json({ ok: false, eroare: "Autentifică-te din nou în panou." }, { status: 401 });
+      const ctx = await contextAnunt();
+      if (actiune === "previzualizeaza") {
+        const id = Number(corp.product_id);
+        if (!Number.isInteger(id) || id <= 0) return greseala("Piesa lipsește.");
+        const p = await cere(sb.from("products").select(COLOANE_PIESA).eq("id", id).maybeSingle(), "piesa");
+        if (!p) return greseala("Piesa nu există.");
+        const a = construiesteAnunt(p as any, ctx);
+        const pr = p as any;
+        return NextResponse.json({ ...a, ok: true, publicabil: a.ok, brute: incalcariBrute(pr),
+          piesa_eligibila: !!pr.publicat && Number(pr.stoc) > 0 });
+      }
+      return NextResponse.json(await raport(ctx));
+    }
+
+    const de = await esteAdmin(req);
+    if (!de) return nuAi();
+
     if (actiune === "stare") return NextResponse.json({ ok: true, ...(await stareOlx()), callback: adresaCallback(req) });
 
     if (actiune === "salveaza-aplicatia") {
@@ -202,4 +224,34 @@ async function aduCategorii(de: string) {
       ? `Am adus ${dupaId.size} categorii (${frunze} finale), dar n-am terminat. Apasă din nou „Adu categoriile OLX”.`
       : `✓ Catalogul OLX e adus: ${dupaId.size} categorii, ${frunze} finale (ramurile: ${radacini.map((r) => r.nume).join(", ") || "—"}).`,
   };
+}
+
+/** Generatorul pe tot catalogul publicat cu stoc: câte piese ar pleca, câte nu și de ce. */
+async function raport(ctx: Awaited<ReturnType<typeof contextAnunt>>) {
+  const sb = admin();
+  const piese = await citesteTot<any>(() => sb.from("products").select(COLOANE_PIESA, { count: "exact" })
+    .eq("publicat", true).gt("stoc", 0).order("id"), { eticheta: "piesele publicate" });
+  const numara = () => ({} as Record<string, { n: number; exemple: { id: number; cod: string; nume: string }[] }>);
+  const motive = numara(), brute = numara(), corectari = numara(), riscuri = numara();
+  const adauga = (h: ReturnType<typeof numara>, cheie: string, p: any) => {
+    const x = (h[cheie] ??= { n: 0, exemple: [] });
+    x.n++;
+    if (x.exemple.length < 20) x.exemple.push({ id: p.id, cod: p.cod_intern, nume: p.nume });
+  };
+  let gata = 0, cuIncalcariBrute = 0;
+  for (const p of piese) {
+    const a = construiesteAnunt(p, ctx);
+    // „Gata” = nimic nu ține de piesă; setările lipsă se raportează o singură dată, separat.
+    if (a.motive.every((m: string) => /Integrări → OLX/.test(m))) gata++;
+    // Lipsa setărilor e una singură pentru tot catalogul: nu se numără pe piese.
+    for (const m of a.motive) if (!/Integrări → OLX/.test(m)) adauga(motive, m.replace(/ \(.*\)$/, ""), p);
+    const b = incalcariBrute(p);
+    if (b.titlu.length || b.descriere.length) cuIncalcariBrute++;
+    for (const r of b.titlu) adauga(brute, `titlu: ${r}`, p);
+    for (const r of b.descriere) adauga(brute, `descriere: ${r}`, p);
+    for (const c of a.corectari) adauga(corectari, c, p);
+    for (const r of a.riscuri) adauga(riscuri, r, p);
+  }
+  const setariLipsa = construiesteAnunt({ nume: "x".repeat(20), pret_lei: 1 }, { ...ctx, mapari: new Map() }).motive.filter((m: string) => /Integrări → OLX/.test(m));
+  return { ok: true, total: piese.length, gata, cuIncalcariBrute, setariLipsa, motive, brute, corectari, riscuri };
 }

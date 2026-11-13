@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { sbBrowser } from "@/lib/supabase";
 import ProductForm from "@/components/admin/ProductForm";
+import OlxPiesa from "@/components/admin/OlxPiesa";
 import type { Product } from "@/lib/types";
 
 export default function EditeazaPiesa() {
@@ -15,5 +16,5 @@ export default function EditeazaPiesa() {
   }, [id]);
   if (!gata) return <div className="text-mut">Se încarcă…</div>;
   if (!p) return <div className="card p-8 text-center">Piesa nu există.</div>;
-  return <ProductForm produs={p} />;
+  return <><ProductForm produs={p} /><OlxPiesa id={Number(p.id)} /></>;
 }

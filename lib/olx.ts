@@ -6,6 +6,8 @@
 // ============================================================
 import { sbAdmin } from "@/lib/supabase";
 import { creeazaClientOlx, EroareOlx } from "@/lib/olx-api.mjs";
+import { SITE_URL } from "@/lib/config";
+import { pozaCsv } from "@/lib/feed-pieseauto";
 
 export { EroareOlx };
 
@@ -91,4 +93,34 @@ export async function stareOlx(): Promise<StareOlx> {
  *  („Callback URL”). Implicit: domeniul pe care e deschis adminul + /api/olx/callback. */
 export function adresaCallback(req: Request) {
   return `${new URL(req.url).origin}/api/olx/callback`;
+}
+
+// ------------------------------------------------------------
+// PASUL 2 — contextul generatorului (lib/olx-anunt.mjs): potrivirile, categoriile
+// OLX folosite de ele și setările anunțurilor. Citit o dată, folosit pe multe piese.
+// ------------------------------------------------------------
+
+/** Coloanele piesei de care are nevoie generatorul. */
+export const COLOANE_PIESA = "id,nume,slug,stare_nota,ani,compat,oem,cod_intern,pret_lei,pret_sufix,poze,stoc,publicat,categorie_id,subcategorie_id";
+
+export async function contextAnunt() {
+  const sb = admin();
+  const [m, c] = await Promise.all([
+    cere(sb.from("olx_mapari").select("categorie_id,olx_categorie_id,atribute"), "potrivirile OLX"),
+    cere(sb.from("olx_cont").select("setari").eq("unic", true).maybeSingle(), "setările OLX"),
+  ]);
+  const mapari = new Map<number, { olx_categorie_id: number; atribute: { code: string; value: string }[] }>(
+    ((m as any[]) ?? []).map((r) => [Number(r.categorie_id), r]));
+  const ids = Array.from(new Set(Array.from(mapari.values()).map((r) => r.olx_categorie_id)));
+  const cats = ids.length
+    ? ((await cere(sb.from("olx_categorii").select("id,cale,nume,photos_limit,atribute").in("id", ids), "categoriile OLX")) as any[])
+    : [];
+  return {
+    mapari,
+    categoriiOlx: new Map<number, any>(cats.map((r) => [Number(r.id), { ...r, cale: r.cale ?? r.nume }])),
+    setari: (((c as any)?.setari ?? {}) as SetariOlx),
+    siteUrl: SITE_URL,
+    // Pozele pleacă prin conversia în JPEG (ca la pieseauto.ro): în bucket sunt WebP.
+    poza: (u: string) => pozaCsv(u),
+  };
 }

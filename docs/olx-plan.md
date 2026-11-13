@@ -155,3 +155,49 @@ Dacă la pasul 3 amprenta iese altfel, rezultatul se trimite înainte de test.
 **Rezultat (13 noiembrie 2026):** migrarea 56 corectată, re-rulată Success; `verifica-olx-conexiune.sql` REZULTAT OK.
 Pasul 1 unit în `main` și trimis pe producție. Callback-ul înregistrat la OLX: `https://autopas-dezmembrari.ro/api/olx/callback`
 (aplicația e în așteptarea confirmării OLX).
+
+**Deploy (13 noiembrie 2026):** pasul 1 unit în `main` (fast-forward, `bad2fbf`), push, deploy gata în ~75 s.
+`https://autopas-dezmembrari.ro/api/olx/callback` răspunde 303 → Integrări („Lipsesc code sau state” — corect, fără OLX).
+
+---
+
+## Jurnalul pasului 2, partea fără OLX (13 noiembrie 2026) — ramura `olx-integrare`, fără push
+Publicarea reală (POST / PUT / dezactivare / reactivare) se face după aprobarea aplicației de către OLX.
+
+**Ce s-a făcut**
+- `lib/olx-anunt.mjs` — generatorul (fără bază, fără rețea): titlu 16–150, descriere 80–9000, scoate telefon / e-mail /
+  www, reduce majusculele, taie semnele repetate (≥ 3 → 2), completează descrierea prea scurtă cu o frază adevărată
+  („Piesă auto second-hand, din dezmembrări. Se poate livra prin curier în toată țara.”), preț RON, poze prin conversia
+  JPEG (`/feed/poze/…jpg`, ca la pieseauto.ro) până la `photos_limit` (implicit 8), oraș + contact din setări,
+  `business`, `external_id` = `cod_intern`, `external_url` = pagina piesei, `courier`, `auto_extend_enabled`,
+  categoria (subcategorie → categorie) + atributele din potrivire. După curățare, textul e verificat din nou: dacă tot
+  încalcă o regulă, piesa NU pleacă. Plus amprenta corpului (pentru actualizări doar la schimbare, pasul 3).
+- Pagina piesei (`/admin/produse/[id]`): caseta „OLX” → „Previzualizează anunțul OLX” (anunțul exact, ce s-a corectat,
+  de ce nu s-ar putea publica). Doar citire.
+- `/admin/olx` („Anunțuri OLX” în meniu, admin + operator): „Raport pe tot catalogul”.
+- Ruta `/api/olx`: acțiunile `previzualizeaza` și `raport` (toată echipa, NU cheamă OLX). `lib/olx.ts`: `contextAnunt()`.
+
+**Decizie: majusculele se numără ca la OLX — din tot textul, nu doar din litere.** Măsurat: raportat la litere, 204
+titluri ar fi picat („Supapa EGR Vw Caddy 1.9 TDI BKC BXE…”) și ar fi ieșit stâlcite („Injectoare bmw…”). Varianta pe
+litere rămâne RISC raportat; se lămurește la proba reală, cu un titlu din lista aceea.
+
+**Raportul pe catalogul real** (8.744 de piese publicate cu stoc, citire din bază, fără potriviri de categorii încă):
+| | piese |
+|---|---|
+| text brut care ar fi fost REFUZAT de OLX | **33** |
+| · descriere cu 3 semne la rând („!!!”) | 31 |
+| · titlu cu peste 50% majuscule | 1 (AP-001831) |
+| · descriere sub 80 de caractere | 1 (AP-008861) |
+| după curățarea automată, încă refuzate de regulile de text | **0** |
+| risc: titlu cu peste 50% majuscule dacă OLX numără doar literele | 203 |
+| risc: cod de 10 cifre care începe cu 0, poate fi luat drept telefon (coduri Bosch: 0445110743, 0280751016) — păstrat | 118 |
+| poze peste limita de 8 (se trimit primele 8) | 6 |
+| fără nicio poză (AP-004042) | 1 |
+Singurul motiv de nepublicare rămas: categoriile fără potrivire OLX (toate, până se fac potrivirile).
+
+**Cum se verifică (după push pe ramură / preview):** Admin → o piesă → „Previzualizează anunțul OLX”; Admin →
+Anunțuri OLX → „Raport pe tot catalogul” — cifrele de mai sus, plus „nu se pot publica: categoria piesei n-are potrivire
+OLX” până se fac potrivirile.
+
+**De lămurit la proba reală**: majusculele (un titlu din cele 203), un cod Bosch în descriere, `auto_extend_enabled`
+(cost?), `product_safety_regulation`, `external_url` permis sau nu.

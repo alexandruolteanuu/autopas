@@ -26,8 +26,8 @@ const MENIU = [
   { href: "/admin/piese-de-completat", t: "Piese de completat", ic: "◪", roluri: ["admin", "operator"], badge: "completat" },
   { href: "/admin/import", t: "Import pieseauto.ro", ic: "⇩", roluri: ["admin", "operator"] },
   { href: "/admin/dezro", t: "Anunțuri dez.ro", ic: "⇧", roluri: ["admin", "operator"] },
-  // OLX (docs/olx-plan.md). Pasul 1: doar potrivirea categoriilor; lista anunțurilor vine la pasul 3.
-  { href: "/admin/olx/categorii", t: "Anunțuri OLX", ic: "⇧", roluri: ["admin"] },
+  // OLX (docs/olx-plan.md). Pagina are raportul (pasul 2); categoriile sunt doar pentru admin.
+  { href: "/admin/olx", t: "Anunțuri OLX", ic: "⇧", roluri: ["admin", "operator"] },
   { href: "/admin/categorii", t: "Categorii", ic: "☰", roluri: ["admin"] },
   { href: "/admin/marci", t: "Mărci și modele", ic: "✧", roluri: ["admin"] },
   { href: "/admin/masini", t: "Mașini la dezmembrat", ic: "⛭", roluri: ["admin", "operator"] },
