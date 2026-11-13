@@ -617,3 +617,18 @@ titluri) și „răcitor gaze” (~40 de răcitoare EGR fără cuvântul „EGR�
 Categoria: Piese auto › Sistem de alimentare cu combustibil › Injectoare (sigură, din sugestii). Lămurește ambele riscuri:
 titlul are 67% majuscule numărate pe litere (sub 50% pe tot textul, deci pleacă neschimbat) și descrierea conține
 „COD: 0445110743” (cod Bosch de 10 cifre care începe cu 0). Nicio piesă-far nu le avea pe amândouă.
+
+**De corectat înainte de probă**: descrierea piesei spune „Pretul afisat este pe bucata !”, dar titlul e la plural
+(„Injectoare”) și stocul e 1 — se lămurește dacă 500 lei e pe bucată sau pe set, ca anunțul să nu inducă în eroare.
+
+**Admin**: https://autopas-dezmembrari.ro/admin/produse/1983 — caseta „OLX”. Pașii probei:
+1. „Previzualizează anunțul OLX” → fără motive de blocare; se verifică titlul, descrierea, categoria, cele 2 poze.
+2. „Publică pe OLX” → stare „nou — în moderare”.
+3. După 1–2 minute, „Reîmprospătează starea” → „activ”, cu linkul „vezi pe OLX”. Dacă iese „respins”, se notează
+   motivul afișat (lămurește riscul codului luat drept telefon / al majusculelor).
+4. Pe OLX: titlul, descrierea (codul 0445110743 întreg?), pozele, categoria, „Livrare prin curier”.
+5. Prețul piesei schimbat (ex. 510), salvat → „Actualizează pe OLX” → prețul nou pe OLX; apoi înapoi la 500 și din nou
+   „Actualizează pe OLX”.
+6. „Dezactivează” → „dezactivat”; „Activează” → „activ”.
+7. Se notează și dacă reînnoirea automată (`auto_extend_enabled`) apare pe OLX ca plătită.
+**Rezultatul probei**: _(de completat)_.
