@@ -668,3 +668,16 @@ titlul are 67% majuscule numărate pe litere (sub 50% pe tot textul, deci pleac�
   proba reală le-a închis.
 - Potrivirea categoriilor: link discret la final; pagina ei explică excepția după titlu (EGR / ventilatoare).
 - Starea `limited` se scrie „neplătit — se activează din contul OLX, după plată” (nu „LIMITED — nu se plătește nimic”).
+
+### Publicarea întregului catalog (13 noiembrie 2026, cerută de proprietar) — `scripts/olx-publica-tot.mjs`
+- Două trimiteri în paralel (`--parte=0/2`, `--parte=1/2`, pauză 0,5 s), 13:47–19:33; ~3,9 s pe piesă pe fiecare parte.
+- **Rezultat: 8.745 de anunțuri, toate `limited`** („De plătit”) — fiecare piesă publicată cu stoc (8.744) are anunț;
+  le activează consultantul OLX, după plată. Nicio blocare 403 la ritmul ăsta.
+- Refuzuri pe parcurs, toate retrimise cu succes la final: 7 erori de moment ale OLX (HTTP 500 / 502); AP-002977 („@”
+  rătăcit în descriere, luat drept e-mail → orice „@” se scoate acum din anunț); AP-010086 (o poză GIF — ruta
+  `/feed/poze` accepta doar WebP/JPEG/PNG; acceptă acum și GIF; era singura din catalog); ușile (curierul refuzat în
+  categoria „Uși” → învățat în `olx_cont.setari.fara_curier`).
+- **AP-005623 s-a vândut în timpul trimiterii** (stoc 0), iar anunțul ei a rămas creat. Un anunț `limited` NU se poate
+  dezactiva („Primul pas este ca anuntul sa fie activ”) — consultantul să NU-l activeze; sau, dacă se activează,
+  se dezactivează imediat ca vândut. La fel pentru orice piesă vândută până la activare: până la pasul 3 (sincronizarea
+  automată), lista pieselor vândute cu anunț se scoate din bază (anunțuri al căror `product_id` are stoc 0).
