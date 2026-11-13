@@ -24,7 +24,7 @@ Lucrul: ramura `olx-integrare`, fără push pe `main` până la confirmare. Trei
 | refresh nefolosit o lună = deconectare | panoul arată „ultima reînnoire”; la `invalid_grant` contul se marchează „deconectat” și se cere „Conectează OLX” din nou |
 | `external_url` e permis doar unor parteneri (eroarea „Partner is not allowed to use external URL”) | se trimite; la exact eroarea asta se reîncearcă fără el și se reține setarea |
 | statusuri: new / active / limited / removed_by_user / outdated / moderated / blocked … | se salvează textul brut; motivul de respingere din `/adverts/{id}/moderation-reason` |
-| ștergerea cere întâi dezactivare | vândută → `deactivate` + `is_success: true`; nepublicată/ștearsă → `deactivate` + `DELETE` |
+| ștergerea cere întâi dezactivare | vândută → `deactivate` + `is_success: true`; nepublicată/ștearsă → DOAR `deactivate` (`is_success: false`), niciodată `DELETE` (13 noiembrie 2026, cerut de OLX) |
 | 429 | pauză și reîncercare (3 încercări), apoi rândul rămâne în coadă |
 
 **De confirmat la proba reală (pasul 2)**: dacă `auto_extend_enabled = true` poate costa pe contul vostru (OLX n-o spune
@@ -74,7 +74,8 @@ conexiunea” pe contul real.
 ## Pasul 3 — automat + lista + publicarea în masă
 - Coada (trigger → pg_net → `/api/olx-coada`), cu decizia luată la procesare din starea piesei de atunci:
   publicată + stoc → POST/PUT; stoc 0 → deactivate (`is_success: true`); înapoi pe stoc → activate (nu dacă `limited`);
-  nepublicată / ștearsă → deactivate + delete. Plasa de 20% la retrageri, ca la dez.ro.
+  nepublicată / ștearsă de pe site → DOAR deactivate (`is_success: false`), niciodată DELETE — OLX a spus că ștergerea
+  dă eroare (13 noiembrie 2026); `DELETE` e scos din lista de apeluri permise. Plasa de 20% la retrageri, ca la dez.ro.
 - „Anunțuri OLX”: filtrele active / respinse / limited / erori; „Publică tot catalogul pe OLX” în ritm controlat, cu
   progres și „Oprește”. (Pasul „Citește anunțurile existente” a fost SCOS — vezi decizia din 13 noiembrie 2026.)
 - **Verificare:** o piesă vândută de probă își retrage anunțul; lotul de 20 trimis fără dubluri.
@@ -648,3 +649,12 @@ titlul are 67% majuscule numărate pe litere (sub 50% pe tot textul, deci pleac�
   `limited` (anunț neactivat); NU s-a refăcut nimic (un PUT n-ar schimba starea). Se verifică din nou după activare:
   dacă anunțul activ tot n-are poze, se face un PUT cu aceleași poze și se compară.
 - Pagina publică OLX răspunde 403 la cererile din Codespace (CloudFront) — nu se ocolește; se verifică din browser.
+
+### Retragerea și prelungirea (13 noiembrie 2026, cerut de proprietar după discuția cu OLX)
+- **Un anunț nu se șterge niciodată de pe OLX** — OLX a spus că ștergerea dă eroare. Piesa vândută → `deactivate` cu
+  `is_success: true`; piesa ascunsă / ștearsă de pe site → `deactivate` cu `is_success: false`. `DELETE` a fost scos din
+  lista închisă de apeluri (`apelPermis` din `lib/olx-api.mjs`): orice ștergere e refuzată înainte de rețea.
+- **Prelungirea după 30 de zile**: fiecare anunț pleacă deja cu `auto_extend_enabled: true` („Should the advert be
+  automatically extended when it expires”) — verificat pe 311922114: `auto_extend_enabled: true`, `valid_to` 13.12.2026.
+  Deci OLX prelungește singur anunțurile active la expirare, fără niciun apel de la noi. Comanda `extend` (prelungire
+  manuală, prin API) rămâne refuzată. DE CONFIRMAT cu OLX: prelungirea automată costă ceva / consumă din pachet?
