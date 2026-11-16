@@ -123,4 +123,40 @@ P < supabase/olx-coada.sql >/dev/null 2>&1 || picat "re-rularea după anulare"
 OUT=$(P < scripts/verifica-olx-coada.sql 2>&1)
 echo "$OUT" | grep -q "REZULTAT OK" && ok "re-rularea după anulare: testul trece" || picat "după re-rulare: $OUT"
 
-echo; echo "REZULTAT OK: verificările locale ale migrării 58 au trecut."
+# ---------- 7. migrarea 59 (ceasul), cu pg_cron imitat ----------
+P >/dev/null <<'SQL' || picat "imitația pg_cron"
+create schema cron;
+create table cron.job (jobid serial primary key, jobname text unique, schedule text, command text, active boolean default true);
+create function cron.schedule(n text, s text, c text) returns bigint language sql as
+  $$ insert into cron.job (jobname, schedule, command) values (n, s, c) on conflict (jobname) do update set schedule = excluded.schedule, command = excluded.command returning jobid $$;
+create function cron.unschedule(n text) returns boolean language sql as $$ delete from cron.job where jobname = n returning true $$;
+SQL
+# `create extension if not exists pg_cron` nu există în imagine: se sare linia doar aici.
+M59() { sed 's/^create extension if not exists pg_cron;//' supabase/olx-coada-ceas.sql; }
+PRE=$(P -tA < scripts/pre-verifica-olx-coada-ceas.sql | cut -d'|' -f1,3)
+[ "$PRE" = "t|t" ] && ok "59 pre-verificare: 58 prezentă, olx_trezeste cunoscută" || picat "59 pre-verificare: $PRE"
+M59 | P >/dev/null 2>&1 || picat "migrarea 59 (prima rulare)"
+M59 | P >/dev/null 2>&1 || picat "migrarea 59 (a doua rulare)"
+FIN=$(M59 | P -tA 2>/dev/null | tail -1)
+[ "$FIN" = "t|t|t" ] && ok "59: rulează de două ori, verificarea finală t|t|t (amprenta = cea din fișier)" || picat "59 finală: $FIN"
+[ "$(Q "select count(*) from cron.job where jobname='olx-coada'")" = "1" ] && ok "59: o singură programare" || picat "59 programare"
+Q "delete from net.cereri; delete from olx_coada; update olx_trezire set activ = true, webhook_url = 'https://site.test/api/olx-coada', ultima = '-infinity', lot_pana = '-infinity'" >/dev/null
+[ "$(Q "select olx_ceas()")" = "f" ] && ok "ceasul: coadă goală → nu cheamă nimic" || picat "ceasul cu coada goală"
+Q "insert into olx_coada (product_id, motiv, incercari) values (20, 'test', 5)" >/dev/null
+[ "$(Q "select olx_ceas()")" = "f" ] && ok "ceasul: doar rânduri blocate → nu cheamă" || picat "ceasul cu blocate"
+Q "insert into olx_coada (product_id, motiv) values (21, 'test')" >/dev/null
+Q "update olx_trezire set lot_pana = now() + interval '60 seconds'" >/dev/null
+[ "$(Q "select olx_ceas()")" = "f" ] && ok "ceasul: lot în lucru → nu cheamă" || picat "ceasul cu lot în lucru"
+Q "update olx_trezire set lot_pana = '-infinity'" >/dev/null
+[ "$(Q "select olx_ceas()")|$(Q "select count(*) from net.cereri where (headers->>'x-autopas-olx') is not null")" = "t|1" ] && ok "ceasul: coadă cu ceva de făcut → o trezire" || picat "ceasul nu a trezit"
+Q "update olx_trezire set activ = false, ultima = '-infinity'" >/dev/null
+[ "$(Q "select olx_ceas()")" = "f" ] && ok "ceasul: sincronizarea oprită → nu cheamă" || picat "ceasul cu sincronizarea oprită"
+Q "create or replace function olx_trezeste(fortat boolean default false) returns boolean language sql as \$\$ select false \$\$" >/dev/null
+M59 | P >/dev/null 2>&1 && picat "garda 59 a lăsat să treacă o funcție necunoscută" || ok "garda de amprentă: funcție necunoscută → 59 se oprește"
+P < supabase/olx-coada.sql >/dev/null 2>&1 || picat "re-rularea 58"
+M59 | P >/dev/null 2>&1 || picat "59 după 58"
+P < scripts/anuleaza-olx-coada-ceas.sql >/dev/null 2>&1 || picat "anularea 59"
+[ "$(Q "select count(*) from cron.job")|$(Q "select md5(replace(prosrc, E'\\r', '')) from pg_proc where proname='olx_trezeste'")" = "0|6676526a2534da97fdb765f4f198b91a" ] \
+  && ok "anularea 59: ceasul oprit, olx_trezeste exact cea din 58" || picat "anularea 59"
+
+echo; echo "REZULTAT OK: verificările locale ale migrărilor 58 și 59 au trecut."

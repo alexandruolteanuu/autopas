@@ -147,6 +147,19 @@ ok(!apelPermis("POST", "/paid-features"), "lista închisă: promovările refuzat
     `ascunsă, anunț „limited”: finish, nu deactivate (${L.apeluri.join("|")})`);
 }
 
+// ---------- 6b. OLX întoarce starea veche imediat după deactivate ----------
+{
+  const L = lume();
+  L.piese.set(2, piesaNoua(2, { stoc: 0 }));
+  L.olx.set(510, { id: 510, status: "active" });
+  L.anunturi.push({ id: 1, product_id: 2, advert_id: 510, status: "limited", amprenta: "x", retras_la: null });
+  const cere = L.client.cere;
+  L.client.cere = async (o) => { const r = await cere(o); if (o.corp?.command === "deactivate") L.olx.get(510).status = "active"; return r; }; // întârzierea lor
+  L.pune({ product_id: 2 });
+  await L.lot();
+  ok(L.dupaPiesa(2).status === "removed_by_user" && !!L.dupaPiesa(2).retras_la, "deactivate reușit, dar OLX citește încă „active”: se scrie removed_by_user");
+}
+
 // ---------- 7. piesă ștearsă, 404, erori, oprire, buget ----------
 {
   const L = lume();

@@ -728,3 +728,13 @@ publicarea din terminal coincid cu cele de pe server (nu s-ar retrimite tot cata
 5. „Adu OLX la zi cu site-ul” → pune în coadă cele ~119 piese; pleacă singure, ~10 pe lot. Se urmărește cardul: „În coadă”
    scade, „Anunțuri de retras” ajunge la 0. Erorile apar sub card, cu piesa.
 6. Probă: o piesă de test ascunsă din admin → în câteva secunde anunțul ei trece la retras; republicată → reactivat.
+
+### Prima zi (16 noiembrie 2026) — 58 rulată, sincronizarea pornită la 08:30
+- „Actualizează stările de la OLX” (buton nou): stările din bază erau cele de la publicare („limited”), deși anunțurile
+  fuseseră plătite — la OLX erau `active`, valabile până la 15.12.2026.
+- „Adu la zi”: 46 de anunțuri retrase (26 vândute → `deactivate` cu `is_success: true`, 20 ascunse → `false`; unul, AP-005019,
+  nu mai exista la OLX → „disparut”), 26 actualizate, 10 publicate. La OLX: 45 de anunțuri dezactivate = exact acestea.
+- OLX răspunde cu starea VECHE câteva clipe după `deactivate`: în bază rămăseseră „active”. Corectat în `retrage`: după o
+  comandă reușită se scrie `removed_by_user`. Cele vechi se corectează cu „Actualizează stările de la OLX”.
+- **Lanțul de loturi s-a rupt la 08:35:47** cu 37 de piese în coadă: pg_net renunța după 3 s, Vercel pornea funcția în 14–26 s.
+  → migrarea 59 (`supabase/olx-coada-ceas.sql`): ceas pg_cron, o dată pe minut, trezește doar dacă e ceva de făcut; 10 s.
