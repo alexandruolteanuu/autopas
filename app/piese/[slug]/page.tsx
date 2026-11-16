@@ -212,7 +212,9 @@ export default async function Produs({ params }: { params: { slug: string } }) {
 
           <div className="mt-2 text-[13px] text-textSecundar">Cod intern: {prod.cod_intern ?? "—"}</div>
 
-          <div className="mt-3 flex items-end gap-2.5 flex-wrap">
+          {/* Pe telefon prețul stă în DREAPTA (16 noiembrie 2026, cerut de proprietar): butonul
+              plutitor de WhatsApp e în stânga-jos și îl acoperea la defilare. De la `sm` în sus, stânga. */}
+          <div className="mt-3 flex items-end justify-end sm:justify-start gap-2.5 flex-wrap">
             <span className="t-pret accentuat !text-[30px] sm:!text-[36px]">{lei(Number(prod.pret_lei), prod.pret_sufix)}</span>
             <span className="text-textSecundar text-[13px]">TVA inclus</span>
           </div>
