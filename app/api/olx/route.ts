@@ -15,11 +15,15 @@
 //   · raport              — generatorul rulat pe tot catalogul publicat cu stoc.
 // Pasul 2, cu OLX (doar admin; `product_id`): publica · actualizeaza · dezactiveaza (`vanduta`)
 //   · activeaza · improspateaza. Toată logica: lib/olx-publicare.mjs.
+// Pasul 3 (migrarea 58): sincronizare-stare (echipa) · sincronizare-porneste · sincronizare-opreste
+//   · aduce-la-zi (pune în coadă diferențele site ↔ OLX) · repune-blocate. Lotul: /api/olx-coada.
 // Tokenii și secretul intră aici doar la salvare și nu ies în niciun răspuns.
 // ============================================================
 import { NextResponse } from "next/server";
 import { esteAdmin, esteEchipa, citesteTot } from "@/lib/supabase";
-import { clientOlx, stareOlx, admin, cere, adresaCallback, contextAnunt, depozitAnunturi, COLOANE_PIESA, EroareOlx, type SetariOlx } from "@/lib/olx";
+import { clientOlx, stareOlx, admin, cere, adresaCallback, contextAnunt, depozitAnunturi, depozitCoada, COLOANE_PIESA, EroareOlx, type SetariOlx } from "@/lib/olx";
+import { diferente, prag, MAX_INCERCARI } from "@/lib/olx-coada.mjs";
+import { SITE_URL } from "@/lib/config";
 import { publica, actualizeaza, improspateaza, comanda } from "@/lib/olx-publicare.mjs";
 import { construiesteAnunt, incalcariBrute } from "@/lib/olx-anunt.mjs";
 import { adresaAutorizare, dinData } from "@/lib/olx-api.mjs";
@@ -61,6 +65,12 @@ export async function POST(req: Request) {
       return NextResponse.json(await raport(ctx));
     }
 
+    // Pasul 3: starea sincronizării — doar citire, toată echipa. Fără secret.
+    if (actiune === "sincronizare-stare") {
+      if (!(await esteEchipa(req))) return NextResponse.json({ ok: false, eroare: "Autentifică-te din nou în panou." }, { status: 401 });
+      return NextResponse.json({ ok: true, ...(await stareSincronizare()) });
+    }
+
     const de = await esteAdmin(req);
     if (!de) return nuAi();
 
@@ -79,6 +89,47 @@ export async function POST(req: Request) {
         r = actiune === "publica" ? await publica({ piesa, ctx, client, depozit, de }) : await actualizeaza({ piesa, ctx, client, depozit, de });
       }
       return NextResponse.json({ ok: true, ...r, anunt: await depozit.citeste(id) });
+    }
+
+    if (actiune === "sincronizare-porneste" || actiune === "sincronizare-opreste") {
+      const d = depozitCoada();
+      const porneste = actiune === "sincronizare-porneste";
+      // Adresa la care o cheamă baza: domeniul site-ului (nu al unui preview, protejat de Vercel).
+      const baza = /^https:\/\//.test(SITE_URL) && !/localhost/.test(SITE_URL) ? SITE_URL : new URL(req.url).origin;
+      await d.scrieTrezirea(porneste
+        ? { activ: true, webhook_url: `${baza}/api/olx-coada`, pornit_la: new Date().toISOString(), pornit_de: de, mesaj: null, mesaj_la: null }
+        : { activ: false });
+      if (porneste) await d.trezesteAcum().catch(() => null);
+      return NextResponse.json({ ok: true, mesaj: porneste
+        ? "✓ Sincronizarea automată OLX e pornită. Ce e în coadă pleacă acum; de aici înainte, fiecare schimbare de piesă pleacă singură."
+        : "Sincronizarea automată OLX e oprită. Schimbările se strâng în coadă și pleacă la repornire.", ...(await stareSincronizare()) });
+    }
+
+    if (actiune === "aduce-la-zi") {
+      const ctx = await contextAnunt();
+      const [piese, anunturi] = await Promise.all([
+        citesteTot<any>(() => sb.from("products").select(COLOANE_PIESA, { count: "exact" }).order("id"), { eticheta: "piesele" }),
+        citesteTot<any>(() => sb.from("olx_anunturi").select("*", { count: "exact" }).order("id"), { eticheta: "anunțurile OLX" }),
+      ]);
+      const dif = diferente({ piese, anunturi, ctx });
+      const acum = new Date().toISOString();
+      const rand = { motiv: "adus la zi", incercari: 0, eroare: null, cerut_la: acum };
+      for (let i = 0; i < dif.produse.length; i += 500)
+        await cere(sb.from("olx_coada").upsert(dif.produse.slice(i, i + 500).map((id) => ({ ...rand, product_id: id })), { onConflict: "product_id" }).select("id"), "coada OLX");
+      for (let i = 0; i < dif.advert.length; i += 500)
+        await cere(sb.from("olx_coada").upsert(dif.advert.slice(i, i + 500).map((id) => ({ ...rand, advert_id: id })), { onConflict: "advert_id" }).select("id"), "coada OLX");
+      await depozitCoada().trezesteAcum().catch(() => null);
+      const n = dif.produse.length + dif.advert.length;
+      const detalii = Object.entries(dif.motive).map(([m, k]) => `${k} ${m}`).join(", ");
+      return NextResponse.json({ ok: true, motive: dif.motive, mesaj: n
+        ? `✓ ${n} ${n === 1 ? "piesă pusă" : "piese puse"} în coadă (${detalii}). Pleacă singure dacă sincronizarea e pornită.`
+        : `✓ OLX e la zi cu site-ul${detalii ? ` (${detalii})` : ""}.`, ...(await stareSincronizare()) });
+    }
+
+    if (actiune === "repune-blocate") {
+      const r = await cere(sb.from("olx_coada").update({ incercari: 0 }).gte("incercari", MAX_INCERCARI).select("id"), "coada OLX");
+      await depozitCoada().trezesteAcum().catch(() => null);
+      return NextResponse.json({ ok: true, mesaj: `✓ ${(r as any[])?.length ?? 0} rânduri repuse în coadă.`, ...(await stareSincronizare()) });
     }
 
     if (actiune === "stare") return NextResponse.json({ ok: true, ...(await stareOlx()), callback: adresaCallback(req) });
@@ -274,4 +325,22 @@ async function raport(ctx: Awaited<ReturnType<typeof contextAnunt>>) {
   }
   const setariLipsa = construiesteAnunt({ nume: "x".repeat(20), pret_lei: 1 }, { ...ctx, mapari: new Map() }).motive.filter((m: string) => /Integrări → OLX/.test(m));
   return { ok: true, total: piese.length, gata, cuIncalcariBrute, setariLipsa, motive, brute, corectari, riscuri };
+}
+
+/** Starea sincronizării automate pentru panou (pasul 3). Fără secretul trezirii. */
+async function stareSincronizare() {
+  const d = depozitCoada();
+  const [t, c, erori, deRetras] = await Promise.all([
+    d.trezirea(), d.coadaStare(),
+    cere(admin().from("olx_coada").select("id,product_id,advert_id,motiv,incercari,eroare,cerut_la").not("eroare", "is", null)
+      .order("incercari", { ascending: false }).order("id").limit(20), "coada OLX"),
+    cere(admin().from("olx_de_retras").select("motiv,status"), "anunțurile de retras"),
+  ]);
+  const peMotiv: Record<string, number> = {};
+  for (const r of (deRetras as any[]) ?? []) peMotiv[r.motiv] = (peMotiv[r.motiv] ?? 0) + 1;
+  return {
+    sincronizare: t ? { activ: t.activ, webhook_url: t.webhook_url, pornit_la: t.pornit_la, mesaj: t.mesaj, mesaj_la: t.mesaj_la } : null,
+    coada: c, erori: erori ?? [], de_retras_pe_motiv: peMotiv,
+    prag: prag({ vii: Number(c?.anunturi_vii) || 0, deRetras: Number(c?.de_retras) || 0 }),
+  };
 }

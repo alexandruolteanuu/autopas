@@ -2,12 +2,13 @@
 // ANUNȚURI OLX: (1) anunțurile create de aplicație, cu starea lor (`olx_anunturi`, citit
 // de echipă prin RLS); (2) raportul generatorului pe tot catalogul publicat cu stoc — câte
 // piese ar pleca, de ce nu și ce s-a corectat automat. Raportul nu cheamă OLX.
-// Publicarea se face deocamdată din pagina fiecărei piese; automat + în masă la pasul 3
-// din docs/olx-plan.md. Potrivirea categoriilor e făcută — linkul stă discret, la final.
+// Sincronizarea automată (pasul 3, migrarea 58) stă sus, în `OlxSincronizare`; caseta de pe
+// pagina piesei rămâne pentru o piesă anume. Potrivirea categoriilor — linkul stă la final.
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { sbBrowser } from "@/lib/supabase";
 import { eticheta, STARI } from "@/components/admin/OlxPiesa";
+import OlxSincronizare from "@/components/admin/OlxSincronizare";
 
 type Grup = Record<string, { n: number; exemple: { id: number; cod: string; nume: string }[] }>;
 type Raport = { ok: boolean; eroare?: string; total: number; gata: number; cuIncalcariBrute: number; setariLipsa: string[];
@@ -44,7 +45,7 @@ export default function AnunturiOlx() {
   const [r, setR] = useState<Raport | null>(null);
   const [lucru, setLucru] = useState(false);
 
-  // Ultimele 100 de anunțuri + totalul. Lista completă, cu filtre, vine la pasul 3.
+  // Ultimele 100 de anunțuri actualizate + totalul.
   const citeste = useCallback(async () => {
     const sb = sbBrowser(); if (!sb) return;
     const { data, count } = await sb.from("olx_anunturi")
@@ -74,10 +75,12 @@ export default function AnunturiOlx() {
         <div className="dim">Administrare</div>
         <h1 className="font-disp font-bold text-2xl mt-1">Anunțuri OLX</h1>
         <p className="text-sm text-mut mt-1">
-          Deocamdată anunțurile se publică din pagina fiecărei piese (caseta „OLX”). Trimiterea automată și publicarea
-          întregului catalog vin la pasul următor. Conexiunea cu contul: <Link href="/admin/integrari#olx" className="underline">Integrări → OLX</Link>.
+          Cu sincronizarea automată pornită, OLX urmează singur site-ul. Pentru o piesă anume rămâne caseta „OLX” din pagina
+          ei. Conexiunea cu contul: <Link href="/admin/integrari#olx" className="underline">Integrări → OLX</Link>.
         </p>
       </div>
+
+      <OlxSincronizare laSchimbare={citeste} />
 
       {/* Anunțurile existente */}
       <div className="card p-4 text-sm">

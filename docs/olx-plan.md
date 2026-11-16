@@ -681,3 +681,50 @@ titlul are 67% majuscule numărate pe litere (sub 50% pe tot textul, deci pleac�
   dezactiva („Primul pas este ca anuntul sa fie activ”) — consultantul să NU-l activeze; sau, dacă se activează,
   se dezactivează imediat ca vândut. La fel pentru orice piesă vândută până la activare: până la pasul 3 (sincronizarea
   automată), lista pieselor vândute cu anunț se scoate din bază (anunțuri al căror `product_id` are stoc 0).
+
+## Pasul 3 — sincronizarea automată (16 noiembrie 2026) — cod scris, migrarea 58 NErulată
+**De ce acum**: clientul a ascuns piese și a adăugat altele, iar OLX nu s-a schimbat. Măsurat (doar citire) la 16 noiembrie
+2026: 47 de piese noi fără anunț, 26 vândute și 20 ascunse cu anunț (toate „limited” în bază), 0 șterse.
+
+**Ce s-a scris**
+- `supabase/olx-coada.sql` (58): `olx_coada` (product_id / advert_id, încercări, eroare), `olx_trezire` (activ, adresa, secretul
+  generat de migrare, fereastra de 20 s, lacătul lotului, mesajul pentru panou, confirmarea pragului — fără politici RLS),
+  `olx_trezeste` / `olx_deblocheaza` / `olx_coada_ia_lotul` / `olx_coada_elibereaza`, triggerele `olx_la_inserare` /
+  `olx_la_modificare` (exact coloanele din `COLOANE_PIESA`) / `olx_la_stergere` (BEFORE, copiază `advert_id`), view-urile
+  `olx_de_retras` și `olx_coada_stare`, coloana `olx_anunturi.retras_la`.
+- `lib/olx-coada.mjs`: decizia la procesare, retragerea, reactivarea, lotul, plasa de 20%, „Adu la zi”.
+- `app/api/olx-coada/route.ts`: lotul (secretul din bază sau sesiunea adminului), lacătul, pragul, înlănțuirea.
+- `app/api/olx/route.ts`: `sincronizare-stare`, `sincronizare-porneste` / `-opreste`, `aduce-la-zi`, `repune-blocate`.
+- `components/admin/OlxSincronizare.tsx`: cardul din Admin → Anunțuri OLX.
+
+**Regulile**
+| Piesa | Anunțul | Ce se face |
+|---|---|---|
+| publicată + stoc | lipsă | `publica` (aceeași funcție ca butonul: revendicare + garda de dublură) |
+| publicată + stoc | viu, amprentă diferită | PUT |
+| publicată + stoc | viu, aceeași amprentă | nimic — nicio cerere |
+| publicată + stoc | retras de noi / `removed_by_user` / `outdated` | `activate`, apoi PUT dacă s-a schimbat ceva |
+| vândută (stoc 0) | viu | GET (starea reală) → `deactivate` cu `is_success: true` |
+| ascunsă / ștearsă | viu | GET → `deactivate` cu `is_success: false` |
+| oricare nevândută | „limited” / „unpaid” la OLX | `finish` (mută anunțul neplătit la terminate; `deactivate` e refuzat pe el) |
+Niciodată DELETE. 404 la OLX = anunțul nu mai există → marcat „disparut”, fără comandă.
+
+**De ce `finish`**: un anunț „limited” nu se poate dezactiva („Primul pas este ca anuntul sa fie activ”, AP-005623). Fără o
+retragere, consultantul OLX ar activa după plată și anunțurile pieselor vândute. Specificația: „`finish` — to move inactive
+advert (limited) to finished section”. Nu cumpără nimic. A intrat în lista închisă (`apelPermis`); `extend` rămâne refuzat.
+**NETESTAT pe contul real** — prima folosire va fi la retragerea celor 46 de mai sus. Dacă OLX îl refuză, rândurile rămân în
+coadă cu eroarea la vedere (5 încercări), nu se pierde nimic.
+
+**Verificat**: `node scripts/verifica-olx-coada.mjs` → 45/45; `scripts/verifica-olx-local.sh` → 22/22 (Docker); `npm run build`
+trece; „Adu la zi” rulat pe uscat pe datele reale (doar citire): 119 piese = 47 de publicat, 26 de retras (vândute), 20 (ascunse),
+26 de actualizat (ușile, cu curierul învățat în timpul publicării, și piesele editate de atunci) — deci amprentele de la
+publicarea din terminal coincid cu cele de pe server (nu s-ar retrimite tot catalogul).
+
+**Pașii de pornire (proprietarul)**
+1. SQL Editor: `scripts/pre-verifica-olx-coada.sql` → 5 × true.
+2. SQL Editor: `supabase/olx-coada.sql` → la final `3 | 0 | false`.
+3. SQL Editor: `scripts/verifica-olx-coada.sql` → căsuța roșie „REZULTAT OK …”.
+4. Admin → Anunțuri OLX → „Pornește sincronizarea automată”.
+5. „Adu OLX la zi cu site-ul” → pune în coadă cele ~119 piese; pleacă singure, ~10 pe lot. Se urmărește cardul: „În coadă”
+   scade, „Anunțuri de retras” ajunge la 0. Erorile apar sub card, cu piesa.
+6. Probă: o piesă de test ascunsă din admin → în câteva secunde anunțul ei trece la retras; republicată → reactivat.

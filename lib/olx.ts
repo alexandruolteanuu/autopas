@@ -45,8 +45,8 @@ export const cere = async <T,>(p: PromiseLike<{ data: T; error: { message: strin
   return data;
 };
 
-/** Clientul OLX cu depozitul real. */
-export function clientOlx() {
+/** Clientul OLX cu depozitul real. `timeoutMs`: coada folosește un timeout mai scurt (un lot are 60 s). */
+export function clientOlx({ timeoutMs }: { timeoutMs?: number } = {}) {
   const sb = admin();
   const depozit = {
     citesteCont: async () =>
@@ -69,7 +69,7 @@ export function clientOlx() {
     elibereaza: async (id: string) => { await cere(sb.rpc("olx_elibereaza", { p_detinator: id }), "lacăt"); },
     jurnal: async (r: Record<string, unknown>) => { await cere(sb.from("olx_apeluri").insert(r), "jurnal"); },
   };
-  return creeazaClientOlx({ depozit });
+  return creeazaClientOlx({ depozit, ...(timeoutMs ? { timeoutMs } : {}) });
 }
 
 /** Starea pentru panou. Fără tokeni, fără secret. */
@@ -166,5 +166,51 @@ export function depozitAnunturi() {
       const lista = Array.from(new Set([...(s.fara_curier ?? []), Number(categorieOlx)]));
       await cere(sb.from("olx_cont").update({ setari: { ...s, fara_curier: lista } }).eq("unic", true).select("unic"), "setări");
     },
+  };
+}
+
+// ------------------------------------------------------------
+// PASUL 3 — coada automată (migrarea 58) pentru lib/olx-coada.mjs și /api/olx-coada.
+// Același depozit ca la butoane (publica / actualizeaza îl folosesc), plus coada,
+// trezirea și citirea după advert_id (anunțul unei piese ȘTERSE n-are product_id).
+// ------------------------------------------------------------
+export type StareCoadaOlx = {
+  total: number; de_facut: number; blocate: number; cel_mai_vechi: string | null; o_eroare: string | null;
+  anunturi_vii: number; de_retras: number;
+};
+export type TrezireOlx = { activ: boolean; webhook_url: string | null; webhook_secret: string; mesaj: string | null; mesaj_la: string | null;
+  pornit_la: string | null; pornit_de: string | null; prag_confirmat_la: string | null };
+
+export function depozitCoada() {
+  const sb = admin();
+  const baza = depozitAnunturi();
+  return {
+    ...baza,
+    piesa: async (id: number) => (await cere(sb.from("products").select(COLOANE_PIESA).eq("id", id).maybeSingle(), "piesa")) as any,
+    anuntDupaPiesa: baza.citeste,
+    anuntDupaAdvert: async (advertId: number) =>
+      (await cere(sb.from("olx_anunturi").select("*").eq("advert_id", advertId).maybeSingle(), "anunțul OLX")) as any,
+    scrieDupaAdvert: async (advertId: number, campuri: Record<string, unknown>) => {
+      const r = await cere(sb.from("olx_anunturi").update({ ...campuri, actualizat_la: new Date().toISOString() })
+        .eq("advert_id", advertId).select("id"), "anunțul OLX");
+      if (!Array.isArray(r) || r.length !== 1) throw new EroareOlx("Starea anunțului OLX nu s-a putut scrie în bază.", { cod: "baza" });
+    },
+    coadaCiteste: async (n: number, maxIncercari: number) =>
+      ((await cere(sb.from("olx_coada").select("id,product_id,advert_id,motiv,incercari").lt("incercari", maxIncercari)
+        .order("id").limit(n), "coada OLX")) as any[]) ?? [],
+    coadaSterge: async (id: number) => { await cere(sb.from("olx_coada").delete().eq("id", id).select("id"), "coada OLX"); },
+    coadaEsec: async (id: number, eroare: string, incercari: number) => {
+      await cere(sb.from("olx_coada").update({ eroare, incercari }).eq("id", id).select("id"), "coada OLX");
+    },
+    coadaStare: async () => (await cere(sb.from("olx_coada_stare").select("*").maybeSingle(), "starea cozii OLX")) as StareCoadaOlx | null,
+    trezirea: async () => (await cere(sb.from("olx_trezire").select("*").eq("unic", true).maybeSingle(), "trezirea OLX")) as TrezireOlx | null,
+    scrieTrezirea: async (campuri: Record<string, unknown>) => {
+      const r = await cere(sb.from("olx_trezire").update(campuri).eq("unic", true).select("unic"), "trezirea OLX");
+      if (!Array.isArray(r) || r.length !== 1) throw new EroareOlx("Setarea sincronizării OLX nu s-a putut scrie.", { cod: "baza" });
+    },
+    iaLotul: async (secunde: number) => (await cere(sb.rpc("olx_coada_ia_lotul", { p_secunde: secunde }), "lacătul cozii")) === true,
+    elibereazaLotul: async () => { await cere(sb.rpc("olx_coada_elibereaza"), "lacătul cozii"); },
+    deblocheaza: async () => { await cere(sb.rpc("olx_deblocheaza"), "trezirea OLX"); },
+    trezesteAcum: async () => (await cere(sb.rpc("olx_trezeste", { fortat: true }), "trezirea OLX")) === true,
   };
 }
