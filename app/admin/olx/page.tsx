@@ -55,6 +55,26 @@ export default function AnunturiOlx() {
   }, []);
   useEffect(() => { citeste(); }, [citeste]);
 
+  // Stările de la OLX: lista lor, 100 pe cerere, în tranșe de ~40 s (până la `gata`). Doar citire la OLX.
+  const [stari, setStari] = useState<string | null>(null);
+  async function improspateazaStari() {
+    const sb = sbBrowser();
+    const token = sb ? (await sb.auth.getSession()).data.session?.access_token : null;
+    let offset = 0, citite = 0, schimbate = 0;
+    setStari("Se citesc anunțurile de la OLX…");
+    for (let i = 0; i < 20; i++) {
+      const x = await fetch("/api/olx", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ actiune: "improspateaza-stari", offset }) });
+      const r = await x.json().catch(() => ({ ok: false, eroare: `Răspuns neașteptat (HTTP ${x.status}).` }));
+      if (!r.ok) { setStari(`✗ ${r.eroare}`); await citeste(); return; }
+      offset = r.offset; citite += r.citite; schimbate += r.schimbate;
+      setStari(`Citite ${citite} anunțuri de pe cont, ${schimbate} stări actualizate…`);
+      if (r.gata) break;
+    }
+    setStari(`✓ Gata: ${citite} anunțuri citite de pe cont, ${schimbate} stări actualizate la noi.`);
+    await citeste();
+  }
+
   async function genereaza() {
     setLucru(true);
     const sb = sbBrowser();
@@ -88,12 +108,15 @@ export default function AnunturiOlx() {
           <b className="font-disp">Anunțurile create din aplicație</b>
           <span className="text-xs text-mut">{anunturi === null ? "Se citesc…" : `${total} în total`}
             {Object.entries(peStare).map(([s, n]) => ` · ${n} ${STARI[s]?.split(" — ")[0] ?? s}`).join("")}</span>
-          <button type="button" onClick={citeste} className="text-xs underline ml-auto">Reîncarcă</button>
+          <button type="button" onClick={improspateazaStari} disabled={!!stari && !/^[✓✗]/.test(stari)} className="text-xs underline ml-auto">
+            Actualizează stările de la OLX</button>
+          <button type="button" onClick={citeste} className="text-xs underline">Reîncarcă</button>
         </div>
+        {stari && <p className={`text-xs mt-1 ${stari.startsWith("✗") ? "text-red-700" : "text-mut"}`}>{stari}</p>}
         {neplatite > 0 && (
           <p className="mt-2 text-xs rounded-lg border-2 border-amber-300 bg-amber-50 text-amber-900 p-2">
-            ⚠ {neplatite} {neplatite === 1 ? "anunț e neplătit" : "anunțuri sunt neplătite"} (peste limita gratuită a categoriei) — nu
-            se văd pe OLX până nu se cumpără un pachet și se activează din contul OLX. Aplicația nu plătește nimic.</p>
+            ⚠ {neplatite} {neplatite === 1 ? "anunț e neplătit" : "anunțuri sunt neplătite"} după ultima citire de la OLX (peste limita
+            gratuită a categoriei). Dacă le-ați plătit între timp, apasă „Actualizează stările de la OLX”. Aplicația nu plătește nimic.</p>
         )}
         {anunturi && anunturi.length === 0 && <p className="text-xs text-mut mt-2">Niciun anunț încă.</p>}
         {!!anunturi?.length && (

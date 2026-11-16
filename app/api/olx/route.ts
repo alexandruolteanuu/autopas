@@ -17,6 +17,8 @@
 //   · activeaza · improspateaza. Toată logica: lib/olx-publicare.mjs.
 // Pasul 3 (migrarea 58): sincronizare-stare (echipa) · sincronizare-porneste · sincronizare-opreste
 //   · aduce-la-zi (pune în coadă diferențele site ↔ OLX) · repune-blocate. Lotul: /api/olx-coada.
+//   · improspateaza-stari (`offset`) — recitește lista OLX (100 pe cerere) și scrie starea / linkul /
+//     valabilitatea anunțurilor NOASTRE; întoarce offset-ul următor, panoul repetă până la `gata`.
 // Tokenii și secretul intră aici doar la salvare și nu ies în niciun răspuns.
 // ============================================================
 import { NextResponse } from "next/server";
@@ -24,7 +26,7 @@ import { esteAdmin, esteEchipa, citesteTot } from "@/lib/supabase";
 import { clientOlx, stareOlx, admin, cere, adresaCallback, contextAnunt, depozitAnunturi, depozitCoada, COLOANE_PIESA, EroareOlx, type SetariOlx } from "@/lib/olx";
 import { diferente, prag, MAX_INCERCARI } from "@/lib/olx-coada.mjs";
 import { SITE_URL } from "@/lib/config";
-import { publica, actualizeaza, improspateaza, comanda } from "@/lib/olx-publicare.mjs";
+import { publica, actualizeaza, improspateaza, comanda, dataOlx } from "@/lib/olx-publicare.mjs";
 import { construiesteAnunt, incalcariBrute } from "@/lib/olx-anunt.mjs";
 import { adresaAutorizare, dinData } from "@/lib/olx-api.mjs";
 
@@ -124,6 +126,39 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, motive: dif.motive, mesaj: n
         ? `✓ ${n} ${n === 1 ? "piesă pusă" : "piese puse"} în coadă (${detalii}). Pleacă singure dacă sincronizarea e pornită.`
         : `✓ OLX e la zi cu site-ul${detalii ? ` (${detalii})` : ""}.`, ...(await stareSincronizare()) });
+    }
+
+    if (actiune === "improspateaza-stari") {
+      // Doar CITIRE la OLX. Anunțurile vechi, puse de mână, se sar (nu sunt în olx_anunturi).
+      const inceput = Math.max(0, Math.floor(Number(corp.offset) || 0));
+      const pana = Date.now() + 30_000; // + o cerere de cel mult 25 s → sub 60 s
+      const noi = await citesteTot<{ advert_id: number; status: string; url: string | null; valid_to: string | null }>(
+        () => sb.from("olx_anunturi").select("advert_id,status,url,valid_to", { count: "exact" }).not("advert_id", "is", null).order("id"),
+        { eticheta: "anunțurile OLX" });
+      const cunoscute = new Map(noi.map((a) => [Number(a.advert_id), a]));
+      const client = clientOlx();
+      let offset = inceput, citite = 0, schimbate = 0, gata = false;
+      const peStare: Record<string, number> = {};
+      while (Date.now() < pana) {
+        const { json } = await client.cere({ cale: `/adverts?offset=${offset}&limit=100`, tip: "lista", de });
+        const lot: any[] = (() => { const d = dinData(json); return Array.isArray(d) ? d : []; })();
+        offset += lot.length; citite += lot.length;
+        const randuri = lot.filter((ad) => cunoscute.has(Number(ad.id))).map((ad) => {
+          peStare[ad.status ?? "?"] = (peStare[ad.status ?? "?"] ?? 0) + 1;
+          return { advert_id: Number(ad.id), status: String(ad.status ?? "necunoscut"), url: ad.url || null, valid_to: dataOlx(ad.valid_to) };
+        }).filter((r) => {
+          const v = cunoscute.get(r.advert_id)!;
+          return v.status !== r.status || (v.url ?? null) !== r.url || (v.valid_to ? Date.parse(v.valid_to) : null) !== (r.valid_to ? Date.parse(r.valid_to) : null);
+        });
+        if (randuri.length) {
+          // Toate advert_id-urile există deja în tabel (filtrate mai sus) → upsert-ul doar ACTUALIZEAZĂ.
+          const acum = new Date().toISOString();
+          await cere(sb.from("olx_anunturi").upsert(randuri.map((r) => ({ ...r, actualizat_la: acum })), { onConflict: "advert_id" }).select("id"), "stările OLX");
+          schimbate += randuri.length;
+        }
+        if (lot.length < 100) { gata = true; break; }
+      }
+      return NextResponse.json({ ok: true, gata, offset, citite, schimbate, peStare });
     }
 
     if (actiune === "repune-blocate") {
