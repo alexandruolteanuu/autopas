@@ -110,18 +110,33 @@ export default function ArticoleSaga() {
   const nrPotriviri = Object.keys(potriviri).length;
 
   // „Verifică toate”: implicitul + fiecare cod propriu, o singură dată pe cod, pe rând.
+  // SAGA limitează numărul de cereri (HTTP 429, 16 noiembrie 2026, la 37 de coduri trimise
+  // fără pauză; limita exactă nu e în documentația lor). De aceea: pauză între coduri, iar la
+  // 429 așteptare tot mai lungă și reîncercare pe ACELAȘI cod. Codurile deja verificate bine
+  // în pagina asta nu se mai cer a doua oară.
+  const [asteapta, setAsteapta] = useState("");
   async function verificaToate() {
     const lista = new Map<string, { denumire: string; um: string }>();
     if (implicit?.cod) lista.set(implicit.cod, { denumire: implicit.denumire, um: implicit.um });
     for (const p of Object.values(potriviri)) if (!lista.has(p.cod_articol)) lista.set(p.cod_articol, { denumire: p.denumire, um: p.um });
-    const coduri = Array.from(lista.keys());
+    const coduri = Array.from(lista.keys()).filter((c) => { const v = rez[c]; return !(v && v !== "lucru" && v.ok); });
+    const doarme = async (s: number, motiv: string) => {
+      for (let t = s; t > 0; t--) { setAsteapta(`${motiv} Reiau în ${t} s…`); await new Promise((ok) => setTimeout(ok, 1000)); }
+      setAsteapta("");
+    };
     setToate({ facut: 0, din: coduri.length });
     for (let i = 0; i < coduri.length; i++) {
       const x = lista.get(coduri[i])!;
-      const r = await verifica(coduri[i], x.denumire, x.um);
+      let r = await verifica(coduri[i], x.denumire, x.um);
+      for (let incercare = 1; !r.ok && r.cod === "limita" && incercare <= 4; incercare++) {
+        await doarme(30 * incercare, `SAGA a cerut o pauză (limita de cereri), la ${coduri[i]}.`);
+        r = await verifica(coduri[i], x.denumire, x.um);
+      }
       setToate({ facut: i + 1, din: coduri.length });
+      if (!r.ok && r.cod === "limita") { setToate(null); setAsteapta("SAGA refuză în continuare (limita de cereri). Apasă din nou mai târziu — codurile verificate deja nu se mai cer."); return; }
       // O cheie respinsă sau lipsă nu se repară la codul următor.
       if (!r.ok && /cheie|Cheia/.test(r.eroare ?? "")) break;
+      if (i < coduri.length - 1) await new Promise((ok) => setTimeout(ok, 3000));
     }
   }
 
@@ -159,6 +174,7 @@ export default function ArticoleSaga() {
               disabled={!!toate && toate.facut < toate.din} onClick={verificaToate}>Verifică toate în SAGA</button>
             <span className="text-xs text-mut">{toate ? (toate.facut < toate.din ? `Se verifică ${toate.facut + 1} din ${toate.din}…` : `Gata: ${toate.din} ${toate.din === 1 ? "cod verificat" : "coduri verificate"}.`)
               : "Verifică în SAGA dacă fiecare cod există și are aceeași denumire și unitate de măsură."}</span>
+            {asteapta && <span className="text-xs text-amber-800">{asteapta}</span>}
           </div>
         )}
       </div>

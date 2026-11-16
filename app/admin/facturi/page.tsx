@@ -91,6 +91,8 @@ export default function Facturi() {
       setTrimit({ facut: i + 1, din: lista.length, rezultate: [...rezultate] });
       // O cheie respinsă sau setări lipsă nu se repară la factura următoare: ne oprim.
       if (!j.ok && (j.cod === "cheie_blocata" || j.cod === "config" || j.cod === "fara_cheie")) { rezultate.push("Oprit: problema de mai sus privește toate facturile."); break; }
+      // SAGA limitează numărul de cereri (HTTP 429): o pauză între facturi.
+      if (i < lista.length - 1) await new Promise((ok) => setTimeout(ok, 3000));
     }
     setTrimit({ facut: lista.length, din: lista.length, rezultate: [...rezultate] });
     setAlese(new Set());

@@ -3507,3 +3507,7 @@ dez.ro la zi). Migrările din `supabase/` NU se șterg: sunt urma în git a tot 
   manual vine din setarea `import_automat` = da. Prima factură reală după pornirea ei e proba (vezi `CLAUDE.md`).
 - Încă manual: EMITEREA (butonul „Emite factura”). Facturarea automată la o stare a comenzii = faza 2; momentul
   facturării e întrebarea 8 pentru contabilă.
+- **HTTP 429 la „Verifică toate”** (16 noiembrie 2026): SAGA are limită de cereri („Numarul maxim de request-uri permise
+  a fost atins”, `TooManyRequests`), nedocumentată. Acum: 3 s între coduri, la 429 pauză de 30 / 60 / 90 / 120 s și
+  reîncercare pe același cod, codurile verificate deja nu se mai cer; `getArticol` dă codul `limita`. La trimitere,
+  429 = „eroare” cu mesaj clar (fișierul n-a ajuns), iar „Trimite selectate” face 3 s pauză între facturi.
