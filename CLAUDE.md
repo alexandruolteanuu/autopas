@@ -172,6 +172,17 @@ AP-2026-01812, 200,00 lei = 165,29 + 34,71), importată, validată în SAGA, tri
 **Riscul 7 ÎNCHIS**: după validarea PAP FE 14207, SAGA a propus 14208 pentru o factură manuală nouă — contorul
 SAGA vede facturile importate. Obligatoriu rămâne pasul de DUPĂ o factură manuală (numărul următor în Facturi →
 Setări serie + seria pe comandă): aplicația nu vede facturile emise direct în SAGA.
+**Trimiterea AUTOMATĂ în SAGA (16 noiembrie 2026, cerut de proprietar, fără migrare)**: „Emite factura” (și „Emite
+factura nouă”) trimite factura în SAGA imediat după emitere, iar „Stornează” trimite stornoul — al doilea clic a dispărut
+(`lib/saga-browser.ts`, folosit în `components/admin/FacturaSaga.tsx` și `app/admin/facturi/[id]/page.tsx`). Consecință:
+fereastra „Modifică” / „Retrage” dinainte de trimitere practic nu mai există — datele clientului se verifică în comandă
+ÎNAINTE de emitere; greșelile se corectează prin storno. Dacă trimiterea pică, factura rămâne „de trimis” / „eroare” și se
+trimite din pagina ei sau cu „Trimite selectate”. Validarea în SAGA fără import manual = `import_automat` = **da** în
+Integrări → Saga → Setări avansate (setarea proprietarului). NETESTAT pe contul real cu `importAutomat=true`: prima factură
+după schimbare e proba — de văzut în SAGA că e validată și că pleacă în e-Factura; un răspuns 207 (avertizări, de ex.
+„preț de vânzare sub cel de achiziție”, care a apărut la PROBA 1) lasă factura „trimisă — de verificat”, nu „confirmată”.
+**Potrivirile categorie → articol SAGA (16 noiembrie 2026)**: `scripts/saga-articole-potriviri.sql`, RULAT de proprietar
+(86 de categorii, 36 de articole). Facturile emise înainte își păstrează articolul copiat la emitere.
 **Pasul 11 (11 noiembrie 2026) — curățarea zonei de facturare**: doar texte și aranjare. În Integrări → Saga,
 câmpurile marcate `avansat` stau într-o secțiune „Setări avansate” restrânsă (rămân în formular, deci se salvează);
 pe pagina facturii, istoricul trimiterilor și „Descarcă fișierul” stau în „Setări avansate”, la final. Textele

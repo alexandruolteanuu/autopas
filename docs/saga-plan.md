@@ -3496,3 +3496,14 @@ REZULTAT OK 19/19, verificarea finală 0 | true.
 ascund cu „Șterge”), `scripts/baza-test.sh` (nu există bază de test, decizia din 10 noiembrie 2026),
 `scripts/reia-dezro.sh` (plasa primei publicări mari pe dez.ro; de la 10 septembrie 2026 coada automată ține
 dez.ro la zi). Migrările din `supabase/` NU se șterg: sunt urma în git a tot ce s-a schimbat în bază.
+
+## Potrivirile articolelor și trimiterea automată (16 noiembrie 2026)
+
+- `scripts/saga-articole-potriviri.sql` — prima versiune dădea în SQL Editor „relation _potriviri does not exist”
+  (tabelul temporar și pașii erau instrucțiuni separate). Rescris într-un singur bloc `do`, cu gardă „exact 86”; verificat
+  local în Docker (86 scrise, re-rulare identică, nume schimbat → oprit). **Rulat de proprietar: 36 de articole.**
+- **Trimiterea automată** (cerută de proprietar: „facturile să se trimită automat în SAGA, fără import, fără nimic”):
+  emiterea și stornarea cheamă imediat acțiunea `trimite`. Fără migrare, fără schimbare pe server. Validarea fără import
+  manual vine din setarea `import_automat` = da. Prima factură reală după pornirea ei e proba (vezi `CLAUDE.md`).
+- Încă manual: EMITEREA (butonul „Emite factura”). Facturarea automată la o stare a comenzii = faza 2; momentul
+  facturării e întrebarea 8 pentru contabilă.

@@ -24,6 +24,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { sbBrowser } from "@/lib/supabase";
 import { lei } from "@/lib/format";
+import { trimiteInSaga } from "@/lib/saga-browser";
 import { construiesteXml, numeFisier, numarPentruSaga, FORMATE_NUMAR, FORMATE_DATA, VARIANTE_CIF_PF } from "@/lib/saga-xml.mjs";
 import { ETICHETE_STARE } from "@/components/admin/FacturaSaga";
 import type { Factura, FacturaLinie } from "@/lib/types";
@@ -187,14 +188,18 @@ export default function FacturaPagina() {
 
   async function storneaza() {
     if (!f) return;
-    const motiv = prompt(`Stornezi factura ${f.serie} ${f.numar} (${lei(Number(f.total))})? Se emite un document STORNO în seria ${f.serie}, cu număr nou și sumele cu minus, care se trimite apoi în SAGA ca orice factură. Comanda devine „stornată” și NU mai poate primi o factură nouă din aplicație.\n\nMotivul (opțional, apare pe storno):`, "");
+    const motiv = prompt(`Stornezi factura ${f.serie} ${f.numar} (${lei(Number(f.total))})? Se emite un document STORNO în seria ${f.serie}, cu număr nou și sumele cu minus, care se trimite apoi în SAGA ca orice factură. Stornoul se trimite AUTOMAT în SAGA. Comanda devine „stornată”; după aceea se poate emite o factură nouă.\n\nMotivul (opțional, apare pe storno):`, "");
     if (motiv === null) return;
     const sb = sbBrowser(); if (!sb) return;
     setLucru(true); setMsg(null);
     const { data, error } = await sb.rpc("storneaza_factura", { p_id: f.id, p_motiv: motiv });
+    if (error) { setLucru(false); setMsg({ bun: false, text: `NU s-a stornat: ${error.message}` }); return; }
+    // Din 16 noiembrie 2026 stornoul pleacă singur în SAGA, ca factura. Dacă trimiterea pică,
+    // stornoul rămâne „de trimis” / „eroare” și se trimite din pagina lui.
+    const nou = data as { id: number };
+    await trimiteInSaga(nou.id);
     setLucru(false);
-    if (error) { setMsg({ bun: false, text: `NU s-a stornat: ${error.message}` }); return; }
-    router.push(`/admin/facturi/${(data as { id: number }).id}`);
+    router.push(`/admin/facturi/${nou.id}`);
   }
 
   async function comutaAscunderea() {

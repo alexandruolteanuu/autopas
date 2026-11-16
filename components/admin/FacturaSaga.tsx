@@ -18,6 +18,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { sbBrowser } from "@/lib/supabase";
 import { lei } from "@/lib/format";
+import { trimiteInSaga, textTrimitere } from "@/lib/saga-browser";
 import type { OrderFull, SagaStatus } from "@/lib/types";
 
 type Doc = { id: number; tip: string; storno_pentru: number | null; serie: string; numar: number; total: number; saga_status: SagaStatus };
@@ -63,15 +64,21 @@ export default function FacturaSaga({ o, laSchimbare, salveazaManual }: {
     const faraMentiune = mentiune ? "" : "\n\nATENȚIE: mențiunea de plată din Integrări → Saga e GOALĂ — factura iese fără ea și nu se poate adăuga ulterior prin „Modifică”.";
     const intrebare = nou
       ? `Emiți o factură NOUĂ pentru comanda ${o.numar}? Factura veche e stornată, iar stornoul e deja în SAGA. Noua factură primește următorul număr din seria activă, cu datele de ACUM ale comenzii (corectează-le în comandă înainte, dacă de aceea s-a stornat).`
-      : `Emiți factura pentru comanda ${o.numar}? Primește următorul număr din seria activă. Înainte de trimiterea în SAGA se poate corecta sau retrage (doar ultima din serie).`;
-    if (!confirm(intrebare + faraMentiune)) return;
+      : `Emiți factura pentru comanda ${o.numar}? Primește următorul număr din seria activă.`;
+    // De la 16 noiembrie 2026 factura pleacă în SAGA imediat după emitere — nu mai există
+    // fereastra de „Modifică” / „Retrage” dinainte de trimitere.
+    const automata = "\n\nFactura se trimite AUTOMAT în SAGA imediat după emitere. Verifică înainte datele clientului din comandă: după trimitere nu se mai modifică și nu se mai retrage — se corectează doar prin storno.";
+    if (!confirm(intrebare + automata + faraMentiune)) return;
     const sb = sbBrowser(); if (!sb) return;
     setLucru(true); setMsg(null);
     const { data, error } = await sb.rpc("emite_factura", { p_order_id: o.id });
+    if (error) { setLucru(false); setMsg({ bun: false, text: `Factura NU s-a emis: ${error.message}` }); return; }
+    const r = data as { id: number; serie: string; numar: number };
+    setMsg({ bun: true, text: `✓ Factura ${r.serie} ${r.numar} a fost emisă. Se trimite în SAGA…` });
+    await incarca();
+    const j = await trimiteInSaga(r.id);
     setLucru(false);
-    if (error) { setMsg({ bun: false, text: `Factura NU s-a emis: ${error.message}` }); return; }
-    const r = data as { serie: string; numar: number };
-    setMsg({ bun: true, text: `✓ Factura ${r.serie} ${r.numar} a fost emisă (de trimis în SAGA).` });
+    setMsg(textTrimitere(`Factura ${r.serie} ${r.numar}`, j));
     await incarca(); laSchimbare();
   }
 
