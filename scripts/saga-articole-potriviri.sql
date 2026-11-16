@@ -12,7 +12,11 @@
 -- CONTACT, PUNTE SPATE, ARCURI, CONDUCTE AC, FURTUN AUTO). După rulare: Articole SAGA → „Verifică toate”.
 -- Anulare: delete from public.saga_articole where categorie_id in (<id-urile de mai jos>);
 -- ============================================================
-begin;
+-- Totul stă într-un SINGUR bloc `do`: o instrucțiune, o tranzacție. Prima versiune avea tabelul
+-- temporar și pașii în instrucțiuni separate, iar SQL Editor a dat „relation _potriviri does not exist”.
+do $$
+declare r record; n int;
+begin
 create temp table _potriviri (categorie_id bigint, nume text, cod text, denumire text, um text) on commit drop;
 insert into _potriviri values
   (11, 'Motor complet', '1457070037', 'MOTOR', 'BUC'),
@@ -102,23 +106,24 @@ insert into _potriviri values
   (275, 'Furtun admisie', '1457070368', 'FURTUN AUTO', 'BUC'),
   (204, 'Oglindă retrovizoare', '1457070063', 'OGLINDA', 'BUC');
 
-do $$
-declare r record;
-begin
   for r in select p.categorie_id, p.nume, c.nume as nume_baza from _potriviri p left join public.categories c on c.id = p.categorie_id
             where c.id is null or c.nume <> p.nume loop
     raise exception 'OPRIT, nimic scris: categoria #% trebuia să fie „%”, în bază e „%”.', r.categorie_id, r.nume, coalesce(r.nume_baza, '(nu există)');
   end loop;
-end $$;
 
-insert into public.saga_articole (categorie_id, cod_articol, denumire, um)
+  insert into public.saga_articole (categorie_id, cod_articol, denumire, um)
 select categorie_id, cod, denumire, um from _potriviri
 on conflict (categorie_id) do update
    set cod_articol = excluded.cod_articol, denumire = excluded.denumire, um = excluded.um,
        verificat_la = null, verificat_raspuns = null, actualizat_la = now();
+  get diagnostics n = row_count;
+  if n <> 86 then
+    raise exception 'OPRIT, nimic scris: trebuiau 86 de potriviri, au ieșit %.', n;
+  end if;
+  raise notice 'Scrise % potriviri.', n;
+end $$;
 
 -- Rezultatul: câte categorii pe fiecare articol (trebuie 86 în total).
 select s.cod_articol, s.denumire, s.um, count(*) as categorii, string_agg(c.nume, ', ' order by c.nume) as ce_categorii
   from public.saga_articole s join public.categories c on c.id = s.categorie_id
  group by 1, 2, 3 order by 2;
-commit;
