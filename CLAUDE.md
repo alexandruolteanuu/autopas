@@ -106,8 +106,8 @@ Nu face push dacă `npm run build` nu trece cu „Compiled successfully".
 36. `email-automat.sql` -> 37. `dezro.sql` -> 38. `piesa-vanduta-ramane.sql` ->
 39. `dezro-automat.sql` -> 40. `senzori-auto-despartire.sql` -> 41. `observatii-comanda.sql` ->
 42. `sugestie-clasificare.sql` -> 43. `awb-fancourier.sql` -> 44. `nomenclator-fan.sql` ->
-45. `transport-incasat-de-fan.sql` -> 46. `retur-fan.sql` -> 47. `saga-calcul.sql` -> 48. `saga-export.sql` -> 49. `saga-facturi.sql` -> 50. `saga-articole.sql` -> 51. `saga-emitere.sql` -> 52. `saga-api.sql` -> 53. `saga-stornare.sql` -> 54. `saga-refacturare.sql` -> 55. `comenzi-sterse.sql` -> 56. `olx-conexiune.sql` -> 57. `olx-anunturi.sql` -> 58. `olx-coada.sql` -> 59. `olx-coada-ceas.sql`
-Idempotente (se pot re-rula oricând): 6, 7, 9–59.
+45. `transport-incasat-de-fan.sql` -> 46. `retur-fan.sql` -> 47. `saga-calcul.sql` -> 48. `saga-export.sql` -> 49. `saga-facturi.sql` -> 50. `saga-articole.sql` -> 51. `saga-emitere.sql` -> 52. `saga-api.sql` -> 53. `saga-stornare.sql` -> 54. `saga-refacturare.sql` -> 55. `comenzi-sterse.sql` -> 56. `olx-conexiune.sql` -> 57. `olx-anunturi.sql` -> 58. `olx-coada.sql` -> 59. `olx-coada-ceas.sql` -> 60. `saga-emitere-un-buton.sql`
+Idempotente (se pot re-rula oricând): 6, 7, 9–60.
 NU sunt încă idempotente: 1–5, 8.
 **Aplicate pe producție: 1–45 și 47–55. 46 e scrisă, NErulată** (așteaptă contul ocazional FAN).
 **56 (OLX, pasul 1 din `docs/olx-plan.md`) e RULATĂ pe producție la 13 noiembrie 2026** (pre-verificarea 4 × true; prima rulare a picat testul — `olx_consuma_starea` întorcea null, corectat și re-rulat; `verifica-olx-conexiune.sql` REZULTAT OK; amprenta funcției `3b6e1dee251e95633806cf41792c3fca`). Pasul 1 unit în `main` la 13 noiembrie 2026; callback-ul înregistrat la OLX: `https://autopas-dezmembrari.ro/api/olx/callback` (aplicația OLX așteaptă confirmarea lor): `olx_cont` (aplicația + tokenii, fără politici RLS), lacătul, `olx_consuma_starea`, `olx_apeluri`, `olx_categorii`, `olx_mapari`. Doar obiecte noi. Pre-verificare: `scripts/pre-verifica-olx-conexiune.sql`; test: `scripts/verifica-olx-conexiune.sql`; anulare: `scripts/anuleaza-olx-conexiune.sql`. Singurul loc care folosește tokenii OLX: `lib/olx-api.mjs` (listă închisă de apeluri — nu cumpără nimic).
@@ -129,6 +129,17 @@ dacă sincronizarea e pornită, nu e un lot în lucru și coada are ceva de făc
 renunța după 3 s, Vercel pornea funcția în 14–26 s, iar lanțul de loturi s-a rupt cu 37 de piese în coadă. Fără 59 coada tot
 merge, dar o ruptură așteaptă următoarea schimbare de piesă. Pre-verificare: `scripts/pre-verifica-olx-coada-ceas.sql` (3 × true);
 anulare: `scripts/anuleaza-olx-coada-ceas.sql` (pune înapoi exact 58). Testat local: `scripts/verifica-olx-local.sh`.
+**60 (SAGA, pasul 13 — „Emite factura” dintr-un buton) e RULATĂ pe producție la 17 noiembrie 2026** (pre-verificarea 5 × true, verificarea finală true | true | true, testul REZULTAT OK; codul unit apoi în `main`): butonul face totul
+pe server — validare înainte de număr, numărul, `/Import` cu importAutomat=true, verificarea. Răspunsul real „deja” (PAP FE
+14210, HTTP 422, „Factura a fost importata sau operata manual deja”) → renumerotare (max 10), DOAR dacă nu există o
+încercare fără răspuns pe acel număr; altfel factura e a noastră. Timeout / 429 → același număr, reîncercare din fundal
+(pg_cron „saga-coada”, NU depinde de 59). Rescrie `facturi_pazeste` (49 `a2b12d08…` → 60 `f8bccca0…`); `emite_factura`
+(54) neschimbată. **Codul cere migrarea: 60 se rulează ÎNAINTE de push pe `main`.** Pre-verificare:
+`scripts/pre-verifica-saga-emitere-un-buton.sql` (5 × true; pg_cron: Database → Extensions → pg_cron → Enable); test:
+`scripts/verifica-saga-emitere-un-buton.sql`; anulare: `scripts/anuleaza-saga-emitere-un-buton.sql`; motorul:
+`lib/saga-emitere.mjs`, testat cu `scripts/verifica-saga-emitere-un-buton.mjs` (3 teste). Risc acceptat de proprietar: o
+încercare „fără răspuns” care n-a ajuns, exact când cineva emite manual același număr. PAP FE 14210 și facturile de dinainte
+NU se ating din aplicație; ultimul număr îl pune proprietarul în Facturi → Setări serie.
 **55 e RULATĂ pe producție la 11 noiembrie 2026** (pre-verificarea 4 × true, Success, `verifica-comenzi-sterse.sql` 19/19, verificarea finală 0 | true) — „Șterge” pe comenzile cu factură: `orders.sters_la` / `sters_de`
 (ascundere, nu ștergere), triggerul `orders_sters_pazeste` (din browser coloanele nu se scriu direct), `sterge_comanda`
 rescrisă cu gardă de amprentă (9: `cd1d7d0cf96d2c79014e7d7749ac1b0d` → 55: `ec5319ea6dbed417d766c2fb92157410`). Fără

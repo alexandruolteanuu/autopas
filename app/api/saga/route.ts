@@ -5,9 +5,12 @@
 //   · `stare`               — starea cheii + ultimele apeluri (admin, contabil);
 //   · `salveaza-cheie`      — cheia REALĂ, scrisă de om în Integrări (doar admin);
 //   · `testeaza-conexiunea` — un singur `GetArticol`, DOAR citire (admin, contabil);
-//   · `trimite`             — o factură → SAGA (pasul 8; admin, contabil). Toată logica
-//                              e în lib/saga-trimitere.mjs; aici doar rolul și răspunsul;
-//   · `confirma`            — „Marchează confirmată”, după validarea în SAGA (admin, contabil);
+//   · `emite`               — „Emite factura” (pasul 13, migrarea 60; admin, contabil):
+//                              `order_id` → factură nouă (sau reluarea celei active),
+//                              `factura_id` → reluarea unei facturi / a unui storno. Validarea
+//                              și numărul în bază, apoi motorul din lib/saga-emitere.mjs, în
+//                              buget de 40 s; ce nu încape îl termină ceasul (/api/saga-coada);
+//   · `confirma`            — „Marchează confirmată”, după verificarea în SAGA (admin, contabil);
 //   · `verifica-articol`    — un `GetArticol` pe codul dat, comparat cu denumirea / UM de la
 //                              noi (pasul 9; admin, contabil). DOAR citire.
 //
@@ -17,9 +20,10 @@
 // token-ul sesiunii și verifică rolul în bază.
 // ============================================================
 import { NextResponse } from "next/server";
-import { esteAdmin, esteFacturare } from "@/lib/supabase";
-import { clientSaga, stareSaga, depozitFacturi, confirmaFactura, EroareSaga } from "@/lib/saga";
-import { trimiteFactura } from "@/lib/saga-trimitere.mjs";
+import { esteAdmin, esteFacturare, sbCuToken } from "@/lib/supabase";
+import { clientSaga, stareSaga, depozitEmitere, confirmaFactura, EroareSaga } from "@/lib/saga";
+import { optiuniDinSetari } from "@/lib/saga-trimitere.mjs";
+import { lucreazaFactura, TIMEOUT_IMPORT_MS, BUGET_MS, MESAJ_LEGATURA } from "@/lib/saga-emitere.mjs";
 import { comparaArticol } from "@/lib/saga-api.mjs";
 
 export const dynamic = "force-dynamic";
@@ -64,13 +68,32 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, avertisment: !r.exista && !!articolImplicit, mesaj, rotita: r.rotita, ...(await stareSaga()) });
     }
 
-    if (actiune === "trimite") {
+    if (actiune === "emite") {
+      const start = Date.now();
       const de = await esteFacturare(req);
-      if (!de) return nuAi("să trimiți facturi în SAGA");
-      const id = Number(corp.factura_id);
-      if (!Number.isInteger(id) || id <= 0) return NextResponse.json({ ok: false, eroare: "Factura lipsește din cerere." }, { status: 400 });
-      const { client, setariSaga } = await clientSaga();
-      const r = await trimiteFactura({ id, client, depozit: depozitFacturi(), setariSaga, de });
+      if (!de) return nuAi("să emiți facturi");
+      const orderId = Number(corp.order_id), facturaId = Number(corp.factura_id);
+      const peFactura = Number.isInteger(facturaId) && facturaId > 0;
+      if (!peFactura && !(Number.isInteger(orderId) && orderId > 0))
+        return NextResponse.json({ ok: false, eroare: "Comanda lipsește din cerere." }, { status: 400 });
+
+      // Ce ar opri trimiterea se verifică ÎNAINTE de număr: o lipsă nu consumă nimic.
+      const { client, setariSaga } = await clientSaga({ timeoutMs: TIMEOUT_IMPORT_MS });
+      try { optiuniDinSetari(setariSaga); } catch (e) { return eroare(e); }
+      const { cheie } = await stareSaga();
+      if (!cheie.setata || cheie.blocata_la) return NextResponse.json({ ok: false, eroare: MESAJ_LEGATURA });
+
+      const sb = sbCuToken(req);
+      if (!sb) return nuAi("să emiți facturi");
+      const { data, error } = peFactura
+        ? await sb.rpc("facturi_porneste", { p_id: facturaId })
+        : await sb.rpc("emite_factura_start", { p_order_id: orderId });
+      if (error) return NextResponse.json({ ok: false, eroare: error.message });
+      const p = data as { id: number; serie: string; numar: number; stare: string; token?: string };
+      if (p.stare !== "se_trimite" || !p.token) return NextResponse.json({ ok: true, stare: p.stare, id: p.id, serie: p.serie, numar: p.numar });
+
+      const r = await lucreazaFactura({ id: p.id, token: p.token, client, depozit: depozitEmitere(), setariSaga, de,
+        pana: start + BUGET_MS });
       return NextResponse.json({ ok: true, ...r });
     }
 

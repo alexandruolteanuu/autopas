@@ -226,3 +226,16 @@ async function utilizatorCuRol(req: Request, functie: "is_facturare" | "is_admin
 export const esteFacturare = (req: Request) => utilizatorCuRol(req, "is_facturare");
 /** Doar admin → id-ul utilizatorului; altfel `null`. */
 export const esteAdmin = (req: Request) => utilizatorCuRol(req, "is_admin");
+
+/** Clientul Supabase cu sesiunea celui care a trimis cererea (pentru funcțiile din bază
+ *  care verifică rolul cu auth.uid(), de ex. `emite_factura_start`). `null` fără token. */
+export function sbCuToken(req: Request): SupabaseClient | null {
+  if (!url || !key) return null;
+  const antet = req.headers.get("authorization") ?? "";
+  const token = antet.toLowerCase().startsWith("bearer ") ? antet.slice(7).trim() : "";
+  if (!token) return null;
+  return createClient(url, key, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}

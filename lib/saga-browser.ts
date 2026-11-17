@@ -1,28 +1,56 @@
-// Trimiterea unei facturi în SAGA, chemată din browser (ruta /api/saga, acțiunea „trimite”).
-// Folosită automat imediat după emitere / stornare (16 noiembrie 2026, cerut de proprietar:
-// „facturile să se trimită automat în SAGA”). Logica și stările le decide serverul
-// (lib/saga-trimitere.mjs); aici doar cererea și un text pentru om.
+// „Emite factura” din browser (pasul 13, migrarea 60): O SINGURĂ cerere spre /api/saga
+// (acțiunea „emite”), care face totul pe server — validarea, numărul, trimiterea în SAGA,
+// verificarea. Dacă serverul lasă factura „se_trimite” (reîncercare în fundal), browserul
+// doar citește starea la 2 s; închiderea paginii nu oprește nimic.
 import { sbBrowser } from "@/lib/supabase";
 
-export type RaspunsSaga = { ok: boolean; stare?: string; nota?: string | null; fisier?: string; eroare?: string; cod?: string };
+export type RaspunsEmitere = {
+  ok: boolean; stare?: string; id?: number; serie?: string | null; numar?: number | null;
+  mesaj?: string | null; eroare?: string;
+};
 
-export async function trimiteInSaga(facturaId: number): Promise<RaspunsSaga> {
+async function token() {
   const sb = sbBrowser();
-  const token = sb ? (await sb.auth.getSession()).data.session?.access_token : null;
+  return sb ? (await sb.auth.getSession()).data.session?.access_token ?? "" : "";
+}
+
+/** `order_id` = factura comenzii (nouă sau reluată); `factura_id` = o factură / un storno anume. */
+export async function emiteFactura(p: { order_id?: number; factura_id?: number }): Promise<RaspunsEmitere> {
   try {
     const r = await fetch("/api/saga", { method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
-      body: JSON.stringify({ actiune: "trimite", factura_id: facturaId }) });
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${await token()}` },
+      body: JSON.stringify({ actiune: "emite", ...p }) });
     return await r.json().catch(() => ({ ok: false, eroare: `Răspuns neașteptat (HTTP ${r.status}).` }));
   } catch (e: any) {
     return { ok: false, eroare: `Legătura cu serverul a căzut: ${e?.message ?? e}` };
   }
 }
 
-/** Textul pentru om, după trimitere. `bun` = a ajuns în SAGA. */
-export function textTrimitere(doc: string, j: RaspunsSaga): { bun: boolean; text: string } {
-  if (!j.ok) return { bun: false, text: `${doc} NU a plecat în SAGA: ${j.eroare ?? "eroare necunoscută"} Rămâne în aplicație; o trimiți din pagina ei cu „Trimite în SAGA”.` };
-  if (j.stare === "eroare") return { bun: false, text: `${doc}: SAGA nu a primit-o — ${j.nota} O retrimiți din pagina ei.` };
-  if (j.stare === "confirmata") return { bun: true, text: `✓ ${doc} e în SAGA, validată automat.` };
-  return { bun: true, text: `✓ ${doc} e în SAGA.${j.nota ? ` ${j.nota}` : " Validarea se face în SAGA (importul automat e oprit în Integrări → Saga)."}` };
+/** Citește starea facturii la `pasMs` cât e „se_trimite”, cel mult `maxMs`. */
+export async function asteaptaFactura(id: number, { pasMs = 2_000, maxMs = 120_000 } = {}): Promise<RaspunsEmitere> {
+  const sb = sbBrowser();
+  if (!sb) return { ok: false, eroare: "Fără legătură cu baza." };
+  const pana = Date.now() + maxMs;
+  for (;;) {
+    const { data, error } = await sb.from("facturi").select("id,serie,numar,saga_status,saga_eroare").eq("id", id).maybeSingle();
+    if (error) return { ok: false, eroare: error.message };
+    if (!data) return { ok: true, stare: "eliberata", id, mesaj: "SAGA a respins factura; detaliile sunt în jurnalul comenzii." };
+    if (data.saga_status !== "se_trimite" || Date.now() > pana)
+      return { ok: true, stare: data.saga_status, id, serie: data.serie, numar: data.numar, mesaj: data.saga_eroare };
+    await new Promise((r) => setTimeout(r, pasMs));
+  }
+}
+
+/** Un singur rând pentru om. `bun` = factura e emisă; `fundal` = încă se lucrează la ea. */
+export function textEmitere(j: RaspunsEmitere): { bun: boolean; fundal?: boolean; text: string } {
+  if (!j.ok) return { bun: false, text: j.eroare ?? "Eroare necunoscută." };
+  if (j.stare === "confirmata" || j.stare === "trimisa") return { bun: true, text: `✓ Factura ${j.serie} ${j.numar} emisă` };
+  if (j.stare === "se_trimite") return { bun: false, fundal: true, text: "Se emite în fundal; poți închide pagina." };
+  return { bun: false, text: j.mesaj || "Factura nu s-a putut emite." };
+}
+
+/** Butonul întreg: cererea, apoi așteptarea dacă a rămas în fundal. */
+export async function emiteSiAsteapta(p: { order_id?: number; factura_id?: number }): Promise<RaspunsEmitere> {
+  const j = await emiteFactura(p);
+  return j.ok && j.stare === "se_trimite" && j.id ? asteaptaFactura(j.id) : j;
 }

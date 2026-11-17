@@ -64,40 +64,9 @@ export default function Facturi() {
   }, [stare]);
   useEffect(() => { incarcaDocs(); }, [incarcaDocs]);
 
-  // „Trimite selectate” (pasul 8): câte o factură pe apel, pe rând — fiecare cerere
-  // încape în 60 s, iar un răspuns privește o singură factură. Starea o decide serverul.
-  const [alese, setAlese] = useState<Set<number>>(new Set());
-  const [trimit, setTrimit] = useState<{ facut: number; din: number; rezultate: string[] } | null>(null);
-  const deTrimis = (d: Doc) => d.saga_status === "de_trimis" || d.saga_status === "eroare";
+  // „Trimite selectate” a fost scos la pasul 13 (migrarea 60): o factură se emite și se
+  // reia doar cu „Emite factura”, din comandă sau din pagina ei.
   const vizibile = aratAscunse ? docs : docs.filter((d) => !ascunse.has(d.id));
-  function bifeaza(id: number) {
-    setAlese((v) => { const n = new Set(v); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  }
-  async function trimiteSelectate() {
-    const lista = docs.filter((d) => alese.has(d.id) && deTrimis(d));
-    if (!lista.length) return;
-    if (!confirm(`Trimiți ${lista.length} ${lista.length === 1 ? "factură" : "facturi"} în SAGA, pe rând? După trimitere nu se mai modifică și nu se mai retrag aici.`)) return;
-    const sb = sbBrowser();
-    const token = sb ? (await sb.auth.getSession()).data.session?.access_token : null;
-    const rezultate: string[] = [];
-    setTrimit({ facut: 0, din: lista.length, rezultate });
-    for (let i = 0; i < lista.length; i++) {
-      const d = lista[i];
-      const r = await fetch("/api/saga", { method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
-        body: JSON.stringify({ actiune: "trimite", factura_id: d.id }) });
-      const j = await r.json().catch(() => ({ ok: false, eroare: `HTTP ${r.status}` }));
-      rezultate.push(`${d.serie} ${d.numar}: ${!j.ok ? `NETRIMISĂ — ${j.eroare}` : j.stare === "eroare" ? `eroare — ${j.nota}` : j.stare === "confirmata" ? "importată și finalizată" : "încărcată (de validat în SAGA)"}`);
-      setTrimit({ facut: i + 1, din: lista.length, rezultate: [...rezultate] });
-      // O cheie respinsă sau setări lipsă nu se repară la factura următoare: ne oprim.
-      if (!j.ok && (j.cod === "cheie_blocata" || j.cod === "config" || j.cod === "fara_cheie")) { rezultate.push("Oprit: problema de mai sus privește toate facturile."); break; }
-      // SAGA limitează numărul de cereri (HTTP 429): o pauză între facturi.
-      if (i < lista.length - 1) await new Promise((ok) => setTimeout(ok, 3000));
-    }
-    setTrimit({ facut: lista.length, din: lista.length, rezultate: [...rezultate] });
-    setAlese(new Set());
-    incarcaDocs();
-  }
   // Comenzile care au factură din aplicație: pe ele seria NU se mai scrie de mână
   // (ar strica oglinda pe care o scrie `emite_factura`).
   const [cuDocument, setCuDocument] = useState<Set<number>>(new Set());
@@ -172,7 +141,7 @@ export default function Facturi() {
     <div className="space-y-4">
       <div className="flex items-end justify-between flex-wrap gap-3">
         <div><div className="dim">Administrare</div><h1 className="font-disp font-bold text-2xl mt-1">Facturi</h1>
-          <p className="text-sm text-mut mt-1">Facturile se emit din pagina comenzii și se trimit în SAGA de aici sau de pe pagina facturii. În SAGA le validezi și le trimiți în e-Factura. Exportul CSV e pentru comenzile facturate direct în SAGA.</p></div>
+          <p className="text-sm text-mut mt-1">Facturile se emit din pagina comenzii, cu „Emite factura”: pleacă singure în SAGA. Exportul CSV e pentru comenzile facturate direct în SAGA.</p></div>
         <div className="flex flex-wrap gap-2">
           {/* Seria și numărul de start ale facturilor emise din aplicație (pasul 4 din docs/saga-plan.md). */}
           <Link href="/admin/facturi/setari" className="rounded-xl border-2 border-line px-4 py-2 text-sm font-semibold hover:border-acc">Setări serie</Link>
@@ -186,7 +155,7 @@ export default function Facturi() {
       <div className="card p-4 text-sm">
         <div className="flex flex-wrap items-center gap-2">
           <b className="font-disp font-semibold text-[13px] mr-2">Facturi emise din aplicație</b>
-          {(["toate", "de_trimis", "in_curs", "trimisa", "eroare", "confirmata"] as const).map((k) => (
+          {(["toate", "se_trimite", "de_verificat", "eroare", "trimisa", "confirmata", "de_trimis"] as const).map((k) => (
             <button key={k} type="button" onClick={() => setStare(k)}
               className={`rounded-full border-2 px-3 py-1 text-xs font-semibold ${stare === k ? "border-acc bg-acc/5 text-acc" : "border-line"}`}>
               {k === "toate" ? "Toate" : ETICHETE_STARE[k]}</button>
@@ -197,30 +166,15 @@ export default function Facturi() {
             <input type="checkbox" checked={aratAscunse} onChange={(e) => setAratAscunse(e.target.checked)} />
             Arată și facturile de probă ascunse ({ascunse.size})</label>
         )}
-        {vizibile.some(deTrimis) && (
-          <div className="flex flex-wrap items-center gap-2 mt-3">
-            <button type="button" className="btn-acc !py-1.5 text-xs" disabled={!!trimit && trimit.facut < trimit.din || !Array.from(alese).some((id) => docs.find((d) => d.id === id && deTrimis(d)))}
-              onClick={trimiteSelectate}>Trimite selectate în SAGA{alese.size ? ` (${alese.size})` : ""}</button>
-            <span className="text-xs text-mut">Se pot bifa doar facturile „de trimis” și cele cu eroare. Pleacă pe rând, câte una.</span>
-          </div>
-        )}
-        {trimit && (
-          <div className="mt-2 text-xs">
-            <b>{trimit.facut < trimit.din ? `Se trimite ${trimit.facut + 1} din ${trimit.din}…` : `Gata: ${trimit.din} ${trimit.din === 1 ? "factură" : "facturi"}.`}</b>
-            <ul className="mt-1 space-y-0.5">{trimit.rezultate.map((r, i) => <li key={i}>{r}</li>)}</ul>
-          </div>
-        )}
         {vizibile.length === 0 ? <p className="text-mut mt-3">Nicio factură{stare === "toate" ? " emisă din aplicație încă" : " în starea aleasă"}.</p> : (
           <div className="overflow-x-auto mt-3">
             <table className="w-full text-sm md:min-w-[640px]">
               <thead><tr className="text-left text-mut text-xs border-b border-line">
-                <th className="px-3 py-2"></th><th className="px-3 py-2">Factura</th><th className="px-3 py-2">Data</th><th className="px-3 py-2">Client</th>
+                <th className="px-3 py-2">Factura</th><th className="px-3 py-2">Data</th><th className="px-3 py-2">Client</th>
                 <th className="px-3 py-2">Total</th><th className="px-3 py-2">Stare</th></tr></thead>
               <tbody className="divide-y divide-line">
                 {vizibile.map((d) => (
                   <tr key={d.id} className="hover:bg-paper">
-                    <td className="px-3 py-2">{deTrimis(d) &&
-                      <input type="checkbox" aria-label={`Alege ${d.serie} ${d.numar}`} checked={alese.has(d.id)} onChange={() => bifeaza(d.id)} />}</td>
                     <td className="px-3 py-2"><Link href={`/admin/facturi/${d.id}`} className="font-disp font-semibold hover:text-acc">
                       {d.tip === "storno" ? "Storno " : ""}{d.serie} {d.numar}</Link></td>
                     <td className="px-3 py-2 text-mut">{d.data.split("-").reverse().join(".")}</td>

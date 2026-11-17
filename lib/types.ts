@@ -77,7 +77,7 @@ export type VehiculAdmin = { id: number; slug: string; nume: string; an: number 
 // ============================================================
 // FACTURILE SPRE SAGA (supabase/saga-facturi.sql, migrarea 49; docs/saga-plan.md)
 // ============================================================
-export type SagaStatus = "de_trimis" | "in_curs" | "trimisa" | "eroare" | "confirmata";
+export type SagaStatus = "de_trimis" | "in_curs" | "trimisa" | "eroare" | "confirmata" | "se_trimite" | "de_verificat";
 export type FacturaSerie = { serie: string; urmator: number; activa: boolean;
   actualizat_la: string; actualizat_de: string | null };
 export type FacturaSerieIstoric = { id: number; serie: string; urmator: number;

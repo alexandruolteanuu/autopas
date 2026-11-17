@@ -3511,3 +3511,243 @@ dez.ro la zi). Migrările din `supabase/` NU se șterg: sunt urma în git a tot 
   a fost atins”, `TooManyRequests`), nedocumentată. Acum: 3 s între coduri, la 429 pauză de 30 / 60 / 90 / 120 s și
   reîncercare pe același cod, codurile verificate deja nu se mai cer; `getArticol` dă codul `limita`. La trimitere,
   429 = „eroare” cu mesaj clar (fișierul n-a ajuns), iar „Trimite selectate” face 3 s pauză între facturi.
+
+## Pasul 13 — „Emite factura” dintr-un singur buton (PLAN, 17 noiembrie 2026, de confirmat)
+
+Cerut de proprietar: un singur buton care emite, alocă numărul, trimite în SAGA și verifică. Operatorul vede doar
+„Se emite…” și apoi „✓ Factura PAP FE 14296 emisă”, sau un singur rând cu motivul.
+
+### Ce am găsit în audit (date reale, doar citire)
+
+- **Textul real pentru „număr existent”**, din `saga_trimiteri`, rândul 12 (PAP FE 14210, 11.11.2026, 863 ms): **HTTP 422**, cu
+  raportul `Raport Import F_RO36608590_PAP_FE_14210_11_11_2026 / Factura 1. / NR_DOC: PAP FE 14210 / Eroare antet: Factura a
+  fost importata sau operata manual deja.` E exact ce prinde deja `MESAJ_DUBLURA` din `lib/saga-xml.mjs`. Se refolosește, iar
+  la potrivire se cere ȘI ca `NR_DOC` să fie chiar numărul nostru (`acelasiNumar`).
+- **⚠ PAP FE 14210 (factura 47, comanda id 820) e de verificat în SAGA.** A fost trimisă O SINGURĂ dată, iar prima încercare a
+  primit deja „operata manual deja”. După regula nouă, asta înseamnă că 14210 era o factură MANUALĂ, deci factura noastră
+  pentru comanda 820 probabil NU e în SAGA. Codul de azi a trecut-o ca „trimisă” (`stareDupaImport` socotește dublura „deja
+  în SAGA”). Exact cazul pe care îl repară pasul ăsta.
+- **SAGA răspunde repede**: 14 importuri reale, 0,35–1,3 s, niciun timeout. Zece renumerotări la rând ar dura ~10 s.
+- **Se refolosesc**: `emite_factura` (54), cu toate regulile ei: data de start, comanda marcată manual, refacturarea,
+  articolele, TVA-ul; `construiesteXml` / `numeFisier` / `parseazaRaport` / `stareDupaImport` (`lib/saga-xml.mjs`);
+  `importaFacturi` cu lacătul de 90 s și rotirea cheii (`lib/saga-api.mjs`); `UNIQUE (serie, numar)` pe `facturi`, care
+  există deja; tiparul de coadă cu pg_net + ceasul pg_cron (migrările 39, 58, 59).
+- **Piedici în ce există**:
+  (1) triggerul `facturi_pazeste` interzice ORICE schimbare de număr, deci renumerotarea cere rescrierea lui, cu gardă de
+  amprentă;
+  (2) jurnalul `saga_trimiteri` se scrie DUPĂ apel și „sigur” (o eroare la scriere e înghițită). Nu poate fi dovada că „am
+  trimis și n-am primit răspuns”, deci încercarea se scrie ÎNAINTE de apel;
+  (3) o factură activă pe comandă e garantată azi doar prin blocarea rândului comenzii (`for update`), nu printr-o
+  constrângere;
+  (4) **nu există PDF al facturii** nicăieri în aplicație: nici la noi, nici prin API-ul SAGA.
+
+### Migrarea 60 — `saga-emitere-un-buton.sql` (scrisă de mine, rulată de proprietar)
+
+1. `facturi.saga_status` primește două valori noi: `se_trimite` și `de_verificat`. Plus coloanele `lacat_pana` (blocarea de
+   2 minute), `renumerotari` (câte, plafon 10) și `incercari_fara_raspuns`.
+2. Tabelul nou **`facturi_incercari`**: factura, seria și numărul trimis, `trimisa_la`, `raspuns_primit` (da/nu), codul HTTP
+   și textul. Rândul se scrie ÎNAINTE de POST, iar dacă scrierea pică, nu se trimite nimic. Răspunsul se completează după.
+3. **O singură factură activă pe comandă, în bază**: coloana `facturi.stornata` (pusă de un trigger la inserarea stornoului),
+   plus indexul unic `(order_id) where tip = 'factura' and not stornata`. Cele 11 facturi existente n-au storno, deci nu se
+   atinge niciun rând.
+4. `emite_factura_start(order_id)` cheamă `emite_factura` neschimbată, într-o singură tranzacție:
+   - întâi validarea: numele, adresa, localitatea și județul clientului; CUI-ul la firmă; cel puțin o piesă; totalul peste 0.
+     Dacă lipsește ceva, funcția se oprește cu un rând scurt și nu se consumă niciun număr. La persoană fizică nu există
+     CNP în comandă; se trimite ce e ales în Integrări → Saga, ca azi.
+   - apoi factura trece direct în `se_trimite`, cu blocarea pusă.
+   - dublu-clic sau două taburi: blocarea comenzii plus indexul unic dau o singură factură. A doua apăsare primește
+     factura existentă și urmărește starea ei.
+5. `facturi_renumeroteaza(id)`: dă facturii numărul `urmator` al seriei, mărește contorul, actualizează oglinda din comandă
+   și scrie în jurnal. Merge DOAR în `se_trimite`. Triggerul rescris lasă numărul să se schimbe doar în starea asta și doar
+   prin funcția asta (un semnal de sesiune).
+6. `facturi_elibereaza(id)`, pentru respingerile pe date: dacă numărul e încă ultimul din serie, șterge factura și dă
+   contorul înapoi, ca `retrage_factura`; altfel factura rămâne „eroare”, legată de număr.
+7. Ceasul: pg_cron, o dată pe minut. Trezește ruta doar dacă există o factură `se_trimite` cu blocarea expirată și
+   reîncercarea scadentă. Cere pg_cron, ca migrarea 59.
+- Anexe: pre-verificarea (doar citire), un test esențial în tranzacție anulată, `anuleaza-saga-emitere-un-buton.sql`, fără
+  `cascade`.
+
+### Motorul — `lib/saga-emitere.mjs` (o singură funcție, `pasFactura`)
+
+Se ia factura cu blocarea de 2 minute, se scrie încercarea, se face POST `/Import` cu `importAutomat=true` și timeout de 20 s,
+apoi se decide:
+
+| Răspuns SAGA | Ce face |
+|---|---|
+| 200, sau 207 fără „Eroare” pe numărul nostru | **emisă** (`confirmata`; la 207 nota rămâne în pagina facturii) |
+| „operata manual deja” și NICIO încercare fără răspuns pe ACEST număr | factură manuală → renumerotare + retrimitere; după 10 renumerotări: „Nu s-a putut emite, încearcă din nou.” |
+| „operata manual deja” și EXISTĂ o încercare fără răspuns pe acest număr | e a noastră → **emisă**, fără renumerotare |
+| fără răspuns (20 s, rețea), 429, lacăt ocupat | rămâne `se_trimite`, cu ACELAȘI număr; reîncercare din fundal la 1, 2, 5, 10, 30 de minute; după a 5-a: `de_verificat` |
+| 400 / 422 cu alt motiv (date) | `facturi_elibereaza` + un rând cu motivul |
+| cheie blocată, raport neînțeles | `de_verificat` (o etichetă discretă în Facturi) |
+
+### Ruta și interfața
+
+- `/api/saga`, acțiunea nouă `emite`: `emite_factura_start`, apoi `pasFactura` în buclă cât e bugetul (40 s), apoi răspunsul.
+  Ce nu încape (o reîncercare după timeout) rămâne pentru ceas. Ruta `/api/saga-coada` (chemată de ceas) face aceeași buclă.
+- `FacturaSaga.tsx`: un buton, o confirmare, spinner „Se emite…”, starea citită la 2 s cât e `se_trimite`, apoi
+  „✓ Factura PAP FE 14296 emisă”, cu link la pagina facturii. Dacă pagina se închide, lucrul continuă în fundal.
+- Dispar: trimiterea separată de după emitere, „Trimite în SAGA” / „Reîncearcă” din pagina facturii și „Trimite selectate”
+  din Facturi. Stornarea trece prin același motor (un storno poate cădea și el pe un număr manual).
+
+### Testele (doar cele trei cerute)
+
+`scripts/verifica-saga-emitere-un-buton.mjs`, pe un SAGA simulat, ca `verifica-saga-api.mjs`, plus motorul pe depozitul
+imitat: (a) emitere normală → emisă; (b) „operata manual deja” fără încercare anterioară → renumerotare, contor +1, a doua
+trimitere cu numărul nou; (c) încercare fără răspuns, apoi „operata manual deja” → emisă, fără renumerotare. SQL-ul
+migrării: un singur test, în tranzacție anulată, pe seria „TEST”.
+
+### De hotărât înainte de cod
+
+1. **Renumerotările în aceeași cerere, nu în coadă** (recomandarea mea). Durează ~1 s fiecare, deci 10 încap lejer în
+   40 s. Prin coadă, fiecare pas ar aștepta trezirea Vercel, măsurată la 14–26 s (migrarea 59), adică minute întregi de
+   spinner. În coadă rămân doar reîncercările după timeout.
+2. **Linkul PDF**: nu există niciun PDF al facturii. Propun linkul la pagina facturii acum, iar PDF-ul ca pas separat.
+3. **pg_cron**: ceasul are nevoie de el, la fel ca migrarea 59, încă nerulată.
+4. **PAP FE 14210**: de verificat în SAGA ce factură poartă numărul. Dacă e una manuală, factura comenzii 820 nu e în SAGA,
+   iar în aplicație ocupă un număr care în SAGA e al altei facturi. Se rezolvă separat, după ce afli ce e acolo.
+
+### Decizii (proprietarul, 17 noiembrie 2026)
+
+1. Renumerotările se fac în aceeași cerere (buget de 40 s). În coadă rămân doar reîncercările după timeout, 429 sau lacăt
+   SAGA ocupat.
+2. Linkul de la final duce la pagina facturii. PDF-ul e un pas separat, mai târziu.
+3. Migrarea 60 NU depinde de 59. Pre-verificarea doar confirmă că pg_cron e activ.
+4. **PAP FE 14210 și ultimele facturi: nu se stornează și nu se corectează nimic din aplicație.** Proprietarul pune de mână
+   ultimul număr în Facturi → Setări serie, care rămâne funcțional.
+- a) După o respingere pe date, factura rămasă „eroare” (legată de număr) se reia din ACELAȘI buton „Emite factura”, cu
+  același număr. Datele clientului se recopiază din comandă (după corectare).
+- b) Facturile existente în „de_trimis” / „eroare” se termină tot din acest buton.
+- c) Cheie SAGA blocată sau lipsă: un rând clar, „Legătura cu SAGA trebuie refăcută (Integrări → Saga).”
+- d) **Risc acceptat**: o încercare „fără răspuns” care de fapt n-a ajuns la SAGA, iar exact atunci cineva emite manual
+  același număr → factura noastră e socotită emisă, deși în SAGA numărul e al facturii manuale.
+
+### Jurnalul pasului 13 (17 noiembrie 2026) — cod scris, migrarea 60 NErulată
+
+- **Migrarea 60** `supabase/saga-emitere-un-buton.sql`: stările `se_trimite` / `de_verificat`; coloanele lacătului
+  (2 min), `renumerotari`, `reincercari`, `reincearca_la`, `stornata`; indexul unic „o factură activă pe comandă”;
+  `facturi_incercari`; `factura_lipsuri`, `emite_factura_start`, `facturi_porneste` (admin / contabil);
+  `saga_factura_ia`, `facturi_renumeroteaza`, `facturi_elibereaza`, `saga_ceas` (doar serverul); `saga_trezire`
+  (adresa + secretul generat); pg_cron „saga-coada” o dată pe minut. RESCRIE `facturi_pazeste`, cu gardă de amprentă
+  (49: `a2b12d08e988b102abc939e3d533fff6` → 60: `f8bccca0f490afa7f2ccf5a96d4be32d`). `emite_factura` (54) e folosită
+  NESCHIMBATĂ.
+- **Motorul** `lib/saga-emitere.mjs` (`lucreazaFactura`, `citesteRaspuns`). **Rutele**: `/api/saga`, acțiunea `emite`
+  (`trimite` a fost scoasă); `/api/saga-coada` (ceasul).
+- **Interfața**: în comandă, butonul „Emite factura” (nouă sau reluare), cu spinner „Se emite…” și starea citită la 2 s,
+  apoi „✓ Factura PAP FE N emisă · Deschide factura”. Pe pagina facturii, același buton pentru reluare, iar „Marchează
+  confirmată” merge și din „de verificat”. Scoase: „Trimite în SAGA” / „Reîncearcă” și „Trimite selectate”. Stornoul
+  trece prin același motor.
+- **Verificat**:
+  - local, în Docker (fără bază reală): pre-verificarea 5 × true; migrarea rulată de două ori, verificarea finală
+    t | t | t; testul SQL „REZULTAT OK” (9 verificări); testele vechi facturi / articole / emitere / stornare /
+    refacturare trec și după 60; ceasul trezește o dată, iar fereastra de 50 s o oprește pe a doua; anularea pune
+    exact 49; re-rularea după anulare merge;
+  - `node scripts/verifica-saga-emitere-un-buton.mjs`: 9 verificări pe cele 3 teste (a, b, c);
+  - `verifica-saga-api.mjs` 109 și `verifica-saga-xml.mjs` 102 trec în continuare; `npm run build` trece.
+- **Ordinea pe producție**: pre-verificarea → migrarea 60 → testul SQL → ABIA APOI push pe `main`. Codul nou cheamă
+  `emite_factura_start`; fără 60, butonul ar da eroare.
+- NETESTAT pe SAGA real: prima factură emisă după push e proba.
+
+### Tot ce s-a discutat la pasul 13 (17 noiembrie 2026), în ordine
+
+#### 1. Întrebarea: „Maparea categorie → articol SAGA e activă, sau tot ACCESORII AUTO se facturează?”
+
+Răspunsul, verificat în bază (doar citire):
+- **Maparea e activă, dar încă nicio factură n-a folosit-o.** Tabelul `saga_articole` are 86 de rânduri, scrise pe
+  16.11.2026 la 11:23, ora României.
+- Ultima factură, PAP FE 14295, a fost emisă pe 16.11.2026 la 08:03, ora României, cu ~3 ore ÎNAINTE de mapare. De atunci
+  nu s-a mai emis nicio factură. Toate facturile de până acum au „ACCESORII AUTO” și rămân așa, fiindcă articolul se
+  copiază pe linie la emitere.
+- `emite_factura` caută întâi potrivirea subcategoriei, apoi pe a categoriei, apoi pune implicitul.
+- Simularea pe piesele ultimelor 11 facturi: 6 din 11 ar fi luat articolul lor (FAR, CALCULATOARE, OGLINDA, STOP AUTO,
+  ARIPA). Fusta de bară, caseta de direcție, clapeta de accelerație, canistra de carbon și capacul de motor rămân pe
+  ACCESORII AUTO, fiindcă categoriile lor nu sunt în listă. Se adaugă din Facturi → Articole SAGA.
+- Amprenta funcției nu se poate citi prin API. Verificarea din SQL Editor:
+  `select md5(replace(prosrc, E'\r', '')) from pg_proc where proname = 'emite_factura';` → `05f9fdfb49e73145c8004f290ed6ec42`.
+- „Verifică toate” din Articole SAGA nu fusese apăsat (`verificat_la` gol). Nu e obligatoriu, dar un cod greșit poate
+  face SAGA să refuze factura.
+- Proba reală: prima factură pe o piesă dintr-o categorie mapată trebuie să aibă pe linie articolul ei.
+
+#### 2. Cererea proprietarului (rezumat)
+
+Un singur buton „Emite factura”, care emite, alocă numărul, trimite în SAGA și verifică. Pe ecran apare doar „Se
+emite…”, apoi „✓ Factura <serie> <număr> emisă”. Înainte de cod: auditul (migrările 51–54, `lib/saga-trimitere.mjs`,
+`app/api/saga/route.ts`, `docs/saga-api.md`), textul real pentru „număr existent” scos din jurnal (PAP FE 14210) și
+planul scris aici. API-ul SAGA nu poate citi facturi sau ultimul număr; singurul semnal e răspunsul la `/Import`.
+
+Logica cerută:
+1. validarea locală înainte de număr;
+2. o singură factură activă pe comandă, garantat în bază (unicitate + blocare de 2 minute);
+3. numărul alocat atomic abia acum, data = azi, starea „se_trimite”;
+4. POST `/Import` cu `importAutomat=true`, fiecare încercare jurnalizată;
+5. interpretarea răspunsului: acceptată / „număr existent” fără sau cu încercare fără răspuns / fără răspuns / respinsă
+   pe date / nedecidabilă;
+6. renumerotările și reîncercările prin coada din fundal;
+7. interfața: o cerere, spinner, starea citită la 2 s, ✓ cu numărul și linkul.
+
+Regulile: migrarea o rulează proprietarul (pre-verificare, migrare, un test esențial în tranzacție anulată, fișier de
+anulare); fără push pe `main` fără confirmare; doar 3 teste (a, b, c) + testul SQL.
+
+#### 3. Auditul și planul
+
+Sunt mai sus, în „Pasul 13 — Ce am găsit în audit” și în planul care urmează după el.
+
+Întrebările puse proprietarului:
+1. Renumerotările în aceeași cerere, nu în coadă? (recomandat: da)
+2. Linkul PDF — PDF-ul nu există?
+3. pg_cron?
+4. PAP FE 14210?
+
+#### 4. Răspunsurile proprietarului
+
+Sunt mai sus, în „Decizii (proprietarul, 17 noiembrie 2026)”: 1 da, 2 linkul la pagina facturii, 3 fără dependență de
+59, 4 nu se atinge nimic din aplicație, plus completările a–d. Proprietarul a adăugat: „Nu storna și nu face nimic legat
+de ultimele facturi. Voi trece eu manual, din Integrări sau din Setări serie, care e ultima factură trimisă. Zona unde se
+setează ultimul număr emis poate rămâne funcțională.” Așa s-a făcut: Setări serie e neatins.
+
+#### 5. Ce s-a livrat (raportul de la finalul pasului)
+
+Ce face butonul „Emite factura” (o singură cerere):
+1. Verifică datele (numele, adresa, localitatea, județul; CUI-ul la firmă; piesele; totalul). La o lipsă: un rând scurt,
+   niciun număr consumat.
+2. Dublu-clicul sau două taburi dau o singură factură (indexul unic + blocarea comenzii; a doua apăsare primește factura
+   primei).
+3. Alocă numărul, trimite cu validarea automată și scrie fiecare încercare ÎNAINTE de trimitere.
+4. Decide din răspuns:
+   - „operată manual deja”, fără încercare fără răspuns pe numărul ăsta → renumerotare și retrimitere pe loc, max 10.
+     Cu o încercare fără răspuns pe numărul ăsta → e a noastră, fără renumerotare.
+   - fără răspuns / 429 / SAGA ocupat → același număr, reîncercare din fundal la 1, 2, 5, 10, 30 de minute, apoi „de
+     verificat”;
+   - respinsă pe date → numărul se eliberează dacă e ultimul din serie; altfel factura rămâne „eroare”, legată de număr,
+     și se reia din același buton, după corectarea comenzii (datele clientului se recopiază);
+   - cheie blocată sau lipsă → „Legătura cu SAGA trebuie refăcută (Integrări → Saga).”;
+   - răspuns neînțeles → „de verificat”, cu „Marchează confirmată” după ce omul vede factura în SAGA.
+5. Facturile vechi rămase „de trimis” sau „eroare” se termină tot din acest buton; stornoul trece prin aceeași logică. O
+   trimitere veche fără răspuns (timeout în `saga_trimiteri`, sau „in_curs” uitat) devine încercare fără răspuns.
+6. Scoase: „Trimite în SAGA”, „Reîncearcă”, „Trimite selectate”. Filtrul din Facturi are stările „Se emite…” și „De
+   verificat”.
+7. A rămas o singură confirmare scurtă, „Emiți factura pentru comanda X?”, ca o factură fiscală să nu plece dintr-un clic
+   scăpat. Se scoate la cerere.
+
+Fișiere noi: `supabase/saga-emitere-un-buton.sql`, `lib/saga-emitere.mjs`, `app/api/saga-coada/route.ts`,
+`scripts/pre-verifica-saga-emitere-un-buton.sql`, `scripts/verifica-saga-emitere-un-buton.sql`,
+`scripts/anuleaza-saga-emitere-un-buton.sql`, `scripts/verifica-saga-emitere-un-buton.mjs`.
+Modificate: `app/api/saga/route.ts`, `lib/saga.ts`, `lib/saga-browser.ts`, `lib/supabase.ts` (`sbCuToken`),
+`lib/types.ts`, `components/admin/FacturaSaga.tsx`, `app/admin/facturi/page.tsx`, `app/admin/facturi/[id]/page.tsx`,
+`CLAUDE.md`. `lib/saga-trimitere.mjs` a rămas (folosit de `optiuniDinSetari` și de testele vechi), dar nu mai e chemat
+de nicio rută.
+
+Pașii proprietarului, în ordine, din SQL Editor:
+1. `scripts/pre-verifica-saga-emitere-un-buton.sql` → 5 × true. Dacă `pg_cron` e false: Supabase → Database →
+   Extensions → „pg_cron” → Enable, apoi din nou.
+2. `supabase/saga-emitere-un-buton.sql` (migrarea 60) → la final, true | true | true.
+3. `scripts/verifica-saga-emitere-un-buton.sql` → „REZULTAT OK” în căsuța roșie (intenționat; nu lasă nimic în bază).
+4. Abia apoi, cu confirmarea proprietarului: commit și push pe `main` (codul cere migrarea).
+Anularea, la nevoie: `scripts/anuleaza-saga-emitere-un-buton.sql`.
+Netestat pe SAGA real: prima factură emisă după push e proba.
+
+### Migrarea 60 RULATĂ pe producție (17 noiembrie 2026)
+
+Rulată de proprietar, din SQL Editor: pre-verificarea 5 × true; migrarea, cu verificarea finală true | true | true;
+`scripts/verifica-saga-emitere-un-buton.sql` „REZULTAT OK”. Codul pasului 13 merge apoi pe `main` (commit + push, cu
+confirmarea proprietarului). De urmărit: prima factură emisă cu noul buton e proba pe SAGA real.

@@ -32,7 +32,7 @@ const cere = async <T,>(p: PromiseLike<{ data: T; error: { message: string } | n
 };
 
 /** Clientul SAGA cu depozitul real. `de` = id-ul omului care a pornit operația. */
-export async function clientSaga() {
+export async function clientSaga({ timeoutMs }: { timeoutMs?: number } = {}) {
   const sb = admin();
   const [integrari, firma] = await Promise.all([
     cere(sb.from("settings").select("valoare").eq("cheie", "integrari").maybeSingle(), "setări"),
@@ -62,7 +62,7 @@ export async function clientSaga() {
     jurnal: async (r: Record<string, unknown>) => { await cere(sb.from("saga_trimiteri").insert(r), "jurnal"); },
   };
 
-  return { client: creeazaClientSaga({ depozit, url: saga.url_api, cif }), articolImplicit: saga.articol_implicit ?? "",
+  return { client: creeazaClientSaga({ depozit, url: saga.url_api, cif, ...(timeoutMs ? { timeoutMs } : {}) }), articolImplicit: saga.articol_implicit ?? "",
            adresa: adresaApi(saga.url_api), cif, setariSaga: saga };
 }
 
@@ -115,13 +115,68 @@ export function depozitFacturi() {
   };
 }
 
-/** „Marchează confirmată”: doar din „trimisă”, după validarea făcută de om în SAGA. */
+// ------------------------------------------------------------
+// EMITEREA DINTR-UN BUTON (pasul 13, migrarea 60): depozitul pentru lib/saga-emitere.mjs.
+// Lacătul, renumerotarea și eliberarea sunt funcții din bază (doar `service_role`);
+// starea finală se scrie doar cât lacătul (`lacat_de`) e încă al nostru.
+// ------------------------------------------------------------
+export function depozitEmitere() {
+  const sb = admin();
+  return {
+    ia: async (id: number, token: string | null) =>
+      ((await cere(sb.rpc("saga_factura_ia", { p_id: id, p_token: token }), "lacătul facturii")) as string | null) ?? null,
+    citesteFactura: depozitFacturi().citesteFactura,
+    incepeIncercare: async (r: { factura_id: number; serie: string; numar: number; de: string | null }) => {
+      const rand = await cere(sb.from("facturi_incercari").insert(r).select("id").single(), "jurnalul încercărilor");
+      return (rand as any).id as number;
+    },
+    // Rezultatul încercării; dacă scrierea pică, rândul rămâne „in_curs” = fără răspuns (sigur).
+    terminaIncercare: async (id: number, c: Record<string, unknown>) => {
+      try {
+        await cere(sb.from("facturi_incercari").update({ ...c, raspuns: c.raspuns ? String(c.raspuns).slice(0, 20_000) : null,
+          terminata_la: new Date().toISOString() }).eq("id", id), "jurnalul încercărilor");
+      } catch { /* vezi mai sus */ }
+    },
+    areFaraRaspuns: async (facturaId: number, serie: string, numar: number, exceptId: number) => {
+      const r = await cere(sb.from("facturi_incercari").select("id").eq("factura_id", facturaId).eq("serie", serie)
+        .eq("numar", numar).in("stare", ["in_curs", "fara_raspuns"]).neq("id", exceptId).limit(1), "jurnalul încercărilor");
+      return Array.isArray(r) && r.length > 0;
+    },
+    renumeroteaza: async (id: number, token: string) =>
+      (await cere(sb.rpc("facturi_renumeroteaza", { p_id: id, p_token: token }), "renumerotarea")) as { numar: number },
+    elibereaza: async (id: number, token: string, motiv: string) =>
+      (await cere(sb.rpc("facturi_elibereaza", { p_id: id, p_token: token, p_motiv: motiv }), "eliberarea")) as { eliberata: boolean },
+    seteaza: async (id: number, token: string, campuri: Record<string, unknown>) => {
+      const rand = await cere(sb.from("facturi").update(campuri).eq("id", id).eq("lacat_de", token).select("id"), "starea facturii");
+      if (!Array.isArray(rand) || rand.length !== 1) throw new EroareSaga(`Starea facturii ${id} nu s-a putut scrie (lacătul a expirat?).`, { cod: "baza" });
+    },
+  };
+}
+
+/** Facturile pe care le are de dus ceasul: în „se_trimite”, libere, cu reîncercarea scadentă. */
+export async function facturiScadente(): Promise<number[]> {
+  const sb = admin();
+  // Puține rânduri (doar cele în lucru): filtrul de timp se face aici, pe ceasul serverului.
+  const r = await cere(sb.from("facturi").select("id,lacat_pana,reincearca_la").eq("saga_status", "se_trimite")
+    .order("id").limit(50), "facturile de trimis");
+  const acum = Date.now();
+  const libera = (x: any) => (!x.lacat_pana || Date.parse(x.lacat_pana) < acum) && (!x.reincearca_la || Date.parse(x.reincearca_la) <= acum);
+  return ((r as any[]) ?? []).filter(libera).map((x) => Number(x.id));
+}
+
+/** Secretul ceasului (migrarea 60) — doar pe server. */
+export async function secretCeas(): Promise<string | null> {
+  const r = await cere(admin().from("saga_trezire").select("webhook_secret,activ").eq("unic", true).maybeSingle(), "trezirea");
+  return (r as any)?.activ ? String((r as any).webhook_secret ?? "") || null : null;
+}
+
+/** „Marchează confirmată”: din „trimisă” sau „de verificat”, după ce omul a văzut factura în SAGA. */
 export async function confirmaFactura(id: number, de: string) {
   const sb = admin();
   const rand = await cere(sb.from("facturi")
     .update({ saga_status: "confirmata", confirmata_la: new Date().toISOString(), confirmata_de: de })
-    .eq("id", id).eq("saga_status", "trimisa").select("id,serie,numar"), "confirmarea facturii");
+    .eq("id", id).in("saga_status", ["trimisa", "de_verificat"]).select("id,serie,numar"), "confirmarea facturii");
   if (!Array.isArray(rand) || rand.length !== 1)
-    throw new EroareSaga("Factura nu e în starea „trimisă” (poate a fost confirmată deja). Reîncarcă pagina.", { cod: "stare" });
+    throw new EroareSaga("Factura nu e „trimisă” sau „de verificat” (poate a fost confirmată deja). Reîncarcă pagina.", { cod: "stare" });
   return rand[0] as { id: number; serie: string; numar: number };
 }

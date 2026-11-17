@@ -14,19 +14,26 @@
 // cu un storno netrimis, motivul. Decizia finală e tot a lui `emite_factura`.
 // Ascunderea butoanelor e doar comoditate: `emite_factura` din bază refuză oricum
 // tot ce nu are voie (data de start, marcajul manual, seria, rolul).
+// Pasul 13 (migrarea 60): „Emite factura” face totul într-o cerere — validare, număr,
+// SAGA, verificare (lib/saga-browser.ts). Aceeași apăsare reia o factură rămasă „eroare” /
+// „de verificat” / „de trimis”, cu același număr. Cât e „se_trimite”: spinner, starea la 2 s.
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { sbBrowser } from "@/lib/supabase";
 import { lei } from "@/lib/format";
-import { trimiteInSaga, textTrimitere } from "@/lib/saga-browser";
+import { emiteSiAsteapta, asteaptaFactura, textEmitere, type RaspunsEmitere } from "@/lib/saga-browser";
 import type { OrderFull, SagaStatus } from "@/lib/types";
 
-type Doc = { id: number; tip: string; storno_pentru: number | null; serie: string; numar: number; total: number; saga_status: SagaStatus };
+type Doc = { id: number; tip: string; storno_pentru: number | null; serie: string; numar: number; total: number; saga_status: SagaStatus; saga_eroare: string | null };
 
 export const ETICHETE_STARE: Record<SagaStatus, string> = {
   de_trimis: "De trimis în SAGA", in_curs: "Se trimite…", trimisa: "Trimisă — așteaptă validarea în SAGA",
   eroare: "Eroare la trimitere", confirmata: "Confirmată în SAGA",
+  se_trimite: "Se emite…", de_verificat: "De verificat",
 };
+
+/** Stările din care „Emite factura” reia o factură existentă (pasul 13). */
+export const SE_REIA: SagaStatus[] = ["de_trimis", "eroare", "de_verificat", "in_curs"];
 
 /** Ziua (ora României) în care a fost plasată comanda, ca AAAA-LL-ZZ. */
 function ziuaRo(iso: string): string {
@@ -43,12 +50,12 @@ export default function FacturaSaga({ o, laSchimbare, salveazaManual }: {
   const [mentiune, setMentiune] = useState("");
   const [incarcat, setIncarcat] = useState(false);
   const [lucru, setLucru] = useState(false);
-  const [msg, setMsg] = useState<{ bun: boolean; text: string } | null>(null);
+  const [msg, setMsg] = useState<{ bun: boolean; text: string; id?: number } | null>(null);
 
   const incarca = useCallback(async () => {
     const sb = sbBrowser(); if (!sb) return;
     const [d, rol, s] = await Promise.all([
-      sb.from("facturi").select("id,tip,storno_pentru,serie,numar,total,saga_status").eq("order_id", o.id).order("id"),
+      sb.from("facturi").select("id,tip,storno_pentru,serie,numar,total,saga_status,saga_eroare").eq("order_id", o.id).order("id"),
       sb.rpc("is_facturare"),
       sb.from("settings").select("valoare").eq("cheie", "integrari").maybeSingle(),
     ]);
@@ -60,27 +67,27 @@ export default function FacturaSaga({ o, laSchimbare, salveazaManual }: {
   }, [o.id]);
   useEffect(() => { incarca(); }, [incarca]);
 
-  async function emite(nou = false) {
-    const faraMentiune = mentiune ? "" : "\n\nATENȚIE: mențiunea de plată din Integrări → Saga e GOALĂ — factura iese fără ea și nu se poate adăuga ulterior prin „Modifică”.";
-    const intrebare = nou
-      ? `Emiți o factură NOUĂ pentru comanda ${o.numar}? Factura veche e stornată, iar stornoul e deja în SAGA. Noua factură primește următorul număr din seria activă, cu datele de ACUM ale comenzii (corectează-le în comandă înainte, dacă de aceea s-a stornat).`
-      : `Emiți factura pentru comanda ${o.numar}? Primește următorul număr din seria activă.`;
-    // De la 16 noiembrie 2026 factura pleacă în SAGA imediat după emitere — nu mai există
-    // fereastra de „Modifică” / „Retrage” dinainte de trimitere.
-    const automata = "\n\nFactura se trimite AUTOMAT în SAGA imediat după emitere. Verifică înainte datele clientului din comandă: după trimitere nu se mai modifică și nu se mai retrage — se corectează doar prin storno.";
-    if (!confirm(intrebare + automata + faraMentiune)) return;
-    const sb = sbBrowser(); if (!sb) return;
-    setLucru(true); setMsg(null);
-    const { data, error } = await sb.rpc("emite_factura", { p_order_id: o.id });
-    if (error) { setLucru(false); setMsg({ bun: false, text: `Factura NU s-a emis: ${error.message}` }); return; }
-    const r = data as { id: number; serie: string; numar: number };
-    setMsg({ bun: true, text: `✓ Factura ${r.serie} ${r.numar} a fost emisă. Se trimite în SAGA…` });
-    await incarca();
-    const j = await trimiteInSaga(r.id);
+  async function termina(j: RaspunsEmitere) {
+    const t = textEmitere(j);
     setLucru(false);
-    setMsg(textTrimitere(`Factura ${r.serie} ${r.numar}`, j));
+    setMsg({ bun: t.bun, text: t.text, id: t.bun ? j.id : undefined });
     await incarca(); laSchimbare();
   }
+
+  async function emite(p: { order_id?: number; factura_id?: number }) {
+    if (!confirm(`Emiți factura pentru comanda ${o.numar}?`)) return;
+    setLucru(true); setMsg(null);
+    await termina(await emiteSiAsteapta(p));
+  }
+
+  // O factură găsită „se_trimite” la deschidere (lucrează serverul / ceasul): doar așteptăm.
+  const inLucru = docs.find((d) => d.saga_status === "se_trimite");
+  useEffect(() => {
+    if (!inLucru || lucru) return;
+    setLucru(true);
+    asteaptaFactura(inLucru.id).then(termina);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inLucru?.id]);
 
   async function retrage(doc: Doc) {
     const eStorno = doc.tip === "storno";
@@ -132,8 +139,13 @@ export default function FacturaSaga({ o, laSchimbare, salveazaManual }: {
                 <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${d.saga_status === "confirmata" ? "bg-ok/10 text-ok" : d.saga_status === "eroare" ? "bg-red-50 text-red-700" : "bg-paper text-mut"}`}>
                   {ETICHETE_STARE[d.saga_status]}</span>
               </div>
+              {(d.saga_status === "eroare" || d.saga_status === "de_verificat") && d.saga_eroare &&
+                <p className="text-xs text-red-700 mt-1">{d.saga_eroare}</p>}
               <div className="flex flex-wrap gap-2 mt-2">
                 <Link href={`/admin/facturi/${d.id}`} className="rounded-xl border-2 border-line px-3 py-1.5 text-xs font-semibold hover:border-acc">Deschide factura</Link>
+                {SE_REIA.includes(d.saga_status) && poateFactura &&
+                  <button type="button" disabled={lucru} onClick={() => emite({ factura_id: d.id })}
+                    className="btn-acc !py-1.5 text-xs">{lucru ? "Se emite…" : "Emite factura"}</button>}
                 {d.saga_status === "de_trimis" && poateFactura &&
                   <button type="button" disabled={lucru} onClick={() => retrage(d)}
                     className="rounded-xl border-2 border-line px-3 py-1.5 text-xs font-semibold hover:border-red-400">Retrage</button>}
@@ -143,17 +155,15 @@ export default function FacturaSaga({ o, laSchimbare, salveazaManual }: {
           {refacturare && (
             <li className="text-xs">
               <p className={refacturare.poate ? "text-mut" : "text-amber-800"}>{refacturare.text}</p>
-              {refacturare.poate && <button type="button" className="btn-acc mt-2 !py-2 text-xs" disabled={lucru} onClick={() => emite(true)}>
+              {refacturare.poate && <button type="button" className="btn-acc mt-2 !py-2 text-xs" disabled={lucru} onClick={() => emite({ order_id: o.id })}>
                 {lucru ? "Se emite…" : "Emite factura nouă"}</button>}
             </li>
           )}
         </ul>
       ) : !motiv ? (
         <div className="mt-3">
-          <p className="text-xs text-mut">Comanda se poate factura din aplicație. Factura primește următorul număr din seria activă.</p>
-          {!mentiune && <p className="text-xs text-amber-800 mt-1">⚠ Mențiunea de plată (Integrări → Saga) e goală — factura ar ieși fără „ramburs in cont”.
-            Se copiază la emitere și nu se poate adăuga după, prin „Modifică”.</p>}
-          <button type="button" className="btn-acc mt-2 !py-2 text-xs" disabled={lucru} onClick={() => emite()}>
+          {!mentiune && <p className="text-xs text-amber-800 mb-1">⚠ Mențiunea de plată (Integrări → Saga) e goală — factura ar ieși fără „ramburs in cont”.</p>}
+          <button type="button" className="btn-acc !py-2 text-xs" disabled={lucru} onClick={() => emite({ order_id: o.id })}>
             {lucru ? "Se emite…" : "Emite factura"}</button>
           {/* Regula din 11 noiembrie 2026: facturarea manuală pe aceeași serie poate continua după pornire.
               O comandă facturată manual în SAGA se notează aici, ca aplicația să n-o mai factureze
@@ -183,7 +193,10 @@ export default function FacturaSaga({ o, laSchimbare, salveazaManual }: {
             {o.factura_status === "emisa" ? `Emisă — ${o.factura_serie}` : "De emis"}</span>
         </>
       )}
-      {msg && <p className={`text-xs mt-2 ${msg.bun ? "text-ok" : "text-red-700"}`}>{msg.text}</p>}
+      {lucru && <p className="text-xs mt-2 text-mut flex items-center gap-2" role="status">
+        <span className="inline-block w-3.5 h-3.5 rounded-full border-2 border-line border-t-acc animate-spin" aria-hidden />Se emite…</p>}
+      {!lucru && msg && <p className={`text-xs mt-2 ${msg.bun ? "text-ok" : "text-red-700"}`}>{msg.text}
+        {msg.id && <> · <Link href={`/admin/facturi/${msg.id}`} className="underline">Deschide factura</Link></>}</p>}
     </div>
   );
 }

@@ -11,9 +11,10 @@
 //     `lib/saga-xml.mjs`. Formatul numărului, al datei și „TVA la încasare” vin din
 //     setări; cât nu sunt alese, se aleg AICI, doar pentru descărcarea asta (probă
 //     manuală în SAGA, D.4) — nu se salvează nicăieri.
-//   · „Trimite în SAGA” / „Reîncearcă” (pasul 8) — prin ruta /api/saga, cu formatele
-//     SALVATE în Integrări (nu cu cele alese aici pentru descărcare); blocat cât lipsesc;
-//   · „Marchează confirmată” — după ce omul a validat importul în SAGA (Diverse → Import date);
+//   · „Emite factura” (pasul 13, migrarea 60) — reia o factură / un storno rămas „de trimis”,
+//     „eroare” sau „de verificat”, cu același număr; totul pe server (lib/saga-browser.ts),
+//     cu formatele SALVATE în Integrări; cât e „se_trimite”: spinner, starea la 2 s;
+//   · „Marchează confirmată” — din „trimisă” / „de verificat”, după ce omul a văzut factura în SAGA;
 //   · jurnalul trimiterilor (`saga_trimiteri`), cu raportul SAGA întreg;
 //   · „Stornează” (pasul 10) — doar pe o factură trimisă / confirmată, fără storno
 //     (`storneaza_factura`); stornoul se trimite apoi ca orice factură. Un storno netrimis,
@@ -24,9 +25,9 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { sbBrowser } from "@/lib/supabase";
 import { lei } from "@/lib/format";
-import { trimiteInSaga } from "@/lib/saga-browser";
+import { emiteSiAsteapta, asteaptaFactura, textEmitere } from "@/lib/saga-browser";
 import { construiesteXml, numeFisier, numarPentruSaga, FORMATE_NUMAR, FORMATE_DATA, VARIANTE_CIF_PF } from "@/lib/saga-xml.mjs";
-import { ETICHETE_STARE } from "@/components/admin/FacturaSaga";
+import { ETICHETE_STARE, SE_REIA } from "@/components/admin/FacturaSaga";
 import type { Factura, FacturaLinie } from "@/lib/types";
 
 type Optiuni = { format_numar: string; format_data: string; tva_la_incasare: string; cif_persoana_fizica: string };
@@ -53,7 +54,6 @@ export default function FacturaPagina() {
   const [art, setArt] = useState<Record<number, { cod: string; den: string; um: string }>>({});
   // Pasul 8: dacă trimiterea e posibilă (setările din Integrări) și jurnalul apelurilor.
   const [lipsaTrimitere, setLipsaTrimitere] = useState<string[]>([]);
-  const [automat, setAutomat] = useState(false);
   type Apel = { id: number; created_at: string; http_status: number | null; durata_ms: number | null;
     cheie_rotita: boolean; eroare: string | null; raspuns: string | null; fisier: string | null };
   const [apeluri, setApeluri] = useState<Apel[]>([]);
@@ -103,11 +103,22 @@ export default function FacturaPagina() {
     if (!din.format_data) lipsa.push("formatul datei");
     if (din.tva_la_incasare !== "da" && din.tva_la_incasare !== "nu") lipsa.push("„TVA la încasare”");
     setLipsaTrimitere(lipsa);
-    setAutomat(String(saga.import_automat ?? "").trim().toLowerCase() === "da");
     setOpt((v) => ({ ...v, ...din, cif_persoana_fizica: din.cif_persoana_fizica ?? (v.cif_persoana_fizica || "gol") }));
     setGata(true);
   }, [id]);
   useEffect(() => { incarca(); }, [incarca]);
+
+  // Factura e „se_trimite” (lucrează serverul / ceasul): spinner, starea la 2 s.
+  const [asteapta, setAsteapta] = useState(false);
+  useEffect(() => {
+    if (!f || f.saga_status !== "se_trimite" || asteapta) return;
+    setAsteapta(true);
+    asteaptaFactura(f.id).then((j) => {
+      const t = textEmitere(j);
+      setAsteapta(false); setMsg({ bun: t.bun, text: t.text }); incarca();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [f?.id, f?.saga_status]);
 
   if (!gata) return <div className="text-mut">Se încarcă…</div>;
   if (!f) return <div className="card p-8 text-center"><b>Factura nu există sau nu ai acces la ea.</b>
@@ -147,24 +158,18 @@ export default function FacturaPagina() {
     return r.json().catch(() => ({ ok: false, eroare: `Răspuns neașteptat (HTTP ${r.status}).` }));
   }
 
-  async function trimite() {
-    if (!f) return;
-    const cum = automat
-      ? "Importul automat e pornit: SAGA o validează singură."
-      : "Doar se ÎNCARCĂ în SAGA; o validezi apoi de mână, în SAGA WEB → Diverse → Import date.";
-    if (!confirm(`Trimiți factura ${f.serie} ${f.numar} în SAGA? ${cum} După trimitere nu se mai modifică și nu se mai retrage aici.`)) return;
+  async function emite() {
+    if (!f || !confirm(`Emiți ${f.tip === "storno" ? "stornoul" : "factura"} ${f.serie} ${f.numar}?`)) return;
     setLucru(true); setMsg(null);
-    const j = await catreSaga({ actiune: "trimite", factura_id: f.id });
-    setLucru(false);
-    if (!j?.ok) setMsg({ bun: false, text: `NU s-a trimis: ${j?.eroare ?? "eroare necunoscută"}` });
-    else setMsg({ bun: j.stare !== "eroare", text: j.stare === "eroare"
-      ? `SAGA nu a primit-o: ${j.nota}`
-      : `✓ ${j.stare === "confirmata" ? "Importată și finalizată în SAGA" : "Încărcată în SAGA — valideaz-o în SAGA WEB → Diverse → Import date, apoi apasă „Marchează confirmată”"} (fișierul ${j.fisier}).${j.nota ? ` ${j.nota}` : ""}` });
+    const j = await emiteSiAsteapta({ factura_id: f.id });
+    const t = textEmitere(j);
+    setLucru(false); setMsg({ bun: t.bun, text: t.text });
+    if (j.stare === "eliberata") { router.push(comandaStearsa ? "/admin/facturi" : `/admin/comenzi/${f.order_id}`); return; }
     incarca();
   }
 
   async function confirma() {
-    if (!f || !confirm(`Ai validat factura ${f.serie} ${f.numar} în SAGA (Diverse → Import date) și arată corect — seria, numărul, clientul, liniile, cota și TVA-ul, totalul?`)) return;
+    if (!f || !confirm(`Ai verificat în SAGA că factura ${f.serie} ${f.numar} există și arată corect — seria, numărul, clientul, liniile, cota și TVA-ul, totalul?`)) return;
     setLucru(true); setMsg(null);
     const j = await catreSaga({ actiune: "confirma", factura_id: f.id });
     setLucru(false);
@@ -188,16 +193,16 @@ export default function FacturaPagina() {
 
   async function storneaza() {
     if (!f) return;
-    const motiv = prompt(`Stornezi factura ${f.serie} ${f.numar} (${lei(Number(f.total))})? Se emite un document STORNO în seria ${f.serie}, cu număr nou și sumele cu minus, care se trimite apoi în SAGA ca orice factură. Stornoul se trimite AUTOMAT în SAGA. Comanda devine „stornată”; după aceea se poate emite o factură nouă.\n\nMotivul (opțional, apare pe storno):`, "");
+    const motiv = prompt(`Stornezi factura ${f.serie} ${f.numar} (${lei(Number(f.total))})? Se emite un document STORNO în seria ${f.serie}, cu număr nou și sumele cu minus, trimis imediat în SAGA. Comanda devine „stornată”; după aceea se poate emite o factură nouă.\n\nMotivul (opțional, apare pe storno):`, "");
     if (motiv === null) return;
     const sb = sbBrowser(); if (!sb) return;
     setLucru(true); setMsg(null);
     const { data, error } = await sb.rpc("storneaza_factura", { p_id: f.id, p_motiv: motiv });
     if (error) { setLucru(false); setMsg({ bun: false, text: `NU s-a stornat: ${error.message}` }); return; }
-    // Din 16 noiembrie 2026 stornoul pleacă singur în SAGA, ca factura. Dacă trimiterea pică,
-    // stornoul rămâne „de trimis” / „eroare” și se trimite din pagina lui.
+    // Stornoul trece prin același motor ca factura (pasul 13). Dacă nu ajunge, rămâne în
+    // pagina lui, cu „Emite factura”.
     const nou = data as { id: number };
-    await trimiteInSaga(nou.id);
+    await emiteSiAsteapta({ factura_id: nou.id });
     setLucru(false);
     router.push(`/admin/facturi/${nou.id}`);
   }
@@ -265,29 +270,25 @@ export default function FacturaPagina() {
         )}
       </div>
 
-      {f.saga_eroare && (f.saga_status === "eroare" || f.saga_status === "de_trimis"
+      {f.saga_eroare && f.saga_status !== "se_trimite" && (f.saga_status === "eroare" || f.saga_status === "de_trimis" || f.saga_status === "de_verificat"
         ? <div className="card p-3 text-sm border-2 border-red-300 bg-red-50 text-red-800">Ultima eroare SAGA: {f.saga_eroare}</div>
         : <div className="card p-3 text-sm border-2 border-amber-300 bg-amber-50 text-amber-900">Nota SAGA: {f.saga_eroare}</div>)}
 
       {poate && (
         <div className="card p-5 text-sm grid gap-2">
           <b className="font-disp font-semibold text-[13px]">Trimiterea în SAGA</b>
-          {(f.saga_status === "de_trimis" || f.saga_status === "eroare") && (lipsaTrimitere.length ? (
+          {SE_REIA.includes(f.saga_status) && (lipsaTrimitere.length ? (
             <p className="text-xs text-red-700">Trimiterea e blocată până se aleg în Integrări → Saga: {lipsaTrimitere.join(", ")}.</p>
           ) : (
-            <div className="flex flex-wrap items-center gap-2">
-              <button type="button" className="btn-acc !py-2 text-xs" disabled={lucru || editez} onClick={trimite}>
-                {lucru ? "Se trimite…" : f.saga_status === "eroare" ? "Reîncearcă trimiterea" : "Trimite în SAGA"}</button>
-              <span className="text-xs text-mut">{automat ? "Importul automat e pornit: SAGA o validează singură." : "După trimitere o validezi în SAGA (Diverse → Import date)."}</span>
-            </div>
+            <button type="button" className="btn-acc !py-2 text-xs w-fit" disabled={lucru || asteapta || editez} onClick={emite}>
+              {lucru ? "Se emite…" : "Emite factura"}</button>
           ))}
-          {f.saga_status === "in_curs" && <p className="text-xs text-mut">Se trimite… Dacă rămâne așa peste 3 minute, trimiterea s-a întrerupt: reîncarcă pagina și apasă din nou — SAGA spune singur dacă o are deja.</p>}
-          {f.saga_status === "in_curs" && !lipsaTrimitere.length && (
-            <button type="button" className="rounded-xl border-2 border-line px-3 py-1.5 text-xs font-semibold w-fit" disabled={lucru} onClick={trimite}>Reîncearcă (doar dacă a trecut de 3 minute)</button>)}
-          {f.saga_status === "trimisa" && (
+          {(lucru || asteapta) && <p className="text-xs text-mut flex items-center gap-2" role="status">
+            <span className="inline-block w-3.5 h-3.5 rounded-full border-2 border-line border-t-acc animate-spin" aria-hidden />Se emite…</p>}
+          {(f.saga_status === "trimisa" || f.saga_status === "de_verificat") && (
             <div className="flex flex-wrap items-center gap-2">
-              <button type="button" className="btn-acc !py-2 text-xs" disabled={lucru} onClick={confirma}>Marchează confirmată</button>
-              <span className="text-xs text-mut">După validarea în SAGA WEB → Diverse → Import date. Verifică acolo seria, numărul, clientul, cota și TVA-ul, totalul.</span>
+              <button type="button" className="rounded-xl border-2 border-line px-3 py-1.5 text-xs font-semibold" disabled={lucru} onClick={confirma}>Marchează confirmată</button>
+              <span className="text-xs text-mut">Doar după ce ai văzut factura în SAGA.</span>
             </div>)}
           {f.saga_status === "confirmata" && <p className="text-xs text-ok">Confirmată în SAGA{f.confirmata_la ? ` la ${new Date(f.confirmata_la).toLocaleString("ro-RO", { timeZone: "Europe/Bucharest" })}` : ""}.</p>}
 
