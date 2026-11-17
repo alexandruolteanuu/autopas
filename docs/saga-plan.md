@@ -3751,3 +3751,22 @@ Netestat pe SAGA real: prima factură emisă după push e proba.
 Rulată de proprietar, din SQL Editor: pre-verificarea 5 × true; migrarea, cu verificarea finală true | true | true;
 `scripts/verifica-saga-emitere-un-buton.sql` „REZULTAT OK”. Codul pasului 13 merge apoi pe `main` (commit + push, cu
 confirmarea proprietarului). De urmărit: prima factură emisă cu noul buton e proba pe SAGA real.
+
+### Verificarea potrivirilor articolelor (17 noiembrie 2026)
+
+Pornită de la factura cu AP-000889 „Ventilator habitaclu / aeroterma Vw Golf 6”, ieșită pe RADIATOARE. Subcategoria
+„Aerotermă” (225) era mapată pe RADIATOARE, deși toate cele 64 de piese din ea sunt ventilatoare de habitaclu.
+„Ventilator habitaclu” (92) există, dar e goală. Am verificat toate piesele (doar citire): articolul pe care l-ar primi
+față de începutul titlului.
+- **Potriviri greșite**: doar Aerotermă. Celelalte 85 se potrivesc.
+- **Categorii fără potrivire** (ies ACCESORII AUTO): Radiatoare și Ventilatoare (20, 239 de piese, amestecate),
+  Tulumbă frână (399, 35), Bloc xenon și balast (48, 97), Alte piese electrice (201, categorie-sac).
+- **Piese în categoria greșită**: AP-000637 (furtun intercooler în Conducte AC), AP-000825/860/861 (calculator
+  parcare în Senzori parcare), AP-000866 (calculator pompă în Pompă amorsare).
+- **Decizii (proprietarul)**: Aerotermă → VENTILATOARE; Tulumbă frână → POMPA AUTO; Radiatoare și Ventilatoare →
+  RADIATOARE (electroventilatoarele ies tot RADIATOARE, acceptat); Bloc xenon rămâne ACCESORII AUTO; cele 5 piese se
+  mută.
+- **Scriptul**: `scripts/saga-articole-corectii.sql`, de rulat de proprietar în SQL Editor (un bloc, cu gărzi,
+  idempotent). Facturile emise nu se schimbă. După rulare: Facturi → Articole SAGA → „Verifică toate”.
+- **RULAT de proprietar (17 noiembrie 2026)**: `scripts/saga-articole-corectii.sql`, apoi „Verifică toate” în Articole
+  SAGA — ok.
