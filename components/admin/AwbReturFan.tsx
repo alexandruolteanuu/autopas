@@ -6,6 +6,9 @@
 //      cererea (formularul de retur NU cere adresa) și se poate corecta;
 //   2. scrie coletele, kilogramele și dimensiunile, pe care le află de la client
 //      la telefon -> „Cât costă” -> vede tariful FAN defalcat;
+//      ÎNAINTE de tarif se alege cine plătește transportul: clientul (cash la
+//      curier, când se ridică coletul) sau noi (piesă defectă / greșită). Nu e
+//      nimic bifat din start — o alegere greșită n-o prinde nimeni la FAN;
 //   3. „Generează AWB de retur” -> se plasează automat și comanda de curier,
 //      pentru ziua aleasă. Curierul aduce eticheta printată, fiindcă clientul
 //      n-are de ce să aibă imprimantă.
@@ -20,6 +23,14 @@ type Tarif = { greutate: number; kmSuplimentari: number; combustibil: number; op
   asigurare: number; faraTva: number; tva: number; total: number; serviciu: string };
 type Adresa = { nume: string; telefon: string; judet: string; localitate: string; strada: string };
 type Colet = { colete: string; greutate: string; lungime: string; latime: string; inaltime: string };
+type Plata = "client" | "firma";
+
+const PLATA: { v: Plata; titlu: string; detaliu: string }[] = [
+  { v: "client", titlu: "Clientul", detaliu: "s-a răzgândit sau alt motiv al lui — plătește cash curierului la ridicare" },
+  { v: "firma", titlu: "Noi", detaliu: "piesă defectă sau greșită — transportul e pe firmă" },
+];
+const textPlata = (p: Plata | null | undefined) =>
+  p === "client" ? "plătește clientul, cash la ridicare" : p === "firma" ? "plătim noi" : "";
 
 const camp = "w-full mt-0.5 rounded-lg border-2 border-line px-2.5 py-1.5 text-sm text-ink outline-none focus:border-acc";
 const bani = (n: number) => `${n.toFixed(2).replace(".", ",")} lei`;
@@ -44,6 +55,7 @@ export default function AwbReturFan({ cerere, onSchimbare }: {
   const [adresa, setAdresa] = useState<Adresa>({ nume: "", telefon: "", judet: "", localitate: "", strada: "" });
   const [comanda, setComanda] = useState<{ numar: string } | null>(null);
   const [colet, setColet] = useState<Colet>({ colete: "1", greutate: "", lungime: "", latime: "", inaltime: "" });
+  const [plata, setPlata] = useState<Plata | null>(null);
   const [dataRidicare, setDataRidicare] = useState("");
   const [interval, setInterval] = useState({ first: "09:00", second: "14:00" });
   const [tarif, setTarif] = useState<Tarif | null>(null);
@@ -68,6 +80,7 @@ export default function AwbReturFan({ cerere, onSchimbare }: {
       const d = r.awb_date;
       setColet({ colete: String(d.colete ?? 1), greutate: String(d.greutate ?? ""),
         lungime: String(d.lungime ?? ""), latime: String(d.latime ?? ""), inaltime: String(d.inaltime ?? "") });
+      if (d.plata === "client" || d.plata === "firma") setPlata(d.plata);
     }
     setGata(true);
   }, [cerere.id]);
@@ -82,7 +95,7 @@ export default function AwbReturFan({ cerere, onSchimbare }: {
 
   async function calculeaza() {
     setLucru("tarif"); setMsg(null);
-    const r = await cere({ actiune: "tarif", cerere_id: cerere.id, colet, adresa });
+    const r = await cere({ actiune: "tarif", cerere_id: cerere.id, colet, adresa, plata });
     setLucru("");
     if (!r.ok) { setTarif(null); setMsg({ t: "rau", x: r.eroare }); return; }
     setTarif(r.tarif);
@@ -97,9 +110,10 @@ export default function AwbReturFan({ cerere, onSchimbare }: {
   }
 
   async function genereaza() {
-    if (!confirm(`Generezi AWB-ul de retur și comanzi curierul pentru ${dataRidicare}?\n\nCurierul merge la ${adresa.localitate}, jud. ${adresa.judet}, între ${interval.first} și ${interval.second}.`)) return;
+    if (!plata) { setMsg({ t: "rau", x: "Alege întâi cine plătește transportul returului." }); return; }
+    if (!confirm(`Generezi AWB-ul de retur și comanzi curierul pentru ${dataRidicare}?\n\nCurierul merge la ${adresa.localitate}, jud. ${adresa.judet}, între ${interval.first} și ${interval.second}.\n\nTransportul: ${plata === "client" ? "îl plătește CLIENTUL, cash curierului la ridicare" : "îl plătim NOI"}.`)) return;
     setLucru("awb"); setMsg(null); setPoateDoarAdmin(false);
-    const r = await cere({ actiune: "genereaza", cerere_id: cerere.id, colet, adresa, data_ridicare: dataRidicare });
+    const r = await cere({ actiune: "genereaza", cerere_id: cerere.id, colet, adresa, plata, data_ridicare: dataRidicare });
     setLucru("");
     if (!r.ok) {
       // AWB-ul poate exista la FAN chiar dacă salvarea a picat — îl arătăm.
@@ -159,8 +173,7 @@ export default function AwbReturFan({ cerere, onSchimbare }: {
       {gata && !configurat && (
         <p className="mt-2 rounded-lg bg-yellow-50 border border-yellow-200 px-3 py-2 text-xs text-yellow-800">
           Contul FAN de retur nu e configurat încă. E un cont selfAWB <b>ocazional</b>, diferit de cel
-          de livrare — se completează în Admin → Integrări, după ce FAN îl creează și trimite Client
-          ID-ul și valoarea pentru „payment”.
+          de livrare — se completează în Admin → Integrări (Client ID, utilizator, parolă).
         </p>
       )}
 
@@ -219,10 +232,27 @@ export default function AwbReturFan({ cerere, onSchimbare }: {
           </div>
         </div>
 
+        {/* ---------- cine plătește ---------- */}
+        {!awb && (
+          <fieldset className="mt-4">
+            <legend className="text-[11px] font-semibold text-mut uppercase tracking-wide">Cine plătește transportul</legend>
+            <div className="mt-1.5 grid gap-2">
+              {PLATA.map((o) => (
+                <label key={o.v}
+                  className={`flex items-start gap-2 rounded-lg border-2 px-3 py-2 cursor-pointer ${plata === o.v ? "border-acc bg-acc/5" : "border-line"}`}>
+                  <input type="radio" name={`plata-retur-${cerere.id}`} value={o.v} checked={plata === o.v}
+                    onChange={() => { setPlata(o.v); setTarif(null); }} className="mt-0.5" />
+                  <span className="text-xs"><b>{o.titlu}</b> — {o.detaliu}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
+
         {/* ---------- tariful ---------- */}
         {!awb && (
           <div className="mt-3">
-            <button type="button" onClick={calculeaza} disabled={!!lucru || !configurat}
+            <button type="button" onClick={calculeaza} disabled={!!lucru || !configurat || !plata}
               className="btn-acc w-full !py-2 text-sm">
               {lucru === "tarif" ? "Se calculează la FAN…" : "Cât costă returul"}
             </button>
@@ -236,8 +266,9 @@ export default function AwbReturFan({ cerere, onSchimbare }: {
                 <div className="flex justify-between border-t border-line pt-1 mt-1 text-sm">
                   <b>Total retur</b><b>{bani(tarif.total)}</b></div>
                 <p className="text-mut pt-1">
-                  Cine suportă costul ăsta ține de motivul returului: la retragerea în 14 zile îl
-                  plătește clientul (politica de retur), la o piesă neconformă îl suportăm noi.
+                  {plata === "client"
+                    ? "Suma asta o plătește clientul, cash curierului, la ridicare. Spune-i-o la telefon."
+                    : "Suma asta o plătim noi."}
                 </p>
               </div>
             )}
@@ -253,7 +284,7 @@ export default function AwbReturFan({ cerere, onSchimbare }: {
               Interval {interval.first}–{interval.second} — singura fereastră validă oriunde în țară.
               Curierul aduce eticheta printată, clientul n-are nevoie de imprimantă.
             </p>
-            <button type="button" onClick={genereaza} disabled={!!lucru || !configurat}
+            <button type="button" onClick={genereaza} disabled={!!lucru || !configurat || !plata}
               className="btn-acc w-full !py-2.5 text-sm mt-2">
               {lucru === "awb" ? "Se generează la FAN…" : "Generează AWB de retur + comandă curierul"}
             </button>
@@ -267,6 +298,8 @@ export default function AwbReturFan({ cerere, onSchimbare }: {
                 : <span className="block text-red-700">Fără comandă de curier — nimeni nu vine la client. Comand-o din selfawb.ro.</span>}
               {cerere.awb_date?.data_ridicare &&
                 <span className="block text-mut">Ridicare {cerere.awb_date.data_ridicare}</span>}
+              {textPlata(plata ?? cerere.awb_date?.plata) &&
+                <span className="block text-mut">Transport: {textPlata(plata ?? cerere.awb_date?.plata)}</span>}
             </div>
             <div className="flex flex-wrap gap-2">
               <button type="button" onClick={eticheta} disabled={!!lucru}

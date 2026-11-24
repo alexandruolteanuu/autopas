@@ -15,7 +15,7 @@ import { NextResponse } from "next/server";
 import { esteEchipa, sbAdmin } from "@/lib/supabase";
 import {
   genereazaAwbRetur, anuleazaComandaCurier, stergeAwb, etichetaAwb, verificaReturul,
-  tarifRetur, configFanRetur, returConfigurat, depozitRetur, EroareFan, INTERVAL_RIDICARE,
+  tarifRetur, configFanRetur, returConfigurat, depozitRetur, EroareFan, INTERVAL_RIDICARE, estePlataRetur,
 } from "@/lib/fancourier";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +31,8 @@ const eroare = (e: unknown) => NextResponse.json({
 const nr = (v: unknown) => Number(String(v ?? "").replace(",", ".").trim() || NaN);
 const dim = (v: unknown) => { const n = Math.round(nr(v)); return n >= 1 ? n : 0; };
 const text = (v: unknown) => String(v ?? "").trim();
+/** Cine plătește transportul: ales de operator, fără valoare implicită. */
+const MESAJ_PLATA = "Alege cine plătește transportul returului: clientul (cash la curier) sau noi (piesă defectă / greșită).";
 
 /** Ziua de azi la București, ca `YYYY-MM-DD`. FAN refuză o dată din trecut
  *  (verificat: 422 „must be a date after or equal to today”), iar serverul
@@ -113,8 +115,9 @@ export async function POST(req: Request) {
     // ---------- cât costă returul ----------
     if (body.actiune === "tarif") {
       const c = body.colet ?? {};
+      if (!estePlataRetur(body.plata)) return NextResponse.json({ ok: false, eroare: MESAJ_PLATA });
       const colet = { colete: Math.round(nr(c.colete)), greutate: nr(c.greutate),
-        lungime: dim(c.lungime), latime: dim(c.latime), inaltime: dim(c.inaltime) };
+        lungime: dim(c.lungime), latime: dim(c.latime), inaltime: dim(c.inaltime), plata: body.plata };
       const adr = adresaRidicare(cerere, comanda, body.adresa);
       const lipsa = verificaColet(colet, adr);
       if (lipsa) return NextResponse.json({ ok: false, eroare: lipsa });
@@ -177,7 +180,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, eroare: `Cererea are deja AWB-ul de retur ${cerere.awb}. Șterge-l întâi dacă vrei altul.` });
 
     const c = body.colet ?? {};
+    if (!estePlataRetur(body.plata)) return NextResponse.json({ ok: false, eroare: MESAJ_PLATA });
     const colet = {
+      plata: body.plata,
       colete: Math.round(nr(c.colete)), greutate: nr(c.greutate),
       lungime: dim(c.lungime), latime: dim(c.latime), inaltime: dim(c.inaltime),
       observatii: text(c.observatii) || `Retur comanda ${cerere.numar_comanda}`,
@@ -194,6 +199,8 @@ export async function POST(req: Request) {
     const r = await genereazaAwbRetur(adr, colet, dataRidicare);
 
     const awb_date = {
+      // Cine plătește transportul — ca să se vadă și după, pe cerere.
+      plata: colet.plata,
       colete: colet.colete, greutate: colet.greutate,
       lungime: colet.lungime, latime: colet.latime, inaltime: colet.inaltime,
       tarif: r.tarif, tva: r.tva, tracking: r.tracking,

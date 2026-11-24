@@ -31,7 +31,6 @@ export type Integrari = {
   // la contul cu contract — nu se ghicește, fiindcă API-ul acceptă orice valoare.
   // Câmpurile `depozit_*` suprascriu adresa la care vine coletul returnat.
   fancourier_retur?: { client_id?: string; user?: string; parola?: string; activ?: boolean;
-                       payment?: string;
                        depozit_nume?: string; depozit_telefon?: string; depozit_contact?: string;
                        depozit_judet?: string; depozit_localitate?: string; depozit_strada?: string };
   netopia?: { pos_id?: string; signature?: string; activ?: boolean };

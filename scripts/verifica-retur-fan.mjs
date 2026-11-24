@@ -67,14 +67,20 @@ const COLET = {
   observatii: "Proba tehnica — se sterge", referinta: "AP-PROBA",
 };
 
-let awb = null, comandaCurier = null, cfg = null;
+// Ce s-a creat la FAN, ca să fie curățat oricum, la final.
+const deCuratat = [];
+let cfg = null;
 try {
   // ---------- 1. configurarea ----------
   cfg = await fan.configFanRetur();
   verifica("contul de retur se citește", fan.returConfigurat(cfg),
     `clientId ${cfg.clientId}${CONT_DE_PROBA ? " (contul de probă al FAN)" : " (cont propriu)"}`);
-  verifica("`payment` nu e hardcodat, vine din configurare", typeof cfg.payment === "string" && cfg.payment.length > 0,
-    `payment="${cfg.payment}"`);
+  // Cine plătește se alege la fiecare retur (24 noiembrie 2026): clientul e
+  // EXPEDITORUL returului, firma e DESTINATARUL.
+  verifica("plata clientului pleacă drept `sender`, a firmei drept `recipient`",
+    fan.paymentRetur("client") === "sender" && fan.paymentRetur("firma") === "recipient");
+  verifica("o plată nealeasă e refuzată", !fan.estePlataRetur(undefined) && !fan.estePlataRetur("sender")
+    && fan.estePlataRetur("client") && fan.estePlataRetur("firma"));
 
   const dep = await fan.depozitRetur();
   // Județul și localitatea trebuie scrise ca la FAN. O greșeală aici trimite
@@ -98,46 +104,48 @@ try {
   verifica("contul răspunde și are serviciul Standard", servicii.includes("Standard"),
     `${servicii.length} servicii`);
 
-  // ---------- 4. tariful ----------
-  const tarif = await fan.tarifRetur(CLIENT, COLET, cfg, dep);
-  verifica("tariful returului se calculează", tarif.total > 0,
-    `${tarif.total.toFixed(2)} lei cu TVA (${tarif.faraTva.toFixed(2)} fără)`);
-
-  // ---------- 5. AWB-ul + comanda de curier ----------
+  // ---------- 4–6. pentru fiecare variantă de plată: tarif, AWB + curier, etichetă ----------
   const maine = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
-  const r = await fan.genereazaAwbRetur(CLIENT, COLET, maine, cfg, dep);
-  awb = r.awb; comandaCurier = r.comandaCurierId;
-  console.log(`   [de curățat: AWB ${awb}${comandaCurier ? `, comanda de curier ${comandaCurier}` : ""}]`);
-  verifica("AWB-ul de retur se generează", !!r.awb, `AWB ${r.awb}, tarif ${r.tarif} lei`);
-  verifica("comanda de curier se plasează odată cu AWB-ul", !!r.comandaCurierId && !r.eroareCurier,
-    r.eroareCurier ?? `comanda ${r.comandaCurierId}`);
-  verifica("AWB-ul vine cu link de urmărire", /^https?:\/\//.test(r.tracking ?? ""));
+  for (const plata of ["client", "firma"]) {
+    const colet = { ...COLET, plata };
+    const tarif = await fan.tarifRetur(CLIENT, colet, cfg, dep);
+    verifica(`[${plata}] tariful returului se calculează`, tarif.total > 0,
+      `${tarif.total.toFixed(2)} lei cu TVA (${tarif.faraTva.toFixed(2)} fără)`);
 
-  // ---------- 6. eticheta, pe contul OCAZIONAL ----------
-  // Cu contul cu contract, FAN n-ar recunoaște AWB-ul — de asta `etichetaAwb`
-  // primește configurarea ca parametru.
-  const pdf = await fan.etichetaAwb(awb, { clientId: cfg.clientId, user: cfg.user, parola: cfg.parola, rambursInCont: false });
-  const antet = Buffer.from(pdf.slice(0, 4)).toString();
-  verifica("eticheta vine ca PDF", antet === "%PDF" && pdf.byteLength > 1000, `${pdf.byteLength} octeți`);
+    const r = await fan.genereazaAwbRetur(CLIENT, colet, maine, cfg, dep);
+    deCuratat.push({ awb: r.awb, comandaCurier: r.comandaCurierId });
+    console.log(`   [de curățat: AWB ${r.awb}${r.comandaCurierId ? `, comanda de curier ${r.comandaCurierId}` : ""}]`);
+    verifica(`[${plata}] AWB-ul de retur se generează`, !!r.awb, `AWB ${r.awb}, tarif ${r.tarif} lei`);
+    verifica(`[${plata}] comanda de curier se plasează odată cu AWB-ul`, !!r.comandaCurierId && !r.eroareCurier,
+      r.eroareCurier ?? `comanda ${r.comandaCurierId}`);
+    verifica(`[${plata}] AWB-ul vine cu link de urmărire`, /^https?:\/\//.test(r.tracking ?? ""));
+
+    // Eticheta, pe contul OCAZIONAL — cu cel cu contract, FAN n-ar recunoaște AWB-ul.
+    const pdf = await fan.etichetaAwb(r.awb, { clientId: cfg.clientId, user: cfg.user, parola: cfg.parola, rambursInCont: false });
+    const antet = Buffer.from(pdf.slice(0, 4)).toString();
+    verifica(`[${plata}] eticheta vine ca PDF`, antet === "%PDF" && pdf.byteLength > 1000, `${pdf.byteLength} octeți`);
+  }
 } catch (e) {
   verifica("fluxul de retur merge până la capăt", false, e?.message ?? String(e));
 } finally {
   // ---------- 7. curățenia ----------
   // Rulează ORICUM, inclusiv după o eroare: un AWB de probă rămas la FAN e
   // gunoi în borderoul lor.
-  if (cfg && comandaCurier) {
-    try {
-      const x = await fan.anuleazaComandaCurier(comandaCurier, cfg);
-      verifica("comanda de curier de probă se anulează", true, x);
-    } catch (e) { verifica("comanda de curier de probă se anulează", false, e?.message ?? String(e)); }
-  }
-  if (cfg && awb) {
-    try {
-      const x = await fan.stergeAwb(awb, { clientId: cfg.clientId, user: cfg.user, parola: cfg.parola, rambursInCont: false });
-      verifica("AWB-ul de probă se șterge", x === "sters" || x === "nu_exista", x);
-    } catch (e) {
-      verifica("AWB-ul de probă se șterge", false,
-        `${e?.message ?? e} — ȘTERGE-L DE MÂNĂ din selfawb.ro: ${awb}`);
+  for (const { awb, comandaCurier } of deCuratat) {
+    if (cfg && comandaCurier) {
+      try {
+        const x = await fan.anuleazaComandaCurier(comandaCurier, cfg);
+        verifica("comanda de curier de probă se anulează", true, x);
+      } catch (e) { verifica("comanda de curier de probă se anulează", false, e?.message ?? String(e)); }
+    }
+    if (cfg && awb) {
+      try {
+        const x = await fan.stergeAwb(awb, { clientId: cfg.clientId, user: cfg.user, parola: cfg.parola, rambursInCont: false });
+        verifica("AWB-ul de probă se șterge", x === "sters" || x === "nu_exista", x);
+      } catch (e) {
+        verifica("AWB-ul de probă se șterge", false,
+          `${e?.message ?? e} — ȘTERGE-L DE MÂNĂ din selfawb.ro: ${awb}`);
+      }
     }
   }
   if (existsSync(TMP)) rmSync(TMP, { recursive: true, force: true });

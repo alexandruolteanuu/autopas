@@ -329,13 +329,15 @@ export async function verificaConexiunea(): Promise<{ servicii: string[]; cfg: C
 // CE E DIFERIT FAȚĂ DE UN AWB OBIȘNUIT
 //   · `sender` = CLIENTUL care returnează; `recipient` = depozitul nostru.
 //     La AWB-ul de livrare `sender` nu se trimite deloc: expeditorul e contul.
-//   · `payment` NU e hardcodat. FAN transmite valoarea corectă după ce
-//     configurează contul ocazional („va voi transmite clientId-ul si valoarea
-//     corecta pentru campul «payment»"). Până atunci rămâne „sender”, valoarea
-//     din exemplul lor. Verificat pe contul lor de test: și „sender”, și
-//     „recipient” generează AWB, cu același tarif — deci API-ul NU ne apără de
-//     o valoare greșită, iar singura sursă e ce spune FAN. De aceea e un câmp
-//     în Admin → Integrări, nu o constantă.
+//   · CINE PLĂTEȘTE se alege la FIECARE retur (24 noiembrie 2026, decizia
+//     proprietarului, după crearea contului ocazional): dacă returul e din
+//     motivul clientului (s-a răzgândit etc.), plătește CLIENTUL, cash la
+//     curier, când i se ridică coletul -> `payment: "sender"`; dacă e vina
+//     noastră (piesă defectă / greșită), plătim NOI -> `payment: "recipient"`
+//     (destinatarul e depozitul). Nu există valoare implicită: API-ul acceptă
+//     ambele fără eroare și cu același tarif, deci o alegere greșită n-ar fi
+//     prinsă de nimeni. „sender” = cash la ridicare e presupunerea luată în
+//     calcul cu proprietarul; se confirmă la primul retur real.
 //   · Fiecare AWB de retur are nevoie de o COMANDĂ DE CURIER (`POST /order`),
 //     altfel nimeni nu se duce să ridice coletul. La livrări nu e nevoie:
 //     curierul vine zilnic la depozit (decizia din 15 septembrie 2026).
@@ -352,11 +354,13 @@ export async function verificaConexiunea(): Promise<{ servicii: string[]; cfg: C
 
 /** Contul OCAZIONAL, din Admin → Integrări. Separat de `configFan()`, care e
  *  contul cu contract — cele două nu se amestecă niciodată. */
-export type ConfigFanRetur = {
-  clientId: string; user: string; parola: string;
-  /** Valoarea pentru câmpul `payment`, transmisă de FAN după configurarea contului. */
-  payment: string;
-};
+export type ConfigFanRetur = { clientId: string; user: string; parola: string };
+
+/** Cine plătește transportul returului: clientul (cash la ridicare) sau firma. */
+export type PlataRetur = "client" | "firma";
+export const estePlataRetur = (v: unknown): v is PlataRetur => v === "client" || v === "firma";
+/** Valoarea câmpului `payment` la FAN. Clientul e EXPEDITORUL returului, firma e DESTINATARUL. */
+export const paymentRetur = (p: PlataRetur) => (p === "client" ? "sender" : "recipient");
 
 export async function configFanRetur(): Promise<ConfigFanRetur> {
   const sb = sbAdmin();
@@ -372,8 +376,6 @@ export async function configFanRetur(): Promise<ConfigFanRetur> {
     clientId: String(f.client_id || process.env.FANCOURIER_RETUR_CLIENT_ID || "").trim(),
     user: String(f.user || process.env.FANCOURIER_RETUR_USER || "").trim(),
     parola: String(f.parola || process.env.FANCOURIER_RETUR_PASS || ""),
-    // Valoarea din exemplul FAN. Se schimbă cu ce transmit ei pentru contul nostru.
-    payment: String(f.payment || process.env.FANCOURIER_RETUR_PAYMENT || "sender").trim(),
   };
 }
 
@@ -430,6 +432,8 @@ export type Expeditor = {
 export type ColetRetur = {
   colete: number; greutate: number; lungime: number; latime: number; inaltime: number;
   observatii: string; referinta: string;
+  /** Cine plătește transportul — ales de operator la fiecare retur, fără implicit. */
+  plata: PlataRetur;
 };
 
 export type AwbReturGenerat = {
@@ -481,8 +485,8 @@ export async function genereazaAwbRetur(
           // Returul nu are ramburs: clientul nu încasează nimic de la curier.
           cod: 0,
           declaredValue: 0,
-          // Valoarea transmisă de FAN pentru contul nostru ocazional.
-          payment: cfgR.payment,
+          // Cine plătește, ales de operator la acest retur (vezi antetul secțiunii).
+          payment: paymentRetur(colet.plata),
           observation: colet.observatii.slice(0, 200),
           content: "",
           dimensions: { length: colet.lungime, width: colet.latime, height: colet.inaltime },
@@ -609,7 +613,7 @@ export async function anuleazaComandaCurier(id: string, cfgR?: ConfigFanRetur): 
  *  Spre deosebire de tariful de livrare, aici contează ȘI de unde pleacă. */
 export async function tarifRetur(
   exp: Pick<Expeditor, "judet" | "localitate">,
-  colet: Pick<ColetRetur, "colete" | "greutate" | "lungime" | "latime" | "inaltime">,
+  colet: Pick<ColetRetur, "colete" | "greutate" | "lungime" | "latime" | "inaltime" | "plata">,
   cfgR?: ConfigFanRetur, dep?: DepozitRetur,
 ): Promise<Tarif> {
   cfgR = cfgR ?? await configFanRetur();
@@ -620,7 +624,7 @@ export async function tarifRetur(
     query: {
       clientId: cfgR.clientId,
       "info[service]": "Standard",
-      "info[payment]": cfgR.payment,
+      "info[payment]": paymentRetur(colet.plata),
       "info[packages][parcel]": String(colet.colete),
       "info[packages][envelope]": "0",
       "info[weight]": String(colet.greutate),

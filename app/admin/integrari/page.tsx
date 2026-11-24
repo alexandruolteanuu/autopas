@@ -47,9 +47,9 @@ const INTEGRARI: Integrare[] = [
     desc: "Se generează din Admin → Cereri → Retururi, pe cererea clientului; adresa vine din comanda lui. Comanda de curier se plasează automat, iar eticheta o aduce curierul printată. Codul e gata și testat pe contul de probă FAN.",
     pasi: ["Creezi în SelfAWB un cont de client OCAZIONAL (fără contract) — altul decât contul de livrare",
            "Trimiți la cristian.branzan@fancourier.ro adresa de e-mail a contului și numele clientului cu contract de care se asociază plata",
-           "FAN răspunde cu Client ID-ul contului ocazional și cu valoarea pentru „payment” — le pui mai jos",
+           "FAN răspunde cu Client ID-ul contului ocazional — îl pui mai jos, cu utilizatorul și parola",
            "„Verifică retururile” — trebuie să apară serviciile contului",
-           "⚠ „payment” NU se ghicește: API-ul acceptă orice valoare, dar plata ajunge pe cine nu trebuie"] },
+           "Cine plătește transportul se alege la fiecare retur, în panoul cererii: clientul (cash la ridicare) sau noi"] },
   { id: "card", nume: "Plată cu cardul (Netopia / Stripe)", grup: "Plăți", stare: "viitor",
     rezumat: "Plata online — acum se plătește doar ramburs la livrare.",
     desc: "Cardul online cere contract cu procesatorul și verificare KYC.",
@@ -143,9 +143,7 @@ const CAMPURI: Record<string, { k: string; l: string; tip?: string; avansat?: bo
     { k: "client_id", l: "Client ID al contului ocazional (îl dă FAN, după mapare)" },
     { k: "user", l: "Utilizator (adresa de e-mail cu care s-a creat contul ocazional)" },
     { k: "parola", l: "Parola contului ocazional", tip: "password" },
-    // Nu se ghicește: verificat pe API, și „sender” și „recipient” generează AWB,
-    // cu același tarif. Singura sursă adevărată e ce transmite FAN.
-    { k: "payment", l: "Câmpul „payment”, exact cum îl transmite FAN (implicit: sender)" },
+    // Cine plătește NU mai e aici: se alege la fiecare retur (clientul / noi).
     { k: "depozit_judet", l: "Retururile vin în județul (ca la FAN, fără diacritice — implicit Neamt)" },
     { k: "depozit_localitate", l: "…localitatea (implicit Bistrita)" },
     { k: "depozit_strada", l: "…strada și numărul (implicit Str. Petru Rares nr. 181)" },

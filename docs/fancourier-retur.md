@@ -23,9 +23,15 @@ Clientul completează formularul de retur de pe site (ca până acum). În
    la client, pe care oricum îl suni. *Dimensiunile sunt obligatorii la retur* —
    nu pentru AWB, ci pentru comanda de curier, care fără ele e refuzată
    (verificat: HTTP 422).
-3. **„Cât costă returul”** — tariful FAN, defalcat. Cine plătește ține de motiv:
-   la retragerea în 14 zile îl suportă clientul (așa scrie politica noastră de
-   retur), la o piesă neconformă îl suportăm noi.
+3. **Alegi cine plătește transportul** (obligatoriu, nimic bifat din start):
+   - **Clientul** — s-a răzgândit sau alt motiv al lui (retragerea în 14 zile):
+     plătește **cash curierului, când i se ridică coletul**. La FAN pleacă
+     `payment: "sender"` (clientul e expeditorul returului).
+   - **Noi** — piesă defectă sau greșită: la FAN pleacă `payment: "recipient"`
+     (destinatarul e depozitul).
+
+   Apoi **„Cât costă returul”** — tariful FAN, defalcat; dacă plătește clientul,
+   i-l spui la telefon.
 4. **„Generează AWB de retur + comandă curierul”** — se fac amândouă deodată.
    Alegi ziua; intervalul e 09:00–14:00, singurul valid oriunde în țară.
 
@@ -60,20 +66,19 @@ La **cristian.branzan@fancourier.ro** (sau presales@fancourier.ro), cum au cerut
 
 Pentru al doilea: **PIESE AUTO PAS SRL**, client ID **7108882**.
 
-### Pasul 3 — primești de la ei două lucruri
+### Pasul 3 — primești de la ei Client ID-ul contului ocazional
 
-1. **Client ID-ul** contului ocazional;
-2. **valoarea pentru câmpul „payment”**.
-
-⚠️ **Valoarea asta nu se ghicește.** Am încercat pe API-ul lor: și `sender`, și
-`recipient` generează AWB-ul fără nicio eroare, cu exact același tarif. Deci
-dacă pui ce crezi tu, totul pare că merge, dar plata ajunge pe cine nu trebuie
-și afli din factură. Se pune **exact** ce scriu ei.
+**Cine plătește NU mai e o setare a contului** (24 noiembrie 2026). FAN a spus
+că plata se setează de noi, pe AWB, așa că se alege la fiecare retur (vezi
+punctul 3 de sus). Presupunerea luată în calcul: cu `sender`, clientul plătește
+cash curierului la ridicare. API-ul acceptă ambele valori fără eroare și cu
+același tarif, deci **la primul retur real se verifică** pe eticheta / în
+selfawb.ro că plata e trecută pe client, respectiv pe noi.
 
 ### Pasul 4 — le pui în panou
 
 **Admin → Integrări → „FAN Courier — retururi”**: Client ID, utilizatorul
-(e-mailul contului ocazional), parola, valoarea `payment`. Salvezi, apoi apeși
+(e-mailul contului ocazional), parola. Salvezi, apoi apeși
 **„Verifică retururile”** — trebuie să apară serviciile contului și adresa la
 care vor veni coletele.
 
@@ -97,7 +102,8 @@ Nu atinge niciun rând existent și se poate re-rula oricând.
 noastre reale, nu o copie a lor, creează un AWB și o comandă de curier, apoi le
 șterge pe amândouă.
 
-La 21 octombrie 2026 a trecut 15/15:
+La 24 noiembrie 2026 a trecut 23/23 (ambele variante de plată: tarif, AWB,
+comandă de curier, etichetă, ștergere). La 21 octombrie 2026, 15/15:
 
 | Ce | Rezultat |
 |---|---|

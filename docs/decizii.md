@@ -130,10 +130,13 @@ Mutat din CLAUDE.md la 24 noiembrie 2026. CLAUDE.md păstrează doar rezumatul; 
     panoul cere comandarea din selfawb.ro.
   · **`awbNumber` pleacă în comanda de curier**, ca eticheta s-o printeze și s-o aducă CURIERUL:
     clientul care returnează o piesă n-are de ce să aibă imprimantă.
-  · **`payment` NU e hardcodat.** FAN transmite valoarea corectă după ce mapează contul. Măsurat
-    pe API-ul lor: și „sender", și „recipient" generează AWB, cu ACELAȘI tarif — deci API-ul nu
-    ne apără de o valoare greșită, iar plata ar ajunge tăcut pe cine nu trebuie. E câmp în
-    Admin → Integrări, cu rezervă pe variabile de mediu (ca la contul de livrare).
+  · **Cine plătește returul se alege la FIECARE retur** (24 noiembrie 2026, decizia proprietarului,
+    după crearea contului ocazional; înlocuiește setarea unică „payment” din Integrări). Motivul
+    clientului (s-a răzgândit) → plătește clientul, cash curierului la ridicare → `payment: "sender"`;
+    vina noastră (piesă defectă / greșită) → plătim noi → `payment: "recipient"`. Fără valoare
+    implicită: măsurat pe API-ul lor, ambele valori generează AWB cu ACELAȘI tarif, deci o alegere
+    greșită n-ar fi prinsă de nimeni. Alegerea se salvează în `awb_date.plata`. „sender” = cash la
+    ridicare e presupunere; se confirmă la primul retur real.
   · **Dimensiunile sunt OBLIGATORII la retur**, spre deosebire de AWB-ul de livrare (unde sunt
     opționale din 16 septembrie 2026): `/order` fără ele răspunde 422. Măsurat: la 2 kg
     Cluj→Bistrița tariful e 39,36 lei fără dimensiuni și 47,18 cu 40×30×20 — deci contează și la preț.
