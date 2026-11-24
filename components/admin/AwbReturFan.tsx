@@ -143,21 +143,53 @@ export default function AwbReturFan({ cerere, onSchimbare }: {
   }
 
   async function eticheta() {
+    // Fereastra se deschide ÎNAINTE de așteptare: deschisă după `await`,
+    // browserul o consideră pop-up nesolicitat și o blochează.
+    const fereastra = window.open("", "_blank");
     const sb = sbBrowser();
     const token = sb ? (await sb.auth.getSession()).data.session?.access_token : null;
-    if (!token) { setMsg({ t: "rau", x: "Sesiunea a expirat." }); return; }
-    setLucru("eticheta");
+    if (!token) { fereastra?.close(); setMsg({ t: "rau", x: "Sesiunea a expirat." }); return; }
+    setLucru("eticheta"); setMsg(null);
     const r = await fetch(`/api/awb-retur?cerere_id=${cerere.id}`, { headers: { Authorization: `Bearer ${token}` } });
     setLucru("");
-    if (!r.ok) { setMsg({ t: "rau", x: (await r.json().catch(() => null))?.eroare ?? "Eticheta n-a putut fi luată." }); return; }
-    window.open(URL.createObjectURL(await r.blob()), "_blank");
+    if (!r.ok) {
+      fereastra?.close();
+      setMsg({ t: "rau", x: (await r.json().catch(() => null))?.eroare ?? "Eticheta n-a putut fi luată." });
+      return;
+    }
+    const url = URL.createObjectURL(await r.blob());
+    if (fereastra) fereastra.location.href = url; else window.open(url, "_blank");
+  }
+
+  // Închis, cu AWB: AWB-ul și PDF-ul stau la vedere, fără să deschizi panoul.
+  if (!deschis && awb) {
+    const d = cerere.awb_date ?? {};
+    return (
+      <div className="rounded-lg bg-ok/10 border border-ok/30 px-3 py-2 text-xs">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <b className="text-[13px]">AWB retur {awb}</b>
+          {d.data_ridicare && <span className="text-mut">ridicare {d.data_ridicare}</span>}
+          {textPlata(d.plata) && <span className="text-mut">· {textPlata(d.plata)}</span>}
+          {!curierId && <span className="text-red-700 font-semibold">· fără comandă de curier</span>}
+        </div>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <button type="button" onClick={eticheta} disabled={!!lucru}
+            className="btn-acc !py-1.5 text-xs">{lucru === "eticheta" ? "Se ia de la FAN…" : "Vezi AWB-ul (PDF)"}</button>
+          <a href={`https://www.fancourier.ro/awb-tracking/?tracking=${awb}`} target="_blank" rel="noopener noreferrer"
+            className="rounded-lg border-2 border-line px-3 py-1.5 text-xs font-semibold hover:border-acc">Urmărește</a>
+          <button type="button" onClick={() => setDeschis(true)}
+            className="rounded-lg border-2 border-line px-3 py-1.5 text-xs font-semibold hover:border-acc">Detalii / șterge</button>
+        </div>
+        {msg && <p className="mt-2 rounded-lg px-3 py-2 bg-red-50 text-red-700">{msg.x}</p>}
+      </div>
+    );
   }
 
   if (!deschis)
     return (
       <button type="button" onClick={() => setDeschis(true)}
         className="rounded-lg border-2 border-line px-3 py-1.5 text-xs font-semibold hover:border-acc">
-        {awb ? `AWB retur ${awb}` : "AWB de retur (FAN)"}
+        AWB de retur (FAN)
       </button>
     );
 
