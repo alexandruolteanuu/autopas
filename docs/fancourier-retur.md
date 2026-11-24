@@ -66,7 +66,14 @@ La **cristian.branzan@fancourier.ro** (sau presales@fancourier.ro), cum au cerut
 
 Pentru al doilea: **PIESE AUTO PAS SRL**, client ID **7108882**.
 
-### Pasul 3 — primești de la ei Client ID-ul contului ocazional
+### Pasul 3 — Client ID-ul NU mai e nevoie să-l cauți
+
+La contul ocazional, Client ID-ul nu apare în selfawb.ro. Aplicația îl află
+singură din utilizator și parolă (`GET /reports/branches` — sucursala contului,
+al cărei `id` e Client ID-ul; verificat la 24 noiembrie 2026 pe contul de probă
+FAN). „Verifică retururile” îl afișează. Câmpul din Integrări rămâne, opțional,
+doar pentru un cont cu mai multe sucursale.
+
 
 **Cine plătește NU mai e o setare a contului** (24 noiembrie 2026). FAN a spus
 că plata se setează de noi, pe AWB, așa că se alege la fiecare retur (vezi
@@ -78,7 +85,7 @@ selfawb.ro că plata e trecută pe client, respectiv pe noi.
 ### Pasul 4 — le pui în panou
 
 **Admin → Integrări → „FAN Courier — retururi”**: Client ID, utilizatorul
-(e-mailul contului ocazional), parola. Salvezi, apoi apeși
+(e-mailul contului ocazional), parola. Client ID-ul poate rămâne gol. Salvezi, apoi apeși
 **„Verifică retururile”** — trebuie să apară serviciile contului și adresa la
 care vor veni coletele.
 

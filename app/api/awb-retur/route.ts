@@ -84,9 +84,9 @@ export async function POST(req: Request) {
   try {
     // ---------- „Verifică conexiunea” din Integrări ----------
     if (body.actiune === "verifica") {
-      const { servicii } = await verificaReturul();
+      const { servicii, cfg } = await verificaReturul();
       const dep = await depozitRetur();
-      return NextResponse.json({ ok: true, servicii, depozit: dep });
+      return NextResponse.json({ ok: true, servicii, depozit: dep, client_id: cfg.clientId });
     }
 
     const cerereId = Number(body.cerere_id);
@@ -98,7 +98,7 @@ export async function POST(req: Request) {
     // Deschiderea panoului nu cheamă niciodată FAN: ecranul se încarcă instant,
     // iar API-ul lor e chemat doar când operatorul apasă un buton.
     if (body.actiune === "pregateste") {
-      const cfgR = await configFanRetur();
+      const cfgR = await configFanRetur(false);
       return NextResponse.json({
         ok: true,
         configurat: returConfigurat(cfgR),

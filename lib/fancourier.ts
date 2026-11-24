@@ -362,7 +362,31 @@ export const estePlataRetur = (v: unknown): v is PlataRetur => v === "client" ||
 /** Valoarea câmpului `payment` la FAN. Clientul e EXPEDITORUL returului, firma e DESTINATARUL. */
 export const paymentRetur = (p: PlataRetur) => (p === "client" ? "sender" : "recipient");
 
-export async function configFanRetur(): Promise<ConfigFanRetur> {
+// Client ID-ul aflat din cont, ținut în memoria funcției (cheia = utilizatorul).
+let clientIdAflat: { user: string; id: string } | null = null;
+
+/**
+ * Client ID-ul contului ocazional, aflat DOAR din utilizator și parolă.
+ * La contul ocazional, Client ID-ul nu apare în interfața selfawb.ro (după
+ * documentația lor îl dă FAN, la cerere). Dar `GET /reports/branches` cere doar
+ * token-ul și întoarce sucursala contului, iar `id`-ul ei E Client ID-ul
+ * (verificat la 24 noiembrie 2026 pe contul lor de probă: 323245). Un cont cu
+ * mai multe sucursale nu se ghicește: atunci Client ID-ul se scrie de mână.
+ */
+async function aflaClientIdRetur(user: string, parola: string): Promise<string> {
+  if (clientIdAflat?.user === user) return clientIdAflat.id;
+  const d = await cere({ clientId: "", user, parola, rambursInCont: false }, "/reports/branches");
+  const sucursale: { id: number | string }[] = Array.isArray(d?.data) ? d.data : [];
+  if (sucursale.length !== 1)
+    throw new EroareFan(sucursale.length
+      ? `Contul ocazional are ${sucursale.length} sucursale (${sucursale.map((x) => x.id).join(", ")}) — scrie Client ID-ul potrivit în Admin → Integrări.`
+      : "FAN n-a întors nicio sucursală pentru contul ocazional — scrie Client ID-ul în Admin → Integrări.");
+  clientIdAflat = { user, id: String(sucursale[0].id) };
+  return clientIdAflat.id;
+}
+
+/** `aflaId = false`: fără nicio cerere la FAN (deschiderea panoului). */
+export async function configFanRetur(aflaId = true): Promise<ConfigFanRetur> {
   const sb = sbAdmin();
   let f: NonNullable<Integrari["fancourier_retur"]> = {};
   if (sb) {
@@ -372,18 +396,22 @@ export async function configFanRetur(): Promise<ConfigFanRetur> {
   // Variabilele de mediu sunt rezerva, exact ca la `configFan()`. Tot ele fac
   // posibilă verificarea pe contul de probă al FAN fără să atingem baza de
   // producție — vezi scripts/verifica-retur-fan.mjs.
-  return {
+  const cfg = {
     clientId: String(f.client_id || process.env.FANCOURIER_RETUR_CLIENT_ID || "").trim(),
     user: String(f.user || process.env.FANCOURIER_RETUR_USER || "").trim(),
     parola: String(f.parola || process.env.FANCOURIER_RETUR_PASS || ""),
   };
+  // Câmpul Client ID gol: îl aflăm din cont (vezi `aflaClientIdRetur`).
+  if (aflaId && !cfg.clientId && cfg.user && cfg.parola) cfg.clientId = await aflaClientIdRetur(cfg.user, cfg.parola);
+  return cfg;
 }
 
 /** `ConfigFanRetur` în forma pe care o cer funcțiile interne (`cere`, `login`). */
 const caCfg = (r: ConfigFanRetur): ConfigFan =>
   ({ clientId: r.clientId, user: r.user, parola: r.parola, rambursInCont: false });
 
-export const returConfigurat = (r: ConfigFanRetur) => !!(r.clientId && r.user && r.parola);
+/** Ajung utilizatorul și parola: Client ID-ul, dacă lipsește, se află din cont. */
+export const returConfigurat = (r: ConfigFanRetur) => !!(r.user && r.parola);
 
 /**
  * DEPOZITUL, ca destinatar al returului.
@@ -469,7 +497,7 @@ export async function genereazaAwbRetur(
 ): Promise<AwbReturGenerat & { eroareCurier: string | null }> {
   cfgR = cfgR ?? await configFanRetur();
   if (!returConfigurat(cfgR))
-    throw new EroareFan("Contul FAN de retur nu e configurat. Completează Client ID, utilizatorul și parola contului OCAZIONAL în Admin → Integrări (sunt altele decât cele de livrare).");
+    throw new EroareFan("Contul FAN de retur nu e configurat. Completează utilizatorul și parola contului OCAZIONAL în Admin → Integrări (sunt altele decât cele de livrare).");
   dep = dep ?? await depozitRetur();
   const cfg = caCfg(cfgR);
 
@@ -652,7 +680,7 @@ export async function tarifRetur(
 export async function verificaReturul(): Promise<{ servicii: string[]; cfg: ConfigFanRetur }> {
   const cfgR = await configFanRetur();
   if (!returConfigurat(cfgR))
-    throw new EroareFan("Completează întâi Client ID, utilizatorul și parola contului ocazional, apoi salvează.");
+    throw new EroareFan("Completează întâi utilizatorul și parola contului ocazional (Client ID-ul se află singur), apoi salvează.");
   tokenMemorat = null;
   const d = await cere(caCfg(cfgR), "/reports/services");
   return { servicii: (d?.data ?? []).map((s: { name: string }) => s.name), cfg: cfgR };

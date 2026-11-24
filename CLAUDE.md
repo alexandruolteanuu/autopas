@@ -191,7 +191,8 @@ Detaliile (de ce `data-tema` e pus pe server etc.): `docs/decizii.md`.
 - `contact@autopas-dezmembrari.ro` — de verificat că redirecționarea ImprovMX + SPF funcționează (`docs/email.md`).
 - pieseauto.ro — de întrebat ce fac cu un rând care lipsește din fișier (până atunci piesele lor nu se șterg).
 - dez.ro — adresa din profilul lor diferă de cea oficială din `lib/config.ts`; de confirmat cu proprietarul.
-- Contul ocazional FAN pentru retururi — CREAT (noiembrie 2026); de pus în Admin → Integrări → FAN Courier — retururi,
+- Contul ocazional FAN pentru retururi — CREAT (noiembrie 2026); de pus în Admin → Integrări → FAN Courier — retururi
+  (doar utilizator + parolă; Client ID-ul se află singur),
   apoi se rulează migrarea 46. Cine plătește returul se alege la fiecare retur (clientul cash la ridicare / noi).
 
 ## Unelte de verificare (`scripts/`)

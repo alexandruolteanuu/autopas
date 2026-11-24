@@ -47,7 +47,7 @@ const INTEGRARI: Integrare[] = [
     desc: "Se generează din Admin → Cereri → Retururi, pe cererea clientului; adresa vine din comanda lui. Comanda de curier se plasează automat, iar eticheta o aduce curierul printată. Codul e gata și testat pe contul de probă FAN.",
     pasi: ["Creezi în SelfAWB un cont de client OCAZIONAL (fără contract) — altul decât contul de livrare",
            "Trimiți la cristian.branzan@fancourier.ro adresa de e-mail a contului și numele clientului cu contract de care se asociază plata",
-           "FAN răspunde cu Client ID-ul contului ocazional — îl pui mai jos, cu utilizatorul și parola",
+           "Pui mai jos utilizatorul și parola contului ocazional; Client ID-ul se află singur (îl arată „Verifică retururile”)",
            "„Verifică retururile” — trebuie să apară serviciile contului",
            "Cine plătește transportul se alege la fiecare retur, în panoul cererii: clientul (cash la ridicare) sau noi"] },
   { id: "card", nume: "Plată cu cardul (Netopia / Stripe)", grup: "Plăți", stare: "viitor",
@@ -140,7 +140,8 @@ const CAMPURI: Record<string, { k: string; l: string; tip?: string; avansat?: bo
   // Contul OCAZIONAL, pentru retururi. E ALTUL decât cel de livrare de mai sus:
   // contul cu contract poate trimite doar expediții care pleacă de la noi.
   "FAN Courier — retururi": [
-    { k: "client_id", l: "Client ID al contului ocazional (îl dă FAN, după mapare)" },
+    // Gol = se află singur din cont, prin GET /reports/branches (vezi lib/fancourier.ts).
+    { k: "client_id", l: "Client ID al contului ocazional (opțional — gol, se află singur din utilizator și parolă)" },
     { k: "user", l: "Utilizator (adresa de e-mail cu care s-a creat contul ocazional)" },
     { k: "parola", l: "Parola contului ocazional", tip: "password" },
     // Cine plătește NU mai e aici: se alege la fiecare retur (clientul / noi).
@@ -233,7 +234,7 @@ function UneltFanRetur() {
     const j = await r.json().catch(() => null);
     setLucru(false);
     if (j?.ok) setRez({ bun: true,
-      text: `✓ Contul de retur merge. Servicii: ${j.servicii.join(", ")}. Coletele vin la ${j.depozit.strada}, ${j.depozit.localitate}, jud. ${j.depozit.judet}.` });
+      text: `✓ Contul de retur merge. Client ID: ${j.client_id}. Servicii: ${j.servicii.join(", ")}. Coletele vin la ${j.depozit.strada}, ${j.depozit.localitate}, jud. ${j.depozit.judet}.` });
     else setRez({ bun: false, text: j?.eroare ?? "Nu s-a putut verifica." });
   }
   return (

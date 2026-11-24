@@ -75,6 +75,20 @@ try {
   cfg = await fan.configFanRetur();
   verifica("contul de retur se citește", fan.returConfigurat(cfg),
     `clientId ${cfg.clientId}${CONT_DE_PROBA ? " (contul de probă al FAN)" : " (cont propriu)"}`);
+  // Client ID-ul se află și DOAR din utilizator și parolă (GET /reports/branches),
+  // fiindcă la contul ocazional nu apare în interfața selfawb.ro.
+  {
+    const scris = process.env.FANCOURIER_RETUR_CLIENT_ID;
+    delete process.env.FANCOURIER_RETUR_CLIENT_ID;
+    try {
+      const fara = await fan.configFanRetur();
+      verifica("fără Client ID, se află singur din utilizator și parolă", fara.clientId === cfg.clientId,
+        `aflat ${fara.clientId}, așteptat ${cfg.clientId}`);
+    } catch (e) {
+      verifica("fără Client ID, se află singur din utilizator și parolă", false, e?.message ?? String(e));
+    } finally { process.env.FANCOURIER_RETUR_CLIENT_ID = scris; }
+  }
+
   // Cine plătește se alege la fiecare retur (24 noiembrie 2026): clientul e
   // EXPEDITORUL returului, firma e DESTINATARUL.
   verifica("plata clientului pleacă drept `sender`, a firmei drept `recipient`",
