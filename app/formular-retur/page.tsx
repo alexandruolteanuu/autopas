@@ -45,18 +45,6 @@ export default async function FormularRetur() {
         </ul>
       </div>
 
-      {/* Distincția asta e cea mai frecventă confuzie: oamenii cer „retur” pentru o piesă defectă
-          montată acum două luni, care de fapt intră la garanție, cu alte reguli. */}
-      <div className="card p-5 mt-4 border-l-4 border-l-accent">
-        <b className="font-disp font-semibold text-[13px]">Nu confunda returul cu garanția</b>
-        <p className="text-sm mt-2 leading-relaxed text-textSecundar">
-          Formularul acesta e pentru „m-am răzgândit”: 14 zile, fără motiv, piesa nefolosită.
-          Dacă piesa are un defect, e altceva — atunci vorbim de{" "}
-          <Link href="/legal/certificat-garantie" className="accentuat font-semibold">garanție</Link>,
-          care ține 90 de zile și cere alte documente. Sună-ne și îți spunem în care dintre cele două cazuri te afli.
-        </p>
-      </div>
-
       <div className="mt-6"><ReturnForm /></div>
 
       <p className="text-sm text-textSecundar mt-6">

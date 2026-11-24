@@ -27,7 +27,7 @@ export default function ReturnForm() {
       <div className="fld sm:col-span-2"><label>Motivul returului *</label>
         <select name="motiv" required>
           <option value="">Alege…</option>
-          <option>Renunț la cumpărare (14 zile, OUG 34/2014)</option>
+          <option>Renunț la produs (14 zile, OUG 34/2014)</option>
           <option>Piesa nu se potrivește pe mașină</option>
           <option>Piesa este neconformă / nefuncțională</option>
           <option>Alt motiv</option>
