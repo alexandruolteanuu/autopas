@@ -17,6 +17,7 @@ import {
   genereazaAwbRetur, anuleazaComandaCurier, stergeAwb, etichetaAwb, verificaReturul,
   tarifRetur, configFanRetur, returConfigurat, depozitRetur, EroareFan, INTERVAL_RIDICARE, estePlataRetur,
 } from "@/lib/fancourier";
+import { gasesteComanda, aziRO } from "@/lib/retur";
 
 export const dynamic = "force-dynamic";
 
@@ -34,13 +35,6 @@ const text = (v: unknown) => String(v ?? "").trim();
 /** Cine plătește transportul: ales de operator, fără valoare implicită. */
 const MESAJ_PLATA = "Alege cine plătește transportul returului: clientul (cash la curier) sau noi (piesă defectă / greșită).";
 
-/** Ziua de azi la București, ca `YYYY-MM-DD`. FAN refuză o dată din trecut
- *  (verificat: 422 „must be a date after or equal to today”), iar serverul
- *  rulează la Frankfurt — o oră în minus ar putea da ziua de ieri. */
-function aziRO() {
-  return new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Bucharest" }).format(new Date());
-}
-
 /** Adresa de ridicare: ce a corectat operatorul, altfel ce e salvat pe cerere,
  *  altfel adresa din comandă. Formularul de retur NU cere adresa — de asta
  *  există legătura cu comanda. */
@@ -55,22 +49,6 @@ function adresaRidicare(cerere: any, comanda: any, dinFormular: any) {
     localitate: text(f.localitate) || salvat.localitate || text(comanda?.oras),
     strada: text(f.strada) || salvat.strada || text(comanda?.adresa),
   };
-}
-
-/** Comanda de care ține cererea: întâi legătura salvată, apoi căutarea după
- *  numărul scris de client — care poate fi scris oricum („ap 2026 1453”). */
-async function gasesteComanda(sb: any, cerere: any) {
-  if (cerere.order_id) {
-    const { data } = await sb.from("orders").select("*").eq("id", cerere.order_id).maybeSingle();
-    if (data) return data;
-  }
-  const brut = text(cerere.numar_comanda);
-  if (!brut) return null;
-  const cifre = brut.replace(/\D/g, "");
-  const { data } = await sb.from("orders").select("*").or(
-    `numar.eq.${brut.toUpperCase()}` + (cifre.length >= 8 ? `,numar.eq.AP-${cifre.slice(0, 4)}-${cifre.slice(4)}` : ""),
-  ).limit(1);
-  return data?.[0] ?? null;
 }
 
 export async function POST(req: Request) {

@@ -168,7 +168,8 @@ Reguli pentru migrări noi:
   destinatarul (`payment: "recipient"`), **rambursul = `subtotal − reducere`** (nu `total`), conținut gol,
   fără opțiuni („Deschidere la livrare" scoasă), kg și colete scrise de operator, dimensiunile opționale,
   localitatea fără diacritice. Fără cost de livrare stabilit, AWB-ul nu se generează. Returul: alt cont
-  (ocazional), `docs/fancourier-retur.md`.
+  (ocazional); din /formular-retur AWB-ul de retur se generează AUTOMAT, fără cont și fără confirmare
+  (`app/api/retur`, `lib/retur.ts`; plata după motiv) — `docs/fancourier-retur.md`.
 - **SAGA**: facturarea se face din aplicație, prin API-ul SAGA (`lib/saga-*.mjs`; singurul loc cu cheia:
   `lib/saga-api.mjs`). „Emite factura" emite și trimite automat; greșelile se corectează prin storno.
   După o factură emisă MANUAL în SAGA se actualizează numărul următor în Facturi → Setări serie.

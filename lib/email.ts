@@ -176,6 +176,56 @@ function confirmareCerere(
   return { subiect: titlu, html, text };
 }
 
+/** Data `YYYY-MM-DD` scrisă omenește: „joi, 26 noiembrie 2026”. */
+function dataLunga(d: string) {
+  const [a, l, z] = d.split("-").map(Number);
+  if (!a || !l || !z) return d;
+  return new Intl.DateTimeFormat("ro-RO", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
+    .format(new Date(Date.UTC(a, l - 1, z)));
+}
+
+/** Returul cu AWB generat automat: ce trebuie să facă clientul, pe scurt. */
+function returCuAwb(r: any, firma: Firma): { subiect: string; html: string; text: string } {
+  const d = (r.awb_date ?? {}) as Record<string, any>;
+  const awb = String(r.awb);
+  const tracking = String(d.tracking || `https://www.fancourier.ro/awb-tracking/?tracking=${awb}`);
+  const adr = (r.ridicare ?? {}) as Record<string, string>;
+  const unde = [adr.strada, adr.localitate, adr.judet ? `jud. ${adr.judet}` : ""].filter(Boolean).join(", ");
+  const total = (Number(d.tarif) || 0) + (Number(d.tva) || 0);
+  const cand = d.data_ridicare
+    ? `${dataLunga(String(d.data_ridicare))}, între ${d.interval?.first ?? "09:00"} și ${d.interval?.second ?? "14:00"}`
+    : "";
+  const plata = d.plata === "firma"
+    ? "Transportul îl plătim noi — nu plătești nimic curierului."
+    : `Transportul îl plătești curierului, cash, la ridicare${total > 0 ? `: ${total.toFixed(2).replace(".", ",")} lei` : ""}.`;
+  const curier = r.awb_curier_id
+    ? "Curierul FAN Courier vine la tine și aduce eticheta printată — n-ai nevoie de imprimantă."
+    : "Te sunăm noi ca să stabilim ridicarea coletului.";
+  const detalii: [string, string][] = [
+    ["AWB retur", awb], ["Comanda", String(r.numar_comanda ?? "")], ["Piesa", String(r.produs ?? "")],
+    ["Ridicare", cand], ["Adresa", unde],
+  ];
+  const linii = detalii.filter(([, v]) => v && v.trim() !== "");
+  const html = invelis("Returul tău e programat",
+    `<p style="font-size:15px;line-height:1.6">Bună, ${esc(r.nume)},</p>
+     <p style="font-size:15px;line-height:1.6">Am înregistrat cererea ta de retur și am generat AWB-ul. ${esc(curier)}</p>
+     <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:16px 0">
+     ${linii.map(([k, v]) => `<tr>
+        <td style="padding:6px 12px 6px 0;font-size:13px;color:#666;vertical-align:top;white-space:nowrap">${esc(k)}</td>
+        <td style="padding:6px 0;font-size:14px">${esc(v)}</td></tr>`).join("")}
+     </table>
+     <p style="font-size:15px;line-height:1.6"><b>${esc(plata)}</b></p>
+     <p style="font-size:14px;line-height:1.6">Până vine curierul: ambalează piesa cel puțin la fel de bine cum ai primit-o și pune în colet o copie a facturii.</p>
+     <p style="font-size:14px;line-height:1.6"><a href="${esc(tracking)}">Urmărește coletul</a></p>
+     <p style="font-size:14px;line-height:1.6;color:#444">Dacă nu ești acasă în ziua aceea sau vrei să schimbi ceva, răspunde la acest mesaj sau sună-ne la ${esc(firma.telefon)}.</p>`,
+    subsolFirma(firma));
+  const text = `Bună, ${r.nume},\n\nAm înregistrat cererea ta de retur și am generat AWB-ul. ${curier}\n\n`
+    + linii.map(([k, v]) => `${k}: ${v}`).join("\n")
+    + `\n\n${plata}\n\nAmbalează piesa cel puțin la fel de bine cum ai primit-o și pune în colet o copie a facturii.\n`
+    + `Urmărește coletul: ${tracking}\n\nDacă vrei să schimbi ceva, răspunde la acest mesaj sau sună-ne la ${firma.telefon}.\n\n${firma.denumire}\n${firma.adresa}`;
+  return { subiect: `Returul tău e programat — AWB ${awb}`, html, text };
+}
+
 /**
  * Citește din bază tot ce trebuie și compune mesajul.
  *
@@ -295,6 +345,11 @@ export async function construieste(tip: string, referintaId: number, cfg: Config
     if (!r) return null;
     const email = String((r as any).email ?? "").trim();
     if (!email) return null;
+    // Cu AWB generat automat (app/api/retur): e-mailul ESTE instrucțiunea de retur.
+    if ((r as any).awb) {
+      const m = returCuAwb(r as any, firma);
+      return { catre: email, subiect: `${m.subiect} · AUTOPAS`, html: m.html, text: m.text };
+    }
     const m = confirmareCerere("Am primit cererea ta de retur", String((r as any).nume), [
       ["Comanda", String((r as any).numar_comanda ?? "")],
       ["Produsul", String((r as any).produs ?? "")],

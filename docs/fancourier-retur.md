@@ -9,7 +9,32 @@ lucru: contul. Până îl faci, panoul din admin spune limpede că nu e configur
 
 ---
 
-## 1. Ce face, când va fi pornit
+## 0. Returul AUTOMAT din formularul public (24 noiembrie 2026)
+
+Decizia proprietarului: clientul completează **/formular-retur** (fără cont), iar
+AWB-ul se generează SINGUR, fără confirmarea echipei (`app/api/retur/route.ts`,
+regulile comune în `lib/retur.ts`):
+
+- **Verificare**: doar numărul comenzii (să existe, să nu fie anulată). O comandă
+  are cel mult UN AWB de retur — al doilea formular e refuzat cu „sună-ne”.
+- **Cine plătește, după motiv**: „Piesa este neconformă / nefuncțională” = noi
+  (`recipient`); orice alt motiv = clientul, cash la ridicare (`sender`).
+  Risc acceptat de proprietar: oricine poate alege „neconformă”.
+- **Coletul** (colete, kg, dimensiuni) vine din AWB-ul LIVRĂRII comenzii
+  (`orders.awb_date`). Dacă lipsesc dimensiunile sau greutatea, formularul i le
+  cere clientului, aproximativ.
+- **Adresa de ridicare și telefonul** le scrie clientul (adresa din nomenclatorul
+  FAN, ca la checkout); ziua: una din următoarele 5 zile lucrătoare, 09–14.
+- Cererea se scrie ABIA după AWB, cu AWB-ul în ea; triggerul de e-mail (migrarea
+  36) trimite clientului „Returul tău e programat — AWB …” (ziua, adresa, cine
+  plătește și suma, link de urmărire). Eticheta o aduce curierul.
+- Dacă FAN refuză adresa, clientul o corectează pe loc. Dacă FAN nu răspunde,
+  cererea se înregistrează FĂRĂ AWB, cu nota „de făcut din panou”, iar clientul
+  primește confirmarea obișnuită. La fel dacă AWB-ul iese, dar curierul nu.
+
+Panoul din admin (mai jos) rămâne pentru cazurile scăpate și pentru ștergere.
+
+## 1. Panoul din admin
 
 Clientul completează formularul de retur de pe site (ca până acum). În
 **Admin → Cereri → Retururi**, pe cererea lui, apare butonul **„AWB de retur

@@ -137,6 +137,10 @@ Mutat din CLAUDE.md la 24 noiembrie 2026. CLAUDE.md păstrează doar rezumatul; 
     implicită: măsurat pe API-ul lor, ambele valori generează AWB cu ACELAȘI tarif, deci o alegere
     greșită n-ar fi prinsă de nimeni. Alegerea se salvează în `awb_date.plata`. „sender” = cash la
     ridicare e presupunere; se confirmă la primul retur real.
+  · **Returul din formularul public e AUTOMAT** (24 noiembrie 2026, decizia proprietarului): fără cont și
+    fără confirmare, AWB + curier se generează la trimitere (`app/api/retur`). Verificare: doar numărul
+    comenzii; plata după motiv (neconformă = noi); coletul din AWB-ul livrării. Detalii:
+    `docs/fancourier-retur.md`, secțiunea 0.
   · **Dimensiunile sunt OBLIGATORII la retur**, spre deosebire de AWB-ul de livrare (unde sunt
     opționale din 16 septembrie 2026): `/order` fără ele răspunde 422. Măsurat: la 2 kg
     Cluj→Bistrița tariful e 39,36 lei fără dimensiuni și 47,18 cu 40×30×20 — deci contează și la preț.

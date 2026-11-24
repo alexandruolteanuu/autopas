@@ -1,28 +1,25 @@
 import Breadcrumbs from "@/components/Breadcrumbs";
 import ReturnForm from "@/components/ReturnForm";
 import Link from "next/link";
-import { getSetariServer } from "@/lib/settings";
-export const metadata = { title: "Formular de retur", alternates: { canonical: "/formular-retur" }, description: "Retur în 14 zile, conform OUG 34/2014. Completezi formularul, primești confirmarea pe e-mail și instrucțiunile de expediere. Transportul de retur îl suporți tu." };
+export const metadata = { title: "Formular de retur", alternates: { canonical: "/formular-retur" }, description: "Retur în 14 zile, conform OUG 34/2014. Completezi formularul, iar curierul FAN Courier vine la tine să ridice piesa. Primești AWB-ul pe e-mail, fără cont." };
 
-export default async function FormularRetur() {
-  // Adresa de returnare și datele firmei vin din Admin → Setări, ca peste tot.
-  const { firma } = await getSetariServer();
+export default function FormularRetur() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
       <Breadcrumbs items={[{ t: "Acasă", href: "/" }, { t: "Informații legale", href: "/legal/politica-de-retur" }, { t: "Formular de retur" }]} />
       <h1 className="t-sectiune mt-2">Formular de retur</h1>
       <p className="text-textSecundar mt-2 leading-relaxed">
         Te-ai răzgândit? Ai dreptul să te retragi din contract în 14 zile calendaristice de la primirea piesei,
-        fără să ne dai vreun motiv. Completează formularul de mai jos și ne ocupăm noi de restul.
+        fără să ne dai vreun motiv. Completează formularul de mai jos — nu ai nevoie de cont. Curierul vine la tine.
       </p>
 
       <div className="card p-5 mt-6">
         <b className="font-disp font-semibold text-[13px]">Ce se întâmplă după ce trimiți formularul</b>
         <ol className="mt-3 space-y-2 text-sm leading-relaxed">
           {[
-            "Îți confirmăm pe e-mail că am primit decizia ta de retragere — legea ne obligă să o facem pe un suport durabil.",
-            "Primești instrucțiunile de expediere și adresa exactă la care trimiți piesa.",
-            "Trimiți piesa în cel mult 14 zile de la momentul în care ne-ai anunțat. Costul acestui transport îl suporți tu.",
+            "Generăm pe loc AWB-ul de retur și comandăm curierul FAN Courier, la adresa și în ziua alese de tine.",
+            "Primești pe e-mail AWB-ul, ziua ridicării și costul transportului — confirmarea retragerii, pe suport durabil, cum cere legea.",
+            "Curierul vine între 09:00 și 14:00 și aduce eticheta printată. Dacă te-ai răzgândit sau piesa nu se potrivește, transportul îl plătești curierului, cash; dacă piesa e neconformă, îl plătim noi.",
             "Îți restituim contravaloarea produselor în cel mult 14 zile de la anunțul tău.",
           ].map((pas, i) => (
             <li key={i} className="flex gap-3">
@@ -39,9 +36,6 @@ export default async function FormularRetur() {
           <li className="flex gap-2"><span className="accentuat mt-[2px]">•</span><span>Pune în colet o copie a facturii — ne ajută să identificăm imediat comanda.</span></li>
           <li className="flex gap-2"><span className="accentuat mt-[2px]">•</span><span>Ambalează piesa cel puțin la fel de bine cum ai primit-o. O piesă lovită pe drumul de întoarcere înseamnă o scădere de valoare care se reține din suma rambursată.</span></li>
           <li className="flex gap-2"><span className="accentuat mt-[2px]">•</span><span>Poți despacheta și verifica piesa, o poți compara cu cea veche. Dar o piesă montată efectiv pe mașină, rodată sau vopsită, nu se mai poate returna ca nefolosită.</span></li>
-          {firma.adresa && (
-            <li className="flex gap-2"><span className="accentuat mt-[2px]">•</span><span>Adresa de returnare: <b className="text-text">{firma.adresa}</b></span></li>
-          )}
         </ul>
       </div>
 
