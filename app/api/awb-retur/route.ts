@@ -150,12 +150,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, nota: notaCurier.trim() });
     }
 
-    if (body.actiune !== "genereaza")
+    if (body.actiune !== "genereaza" && body.actiune !== "modifica")
       return NextResponse.json({ ok: false, eroare: "Acțiune necunoscută." }, { status: 400 });
 
-    // ---------- generarea ----------
-    if (cerere.awb)
-      return NextResponse.json({ ok: false, eroare: `Cererea are deja AWB-ul de retur ${cerere.awb}. Șterge-l întâi dacă vrei altul.` });
+    // ---------- generarea / modificarea ----------
+    // „Modifică” = AWB NOU cu datele corectate, apoi ștergerea celui vechi.
+    // FAN nu are editare de AWB (API-ul are doar creare și ștergere), iar
+    // ordinea e aleasă ca clientul să nu rămână niciodată fără AWB: dacă cel nou
+    // e refuzat, cel vechi rămâne neatins.
+    const modifica = body.actiune === "modifica";
+    if (!modifica && cerere.awb)
+      return NextResponse.json({ ok: false, eroare: `Cererea are deja AWB-ul de retur ${cerere.awb}. Folosește „Modifică AWB-ul” sau șterge-l întâi.` });
+    if (modifica && !cerere.awb)
+      return NextResponse.json({ ok: false, eroare: "Cererea n-are AWB de modificat. Generează-l." });
 
     const c = body.colet ?? {};
     if (!estePlataRetur(body.plata)) return NextResponse.json({ ok: false, eroare: MESAJ_PLATA });
@@ -176,7 +183,28 @@ export async function POST(req: Request) {
 
     const r = await genereazaAwbRetur(adr, colet, dataRidicare);
 
+    // AWB-ul vechi: comanda de curier întâi (altfel curierul merge de două ori),
+    // apoi AWB-ul. Un eșec aici NU oprește nimic — AWB-ul nou există deja și
+    // e cel bun —, doar se spune ce e de șters de mână din selfawb.ro.
+    let notaVechi = "";
+    if (modifica) {
+      const cfgR = await configFanRetur();
+      if (cerere.awb_curier_id) {
+        try { await anuleazaComandaCurier(String(cerere.awb_curier_id), cfgR); }
+        catch (e) {
+          notaVechi += ` ATENȚIE: comanda de curier veche ${cerere.awb_curier_id} n-a putut fi anulată (${e instanceof Error ? e.message : e}). Anuleaz-o din selfawb.ro.`;
+        }
+      }
+      try {
+        await stergeAwb(String(cerere.awb), { clientId: cfgR.clientId, user: cfgR.user, parola: cfgR.parola, rambursInCont: false });
+      } catch (e) {
+        notaVechi += ` ATENȚIE: AWB-ul vechi ${cerere.awb} n-a putut fi șters la FAN (${e instanceof Error ? e.message : e}). Șterge-l din selfawb.ro.`;
+      }
+    }
+
     const awb_date = {
+      // Ce era pe cerere înainte (ex. `automat` de la formular) rămâne.
+      ...(modifica ? (cerere.awb_date ?? {}) : {}),
       // Cine plătește transportul — ca să se vadă și după, pe cerere.
       plata: colet.plata,
       colete: colet.colete, greutate: colet.greutate,
@@ -185,6 +213,7 @@ export async function POST(req: Request) {
       data_ridicare: dataRidicare, interval: INTERVAL_RIDICARE,
       comanda_curier: r.comandaCurierId, eroare_curier: r.eroareCurier,
       ridicare: adr,
+      ...(modifica ? { awb_anterior: cerere.awb, modificat_la: new Date().toISOString() } : {}),
     };
     const patch: Record<string, unknown> = {
       awb: r.awb, awb_curier_id: r.comandaCurierId, awb_generat_la: new Date().toISOString(),
@@ -198,14 +227,50 @@ export async function POST(req: Request) {
     if (error || !scrise?.length) {
       // AWB-ul EXISTĂ la FAN. Îl arătăm, ca să nu se piardă.
       return NextResponse.json({ ok: false, awb: r.awb,
-        eroare: `FAN a generat AWB-ul de retur ${r.awb}, dar nu s-a putut salva în cerere (${error?.message ?? "niciun rând atins"}). Notează-l.` });
+        eroare: `FAN a generat AWB-ul de retur ${r.awb}, dar nu s-a putut salva în cerere (${error?.message ?? "niciun rând atins"}). Notează-l.${notaVechi}` });
     }
+
+    // Clientul primește AWB-ul nou. Prin aceeași coadă ca primul e-mail: rândul
+    // cererii se repune „de trimis”, iar mesajul se compune din cererea de ACUM.
+    let notaEmail = "";
+    if (modifica && body.anunta_clientul !== false) {
+      notaEmail = cerere.email
+        ? await repuneEmailRetur(sb, cerereId)
+        : " Cererea n-are e-mail: anunță clientul la telefon.";
+    }
+
     return NextResponse.json({
       ok: true, awb: r.awb, tarif: r.tarif, tva: r.tva, tracking: r.tracking,
       comanda_curier: r.comandaCurierId, eroare_curier: r.eroareCurier,
+      nota: (notaVechi + notaEmail).trim(),
     });
   } catch (e) {
     return eroare(e);
+  }
+}
+
+/** Repune e-mailul cererii în coadă și trezește ruta care trimite. Întoarce o
+ *  notă pentru operator (gol = a plecat spre trimitere). Nu aruncă niciodată:
+ *  un e-mail nereușit nu are voie să strice AWB-ul tocmai emis. */
+async function repuneEmailRetur(sb: any, cerereId: number): Promise<string> {
+  try {
+    const { error } = await sb.from("email_coada").upsert(
+      { tip: "return_requests", referinta_id: cerereId, trimis_la: null, incercari: 0, eroare: null, catre: null },
+      { onConflict: "tip,referinta_id" });
+    if (error) return ` E-mailul către client NU s-a pus în coadă (${error.message}). Anunță-l la telefon.`;
+    const { data } = await sb.from("settings").select("valoare").eq("cheie", "integrari").maybeSingle();
+    const e = (data?.valoare as any)?.email ?? {};
+    if (!e.webhook_url || !e.webhook_secret)
+      return " E-mailul așteaptă în coadă (trezirea nu e configurată în Integrări).";
+    const r = await fetch(String(e.webhook_url), {
+      method: "POST", body: "{}", signal: AbortSignal.timeout(8000),
+      headers: { "Content-Type": "application/json", "x-autopas-email": String(e.webhook_secret) },
+    });
+    const j = await r.json().catch(() => null);
+    return j?.ok && j.trimise > 0 ? " Clientul a primit AWB-ul nou pe e-mail."
+      : " E-mailul cu AWB-ul nou e în coadă; dacă nu pleacă, vezi Integrări → E-mail.";
+  } catch {
+    return " E-mailul cu AWB-ul nou e în coadă, dar trezirea n-a răspuns; pleacă la următoarea golire.";
   }
 }
 

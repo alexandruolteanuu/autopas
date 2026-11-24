@@ -64,6 +64,9 @@ export default function AwbReturFan({ cerere, onSchimbare }: {
   const [lucru, setLucru] = useState("");
   const [msg, setMsg] = useState<{ t: "ok" | "rau"; x: string } | null>(null);
   const [poateDoarAdmin, setPoateDoarAdmin] = useState(false);
+  // „Modifică”: emite un AWB nou cu datele din panou și îl șterge pe cel vechi.
+  const [anunta, setAnunta] = useState(true);
+  const [stersAcum, setStersAcum] = useState(false);
 
   const pregateste = useCallback(async () => {
     const r = await cere({ actiune: "pregateste", cerere_id: cerere.id });
@@ -81,6 +84,7 @@ export default function AwbReturFan({ cerere, onSchimbare }: {
       setColet({ colete: String(d.colete ?? 1), greutate: String(d.greutate ?? ""),
         lungime: String(d.lungime ?? ""), latime: String(d.latime ?? ""), inaltime: String(d.inaltime ?? "") });
       if (d.plata === "client" || d.plata === "firma") setPlata(d.plata);
+      if (d.data_ridicare && String(d.data_ridicare) >= r.azi) setDataRidicare(String(d.data_ridicare));
     }
     setGata(true);
   }, [cerere.id]);
@@ -129,6 +133,29 @@ export default function AwbReturFan({ cerere, onSchimbare }: {
     onSchimbare?.();
   }
 
+  async function modifica() {
+    if (!plata) { setMsg({ t: "rau", x: "Alege cine plătește transportul returului." }); return; }
+    if (!confirm(`Modifici AWB-ul de retur ${awb}?\n\nSe emite un AWB NOU cu datele de acum (ridicare ${dataRidicare}, ${adresa.localitate}, jud. ${adresa.judet}), apoi se anulează curierul vechi și se șterge AWB-ul vechi la FAN.${anunta ? "\n\nClientul primește AWB-ul nou pe e-mail." : ""}`)) return;
+    setLucru("modifica"); setMsg(null);
+    const r = await cere({ actiune: "modifica", cerere_id: cerere.id, colet, adresa, plata,
+      data_ridicare: dataRidicare, anunta_clientul: anunta });
+    setLucru("");
+    if (!r.ok) {
+      if (r.awb) setAwb(r.awb);
+      setMsg({ t: "rau", x: r.eroare });
+      return;
+    }
+    const vechi = awb;
+    setAwb(r.awb); setCurierId(r.comanda_curier); setTarif(null);
+    const rau = !!r.eroare_curier || /ATENȚIE|NU s-a/.test(r.nota ?? "");
+    setMsg({ t: rau ? "rau" : "ok",
+      x: `AWB modificat: ${vechi} → ${r.awb}.`
+        + (r.eroare_curier ? ` Curierul NU s-a comandat: ${r.eroare_curier} Comandă ridicarea din selfawb.ro.` : ` Curier comandat pentru ${dataRidicare}.`)
+        + (r.nota ? ` ${r.nota}` : "") });
+    setDeschis(false);
+    onSchimbare?.();
+  }
+
   async function sterge(doarAdmin = false) {
     if (!confirm(doarAdmin
       ? "Scoți AWB-ul doar din admin? La FAN rămâne — anuleaz-l tu din selfawb.ro."
@@ -137,7 +164,7 @@ export default function AwbReturFan({ cerere, onSchimbare }: {
     const r = await cere({ actiune: "sterge", cerere_id: cerere.id, doar_admin: doarAdmin });
     setLucru("");
     if (!r.ok) { setMsg({ t: "rau", x: r.eroare }); setPoateDoarAdmin(!!r.poate_doar_admin); return; }
-    setAwb(null); setCurierId(null); setTarif(null); setPoateDoarAdmin(false);
+    setAwb(null); setCurierId(null); setTarif(null); setPoateDoarAdmin(false); setStersAcum(true);
     setMsg({ t: "ok", x: `AWB-ul de retur a fost scos.${r.nota ? ` ${r.nota}` : ""}` });
     onSchimbare?.();
   }
@@ -177,10 +204,20 @@ export default function AwbReturFan({ cerere, onSchimbare }: {
             className="btn-acc !py-1.5 text-xs">{lucru === "eticheta" ? "Se ia de la FAN…" : "Vezi AWB-ul (PDF)"}</button>
           <a href={`https://www.fancourier.ro/awb-tracking/?tracking=${awb}`} target="_blank" rel="noopener noreferrer"
             className="rounded-lg border-2 border-line px-3 py-1.5 text-xs font-semibold hover:border-acc">Urmărește</a>
-          <button type="button" onClick={() => setDeschis(true)}
-            className="rounded-lg border-2 border-line px-3 py-1.5 text-xs font-semibold hover:border-acc">Detalii / șterge</button>
+          <button type="button" onClick={() => { setMsg(null); setDeschis(true); }} disabled={!!lucru}
+            className="rounded-lg border-2 border-line px-3 py-1.5 text-xs font-semibold hover:border-acc">Modifică AWB-ul</button>
+          <button type="button" onClick={() => sterge(false)} disabled={!!lucru}
+            className="rounded-lg border-2 border-line px-3 py-1.5 text-xs font-semibold text-red-700 hover:border-red-300">
+            {lucru === "sterge" ? "Se șterge…" : "Șterge AWB-ul"}
+          </button>
+          {poateDoarAdmin && (
+            <button type="button" onClick={() => sterge(true)} disabled={!!lucru}
+              className="rounded-lg border-2 border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700">
+              Scoate AWB-ul doar din admin
+            </button>
+          )}
         </div>
-        {msg && <p className="mt-2 rounded-lg px-3 py-2 bg-red-50 text-red-700">{msg.x}</p>}
+        {msg && <p className={`mt-2 rounded-lg px-3 py-2 ${msg.t === "ok" ? "bg-ok/10 text-ok" : "bg-red-50 text-red-700"}`}>{msg.x}</p>}
       </div>
     );
   }
@@ -191,10 +228,12 @@ export default function AwbReturFan({ cerere, onSchimbare }: {
   if (!deschis)
     return (
       <div className="flex flex-wrap items-center gap-2 rounded-lg bg-yellow-50 border border-yellow-200 px-3 py-2 text-xs text-yellow-800">
-        <span>AWB-ul de retur <b>nu s-a generat automat</b> (motivul, dacă există, e în notă).</span>
-        <button type="button" onClick={() => setDeschis(true)}
+        <span>{stersAcum
+          ? <>AWB-ul de retur a fost șters.{msg?.x ? ` ${msg.x.replace(/^AWB-ul de retur a fost scos\.\s*/, "")}` : ""}</>
+          : <>AWB-ul de retur <b>nu s-a generat automat</b> (motivul, dacă există, e în notă).</>}</span>
+        <button type="button" onClick={() => { setMsg(null); setDeschis(true); }}
           className="rounded-lg border-2 border-yellow-300 px-3 py-1.5 font-semibold hover:border-acc">
-          Generează manual
+          {stersAcum ? "Generează altul" : "Generează manual"}
         </button>
       </div>
     );
@@ -270,8 +309,8 @@ export default function AwbReturFan({ cerere, onSchimbare }: {
           </div>
         </div>
 
-        {/* ---------- cine plătește ---------- */}
-        {!awb && (
+        {/* ---------- cine plătește (și la modificare) ---------- */}
+        {(
           <fieldset className="mt-4">
             <legend className="text-[11px] font-semibold text-mut uppercase tracking-wide">Cine plătește transportul</legend>
             <div className="mt-1.5 grid gap-2">
@@ -288,7 +327,7 @@ export default function AwbReturFan({ cerere, onSchimbare }: {
         )}
 
         {/* ---------- tariful ---------- */}
-        {!awb && (
+        {(
           <div className="mt-3">
             <button type="button" onClick={calculeaza} disabled={!!lucru || !configurat || !plata}
               className="btn-acc w-full !py-2 text-sm">
@@ -329,32 +368,22 @@ export default function AwbReturFan({ cerere, onSchimbare }: {
           </div>
         ) : (
           <div className="mt-3 border-t border-line pt-3 space-y-2">
-            <div className="rounded-lg bg-ok/10 border border-ok/30 px-3 py-2 text-xs">
-              <b>AWB retur {awb}</b>
-              {curierId
-                ? <span className="block text-mut">Curier comandat · comanda {curierId}</span>
-                : <span className="block text-red-700">Fără comandă de curier — nimeni nu vine la client. Comand-o din selfawb.ro.</span>}
-              {cerere.awb_date?.data_ridicare &&
-                <span className="block text-mut">Ridicare {cerere.awb_date.data_ridicare}</span>}
-              {textPlata(plata ?? cerere.awb_date?.plata) &&
-                <span className="block text-mut">Transport: {textPlata(plata ?? cerere.awb_date?.plata)}</span>}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={eticheta} disabled={!!lucru}
-                className="btn-acc !py-2 text-xs">{lucru === "eticheta" ? "Se ia…" : "Eticheta PDF"}</button>
-              <a href={`https://www.fancourier.ro/awb-tracking/?tracking=${awb}`} target="_blank" rel="noopener noreferrer"
-                className="rounded-lg border-2 border-line px-3 py-1.5 text-xs font-semibold hover:border-acc">Urmărește</a>
-              <button type="button" onClick={() => sterge(false)} disabled={!!lucru}
-                className="rounded-lg border-2 border-line px-3 py-1.5 text-xs font-semibold text-red-700 hover:border-red-300">
-                {lucru === "sterge" ? "Se șterge…" : "Șterge AWB-ul"}
-              </button>
-              {poateDoarAdmin && (
-                <button type="button" onClick={() => sterge(true)} disabled={!!lucru}
-                  className="rounded-lg border-2 border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700">
-                  Scoate AWB-ul doar din admin
-                </button>
-              )}
-            </div>
+            <p className="text-xs">Acum: <b>AWB {awb}</b>
+              {cerere.awb_date?.data_ridicare ? ` · ridicare ${cerere.awb_date.data_ridicare}` : ""}</p>
+            <label className="text-[11px] text-mut block">Ziua în care vine curierul la client
+              <input type="date" value={dataRidicare} onChange={(e) => setDataRidicare(e.target.value)} className={camp} /></label>
+            <label className="flex items-center gap-2 text-xs">
+              <input type="checkbox" checked={anunta} onChange={(e) => setAnunta(e.target.checked)} />
+              Trimite clientului AWB-ul nou pe e-mail
+            </label>
+            <p className="text-[11px] text-mut">
+              FAN nu permite editarea unui AWB: se emite unul NOU cu datele de mai sus, apoi se anulează
+              curierul vechi și se șterge AWB-ul vechi. Dacă FAN refuză AWB-ul nou, cel vechi rămâne valabil.
+            </p>
+            <button type="button" onClick={modifica} disabled={!!lucru || !configurat || !plata}
+              className="btn-acc w-full !py-2.5 text-sm">
+              {lucru === "modifica" ? "Se emite AWB-ul nou…" : "Salvează modificarea (AWB nou)"}
+            </button>
           </div>
         )}
 

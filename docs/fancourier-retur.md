@@ -173,3 +173,11 @@ Creează și la voi un AWB de probă, pe care îl șterge imediat.
   ridicare trebuie să aibă minimum 2 ore.
 - **Tariful depinde de dimensiuni** la retur — la 2 kg Cluj→Bistrița, 39,36 lei
   fără dimensiuni și 47,18 lei cu 40×30×20. Deci merită întrebat clientul exact.
+
+## Modificarea și ștergerea din admin (24 noiembrie 2026)
+Admin → Cereri → Retururi: sub fiecare cerere cu AWB stau la vedere „Vezi AWB-ul (PDF)”, „Urmărește”,
+„Modifică AWB-ul” și „Șterge AWB-ul”. FAN nu are editare de AWB (colecția Postman: doar creare și
+ștergere, la AWB și la comanda de curier), deci „Modifică” (`actiune: "modifica"` în `app/api/awb-retur`)
+emite ÎNTÂI un AWB nou cu datele corectate, apoi anulează curierul vechi și șterge AWB-ul vechi — dacă FAN
+refuză AWB-ul nou, cel vechi rămâne valabil. Clientul primește AWB-ul nou pe e-mail prin aceeași coadă:
+rândul `email_coada (return_requests, id)` se repune „de trimis” și ruta e trezită (bifă, implicit da).
