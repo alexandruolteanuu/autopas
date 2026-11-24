@@ -185,12 +185,18 @@ export default function AwbReturFan({ cerere, onSchimbare }: {
     );
   }
 
+  // Închis, FĂRĂ AWB: de regulă formularul îl generează singur, deci aici ajung
+  // doar cererile la care generarea automată a picat (motivul e în notă) sau
+  // cele venite prin formularul vechi. Butonul e varianta de rezervă, manuală.
   if (!deschis)
     return (
-      <button type="button" onClick={() => setDeschis(true)}
-        className="rounded-lg border-2 border-line px-3 py-1.5 text-xs font-semibold hover:border-acc">
-        AWB de retur (FAN)
-      </button>
+      <div className="flex flex-wrap items-center gap-2 rounded-lg bg-yellow-50 border border-yellow-200 px-3 py-2 text-xs text-yellow-800">
+        <span>AWB-ul de retur <b>nu s-a generat automat</b> (motivul, dacă există, e în notă).</span>
+        <button type="button" onClick={() => setDeschis(true)}
+          className="rounded-lg border-2 border-yellow-300 px-3 py-1.5 font-semibold hover:border-acc">
+          Generează manual
+        </button>
+      </div>
     );
 
   return (
