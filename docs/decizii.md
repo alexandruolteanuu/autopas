@@ -1,0 +1,1163 @@
+# Decizii deja luate — detaliile complete
+
+Mutat din CLAUDE.md la 24 noiembrie 2026. CLAUDE.md păstrează doar rezumatul; aici sunt motivele, măsurătorile și cazurile limită. Nu se schimbă fără să întrebi proprietarul.
+
+- **SITE-UL E SURSA: pieseauto.ro importă zilnic din `/feed/pieseauto.csv`** (15 septembrie 2026,
+  cerut de proprietar, după instrucțiunile pieseauto.ro). Piesele se pun întâi pe site; dez.ro le
+  primește prin coada automată (migrarea 39), pieseauto.ro prin fișierul ăsta. Tot conținutul și
+  regulile: `lib/feed-pieseauto.ts`. Raportul: Admin → Feed și export (`/api/feed-pieseauto`).
+  · **Formatul lor** (verificat pe `exemplu-import-piese.csv`): fără antet, `;`, ghilimele dublate,
+    CRLF, 8 coloane — ID (întreg 64 biți ≠ 0) · titlu · categorie · descriere HTML · RON · preț ·
+    cantitate · poze separate prin `[,]`. Un singur fișier cu tot.
+  · **ID-ul**: piesele venite de la ei trimit `sursa_id` (ID-ul anunțului lor, 243.160 … 2,1 mld.),
+    ca importul să nu dubleze cele ~8.800 de anunțuri existente; cele create pe site trimit
+    1.000.000.000.000 + `products.id` — plajă în care un ID de-al lor nu poate cădea. NU se schimbă
+    niciodată formula: un ID schimbat = anunț nou la ei.
+  · **Categoria e textul categoriei LOR** (`taxonomie-sursa.mjs`), în trepte: (1) categoria din
+    adresa anunțului original (8.785 de piese); (2) maparea măsurată subcategorie → categoria-sursă
+    cea mai frecventă, recalculată la fiecare generare; (3) nume identic; (4) categoria cea mai
+    apropiată după cuvinte, preferând grupa care corespunde părintelui nostru („Stop stânga" →
+    „Stopuri"); (5) numele nostru, numărat în panou ca „nerecunoscut". Măsurat la generare: toate
+    cele 290 de categorii din fișier există în catalogul lor.
+  · **Cantitatea**: `stoc` dacă piesa e publicată și are stoc, altfel 0. Vândutele și ascunsele
+    PLEACĂ cu 0 (113 la generare), nu lipsesc: nu știm dacă importul lor șterge rândurile lipsă.
+    Citirea se face cu `sbAdmin`, fiindcă anonimul nu vede piesele ascunse.
+  · **Categoria mai precisă din TITLU bate categoria aleasă** (15 septembrie 2026, cerut de pieseauto.ro
+    după prima verificare: „motoras etrier" stătea la „Etriere"). Chiar și categoria din anunțul original
+    poate fi prea largă — o alesese omul. Se trece pe o categorie de-a lor doar dacă e din aceeași grupă,
+    o CONȚINE pe cea aleasă („Motoraș etrier" ⊃ „etrier"), titlul ÎNCEPE cu primul ei cuvânt și toate
+    cuvintele ei apar în titlu, fără egalitate între candidate. „Etrier cu motoras…" rămâne „Etriere".
+    Măsurat pe tot fișierul: 9 piese schimbate, toate corecte (6 motoraș etrier, 2 panou comandă AC
+    climă, 1 pompă motorină din rezervor). Nu s-a lărgit regula: pieseauto.ro a spus că titlurile clare
+    le încadrează ei.
+  · **Fraza „Pretul difera in functie de …" se scoate din descriere** (`faraFrazeInterzise`, cerut de
+    pieseauto.ro): la ei fiecare rând e UN produs, cu prețul final cu TVA. Apărea la 2 piese
+    (AP-000014, AP-000015). Doar în fișier; textul din bază rămâne cum l-a scris omul.
+  · **Confirmat de pieseauto.ro (15 septembrie 2026)**: structura fișierului e corectă; ID-ul inițial nu
+    se schimbă niciodată, produsele noi se ADAUGĂ, nu iau locul celor existente — exact formula de mai sus.
+  · **Răspunsurile lor din 16 septembrie 2026**: (a) cantitate 0 = anunțul devine INVIZIBIL, nu se
+    șterge, și redevine activ la importul de după ce cantitatea crește — deci regula „vândutele și
+    ascunsele pleacă cu 0" e exact cea bună; (b) importul rulează O SINGURĂ DATĂ pe zi, peste noapte,
+    NU se poate mai des; îl pornește echipa lor tehnică pe cont, la cerere. Consecință: o piesă vândută
+    ziua rămâne vizibilă la ei până la importul de noapte. Încă NEÎNTREBAT: ce fac cu un rând care
+    lipsește din fișier (piesă ȘTEARSĂ din bază) — până atunci, piesele venite de la ei se marchează
+    vândute/ascunse, nu se șterg.
+  · **Ciornele NU pleacă** (`import_erori.ciorna`): n-au poze și descriere și ar goli anunțurile lor.
+  · **Pozele pleacă ca JPEG**, prin `/feed/poze/<cale din bucket>.jpg` (conversie cu `sharp`, cache
+    CDN un an). 20.147 din 20.220 sunt WebP în bucket, iar exemplul lor are `.jpg`. Ruta acceptă
+    doar căi din `poze-piese`, fără „..". Bara dublă din adresele vechi se scoate la scriere.
+  · **Textul**: backslash-ul se înlocuiește (escape în `fgetcsv`), caracterele de control se scot,
+    rândurile noi din descriere devin `<br>`/`<p>`. Fără link către site-ul nostru în descriere.
+  · **Verificat**: fișierul real citit cu `fgetcsv($f, 0, ';', '"')` din PHP — 8.804 rânduri, 8
+    coloane fiecare, 0 erori, ID-uri unice, 20.220 de poze `.jpg`, fără BOM, 6,7 MB, ~3 s.
+    `?test=5` dă 5 piese cu stoc și poze, pentru prima probă la ei.
+  · **Importul DIN pieseauto.ro e acum ascuns după o confirmare** (`/admin/import`): un CSV de la ei
+    are datele de ieri ale site-ului și ar suprascrie prețurile de azi.
+- **Coșul acceptă CANTITĂȚI, plafonate la stoc** (20 octombrie 2026, cerut de proprietar).
+  Până atunci `CartContext.add` ignora tăcut a doua adăugare a aceleiași piese („piesele sunt
+  unicate"). Măsurat atunci: **84 de piese publicate din 9.582 au stoc peste 1** — arcuri,
+  injectoare, bobine, capace de jante, adică exact ce se cumpără în set. Un client care voia
+  4 injectoare putea comanda unul.
+  · **Serverul știa deja**: `plaseaza_comanda` înmulțea, verifica `stoc < cantitate` și scria
+    `order_items.cantitate`; triggerul scădea `stoc - cantitate`, anularea îl punea înapoi;
+    adminul, e-mailurile, feed-ul pieseauto.ro și `qty` de la dez.ro afișau cantitatea.
+    **Nicio migrare nu a fost nevoie** — blocajul era o singură linie în browser.
+  · **Plafonul din browser e comoditate, nu adevăr.** Coșul trăiește în `localStorage`, deci
+    `CartItem.stoc` poate fi vechi; `/cos` îl recitește la fiecare deschidere
+    (`reimprospateazaStoc`), taie cantitățile peste stoc și marchează piesele vândute ÎNAINTE de
+    checkout. Decizia finală rămâne a serverului. Cheia `stoc` lipsă = coș salvat înainte de
+    schimbare, ca `poza`.
+  · **Selectorul apare DOAR pe pagina piesei și în coș, și doar la stoc peste 1.** Pe cardurile
+    din grilă nu: sunt 24 pe pagină, iar cazul atinge sub 1% din piese. De acolo se adaugă o
+    bucată. La o piesă unicat un „− 1 +" cu ambele butoane stinse ar arăta a defect.
+  · **Pe pagina piesei, cantitatea și „Adaugă în coș" stau pe UN rând, WhatsApp și Favorite
+    dedesubt** (cerut de proprietar). De aceea grila de butoane trece pe o singură coloană când
+    stocul e peste 1: în forma cu două coloane, celula `minmax(0,1fr)` se strânge la 125px la
+    1024px (coloana cu WhatsApp e `auto`), iar selectorul, lat de 144px, **ieșea peste WhatsApp**.
+    Găsit de proprietar în browser, nu de verificarea de depășire orizontală — de atunci
+    suprapunerile se măsoară în `verifica-cantitati.mjs`. Sub 360px butonul coboară singur
+    (`flex-wrap`), iar cuvântul „Cantitate" dispare sub 480px, ca butonul să încapă.
+  · **Numărul de bucăți se scrie clientului** („10 buc. pe stoc" pe pagina piesei, „maximum" în
+    selector): e argumentul de vânzare pentru seturi. La o singură bucată rămâne „În stoc", fără
+    cifră — „1 buc. pe stoc" ar suna a inventar pe terminate, nu a piesă unicat.
+  · Badge-ul coșului din header numără BUCĂȚI, nu rânduri; la fel titlul din `/cos`. Altfel 4
+    injectoare ar fi scris „1" în header și „4 piese" în titlu.
+  · `add_to_cart` raportează cantitatea CHIAR adăugată (după plafonare), iar schimbarea din
+    selector nu trimite niciun eveniment: GA4 n-are unul pentru „am schimbat cantitatea", iar
+    unul inventat ar umfla numărul de adăugări.
+- **Căutarea pieselor e pe cuvinte, cu plural și sinonime, peste tot** (15 septembrie 2026,
+  `tipareCautare` din `lib/format.ts`, folosită în `/piese`, Admin → Produse, Piese de completat
+  și căutarea globală din admin). Adminul căuta tot textul ca un singur șir, deci „portiera skoda"
+  nu găsea nimic.
+  · Fiecare cuvânt devine un tipar `imatch` pe `products.cautare`, iar tiparele se adună cu ȘI.
+    Cuvintele din litere se caută la ÎNCEPUT de cuvânt, cu formele lor („faruri" → „far",
+    „injectoare" ↔ „injector"); cele cu cifre, oriunde (coduri OEM tastate pe jumătate).
+  · **Sinonimele sunt măsurate** (`SINONIME_CAUTARE`): „portieră" nu apare în NICIUN titlu, „Usa"
+    în 572; sursa scrie „Vw", clientul și „Volkswagen". Se adaugă un rând doar după numărare.
+  · Se aplică cu `.filter("cautare", "imatch", tipar)`: versiunea de supabase-js din proiect
+    n-are `.imatch()` în tipuri. Măsurat: „portiera skoda" 0 → 32 de piese, ~0,2 s.
+- **„Adaugă piesă" își completează singură câmpurile GOALE din titlu** (15 septembrie 2026,
+  `lib/sugestie-piesa.ts`): marca, modelul, anii, compatibilitatea afișată, categoria,
+  subcategoria, ilustrația. La piesă nouă pornește la ieșirea din câmpul de titlu; la editare doar
+  din butonul „↻ Completează din titlu". Ce a ales omul nu se suprascrie; nimic nu se salvează
+  fără „Publică piesa", iar formularul spune ce a completat.
+  · Marca/modelul/anii vin din `sugestieDinTitlu` din `lib/import/potrivire.mjs` — regulile
+    importului, nu o a doua potrivire. Nu contrazice interdicția de a deduce din titlu de piesă:
+    aceea privește scrieri fără confirmare; aici confirmă omul. Capacitatea cilindrică („1.6") se
+    scoate înainte, iar un model care arată a an („Peugeot 2008") nu se ia când e printre anii
+    titlului. **Măsurat pe 8.687 de piese: sugerează la 91,4%, precizie 99,5%.**
+  · Categoria vine din VOTUL pieselor existente cu aceleași cuvinte de piesă (fără marcă, model,
+    ani, motorizare), numărat în bază (`sugestie_clasificare`). Dacă sunt sub 3 piese, se renunță
+    la ultimul cuvânt. **Măsurat pe 700 de piese, fără piesa testată: categoria 95,3%,
+    subcategoria 90,3%.**
+- **„Cost intern" a fost scos din formularul de piesă** (15 septembrie 2026, cerut de proprietar).
+  `cost_lei` NU se mai trimite deloc la salvare — un `null` ar fi șters tăcut costul pieselor care
+  îl au. Coloana rămâne în bază.
+- **RETURURILE au AWB propriu, pe alt cont FAN** (21 octombrie 2026, documentație primită de la
+  ei; `docs/fancourier-retur.md`, migrarea 46). **Codul e gata și verificat pe API-ul lor real;
+  contul ocazional încă nu e creat** — până atunci panoul spune că nu e configurat și nu cheamă
+  pe nimeni.
+  · **De ce alt cont**: contul cu contract poate trimite doar colete care pleacă de la NOI. Pentru
+    ridicarea de la adresa clientului, FAN cere un cont selfAWB **ocazional** (fără contract),
+    mapat de ei la cel cu contract, de care se asociază plata. Alt `clientId`, alt utilizator,
+    altă parolă — de asta funcțiile de retur primesc `ConfigFan` ca parametru, iar `login()`
+    memorează token-ul după utilizator, nu global.
+  · **`sender` = CLIENTUL, `recipient` = depozitul** — exact invers față de AWB-ul de livrare,
+    unde `sender` nu se trimite deloc (expeditorul e contul).
+  · **Fiecare AWB de retur are nevoie de o COMANDĂ DE CURIER** (`POST /order`), altfel nimeni nu
+    trece pe la client. La livrări nu e nevoie: curierul vine zilnic la depozit. Se plasează
+    automat, odată cu AWB-ul. Dacă pică doar ea, **AWB-ul NU se anulează** (există la FAN), iar
+    panoul cere comandarea din selfawb.ro.
+  · **`awbNumber` pleacă în comanda de curier**, ca eticheta s-o printeze și s-o aducă CURIERUL:
+    clientul care returnează o piesă n-are de ce să aibă imprimantă.
+  · **`payment` NU e hardcodat.** FAN transmite valoarea corectă după ce mapează contul. Măsurat
+    pe API-ul lor: și „sender", și „recipient" generează AWB, cu ACELAȘI tarif — deci API-ul nu
+    ne apără de o valoare greșită, iar plata ar ajunge tăcut pe cine nu trebuie. E câmp în
+    Admin → Integrări, cu rezervă pe variabile de mediu (ca la contul de livrare).
+  · **Dimensiunile sunt OBLIGATORII la retur**, spre deosebire de AWB-ul de livrare (unde sunt
+    opționale din 16 septembrie 2026): `/order` fără ele răspunde 422. Măsurat: la 2 kg
+    Cluj→Bistrița tariful e 39,36 lei fără dimensiuni și 47,18 cu 40×30×20 — deci contează și la preț.
+  · **Intervalul de ridicare e 09:00–14:00**, singurul valid oriunde: documentația lor dă patru
+    intervale, după localitate (București 09–19, restul 09–17, localitate exterioară fără km
+    09–15, cu km taxabili 09–14), iar noi nu știm dinainte unde cade clientul. Minimum 2 ore între
+    capete — verificat: un interval de o oră dă 422. Data nu poate fi în trecut, iar „azi" se ia
+    pe fusul României: serverul e la Frankfurt.
+  · **Adresa vine din COMANDĂ**: formularul de retur nu cere adresa, iar `numar_comanda` e text
+    scris de client. Legătura se caută după număr (și după cifrele lui), se salvează în
+    `order_id`, iar ce corectează operatorul rămâne în `ridicare`.
+  · **Verificarea e `scripts/verifica-retur-fan.mjs`**, care rulează pe CONTUL DE PROBĂ al FAN din
+    anexa lor — deci merge și fără contul nostru. Cheamă funcțiile reale din `lib/fancourier.ts`
+    (compilate într-un `.tmp-fan/` temporar), nu o copie a payload-ului: o copie ar trece testul
+    și ar lăsa codul greșit. Creează un AWB și o comandă de curier, apoi le șterge pe amândouă.
+- **Clientul poate lăsa observații la comandă** (15 septembrie 2026, migrarea 41). Motivul: piese
+  scrise ca un singur produs pentru ambele părți („Oglindă stânga/dreapta"). Câmpul „4 ·
+  Observații" din checkout e opțional; textul apare în detaliul comenzii (scos în evidență), în
+  listă („✎ are observații") și în ambele e-mailuri. Politica de confidențialitate îl numește.
+- **Butonul de distribuire de pe pagina de piesă** (21 septembrie 2026, cerut de proprietar,
+  `components/DistribuiePiesa.tsx`). Pe telefon stă peste colțul din dreapta-sus al pozei principale
+  (vizibil fără defilare), pe desktop lângă titlu. Unde există meniul sistemului (`navigator.share`:
+  telefoane, Safari, Edge) îl deschide pe acela; altfel o listă: copiază linkul, WhatsApp, Facebook,
+  e-mail. Se trimite adresa CANONICĂ a piesei, cu titlul și prețul. Evenimentul GA4 e `share`
+  (standard), prin `ev()`. Facebook apare ca text, nu cu sigla lor (regula despre mărci).
+- **Descrierea piesei se afișează pe paragrafe** (15 septembrie 2026, `paragrafe()` din
+  `lib/format.ts`): rândul gol face paragraf nou, rândul simplu rămâne rând nou. Textul din bază
+  era deja structurat (8.509 din 8.806 descrieri au rânduri); doar HTML-ul le lipea.
+- Logo = imagine PNG (roată dințată + siluetă de mașină + „AUTOPAS DEZMEMBRĂRI", metalic cu
+  portocaliu #FF6B1A), pusă din 10 august 2026 în locul vechiului logo scris cu text. Se afișează
+  prin `components/Logo.tsx` — singura sursă; îi dai înălțimea din `className`. Originalul netăiat
+  stă în `design/logo-original.png` (nu e servit public), iar `design/genereaza-imagini.py` reface
+  din el `public/logo.png` + iconițele + imaginea de partajare. Logo-ul e gândit pentru fundal
+  închis (header, subsol, sidebar-ul de admin — toate temele le au închise). Font: Poppins
+  (local, în `app/fonts/`).
+- VIN = **se folosește, dar niciodată complet**. Pe mașinile la dezmembrat există `vin_masca`
+  (serie parțială, ex. `WVWZZZ1KZ…8452`), afișată public în `/cauta-dupa-masina` și editabilă în
+  `/admin/masini`. Formularul de predare a mașinii cere VIN-ul complet, opțional
+  (`car_intake_requests.vin`), vizibil doar echipei. Ce s-a abandonat e căutarea pieselor după VIN.
+- Starea piesei A/B/C — scoasă din interfață (filtru, pagina de produs, admin, import).
+  Coloana `products.stare` încă există în bază, dar e `nullable` și nu se mai completează;
+  a rămas doar ca să nu strice datele vechi. `stare_nota` (text liber) se folosește în continuare.
+- Cod intern piesă = generat automat, format `AP-000123`.
+- Număr comandă = generat pe server, din contorul `nr_comanda_seq`, format `AP-2026-01000`.
+- ~~Facturare prin Saga = export CSV~~ — DEPĂȘIT: din noiembrie 2026 facturile se emit și se trimit prin API-ul SAGA (`docs/saga-plan.md`). Exportul CSV a rămas în Facturi.
+- Curier = **doar FAN Courier** (decizie 7 aug 2026). Cargus și Sameday au fost scoase complet
+  din cod, din texte și din `settings.curieri`.
+- **AWB-ul FAN se generează din pagina comenzii, prin API-ul public v2** (15 septembrie 2026,
+  `lib/fancourier.ts`, `app/api/awb/route.ts`, `components/admin/AwbFan.tsx`).
+  · **Nu pluginul de WooCommerce** primit de la FAN: acela vorbește cu un intermediar
+    (`ecommerce.fancourier.ro`) la care magazinul se înregistrează după domeniu, cu
+    `platform: "WooCommerce"`. API-ul public (`api.fancourier.ro`) folosește aceleași date
+    selfAWB. Pluginul a servit doar ca listă a ce cere FAN la un AWB.
+  · **Verificat pe API-ul real** cu contul de test din ghidul lor (clientId 7032158,
+    `clienttest`/`testing`): login JSON → token 24h; `POST /intern-awb` → `awbNumber`, `tariff`
+    (fără TVA), `vat`, `trackingUrl`; `GET /awb/label?pdf=1` → PDF; `DELETE /awb`; localitate
+    inexistentă → `errors.locality`. Greutatea cu zecimale e
+    rotunjită în sus de FAN. AWB-urile de test au fost șterse.
+  · **Operatorul scrie la fiecare AWB colete și kg — greutatea NU se ia din piese** (decizia
+    proprietarului: piesele au 1 kg pus automat). **Dimensiunile sunt OPȚIONALE** (16 septembrie 2026,
+    cerut de proprietar — așa lucrează și în selfAWB): ori toate trei, ori niciuna; goale, câmpul
+    `dimensions` nu pleacă deloc la FAN (`areDimensiuni`). Verificat pe contul de test FAN: AWB-ul se
+    generează fără ele, iar tariful la 5 kg Cluj a ieșit identic cu și fără 40×30×20 (49,55 lei). Câmpurile pornesc doar de la ce
+    s-a scris la „Cost livrare" pentru comanda ASTA. Avertismentul „greutate estimată" din comandă
+    și estimarea de 5 kg/piesă din „Expedieri" au fost scoase; borderoul scrie greutatea declarată.
+  · Restul vine din comandă, citit pe SERVER: destinatarul (firma + persoana de contact),
+    `costCenter` = numărul comenzii (se regăsește pe selfawb.ro). Adresa se poate corecta dintr-un
+    panou pliat.
+  · **TRANSPORTUL ÎL ÎNCASEAZĂ FAN, NU FIRMA** (decizia proprietarului, 15 septembrie 2026 — așa
+    lucra și din eAWB): AWB-ul și tariful pleacă cu `payment: "recipient"`; **rambursul = DOAR
+    valoarea pieselor** (`subtotal − reducere`); rubrica **„Conținut" pleacă GOALĂ** (`content: ""`,
+    câmpul a dispărut din admin). Operatorul tot calculează transportul și îl spune clientului, dar
+    `seteaza_cost_livrare` (migrarea 45) nu-l mai adaugă la `orders.total`. Consecințe aplicate:
+    detaliul comenzii arată „De încasat (ramburs pe AWB)" și transportul separat; mesajul WhatsApp
+    desparte piesele de transport; Expedieri/borderoul arată rambursul de pe AWB (sau piesele);
+    exporturile Saga pun transportul pe factură doar când e inclus în total (comenzile vechi);
+    Termenii (7, 8), Livrarea (2), FAQ, checkout și pagina de mulțumire spun că transportul se
+    plătește curierului. Comenzile vechi au `total` cu transport — de aceea codul calculează
+    rambursul din `subtotal − reducere`, NU din `total`.
+  · Serviciul: „Cont Colector" dacă e ramburs și bifa „ramburs în cont" e pusă, altfel „Standard".
+    NEVERIFICAT pe API la schimbarea spre `recipient` (apelurile externe erau blocate în sesiune):
+    de confirmat la primul AWB real că eticheta scrie „Plata transport: destinatar", ramburs = piesele,
+    conținut gol, și că tariful din calculator e același cu cel facturat.
+  · **„Șterge AWB-ul" îl scoate ȘI la FAN, ȘI din comandă** (`stergeAwb` + acțiunea `sterge` din
+    `app/api/awb/route.ts`). Dacă FAN spune că AWB-ul nu (mai) există — șters din selfawb.ro, scris
+    greșit de mână — comanda se curăță oricum. La orice alt refuz, AWB-ul NU se scoate, iar în admin
+    apare „Scoate AWB-ul doar din admin" (cu confirmare). O comandă „expediată" revine la
+    „confirmată". Totul intră în jurnal.
+  · **Fără „Deschidere la livrare", nicăieri** (decizia proprietarului, 15 septembrie 2026): AWB-ul și
+    tariful pleacă cu `options: []`, bifa din Integrări a fost scoasă, iar textele care promiteau
+    plata „după ce ai verificat coletul" (checkout, FAQ) au fost scurtate. Politica de livrare cere
+    doar verificarea ambalajului EXTERIOR în prezența curierului (pentru procesul-verbal de daună).
+    Opțiunea FAN „A" costa 6 lei + TVA: Cluj 5 kg 40×30×20 a scăzut de la 36,18 la 28,92 lei.
+  · AWB-ul se scrie în comandă DE RUTĂ, imediat după răspunsul FAN — nu de browser. Dacă scrierea
+    pică, ruta întoarce numărul, ca să nu existe un AWB la FAN necunoscut nouă.
+  · Rămâne regula din 7 august: fără cost de livrare stabilit, AWB-ul nu se generează.
+  · **Calculatorul de transport** (15 septembrie 2026, cerut de proprietar: „nu stabilesc eu costul").
+    Cardul „Livrare — FAN Courier" din comandă are trei pași: (1) colete + kg + dimensiuni →
+    „Calculează transportul" → prețul FAN defalcat (greutate, km suplimentari, combustibil, TVA)
+    și totalul de plată; operatorul sună clientul; (2) „Clientul a acceptat"
+    → `seteaza_cost_livrare`, cu km suplimentari separat, cu TVA; (3) „Generează AWB"
+    cu aceleași kg/dimensiuni (avertisment dacă diferă de calcul). Suma pentru client rămâne
+    editabilă (rotunjire, 0 la ridicare personală). Cardul manual „Cost livrare" a fost scos.
+    Același calculator, fără comandă, stă în „Expedieri", pentru clientul care sună înainte să comande.
+  · Tariful vine din `GET /reports/awb/internal-tariff`, cu ACELAȘI serviciu și aceleași opțiuni (niciuna)
+    ca AWB-ul. Măsurat pe contul real: Cluj 5 kg 40×30×20 = 28,92 lei cu TVA; Broșteni (SV) +15 lei
+    km suplimentari; suma rambursului NU schimbă prețul. Cu ramburs, FAN cere `info[returnPayment]`.
+  · **Județul și localitatea pleacă fără diacritice** (`faraDiacritice`): tariful respinge
+    „Broșteni" ca localitate inexistentă și acceptă „Brosteni".
+- **Adresa de la checkout se alege din nomenclatorul FAN** (15 septembrie 2026, cerut de proprietar,
+  `components/AlegeAdresa.tsx`, migrarea 44). Județ din listă (afișat cu diacritice, salvat „Neamț"),
+  localitate tastată și aleasă din listă (obligatoriu din listă — altfel FAN o refuză la AWB și la
+  tarif), stradă cu sugestii din nomenclator (NU obligatorie și nici obligatoriu din listă: FAN are „străzi"
+  pentru 13.827 din 13.833 de localități, dar la satele mici e doar „Strada Principala" de umplutură,
+  iar adresa reală e „nr. 181"), apoi număr/bloc/ap. (obligatoriu). `orders.adresa` rămâne un singur text:
+  „stradă, număr".
+  · Datele vin din API-ul FAN, NU din CSV-urile primite: „Streets Bucuresti.csv" are doar Bucureștiul,
+    API-ul are străzi pentru toate orașele. Măsurat: 42 de județe, 13.833 de localități (8.350 cu km
+    suplimentari), 148.419 rânduri de „străzi", din care se păstrează 121.744: se sar cele 13.833 goale
+    (una pe localitate), 9.530 de PayPoint-uri și 3.311 lockere — altfel apăreau la checkout ca străzi.
+    Se reface cu `scripts/actualizeaza-nomenclator-fan.mjs`.
+  · **Strada NU se golește niciodată singură** (13 noiembrie 2026, defect găsit în producție: AP-2026-01844, 01850,
+    01856, 01857 fără stradă). Câmpul Localitate golea strada la orice tastare și la alegerea din listă: clientul scria
+    localitatea de mână, apoi strada și numărul, browserul cerea „Alege localitatea din listă”, clientul o alegea — și
+    strada dispărea tăcut. Reprodus cu Playwright pe site-ul live, apoi verificat corectat. Tot atunci: scrierile
+    întârziate (alegerea la ieșirea din câmp, încărcarea localităților) porneau de la o copie VECHE a adresei; acum
+    pornesc de la ultima valoare (`schimba` / `cur()` din `components/AlegeAdresa.tsx`).
+  · Dacă nomenclatorul nu se poate citi, câmpurile devin text liber: o comandă pierdută costă mai mult
+    decât o adresă corectată la AWB.
+  · Aceeași componentă (fără stradă, `stil="admin"`) alege județul și localitatea în panoul de adresă
+    al comenzii și în calculatorul din „Expedieri".
+  · Serverul (`plaseaza_comanda`) NU verifică localitatea în nomenclator — intenționat, din același
+    motiv: un checkout vechi rămas deschis nu trebuie să piardă comanda.
+  · **AWB-ul NU cheamă curierul, și nici nu trebuie**: firma lucrează de ani de zile cu FAN, iar
+    curierul vine zilnic la depozit. Decizie a proprietarului: fără buton de „comandă curier".
+- **Plata e EXCLUSIV ramburs la livrare** (decizie 7 septembrie 2026, care înlocuiește
+  „butonul de card e vizibil, activarea vine cu procesatorul"). Cardul și transferul bancar
+  au fost scoase din checkout, din FAQ, din subsolul care afișa „VISA · Mastercard" și din
+  secțiunea „8. Plata" a Termenilor. Cardul era oricum inactiv: se înregistra comanda și se
+  cerea plata pe altă cale, adică fix promisiunea pe care checkout-ul n-o putea ține.
+  · În checkout NU e un grup de butoane radio cu o singură opțiune — e o afirmație. Un buton
+    între care n-ai ce alege arată a defect, iar cel bifat din start pare că ascunde altele.
+  · Valoarea trimisă lui `plaseaza_comanda` rămâne `"ramburs"`, dintr-o constantă în
+    `app/checkout/page.tsx`, ca ziua în care se adaugă cardul să aibă un singur loc de schimbat.
+  · Integrarea „Plată cu cardul (Netopia / Stripe)" rămâne listată în Admin → Integrări ca
+    fază următoare: e o notă internă, nu o promisiune făcută clientului.
+- **Coșul reține poza piesei** (`CartItem.poza`, 7 septembrie 2026). Înainte `/cos` desena
+  întotdeauna `PartArt`, adică ilustrația de rezervă, chiar și pentru cele ~8.700 de piese
+  care au poze reale — clientul punea în coș o piesă cu fotografie și primea un desen.
+  · `poza: null` înseamnă „am verificat, n-are poză"; CHEIA LIPSĂ înseamnă „coș salvat
+    înainte de schimbare". `CartContext` completează o singură dată coșurile vechi, dintr-o
+    interogare, și se bazează pe distincția asta. Cu `!i.poza` în loc de `!("poza" in i)`, o
+    piesă fără poză ar fi pornit o cerere la fiecare încărcare de pagină, pe viață.
+  · `/cos` folosește `ProductPhoto`, aceeași componentă ca pe carduri și pe pagina de piesă,
+    deci imaginea arată la fel peste tot și rezerva desenată rămâne pentru piesele fără poză.
+- **Coșul se golește la reîncărcare ÎN DEZVOLTARE, nu în producție** (constatat 7 septembrie
+  2026, măsurat pe amândouă build-urile). `CartProvider` citește `localStorage` într-un efect
+  și scrie în altul, la fiecare schimbare a coșului. În dev, React StrictMode rulează efectele
+  de două ori: prima pereche citește coșul și îl rescrie, a doua CITEȘTE ce tocmai s-a scris —
+  adică `[]`, fiindcă la a doua montare starea repornește goală. În build-ul de producție
+  efectele rulează o singură dată și coșul supraviețuiește; verificat cu `next start`.
+  · Nu e reparat: nu afectează niciun client. Dar cine testează coșul cu `npm run dev` trebuie
+    să știe, altfel pierde o oră căutând un defect care nu există.
+  · Dacă se repară vreodată: nu se scrie în `localStorage` până când citirea inițială n-a avut
+    loc (un `useState` de „încărcat"), nu se atacă simptomul.
+- Notificare comandă nouă = alertă sonoră+vizuală în `/admin` + buton „Trimite confirmarea pe
+  WhatsApp" precompletat + **e-mail automat, din 7 septembrie 2026** (vezi blocul de mai jos).
+  Alerta din panou NU se scoate: e-mailul te prinde când nu ești în fața calculatorului,
+  alerta te prinde când ești. Decizia veche „fără e-mail, utilizatorul a refuzat Resend" a
+  fost răsturnată de utilizator; furnizorul ales acum e Brevo, nu Resend.
+- **Costul livrării NU se afișează la checkout** (decizie 7 aug 2026). Piesele diferă prea mult ca
+  greutate și gabarit ca să existe un tarif fix. Clientul comandă doar produsele; echipa scrie în
+  `/admin/comenzi/[id]` coletele, kg și dimensiunile, iar **prețul îl calculează FAN** (vezi
+  „Calculatorul de transport" la decizia AWB). `seteaza_cost_livrare` recalculează totalul.
+  Generarea AWB e blocată până atunci.
+  Costul se comunică telefonic + pe WhatsApp. E-mail automat: refuzat deocamdată.
+- **Prețurile și totalurile se calculează exclusiv pe server** (`plaseaza_comanda`). Browserul trimite
+  doar id-urile pieselor. Nu adăuga niciodată `insert` direct în `orders`/`order_items` — politicile
+  RLS de insert au fost șterse intenționat.
+- **Paginile de catalog nu se pun în cache** (`fetch-cache = "force-no-store"` în `app/page.tsx`,
+  `app/piese/page.tsx`, `app/piese/[slug]/page.tsx`, `app/cauta-dupa-masina/page.tsx`). `revalidate = 300`
+  din `app/layout.tsx` se aplică întregului arbore de rute și ținea stocul vechi 5 minute — inacceptabil
+  când fiecare piesă e unicat. Paginile informative păstrează cei 300 de secunde.
+- **Căutarea merge fără diacritice**, prin coloana calculată `products.cautare`. Funcția de normalizare
+  există în două locuri care trebuie ținute la fel: `text_cautare` în bază și `textCautare` din
+  `lib/format.ts`. Cuvintele din căutare se caută separat (toate trebuie să apară).
+- **`products` are două legături către `categories`** (`categorie_id` și `subcategorie_id`), deci orice
+  `select` cu `categories(*)` trebuie să numească cheia: `categories!products_categorie_id_fkey(*)`.
+  Altfel Supabase respinge cererea ca ambiguă (PGRST201) și pagina rămâne goală.
+- **Orice UPDATE sau DELETE din `/admin` trece prin `scrieVerificat()`** din `lib/supabase.ts`.
+  Motivul e defectul din 25 august 2026: un UPDATE oprit de RLS întoarce 204, **zero rânduri
+  și NICIO eroare**, deci codul care se uită doar la `error` afișa „✓ Salvat" peste o
+  operațiune care n-a atins nimic. Funcția cere înapoi rândurile atinse (`.select()`) și
+  tratează zero rânduri ca eșec. La `insert` nu e nevoie: acolo RLS chiar ridică eroare (42501).
+  Excepție conștientă: dezlegările în masă („scoate categoria de pe toate piesele ei"), unde
+  zero rânduri e un rezultat legitim — sunt marcate cu comentariu în cod.
+- **După o salvare din Setări se cheamă `/api/revalideaza`**, care face
+  `revalidatePath("/", "layout")`. Fără el, `revalidate = 300` din `app/layout.tsx` ține datele
+  firmei vechi până la 5 minute în subsol, la contact și în documentele legale — exact simptomul
+  „am salvat și nu se vede".
+- **Rutele din `app/api/` nu sunt protejate de RLS** — rulează pe server, cu drepturi de server.
+  Cele care fac ceva în numele firmei cer token-ul sesiunii și îl verifică cu `esteEchipa()` din
+  `lib/supabase.ts` (vezi `app/api/awb/route.ts`).
+- **Funcțiile rulează la Frankfurt** (`vercel.json`, `"regions": ["fra1"]`, 25 august 2026). Implicit
+  Vercel le pune la Washington (`iad1`), ceea ce e absurd pentru un magazin din Neamț: fiecare pagină
+  randată pe server făcea drumul peste Atlantic. Motivul imediat a fost însă altul — pieseauto.ro
+  refuzase IP-ul de pe care rula importul, iar Frankfurt e alt bazin de adrese. `vercel.json` nu
+  acceptă comentarii, de asta explicația stă aici.
+- ~~Indexarea oprită până la lansare~~ — DEPĂȘIT: indexarea e pornită (`PERMITE_INDEXARE=da`), domeniul e înregistrat.
+- **Sincronizarea cu pieseauto.ro se face DOAR din CSV, fără pagini** (15 septembrie 2026, cerut de
+  proprietar: „ne blochează dacă băgăm CSV-ul"). Modul implicit din `/admin/import` și
+  `scripts/import-pieseauto.mjs --fara-pagini`; opțiunea `faraPagini` a motorului
+  (`proceseazaRanduri`), jobul poartă `optiuni.fara_pagini`.
+  · Zero cereri la pieseauto.ro: prețurile se actualizează din CSV, piesele lipsă se depublică (plasa
+    de 20% rămâne), iar piesele NOI intră ca **ciorne nepublicate** — titlu, preț, `sursa_url`, plus
+    modelul și anii deduși din titlu cu `sugestieDinTitlu` (`construiesteCiorna` din `lib/import/rand.mjs`).
+  · Ciornele se văd în **Admin → „Piese noi din CSV"** (`/admin/piese-noi`, cu număr în meniu): link
+    la anunțul lor (operatorul ia pozele și descrierea din browserul LUI, pe care nu-l blochează) și
+    „Completează". Formularul completează singur categoria la deschidere și cere confirmare dacă
+    publici fără poze. Salvată publicată, piesa iese din listă. „Piese de completat" nu le mai arată.
+  · **Marcajul e `import_erori.ciorna = true`, într-o coloană jsonb EXISTENTĂ, nu o coloană nouă** —
+    ales intenționat: conectorul Supabase era deconectat, iar o coloană nouă ar fi stricat inserarea
+    până la rularea manuală a migrării. Filtrul REST: `import_erori->>ciorna=eq.true`. Dacă se
+    mută vreodată într-o coloană, se schimbă `construiesteCiorna`, `esteCiorna`, `/admin/piese-noi`,
+    meniul din `app/admin/layout.tsx`, `piese-de-completat` și `ProductForm`.
+  · Piesele vândute NU se șterg din bază, se depublică (`publicat = false`, `sursa_activ = false`):
+    dispar de pe site și de pe dez.ro (triggerul din migrarea 39), dar rămân legate de comenzile din
+    istoric, iar o piesă care reapare în CSV redevine activă. O ciornă vândută înainte de completare
+    iese singură din listă (lista cere `sursa_activ = true`).
+  · Verificat: `verifica-import.mjs` are 12 verificări pe ciorne (139 în total); o rulare pe uscat pe
+    baza reală a dat 0 pagini cerute, 2 ciorne, 2 prețuri actualizate.
+- **Ciornele se completează din BROWSERUL operatorului, cu butonul „Preia în Autopas"** (15 septembrie
+  2026, cerut de proprietar; `app/api/preia-anunt/route.ts`, `app/admin/preia-anunt/page.tsx`, butonul
+  generat de `codButon` în `/admin/piese-noi`). pieseauto.ro refuză serverul nostru („sorry" din prima
+  cerere, verificat în aceeași zi pe AP-009045).
+  · **NU le ocolim blocarea**: fără alt IP, proxy sau antete de browser — cerut explicit și refuzat.
+    Anunțul îl deschide omul, în browserul lui; butonul (bookmarklet) ia HTML-ul paginii și pozele de
+    acolo. Serverul nostru nu face NICIO cerere la pieseauto.ro.
+  · **Drumul datelor e PRIN SERVER, nu între taburi.** Prima variantă (`window.opener` + `postMessage`)
+    n-a primit nimic la proprietar: pieseauto.ro trimite `Cross-Origin-Opener-Policy: same-origin`
+    (verificat pe antetele lor), care taie legătura cu orice tab deschis de pe pagina lor. Acum butonul
+    deschide `/admin/preia-anunt#p=<cod aleator>` și trimite cu `fetch` + CORS (doar origini
+    `*.pieseauto.ro`) pagina, pozele și „gata" într-un depozit TEMPORAR, `import-csv/preluari/<cod>/`
+    (bucket privat); tabul întreabă serverul la 1,5 s, cu sesiunea echipei, arată ce a sosit, iar
+    „Preia și publică" completează piesa din depozit și îl golește. Depunerile mai vechi de o zi se
+    șterg la următoarea trimitere (momentul e în cod).
+  · **Cheia butonului** stă în `settings.integrari.preluare.cheie` (creată la 15 septembrie 2026; o
+    creează și ruta, la cererea echipei) și e scrisă în bookmarklet. Dă voie DOAR să depui date pentru
+    o ciornă existentă; scrierea piesei cere sesiunea echipei. Dacă se schimbă cheia, butoanele vechi
+    răspund „Butonul e vechi" și se trag din nou din „Piese noi din CSV".
+  · **Aceleași reguli ca importul**: bucla din `proceseazaRanduri` a fost scoasă în `piesaDinPagina`
+    (extragere, model, categorie, poze, `construiesteRand`) și `urcaPozaImport`, folosite de ambele.
+    `verifica-import.mjs` trece 139/139 după mutare. Lista pozelor o dă tot serverul (`extragePoze`);
+    butonul doar le aduce. ID-ul anunțului din adresă: `idAnuntDinAdresa`.
+  · Gărzi: poza verificată după octeți (≤ 4 MB, butonul micșorează ce e mai mare), ID-ul din adresă ȘI
+    din `og:url` = `sursa_id`-ul piesei, scriere doar dacă piesa e ÎNCĂ ciornă (condiție în UPDATE),
+    pozele urcate se șterg dacă salvarea pică. Se publică doar cu cel puțin o poză; altfel rămâne
+    ciornă, cu descrierea și categoria puse. Codul butonului se pune codificat în `href` și nu are
+    voie să conțină `%` (browserul decodează adresele `javascript:`).
+  · Testat: pagină falsă cu antetul COOP real al pieseauto.ro + serverul nostru real (next start) +
+    stocarea reală, apoi tabul cu API-ul simulat. NETESTAT încă pe un anunț real — prima probă o face
+    operatorul (AP-009045).
+- **Importul din pieseauto.ro rulează din `/admin/import`**, în loturi cerute de browser, cu starea
+  în `import_jobs` și fișierul CSV într-un bucket privat. Scriptul `scripts/import-pieseauto.mjs`
+  rămâne, pentru rulări fără browser. AMÂNDOUĂ folosesc același motor, din `lib/import/` — nicio
+  regulă de import nu are voie să existe în altă parte (vezi `lib/import/README.md`).
+- **Paginile se aduc pe HTTP/2, cu `node:http2`** (constatat 25 august 2026). pieseauto.ro refuză
+  cererile HTTP/1.1: `fetch` din Node ȘI `node:https` primesc pagina „sorry" cu HTTP 200, chiar cu
+  antetele curățate. Nu antetele erau vinovate (nici `sec-fetch-mode`), ci versiunea de protocol —
+  `curl` negocia h2 și de asta mergea doar el. Cu h2 nativ, importul merge la fel din Codespace și
+  din funcția serverless de pe Vercel, deci **clientul poate încărca CSV-ul direct din site**.
+  `curl` a rămas doar ca plasă, dacă h2 nu se poate deschide. Un singur drum în ambele medii —
+  diferența dintre ele era chiar cauza defectului de mai jos.
+- **Un refuz care ține după toate reîncercările oprește lotul** (`fatal` în `aducere.mjs`,
+  `oprit = "refuz"` în motor). Înainte, fiecare piesă nouă intra în scara de reîncercări
+  (5+15+45 = 65s), funcția era tăiată la 60s cu **504**, iar cum progresul se scria doar la finalul
+  lotului, `procesate` rămânea 0 și „Continuă importul" relua la infinit aceleași rânduri. Azi lotul
+  se oprește în ~1s, jobul trece în `in_pauza` cu motivul scris, și poate fi continuat.
+- **Progresul unui lot se salvează din mers**, la fiecare 4 secunde (`SALVARE_LA_MS` în
+  `app/api/import/route.ts`), nu doar la final. Fără asta, orice cerere tăiată pierdea tot lotul.
+- **Un lot întreabă baza doar despre rândurile pe care le poate atinge** (`randuri.slice(0, maxRanduri)`
+  în motor). Înainte întreba despre toată coada feed-ului: la 8.500 de rânduri însemna 85 de cereri
+  REST — 3,4 secunde măsurate — înainte de a procesa 4 piese, la fiecare lot. Nu accelerează nimic
+  spre pieseauto.ro (pauza politicoasă e neatinsă); doar nu mai irosește bugetul lotului.
+- **Invariantul unui lot**: `BUGET_MS + TIMEOUT_PAGINA_MS + BUGET_POZE_MS ≤ 55s`, adică 15 + 20 + 15 = 50,
+  sub limita de 60s a funcției. Bugetul se verifică înainte de fiecare rând, deci lotul mai poate începe
+  unul chiar la limită. Pozele unei piese au buget propriu (`BUGET_POZE_MS`) pe lângă timeout-ul fiecăreia:
+  opt poze lente s-ar înmulți, iar un rând neterminat nu avansează poziția — importul s-ar bloca pe el.
+  Cine schimbă una dintre cele trei valori reface suma; `verifica-import.mjs` o verifică.
+- **Pentru primul import mare (mii de piese) se folosește scriptul din terminal**, nu ecranul din admin.
+  `scripts/import-pieseauto.mjs` face o singură trecere: citește CSV-ul o dată, taxonomia o dată,
+  existența o dată. Ecranul din admin cere un lot pe HTTP, deci reciteste CSV-ul la fiecare lot —
+  la 8.500 de rânduri sunt ~2.000 de loturi × ~1 MB. Adminul e gândit pentru feed-ul zilnic
+  (mai ales actualizări de preț, care nu cer nicio pagină de la sursă).
+- **Nicio piesă importată nu mai rămâne fără categorie** (decizie 25 august 2026, care înlocuiește
+  regula veche „ambiguu sau inexistent => se lasă gol"). Ce lipsește din arborele nostru se creează
+  automat, cu numele luat din catalogul pieseauto.ro (`lib/import/taxonomie-sursa.mjs`, 742 categorii
+  în 33 de grupe, regenerat cu `scripts/actualizeaza-taxonomie-sursa.mjs`). Ordinea deciziei:
+  (1) `REGULI_CATEGORII` — traducerile aprobate de om au întâietate, fiindcă sunt mai bune decât
+  automatismul („Răcitor gaze" merge la „EGR și Clapetă acceleratie", unde îl caută un mecanic);
+  (2) părintele vine din grupa lor, prin `GRUPE_LA_PARINTE`; (3) o grupă nemapată devine ea însăși
+  categorie-părinte. Taxonomia LOR e plată în breadcrumb — grupa se poate afla doar din `/categorii/`.
+- **O piesă se leagă de TOATE mașinile compatibile** (`products.model_ids`, corectat 25 august 2026).
+  Pagina sursei scrie „Piesă auto compatibilă cu:" și enumeră mai multe mașini, dar **doar prima e
+  link** — restul sunt text simplu în `<span class="q-car-model">`. Regexul vechi cerea `<a>` înăuntru
+  și pierdea tăcut celelalte linii, așa că „Debitmetru Aer Vw Sharan" apărea legat doar de Ford
+  Galaxy. Nu era o greșeală a sursei: Sharan și Galaxy sunt aceeași mașină, Caddy e pe platforma lui
+  Golf 5. Un radiator de Passat B6 se leagă legitim de 7 modele.
+- **Modelul „principal"** (`model_id`, pentru afișare) e primul recunoscut pe care îl confirmă și
+  titlul — titlul descrie mașina de pe care s-a demontat piesa. Semnalarea „⚠ nu apare în titlu" se
+  face doar dacă NICIUNA dintre compatibilități nu apare acolo; una singură care lipsește e a doua
+  mașină compatibilă, nu o eroare.
+- **Crearea unui model lipsă are două reguli diferite**: dacă piesa n-are niciun model, se creează
+  doar linia pe care titlul o confirmă (altfel am lega o piesă de Golf 5 la un „Jetta" nou-nouț);
+  dacă piesa are deja un model, restul liniilor sunt compatibilități în plus și se creează fără altă
+  condiție. Nu se creează NICIODATĂ un model generic când există deja generații pentru numele acela
+  („Octavia" lângă „Octavia 2" și „Octavia 3" ar rupe filtrul în două).
+- **Generația se deduce din anii din titlu**, întâi strict (anii încap în interval), apoi prin
+  suprapunere — dar numai dacă o singură generație se suprapune. „Caddy 2003 2004 2005" iese cu un an
+  din „Caddy III (2004–2015)" și tot se nimerește; „Golf 2008" prinde și Golf 5, și Golf 6, deci
+  rămâne ambiguu și nu se alege niciuna.
+- **Codul piesei (`oem`) vine din descriere, de pe rândul „COD: …"** (7 septembrie 2026,
+  `codOem` din `lib/import/extragere.mjs`). Până atunci `extrage()` întorcea `oem: null`, cu nota
+  „confirmat absent pe pagină" — concluzie trasă când descrierea se citea TĂIATĂ (vezi mai jos),
+  iar rândul cu codul cădea aproape mereu în partea pierdută.
+  · **Formele sunt măsurate**: 43 de rânduri „COD:" culese de pe 60 de pagini reale. Regula care
+    iese din ele: **spațiul ține împreună, bara desparte**. „av6n 18456 ca" e UN cod (Ford, Toyota,
+    Mazda le scriu cu spații), „4M0853817 / 4M0854819" sunt DOUĂ. N-a apărut niciun caz în care un
+    spațiu să despartă două coduri.
+  · **Sursa nu pune întotdeauna `<br>` după cod**, deci fraza curge lipită: „8200842205Pretul
+    afisat este pe bucata !". Se taie la primul cuvânt care arată a cuvânt — o majusculă urmată de
+    litere mici, sau patru majuscule la rând. Numerele de piesă nu arată niciodată așa: se termină
+    în cel mult trei litere („5H0805915P", „1k0407272JT").
+  · **Un câmp gol e mai bun decât unul cu text în el**: `oem` ajunge în feed-urile de reclame și în
+    anunțurile de pe dez.ro. De aceea „COD: se vede in poza" nu produce nimic, iar un cod trebuie
+    să aibă cel puțin trei cifre.
+  · Piesele importate înainte se completează cu `scripts/completeaza-oem.mjs`.
+- **Descrierea se lua TĂIATĂ la primul `</div>`** (defect găsit la 7 septembrie 2026, în producție
+  de la primul import). Sursa își scrie paragrafele în `<div>`-uri imbricate, iar regexul non-greedy
+  se oprea la închiderea primului div interior — de obicei rândul gol de sub titlu. Măsurat pe 40
+  de pagini luate din tot catalogul: **17 descrieri din 40 erau tăiate**, una de la 386 de
+  caractere la 84. `blocEtichetat()` numără acum deschiderile și închiderile aceleiași etichete.
+  · Reparat pentru piesele vechi de `scripts/completeaza-oem.mjs`, cu **regula prefixului**:
+    descrierea salvată se înlocuiește DOAR dacă e chiar începutul celei citite acum. O descriere
+    tăiată e, literalmente, prefixul celei întregi; una rescrisă de operator nu e, deci rămâne
+    neatinsă. Verificat pe 8 piese reale înainte de a scrie regula.
+- **Greutatea NU poate veni de la pieseauto.ro** (verificat 25 august 2026): nu e nici în CSV
+  (ID, URL, Titlu, Moneda, Pret), nici pe pagina produsului — n-au tabel de specificații. Rămâne
+  1 kg cu `greutate_estimata = true`, cântărit la formarea coletului.
+- **Piesele importate se publică direct**, cu pozele descărcate în timpul importului, chiar dacă le
+  lipsește categoria sau modelul (decizie 25 august 2026). Greutatea primește 1 kg cu
+  `greutate_estimata = true`; se cântărește la formarea coletului. Triggerul `verifica_publicarea`,
+  care interzicea publicarea fără poze, a fost eliminat de migrarea 22. Ecranul „Piese de completat"
+  nu mai e o poartă, ci o listă de lucru cu ce lipsește, sortată după gravitate.
+- **Feed-ul pieseauto.ro e mereu complet**, deci o piesă lipsă din el înseamnă vândută: se depublică
+  automat (`sursa_activ = false`, `publicat = false`, rândul rămâne). Peste 20% piese lipsă,
+  importul cere confirmare separată — un export trunchiat ar stinge tot catalogul.
+- Favorite = model hibrid (localStorage pentru nelogați + tabela `favorites` pentru logați, cu sincronizare).
+- **Anii generației stau în `models.an_start` / `models.an_final`, nu în nume** (migrarea 24,
+  28 august 2026). Înainte, `interval()` din `lib/import/potrivire.mjs` îi citea din numele
+  modelului, cu un regex care cerea paranteze: „Fabia 2 (2007–2014)". Doar 69 din 345 de modele
+  îi aveau scriși, și în formate amestecate („Crafter 2E 2006 -2017", fără paranteze). Un model
+  fără interval era eliminat TĂCUT din dezambiguizare, deci „Fabia 3" nu putea fi ales niciodată
+  — cele 40 de piese de „Skoda Fabia" rămâneau fără model din cauza asta. `an_final` null
+  înseamnă „încă în producție", nu „necunoscut". Numele rămâne doar pentru afișare, iar citirea
+  din nume a rămas ca plasă pentru modelele create înainte de migrare. Anii se completează din
+  Admin → Mărci și modele; un model fără ani e marcat acolo cu „⚠ fără ani".
+  Atenție la Peugeot: „2008", „3008", „308" sunt NUME de modele. De aceea nu se caută niciodată
+  un an singur, ci doar un interval („2006–2014") sau o formă deschisă („2026 +").
+- **Tabela `brands` e completă intenționat; curățenia se face la AFIȘARE** (decizie 28 august
+  2026). Filtrul de pe site arată doar mărcile cu cel puțin o piesă publicată — `marciCuPiese`
+  din `lib/format.ts`, folosită în `app/page.tsx`, `app/piese/page.tsx` și
+  `app/cauta-dupa-masina/page.tsx`. Așa mărcile rămase din lista de dealer (BYD, Cherry, OMODA,
+  JAECOO) dispar singure din meniu fără să ștergem un rând, iar una care primește prima piesă
+  apare singură, fără migrare. La mărci NU există prag pe număr de piese, spre deosebire de
+  subcategorii: cine caută Alfa Romeo caută exact asta, iar 8 piese invizibile sunt 8 piese
+  pierdute.
+- **Sinonimele de marcă sunt măsurate, nu presupuse** (`SINONIME_MARCI` din `potrivire.mjs`).
+  La 28 august 2026 s-au numărat toate cele 12.410 linii de compatibilitate din bază: sursa
+  scrie „Mercedes …" și niciodată „Mercedes-Benz", „Land Rover …" și niciodată „Range Rover",
+  „SsangYong …" și niciodată „KGM"; „VAG" și „MB" nu apar deloc. A rămas un singur sinonim,
+  KGM -> SsangYong, și acela pentru viitor: marca se numește azi oficial KGM, dar clientul care
+  vrea o piesă de Rexton scrie „SsangYong".
+- **Modul vacanță NU atinge niciodată `products.publicat`** (28 august 2026, `supabase/mod-vacanta.sql`).
+  Implementarea evidentă — „la activare `update products set publicat=false`, la dezactivare
+  invers" — ar distruge catalogul: a doua comandă ar republica piesele ascunse de operator, cele
+  cu stoc 0 depublicate de trigger, cele dispărute din feed și cele nepublicate fiindcă le lipsea
+  ceva. După dezactivare n-ar mai exista nicio cale de a distinge, iar informația s-ar pierde
+  ireversibil. E doar un comutator global în `settings.vacanta`, citit la AFIȘARE.
+  · Blocarea reală a comenzilor e în `plaseaza_comanda`, prima verificare din funcție, înaintea
+    oricărei scrieri. Restul (liste goale, butoane ascunse) e cosmetică: cine are checkout-ul
+    deschis tot nu poate comanda.
+  · Rândul din `settings` NU e citibil public — `activat_de` e adresa unui om din echipă. Site-ul
+    primește doar `activ` și `mesaj`, prin `vacanta_publica()`.
+  · **Paginile de produs rămân accesibile, cu HTTP 200, iar `sitemap.xml` nu se schimbă.** Dacă ar
+    întoarce 404, Google le-ar scoate din index, iar poziționarea s-ar recâștiga în săptămâni, nu
+    în ore. Se schimbă doar butonul de comandă.
+  · Verificarea „nu atinge catalogul" nu se poate face citind codul, fiindcă defectul ar fi
+    invizibil până la dezactivare: `scripts/verifica-vacanta.mjs` ia o amprentă a catalogului,
+    face un ciclu activare/dezactivare și o compară.
+  · Ascunderea butonului de coș stă în `AddToCart`, nu în `ProductCard`: e singurul loc prin care
+    o piesă ajunge în coș, deci acoperă dintr-o dată și favoritele, și piesele similare, și orice
+    listă adăugată pe viitor. (`ProductCard` e componentă de server, n-are acces la context.)
+- **Paginile de mașină dezmembrată se umplu prin COMPATIBILITATE, nu prin proveniență**
+  (`/masini`, `/masini/[slug]`, rescris la 6 septembrie 2026, `supabase/piese-compatibile-masini.sql`).
+  Lista vine din `products.model_ids` — compatibilitățile extrase la import — potrivite pe
+  `vehicles.model_id`. Nimeni nu mai leagă piese de mână.
+  · **De ce s-a schimbat**: regula veche umplea pagina din `products.vehicul_id`, pus de om
+    piesă cu piesă. Măsurat pe 6 septembrie 2026, înainte de schimbare: **0 din 8.895 de piese**
+    aveau coloana completată, deci toate cele 23 de pagini de mașină erau goale — și aveau să
+    rămână, fiindcă feed-ul pieseauto.ro nu spune niciodată de pe ce mașină s-a demontat piesa.
+    Compatibilitatea, în schimb, o avem pe 8.684 din 8.804 piese publicate (98,6%).
+  · **Cheia e GENERAȚIA, niciodată anul.** Anul mașinii („Audi A4 · 2014") folosește o singură
+    dată, în admin, ca să ALEAGĂ generația (A4 B8, 2008–2015); pe pagină nu mai intervine.
+    Măsurat: doar generația = **221 de piese**; generația ȘI anul 2014 în `products.ani` = **90**.
+    Filtrul pe an ar arunca 131 de piese bune, fiindcă `products.ani` sunt anii MAȘINII DE PE CARE
+    S-A DEMONTAT piesa, nu intervalul ei de compatibilitate. Cine vrea să adauge filtrul pe an
+    reface întâi măsurătoarea asta.
+  · **Ordonarea e după `products.nr_modele`, crescător** (coloană calculată, migrarea 34): o piesă
+    trecută doar la „Passat B6" e aproape sigur o piesă de B6; una trecută la 31 de modele e un
+    senzor care intră peste tot. Pe Passat B6, 120 din 165 de piese au `nr_modele = 1` și ocupă
+    exact primele pagini. `id` la final face paginarea deterministă — `created_at` nu e unic.
+  · **Pagina spune „se potrivesc pe", niciodată „demontate de pe".** Deasupra grilei stă o notă
+    care explică diferența și trimite la telefon pentru confirmare, iar fiecare card își poartă
+    anii. Nu e mărunțiș juridic: aceeași generație acoperă și faceliftul (un B8 din 2009 și unul
+    din 2014 diferă la caroserie și lumini), iar un client care crede că piesa vine de pe mașina
+    din poze e un retur. Aceeași formulare în `descriereMasina` din `lib/seo.ts` și pe
+    `/masini`, `/cauta-dupa-masina`, hero.
+  · **`products.vehicul_id` rămâne, dar e strict INTERNĂ.** Nu mai are niciun efect pe site;
+    alimentează profitul și amortizarea pe mașină din `/admin/masini` — singura cifră care nu se
+    poate deduce din compatibilitate. Coloana NU se șterge (goală azi, `drop column` ireversibil),
+    la fel ca `products.stare`. În editorul de piesă câmpul e marcat „doar intern".
+  · **Alegerea mașinii-sursă bifează automat generația ei** la „Modele compatibile"
+    (`ProductForm`). Fără asta, o piesă demontată chiar de pe Passat-ul din curte, dar cu
+    generația nebifată, n-ar apărea pe pagina lui — cel mai ușor de ratat lucru din formular,
+    fiindcă cele două câmpuri arată complet nelegate.
+  · **O mașină fără marcă/model n-are nicio piesă pe pagină**, oricât de plin ar fi catalogul.
+    E singura muncă manuală rămasă, o dată pe mașină. `/admin/masini` o marchează cu „⚠ fără
+    marcă" / „⚠ fără model" și propune marca și generația citite din denumire
+    (`ghicesteMarcaModel` din `lib/format.ts`) — cu buton „Completează", niciodată aplicat singur.
+    Măsurat pe cele 23 de mașini: marca corectă la toate, generația la 21. Sugestia avertizează
+    când anul cade în afara generației propuse („Duster 1.5 dCi" din 2018 lângă „Duster
+    (2010–2017)" — e Duster 2).
+  · **`ghicesteMarcaModel` NU e potrivirea din import și n-are voie să devină.** Aceea trăiește
+    exclusiv în `lib/import/potrivire.mjs`. Diferența care justifică una simplă aici: textul e
+    scris de omul nostru, iar rezultatul îl confirmă tot el, cu un clic, înainte de orice scriere.
+    Deducerea automată din titlu de PIESĂ rămâne interzisă — s-a măsurat pe 28 august 2026 și e
+    greșită: la „VW Golf 6 1.6 TDI", 36 din 67 de potriviri erau piese de Golf 7, fiindcă „6" se
+    regăsește în „1.6".
+  · Deci o mașină fără piese NU e un defect. Pagina ei rămâne la HTTP 200, cu specificațiile și
+    formularul de cerere precompletat.
+  · **Nicăieri nu se scrie „0 piese".** Hero-ul arată doar mașinile cu cel puțin o piesă și
+    dispare complet dacă nu există niciuna (grila trece atunci pe o coloană); `/masini` le împarte în
+    „Cu piese pe site" și „În dezmembrare acum"; `/cauta-dupa-masina` scrie „piese pe cerere" și duce
+    la pagina mașinii, nu la `/piese?vehicul=…`, care acum e drum înfundat prin construcție.
+  · Numărul de piese vine din `numar_piese_compatibile_pe_masina`, cu ACELEAȘI filtre ca lista
+    (`publicat and stoc > 0`): contorul și grila trebuie să spună același lucru. Nu se ia din
+    `vehicles.piese_listate` — coloana aia numără altceva (piesele demontate chiar de pe mașină)
+    și e o valoare memorată de trigger.
+  · Pagina e paginată la 24, cu `rel=prev/next` și canonică pe fiecare pagină, ca `/piese`.
+    `numerePaginare` s-a mutat din `app/piese/page.tsx` în `lib/format.ts`: două copii ale ei
+    s-ar fi despărțit la prima corectură.
+  · **Caruselul „piese de la mașini compatibile" a fost ELIMINAT.** Arăta piese de pe alte mașini
+    din curte, prin `bazaModel`; acum toată pagina e compatibilitate, deci ar fi fost un al doilea
+    răspuns la aceeași întrebare, mai slab. `bazaModel` rămâne folosită în altă parte.
+- **Pozele mașinilor stau în același bucket ca ale pieselor** (`poze-piese`) — e aceeași componentă,
+  `PhotoUploader`. De aceea `scripts/curata-orfani.mjs` citește ȘI `vehicles.poze`: fără asta ar
+  raporta fiecare poză de mașină drept orfană, iar `--sterge` le-ar șterge pe toate. Orice tabelă
+  nouă cu coloană `poze` se adaugă acolo, în același loc.
+- **PostgREST taie tăcut la 1.000 de rânduri. Nicio interogare nu are voie să presupună
+  că a primit tot** (defect găsit la 28 august 2026, în producție de trei zile).
+  · `.limit(5000)` NU ajută: plafonul e al serverului, iar `limit` îl poate doar coborî.
+    Serverul spune adevărul în antetul `content-range: 0-999/8754`, dar nimeni nu-l citea, iar
+    un array de 1.000 arată exact ca unul complet.
+  · Ce s-a văzut: `/piese` arăta 1.000 de piese din 8.754 și n-avea nicio paginare; filtrul
+    arăta 16 mărci din 38 (fără Dacia, Toyota, Volvo — `marciCuPiese` judeca după același
+    eșantion); `sitemap.xml` avea 1.000 de URL-uri; contoarele din admin se calculau pe 11% din
+    catalog; iar `curata-orfani.mjs --sterge` ar fi șters **18.776 din 20.157 de fișiere (93%)**,
+    raportând succes.
+  · **Unealta e `citesteTot()` din `lib/supabase.ts`** (geamăn pentru scripturi: `citesteTotRest`
+    din `lib/rest.mjs`). Cere `{ count: "exact" }` în `.select()` — de acolo vine totalul din
+    `content-range` — și ARUNCĂ eroare dacă lipsește, în loc să presupună. Plafonul de siguranță
+    ARUNCĂ la depășire, nu taie.
+  · **`.order()` pe o coloană UNICĂ (de regulă `id`) e obligatoriu la orice paginare.** Fără
+    ordine stabilă, aceeași piesă poate apărea pe două pagini iar alta pe niciuna. `created_at`
+    NU e unic: importul scrie sute de rânduri în aceeași secundă.
+  · A doua limită, independentă: `.in("id", ids)` pune fiecare id în URL și crapă la câteva mii.
+    Pentru asta există `citesteDupaIduri()`, care sparge în loturi de 200.
+  · Contoarele NU se calculează în Node. `numar_piese_pe_model` și `numar_piese_pe_masina`
+    (migrarea 29) întorc câte un rând pe model/mașină — corecte prin construcție, indiferent cât
+    crește catalogul. Ca să afli 538 de numere nu aduci 8.754 de rânduri prin rețea.
+  · Capcana era deja scrisă, din luni, în `lib/import/depozit.mjs` (helperul `tot()`), și n-a
+    ieșit niciodată din modulul acela. Motorul de import a fost singurul cod corect.
+- **Google Analytics 4 se încarcă doar dacă patru condiții sunt adevărate deodată**
+  (28 august 2026): există un ID în Admin → Integrări, vizitatorul a apăsat „Accept toate",
+  nu suntem în `/admin`, nu suntem în dezvoltare. Dacă una cade, în pagină nu ajunge niciun
+  script și nu pleacă nicio cerere către Google. „Încă n-a ales" se tratează ca refuz.
+  · ID-ul vine prin `ga4_public()` (migrarea 30), nu dintr-o citire a rândului `integrari`:
+    acolo stau parola FAN Courier și cheia privată Netopia.
+  · **`Analytics` își cere singur ID-ul, din browser, nu îl primește pe props.** Motivul e
+    măsurat: `/cos`, `/checkout` și `/favorite` sunt pagini STATICE, iar orice valoare pe care
+    layout-ul o randează pentru ele rămâne prinsă în HTML-ul de la build. Analytics-ul pornea
+    pe paginile dinamice și tăcea exact pe cele unde se întâmplă vânzarea. Cererea pleacă doar
+    după acceptare.
+  · **Evenimentele trec printr-o coadă** (`ev()` din `lib/analytics.ts`). `gtag` apare după
+    hidratare, iar efectele React rulează înaintea lui: fără coadă se pierdea tăcut fiecare
+    eveniment de la PRIMA încărcare a unei pagini, inclusiv `purchase`. Coada se golește când
+    `gtag` apare — NU prin `onReady` al lui next/script, care pentru un script inline se
+    declanșează la montare, înainte ca scriptul să fi rulat.
+  · **Evenimentele care depind de coș se leagă de `items`, nu de montare.** `CartContext`
+    citește `localStorage` într-un efect, deci la prima randare coșul e gol; un efect cu
+    dependențe goale trimitea `view_cart` cu zero piese, adică deloc.
+  · `purchase` pleacă o singură dată: checkout-ul lasă conținutul comenzii în `sessionStorage`
+    (valoarea calculată de SERVER), iar pagina de mulțumire îl trimite și lasă un semn legat de
+    numărul comenzii. Reîncărcarea nu îl retrimite.
+  · **Niciun dat personal în evenimente.** Fără nume, telefon, e-mail, adresă.
+  · **Documentele legale sunt aliniate** (28 august 2026). Politica de cookies are acum o
+    secțiune proprie pentru GA, cu tabelul celor două cookie-uri (`_ga` și `_ga_` + codul
+    contului, 2 ani); „Setări cookie-uri" spune ce adaugă „Accept toate"; iar Google e trecut
+    în lista destinatarilor din politica de confidențialitate. Dacă se schimbă vreodată ceva
+    la măsurare — alt instrument, alt cookie, altă durată — se actualizează ÎNTÂI acolo, în
+    ambele tabele, și abia apoi se pune în funcțiune.
+- **Nu număra cu subinterogare corelată peste o tabelă mare** (28 august 2026). `categorii_cu_numar`
+  calcula `nr_piese` cu un `select count(*) from products where … = c.id` pe FIECARE categorie:
+  349 de scanări complete peste 8.783 de produse, **1,47 s**, plătiți la fiecare afișare a lui
+  `/piese` și a primei pagini. Migrarea 31 le adună dintr-o singură trecere: **19,7 ms**, aceleași
+  cifre. Tiparul e din aceeași familie ca plafonul de 1.000 de rânduri: nu se vede la 50 de piese
+  și doare la 8.783.
+  · `numar_piese_pe_masina` are aceeași FORMĂ, dar e nevinovat: merge pe indexul
+    `products_vehicul_idx`, deci face 23 de căutări în index, nu 23 de scanări — 0,9 ms. Dacă
+    indexul acela dispare vreodată, devine exact aceeași problemă.
+  · Contoarele nu se calculează nici în Node, nici cu o subinterogare pe rând. Se calculează o
+    dată, în bază, într-un view (vezi și `numar_piese_pe_model`).
+- **Datorie tehnică știută, de reparat înainte ca al catalogul să se dubleze** (28 august 2026):
+  · ~~`/admin/masini` aduce toate cele 8.783 de produse doar ca să numere piesele pe mașină.~~
+    REZOLVAT la 6 septembrie 2026: cifra publică vine acum din
+    `numar_piese_compatibile_pe_masina`, iar citirea internă (piesele demontate de pe mașină,
+    pentru profit) filtrează în bază cu `.not("vehicul_id", "is", null)` — rândurile fără mașină
+    n-ar fi trecut oricum de prima verificare din buclă.
+  · `/admin/rapoarte` aduce tot catalogul ca să traducă `product_id` în categorie și mașină.
+    Azi e singura cale, dar la 30 de vânzări pe zi ar trebui mutat într-un `join` în bază.
+  · `/piese` își face interogările de căutare în două valuri (vezi mai jos). Ecranele de admin
+    n-au fost încă trecute prin aceeași verificare.
+  Niciuna nu e blocantă: sunt ecrane interne, nu pagini publice. Devin dureroase când catalogul
+  crește — exact ca plafonul de 1.000 de rânduri, care n-a durut până la a 1.001-a piesă.
+- **O piesă vândută rămâne o pagină, nu devine un 404** (7 septembrie 2026, migrarea 38).
+  Triggerul `scade_stocul` punea la vânzare `stoc = 0` ȘI `publicat = false`, iar al doilea scotea
+  pagina de sub politica de citire publică — deci pagina murea.
+  · **Ce costa asta, în bani**: Google ia feed-ul o dată pe zi, deci anunțul din Shopping rămâne
+    activ după vânzare. Clicul e plătit, iar vizitatorul ajungea pe 404. Mai rău: „Automatic
+    availability updates" din Merchant Center, care ar fi oprit anunțul în ore citind `OutOfStock`
+    de pe pagină, n-are ce citi pe o pagină inexistentă — în loc de asta, produsul primește eroare
+    de pagină de destinație.
+  · **De ce e sigur**: `publicat = false` NU era ce ascundea piesa vândută. Toate listările,
+    feed-urile, sitemap-ul, piesele similare și publicarea pe dez.ro filtrează deja
+    `publicat = true AND stoc > 0` — verificat câmp cu câmp înainte de migrare.
+  · **Înțelesul coloanelor, de acum**: `publicat` = operatorul vrea piesa pe site (se schimbă doar
+    din admin sau când piesa dispare din feed-ul sursei); `stoc` = piesa mai există fizic.
+  · Pagina scrie „Vândută", n-are buton de comandă, explică în două rânduri că piesele din
+    dezmembrări sunt unicat, și trimite la piese similare și la WhatsApp. Clicul plătit nu se mai
+    pierde. Același principiu ca la modul vacanță: paginile rămân la 200.
+- **Pagina de piesă poartă date structurate `schema.org/Product`** (7 septembrie 2026,
+  `dateStructuratePiesa` din `lib/seo.ts`). Motivul e comercial, nu SEO: piesele sunt UNICAT, iar
+  un anunț Google Shopping pentru o piesă vândută se plătește până la următoarea preluare a
+  feed-ului — de obicei a doua zi. Cu datele astea în pagină, Merchant Center poate folosi
+  „Automatic item updates" și corectează prețul și stocul în ore.
+  · **Ce scrie în pagină trebuie să spună EXACT ce spune feed-ul.** Dacă pagina zice 350 și feed-ul
+    380, Google nu alege una — suspendă produsul. De aceea prețul și disponibilitatea se calculează
+    din aceleași câmpuri ca în `lib/feed.ts`, iar `scripts/verifica-seo.mjs` le verifică pe pagini
+    reale (formă „123.45", monedă RON, disponibilitate ca adresă schema.org, preț regăsit în pagină).
+  · **NU se pune `shippingDetails`**: costul transportului se stabilește după cântărire (decizia din
+    7 august 2026), iar o valoare inventată aici ar fi o promisiune pe care checkout-ul n-o ține.
+    Tariful pentru Google se pune în Merchant Center, unde e limpede că e o estimare.
+  · **NU se pune `aggregateRating` sau `review`**: n-avem recenzii, iar recenziile inventate în date
+    structurate sunt motiv de penalizare manuală. Verificarea le interzice explicit.
+  · `hasMerchantReturnPolicy` spune ce spun documentele legale: 14 zile, costul returnării la
+    cumpărător (`lib/legal.ts`). Dacă se schimbă politica, se schimbă în amândouă.
+- **Adresa Supabase se curăță de bara finală în depozite** (`lib/import/depozit.mjs`,
+  `lib/dezro/depozit.mjs`). Variabila de mediu se termină cu „/", iar `${url}/storage/...` a ieșit
+  cu două bare la 8.855 din 8.964 de piese. Adresele funcționează (verificat, HTTP 200 pe ambele
+  forme), deci rândurile vechi NU se rescriu — și e o decizie: `dezro_anunturi.poze_trimise`
+  compară adresele ca text, iar o rescriere în masă ar face fiecare poză să pară nouă și ar reurca
+  ~20.000 de fișiere la dez.ro.
+- **Marca se adaugă titlurilor într-un SINGUR loc** (28 august 2026): șablonul
+  `SABLON_TITLU` din `app/layout.tsx`, care îl importă din `lib/seo.ts`. Generatoarele de
+  titlu NU pun sufixul, iar paginile nu folosesc `absolute`.
+  · Motivul e un defect apărut de două ori în aceeași lună: marca se adăuga și în șablon, și
+    în generator, dând „… | AUTOPAS · Autopas Dezmembrări" — 74 de caractere pe pagina de
+    piesă, 85 pe cea de mașină. De fiecare dată invizibil în generator, vizibil doar în HTML.
+  · Sufixul e ` | AUTOPAS`, forma scurtă: o foloseau deja 8.739 din cele ~8.780 de pagini, iar
+    contextul mărcii vine oricum din domeniul afișat deasupra titlului în rezultate.
+  · `scripts/verifica-seo.mjs` verifică pe pagini reale că marca apare **exact o dată**.
+- **Amânat, cu criteriu de reluare: rutele de model** (`/piese/marca/{marca}/{model}`).
+  Ar fi încă 538 de pagini, iar „piese Golf 5" e o căutare foarte bună. Se reia **după ce cel
+  puțin 80% din cele 38 de pagini de marcă apar indexate în Search Console** — până atunci
+  n-avem cum ști dacă nivelul al doilea funcționează, iar 538 de pagini neindexate ar dilua
+  semnalul în loc să-l întărească.
+- **Secțiunea „Categorii principale" nu mai are ilustrații; ierarhia o dă volumul**
+  (28 august 2026, `components/CategoriiPrincipale.tsx`). `PartArt` are 13 desene, categoriile
+  foloseau 10, iar ce nu se potrivea cădea pe desenul implicit: **8 din 17 categorii arătau
+  același bloc motor** (Motor și anexe pe drept, plus Filtre, Accesorii, Car audio, Tuning,
+  Navigație GPS, Diverse, Scule auto). Un icon care nu distinge nimic e mai rău decât lipsa lui.
+  Se pun la loc doar când există un set complet și distinct — până atunci nu se adaugă unul
+  singur „provizoriu".
+  · `PartArt` rămâne NEATINS pentru piese (`ProductPhoto`, `ProductGallery`, `/cos`).
+  · Trei registre, după numărul de piese: peste 1.000 carduri mari cu numărul scris mare și o
+    bară proporțională; 100–999 carduri obișnuite; sub 100 rânduri compacte de 44px. Azi taie
+    3 / 6 / 8. Registrul mare e ținut la **exact trei**, completat sau tăiat: un rând cu un
+    singur card mare și două goluri ar arăta ca un defect, iar praguri fixe pe un catalog care
+    crește n-au cum să rămână mereu adevărate.
+  · Ordinea e după numărul de piese, nu după `categories.ordine`: dimensiunea cardului
+    ÎNSEAMNĂ volum, deci un card mare sub unul mic s-ar contrazice singur.
+  · Categoriile cu 0 piese nu se afișează — ar duce într-o listare goală. (Azi toate 17 au piese.)
+  · Măsurat pe cele 13 lățimi × 2 teme: zero depășiri orizontale, zero ținte sub 44px, zero text
+    ieșit din card. Coloanele merg 1/2/2 sub 640px, 3/3/2 până la 1024, 3/6/4 peste.
+  · Acordul „piesă / piese / de piese" stă într-un singur loc, `cuvantPiese()` din `lib/format.ts`;
+    `nrPiese()` îl folosește. Cardurile mari au nevoie de cuvânt separat de cifră, fiindcă le scriu
+    la dimensiuni diferite.
+- **Legăturile interne merg direct pe rute, niciodată pe filtrul vechi.** `/piese?categorie=…`
+  ajunge tot la `/piese/categorie/…`, dar printr-o redirecționare 301 din `middleware.ts` — un drum
+  în plus pe fiecare pagină care o conține. Firul Ariadnei de pe pagina de piesă (× 8.754) și cel
+  de pe catalogul filtrat au fost mutate pe rutele proprii.
+- **Un schelet de încărcare pe o listare ANULEAZĂ `loading="lazy"`** (28 august 2026, măsurat
+  A/B pe același build). Cu `loading.tsx` pe `/piese`, toate cele 24 de imagini se descărcau la
+  prima încărcare: **1.475 KB pe telefon, în loc de 338**. Fără el, 6 imagini.
+  · Cauza pare a fi momentul înlocuirii: cele 24 de elemente intră în pagină deodată și ajung
+    toate în zona pe care browserul o consideră vizibilă înainte de așezarea finală.
+    Dimensiunile explicite (`width`/`height`) NU repară — încercat și măsurat.
+  · E un efect contraintuitiv: scheletul rezervă spațiu tocmai ca să nu sară pagina, dar exact
+    asta îl face să pară că totul e pe ecran. Cine adaugă la loc un `loading.tsx` pe o listare
+    trebuie să măsoare câte imagini se descarcă, nu doar cum arată.
+  · Scheletele RĂMÂN pe paginile cu puține imagini — piesă, mașină, `/masini` — unde verificarea
+    arată zero efect. Pe listări, răspunsul la click îl dă `components/BaraProgres.tsx`: e
+    `fixed`, nu ocupă spațiu în flux, deci nu poate muta niciun card.
+- **Feed-urile de produse sunt un singur motor, patru formate** (4 septembrie 2026,
+  `lib/feed.ts` + `lib/feed-formate.ts`). Catalogul se citește O DATĂ, într-o formă
+  normalizată (`RandFeed`); Google (RSS 2.0), Meta (CSV), generic CSV și generic XML sunt
+  doar moduri de a-l scrie. Orice regulă nouă despre CE conține un produs se pune în
+  `citesteCatalog`, niciodată într-un format.
+  · **Id-ul unei piese e `cod_intern` (AP-000123) peste tot**: în `g:id` din feed-ul
+    Google, în `id` din catalogul Meta ȘI în `item_id` trimis de `piesaGa()` la fiecare
+    eveniment. Dacă cele trei s-ar despărți, reclamele dinamice ar afișa altă piesă decât
+    cea privită — invizibil în cod, scump în bani. `scripts/verifica-feed.mjs` verifică.
+  · **Feed-urile se trimit ÎN FLUX** (`ReadableStream` în `lib/feed-raspuns.ts`). Cel de
+    Google are **25,8 MB** pe catalogul real, iar o funcție Vercel care întoarce un corp
+    construit întreg în memorie are plafon de 4,5 MB și pică cu
+    `FUNCTION_PAYLOAD_TOO_LARGE` — un 500 pe care Merchant Center îl raportează drept
+    „feed inaccesibil". Local, unde plafonul nu există, ar fi arătat perfect.
+  · Formatele au deci două variante: `…Bucati` (vector de bucăți, o bucată per produs,
+    pentru rute) și învelișul care le lipește (pentru descărcarea din panou, unde
+    fișierul trebuie oricum ținut întreg ca să devină `Blob`). NU generatoare: `tsconfig`
+    țintește ES5, unde parcurgerea unui `Iterable` cere `--downlevelIteration`.
+  · Prospețimea o dă antetul `Cache-Control: s-maxage=10800, stale-while-revalidate=600`,
+    scris explicit, nu `revalidate`: rutele sunt `force-dynamic`, iar `revalidate = 300`
+    din `app/layout.tsx` ar fi câștigat oricum (cel mai mic număr din arbore).
+  · **Piesele fără poză sau fără preț NU intră în feed-urile de reclame**
+    (`doarPentruReclame`). Google nu doar că nu le afișează — le trece la erori, iar un
+    cont cu prea multe erori poate fi suspendat. Intră însă în feed-ul generic, ca să se
+    vadă ce lipsește.
+  · **`g:shipping_weight` pleacă doar pentru piesele CÂNTĂRITE** (`greutate_estimata =
+    false`). 8.765 din 8.803 au 1 kg pus automat la import; trimis, Google ar calcula un
+    transport greșit pentru un bloc motor.
+  · Costul de achiziție (`cost_lei`) și celelalte date interne NU ajung niciodată într-un
+    feed public — se cer explicit, doar din panou (`cuDateInterne`).
+- **`/feed/` rămâne accesibil roboților CHIAR ȘI cu indexarea oprită** (`app/robots.ts`).
+  Merchant Center descarcă feed-ul cu Googlebot și respectă `robots.txt`: un `Disallow: /`
+  care ar acoperi și `/feed/` înseamnă „nu am putut prelua feedul" și cont fără produse.
+  Feed-urile tot nu ajung în rezultate, prin antetul `X-Robots-Tag: noindex` — „citește,
+  dar nu publica" e altceva decât „nici măcar nu citi".
+- **Consimțământul are DOUĂ scopuri separate, nu unul** (4 septembrie 2026,
+  `lib/consimtamant.ts`). Cheia `autopas_cookies` are patru valori: `necesare`,
+  `statistica`, `marketing`, `toate`. Statistica (GA4) și publicitatea (Google Ads, Meta
+  Pixel) se acceptă independent; „încă n-a ales" rămâne refuz pentru amândouă. Valorile
+  vechi „necesare" și „toate" înseamnă exact ce însemnau, deci nimeni nu e întrebat din nou.
+  · Bannerul are trei butoane, panoul din „Setări cookie-uri" două comutatoare.
+  · `stergeCookieuriMasurare()` primește GRUPUL retras. O ștergere „pe tot" ar reseta la
+    fiecare pagină exact măsurarea pe care omul tocmai a acceptat-o.
+  · Documentele legale au fost actualizate ÎNAINTE de punerea în funcțiune, cu tabelul
+    celor trei cookie-uri de publicitate (`_gcl_au`, `_fbp`, `_fbc`, 90 de zile) și cu
+    Meta trecută la destinatari. Regula veche rămâne: se schimbă întâi acolo.
+- **Toate evenimentele pleacă printr-un singur `ev()`** (`lib/analytics.ts`), care le
+  traduce singur pentru GA4, pentru Meta (`LA_META`) și pentru conversia Google Ads. Cele
+  8 locuri din care se trimit evenimente n-au voie să știe de `gtag` sau de `fbq`: altfel
+  fiecare eveniment adăugat de aici înainte ar pleca, în practică, doar la unul dintre ele.
+  · Trei cozi separate, fiindcă cele trei scripturi pornesc independent (unul poate fi
+    blocat de un ad-blocker) și au voie prin consimțăminte diferite. Conversia Ads are
+    coadă PROPRIE: pusă în coada GA, s-ar goli mai târziu ca eveniment GA4 cu numele ei —
+    o conversie pierdută și un eveniment inventat în rapoarte.
+  · `view_cart`, `remove_from_cart` și `select_item` NU se trimit la Meta: n-au eveniment
+    standard, iar unul personalizat nu se poate folosi la licitare.
+- **E-mailurile automate pleacă dintr-o COADĂ scrisă de baza de date, nu din browser**
+  (7 septembrie 2026, `supabase/email-automat.sql` + `lib/email.ts` + `app/api/email-coada`).
+  · **De ce nu din browser**: varianta evidentă e ca pagina de checkout să cheme o rută după
+    ce comanda reușește. Dar atunci un client care închide tabul în secunda de după „Trimite
+    comanda" lasă comanda în bază fără să anunțe pe nimeni — exact cazul în care e-mailul e
+    cel mai necesar. Triggerul scrie rândul în `email_coada` în ACEEAȘI tranzacție cu
+    comanda: dacă există comanda, există și e-mailul de trimis. Ce se poate întâmpla mai rău
+    e o întârziere, niciodată o pierdere.
+  · **Un e-mail nu are voie să strice o comandă.** Triggerul are DOUĂ blocuri, fiecare cu
+    `exception` propriu. Dacă pg_net cade, dacă `settings` e gol, dacă site-ul e în timpul
+    unui deploy — comanda se salvează oricum. O comandă pierdută costă bani; un e-mail
+    întârziat, nu.
+  · **DE CE DOUĂ BLOCURI, nu unul** (defect găsit și reparat în aceeași zi, 7 septembrie
+    2026, la prima comandă reală). În PL/pgSQL o excepție anulează TOT ce s-a făcut în blocul
+    în care a apărut. Prima versiune avea inserarea în coadă și apelul HTTP în același
+    `begin ... exception`, iar apelul era scris `extensions.net.http_post` — greșit, fiindcă
+    **pg_net își face oricum schema proprie `net`**, indiferent de `with schema` de la
+    `create extension`. Funcția inexistentă ridica excepție, excepția era înghițită, și odată
+    cu ea se anula și inserarea. Comanda a intrat în bază, coada a rămas goală: exact
+    invariantul pe care triggerul trebuia să-l apere.
+    · **Regula, de acum: un `exception when others` nu protejează ce e ÎNAINTE de el în
+      același bloc — îl aruncă. Fiecare efect care trebuie să supraviețuiască singur stă în
+      blocul lui.**
+    · Eșecul trezirii NU se mai înghite tăcut: se scrie în `email_coada.eroare`, ca să se
+      vadă în panou de ce a întârziat.
+    · Cum a scăpat de la testare: testul de dinainte de lansare a rulat cu `webhook_url` gol,
+      deci `if`-ul era fals și apelul nici nu se făcea. Testasem exact ramura care ocolea
+      eroarea. Un test pe o funcție cu `exception when others` trebuie rulat cu configurarea
+      COMPLETĂ, altfel confirmă doar ramura leneșă.
+    · Verificare rapidă a lanțului, fără să trimiți vreun e-mail: inserezi în `part_requests`
+      un rând FĂRĂ `email`. Trece prin trigger → coadă → trezire → rută și se închide singur
+      cu „fără adresă de e-mail". `net._http_response` arată codul întors de rută.
+  · Trezirea rutei e fire-and-forget (`net.http_post`). Dacă nu ajunge, rândul rămâne în
+    coadă; butonul „Trimite ce a rămas în coadă" din Admin → Integrări e cârligul de
+    recuperare, ca să nu depindem de un cron.
+  · `email_coada` e și JURNAL: către cine, când, ce eroare, a câta încercare. La retururi și
+    la garanție contează să poți ARĂTA că i-ai trimis clientului confirmarea. După 5 eșecuri
+    rândul se lasă în pace, cu eroarea la vedere — o adresă greșită nu se repară singură.
+  · **Confirmarea de comandă NU conține costul livrării.** Rămâne decizia din 7 august:
+    transportul se stabilește după cântărire și se comunică telefonic. E-mailul spune exact
+    ce spune mesajul de WhatsApp. Un e-mail automat care ar inventa un cost ar contrazice
+    prima convorbire cu clientul, iar clientul l-ar crede pe el, nu pe operator.
+  · **Notificarea internă are `Reply-To` pe adresa CLIENTULUI.** Proprietarul citește pe
+    `pieseneamt@yahoo.ro` și apasă „Reply" — răspunsul trebuie să ajungă la client, nu la el.
+  · **Răspunsurile pleacă de pe Yahoo, ca `pieseneamt@yahoo.ro`** (decizie 7 septembrie
+    2026, întrebat explicit). Deci nu se construiește nimic pentru „răspunde ca contact@" —
+    prin serverele Yahoo ar rupe oricum alinierea SPF/DKIM și ar ateriza la Spam.
+  · Primirea pe `contact@` e o REDIRECȚIONARE prin ImprovMX către `pieseneamt@yahoo.ro`,
+    nu o cutie poștală. Alegerea inițială fusese Zoho Mail, pentru arhiva de pe server;
+    s-a răsturnat la 7 septembrie 2026, după ce s-a verificat pe paginile lor: planul lor
+    gratuit e restricționat pe regiuni (utilizatorul nici nu-l vedea din România) și nu
+    listează redirecționarea printre funcțiile incluse — adică exact lucrul de care aveam
+    nevoie. Arhiva e acum Yahoo; ce se pierde e copia de rezervă dacă redirecționarea însăși
+    se strică, iar ImprovMX întoarce mesajul la expeditor în loc să-l înghită. Alternativa
+    plătită, dacă se vrea vreodată cutie reală: Zoho Mail Lite, ~5 lei/lună. Vezi `docs/email.md`.
+  · Secretele (cheia Brevo, secretul webhook-ului) stau în `settings.integrari.email`, ca
+    parola FAN Courier: rândul `integrari` nu e citibil public, politica lasă la vedere doar
+    `firma` și `curieri`.
+  · **O singură înregistrare SPF pe domeniu.** ImprovMX și Brevo trebuie puse în ACEEAȘI
+    linie (`v=spf1 include:spf.improvmx.com include:spf.brevo.com ~all`). Două înregistrări
+    SPF le invalidează pe amândouă și tot ce trimitem ajunge la Spam.
+  · **Adresa webhook-ului se verifică la salvare, iar coada se vede în panou** (7 septembrie
+    2026, după al doilea incident din aceeași zi). În câmpul „Adresa pe care o cheamă baza de
+    date" ajunsese, din greșeală, o adresă de E-MAIL. pg_net a refuzat-o cu „Bad scheme",
+    comanda AP-2026-01004 a rămas cu ambele e-mailuri în coadă, iar în panou nu se vedea
+    nimic. Acum: câmpul refuză orice nu începe cu `http(s)://`, iar caseta de e-mail arată
+    câte mesaje așteaptă și ultima eroare. O coadă blocată nu mai poate fi invizibilă.
+    · Ce a funcționat, totuși: rândurile ERAU acolo. Despărțirea în două blocuri, făcută cu
+      câteva ore înainte, și-a făcut treaba — o configurare greșită a întârziat e-mailurile,
+      nu le-a pierdut. S-a corectat adresa și au plecat amândouă.
+  · Documentele legale au fost actualizate ÎNAINTE de punerea în funcțiune, cu Brevo și
+    ImprovMX la destinatari și la locul de stocare — și au fost corectate în aceeași zi când
+    Zoho a fost înlocuit cu ImprovMX. Documentul legal trebuie să numească furnizorul REAL:
+    orice schimbare de furnizor începe acolo, nu se termină acolo. Aceeași regulă ca la GA4 și la Meta. Data afișată
+    la finalul lor vine acum din `LEGAL_ACTUALIZAT` (`lib/legal.ts`) — era scrisă de mână în
+    pagină și rămăsese „august 2026" peste două actualizări de conținut.
+- **Piesele se publică pe dez.ro ca anunțuri** (7 septembrie 2026, `lib/dezro/`, migrarea 37).
+  dez.ro e un site de anunțuri de piese auto; ne-au dat o cheie de aplicație și două ghiduri
+  (`docs/dez.ro/`). Manualul de operare: **`docs/dez.ro.md`**.
+  · **Un singur motor, două declanșatoare** — `scripts/publica-dezro.mjs` și `/admin/dezro`, prin
+    `app/api/dezro/route.ts`. Aceeași regulă ca la `lib/import/`, din același motiv.
+    Prima publicare mare se face din TERMINAL: ecranul cere un lot pe HTTP, deci recitește
+    catalogul și mapările la fiecare lot (~350 de loturi la 8.700 de piese).
+  · **Arborele lor întreg într-o cerere NU merge.** Ghidul lor recomandă `?with_models` și
+    `?with_children` pe `/brands` și `/parts`; măsurat, amândouă răspund **504**. Catalogul se
+    aduce în trepte: o marcă / o grupă pe cerere (135 de pași, ~4 minute). Un nod cu
+    `?with_children` merge în 0,2s; tot arborele, nu.
+  · **API-ul lor are hopuri** (500 și 504 pe cereri valide, care merg la reîncercare) și dă
+    **403 fără User-Agent propriu**. De aici scara de reîncercări din `api.mjs`. Un 4xx în afară
+    de 429 NU se reîncearcă: un 422 reîncercat de trei ori tot 422 rămâne.
+  · **Autentificările eșuate sunt limitate la 5 la 15 minute**, deci un 401 la login nu se
+    reîncearcă niciodată automat. Token-ul ține 30 de zile (nu se prelungește la folosire) și se
+    memorează în `settings.integrari.dezro`, ca să nu ne autentificăm la fiecare lot.
+  · **Amprenta câmpurilor e ce ține traficul jos.** Fără ea, fiecare rulare ar rescrie toate cele
+    ~8.700 de anunțuri. La a doua rulare consecutivă fără modificări nu pleacă NICIO cerere.
+  · **Anul e PRIMUL din interval** (decizie răsturnată în aceeași zi, 7 septembrie 2026). Prima
+    variantă a fost „niciun an": 8.695 din 8.825 de piese au în `ani` un INTERVAL, iar câmpul lor
+    primește un singur an. Criteriul de reluare era scris în cod — „dacă aflăm de la ei ce
+    înseamnă filtrul pe an" — și l-am aflat de la moderatorul lor, care a verificat primul anunț:
+    „categoria e ok, marca ok, modelul ok, prețul ok, titlul ok — nu avem an". Un an lipsă nu e
+    neutru: anunțul nu apare în nicio căutare filtrată pe an. Intervalul întreg rămâne în descriere.
+    · DE ÎNTREBAT la ei: filtrul lor caută exact valoarea trimisă sau un interval în jurul ei?
+  · **API-ul lor e lent, nu doar cu hopuri.** Măsurat pe contul real: `GET /ads?page=1` a răspuns
+    în 23s, apoi 98s, apoi deloc — pentru UN SINGUR anunț. De aceea (a) ecranul de admin NU cheamă
+    niciodată API-ul lor la încărcare, ci doar la apăsarea butonului de reîmprospătare; (b)
+    scriptul din terminal folosește `TIMEOUT_LUNG_MS` (150s) și loturi lungi, fiindcă acolo nu
+    există limita de 60s a unei funcții.
+  · **Un timeout NU înseamnă că n-a intrat nimic la ei.** O actualizare a expirat de partea
+    noastră la 30s, iar anunțul citit după aceea AVEA schimbarea. De asta rândul rămâne cu
+    amprenta VECHE la eșec: se retrimite data viitoare, iar retrimiterea e inofensivă
+    (`POST /ads/{id}` scrie aceleași valori peste ele însele).
+  · **Generația pleacă în `variant`.** Catalogul lor e plat („Passat", nu „Passat B6"), iar
+    generația e exact ce desparte o piesă care se potrivește de una care nu.
+  · **Marca NU se trimite dintr-o mapare proprie**, ci din părintele modelului lor. Așa e imposibil
+    să trimitem un model care nu aparține mărcii trimise.
+  · **Modelul e cel PRINCIPAL** (`model_ids[0]`), niciodată al doilea din listă. A cădea pe a doua
+    compatibilitate ar trece un Sharan la Ford Galaxy. Fără mapare pe el, piesa nu se publică.
+  · **Descrierea nu conține niciun link către site-ul nostru.** Pe un portal de anunțuri, un link
+    care duce cumpărătorul în altă parte e motiv de respingere. Codul intern („AP-000123") face
+    aceeași treabă fără riscul ăsta.
+  · **Starea la 7 septembrie 2026**: catalogul lor e adus (106 mărci, 2.671 de modele, 573 de
+    categorii), potrivirea automată a scris 836 de mapări, au rămas 104 de confirmat de om
+    (3 mărci, 38 de modele, 63 de categorii). **8.209 din 8.825 de piese sunt gata de trimis.**
+    Contul (`autopas`) e configurat și autentificarea merge. S-a trimis UN anunț de probă
+    (AP-000011, ad 13421998, două poze urcate), care așteaptă aprobarea lor.
+  · **Traducerile de categorii scrise de om bat automatismul** (`REGULI_CATEGORII`, 270 de reguli,
+    acoperă 98,2% din piese). Aceeași regulă ca `REGULI_CATEGORII` de la import, și din același
+    motiv măsurat: automatul alegea „Suport compresor AC" în loc de „Compresor aer conditionat",
+    fiindcă seamănă la cuvinte. Fiecare regulă a fost verificată mecanic pe amândouă capetele:
+    slug-ul există la noi, calea există la ei ȘI e selectabilă.
+  · **Generația se scoate DOAR din numele nostru, niciodată din al lor**, la potrivirea modelelor.
+    Dacă s-ar scoate din amândouă, „Golf 5" și „Golf 6" s-ar reduce amândouă la „golf" și s-ar
+    lipi una de alta. Măsurat: 505 din 543 de modele se potrivesc sigur, 32 cer confirmare.
+  · **Automatul propune, omul decide.** O mapare cu `sursa = 'om'` nu e călcată niciodată de o
+    resincronizare — nici măcar una negativă („s-a decis că nu are corespondent", `dezro_id` null).
+    Distincția „rând lipsă" / „`dezro_id` null" e purtătoare de sens, nu accident.
+  · **Mapările APROXIMATIVE au nota care începe cu „APROXIMATIV"** (10 septembrie 2026). Ca să se
+    publice TOATE piesele, câteva categorii și modele fără corespondent exact la ei au primit cel mai
+    apropiat vecin: Discovery Sport → Discovery, apărători noroi → carenaj, buton oglinzi → oglinzi,
+    troliu → sistem de tractare, cric → lift hidraulic, cheie → contact cu cheie, nivel faruri →
+    instalație xenon. Modelul și generația exacte pleacă oricum în `variant`. Dacă moderatorii lor
+    resping un anunț pe motiv de categorie, lista de reparat e
+    `select * from dezro_mapari where nota like 'APROXIMATIV%'`.
+  · **Retragerea are prag de 20%**, cu confirmare separată peste el. La ei ștergerea unui anunț NU
+    se poate desface prin API, deci o depublicare în masă la noi ar stinge ireversibil tot ce avem
+    acolo. Aceeași plasă ca `PRAG_DEPUBLICARE` de la import.
+  · **Un lot trebuie să încapă în 60 de secunde**: `BUGET_MS + TIMEOUT_MS ≤ LIMITA_LOT_MS ≤ 55s`
+    (20 + 30 = 50). Termenul absolut (`pana`) e ce garantează asta — `cere()` nu începe o încercare
+    care oricum n-ar apuca să se termine. `scripts/verifica-dezro.mjs` verifică suma.
+  · **Anunțurile trimise prin API NU apar pe loc: trec printr-o aprobare la ei** (măsurat la
+    primul anunț real, 7 septembrie 2026). Ghidul lor spune de TREI ori contrariul („approved is
+    always true for API-created ads", „The ad is immediately visible on the site", „For API-created
+    ads pending should always be 0"). Anunțul s-a întors cu `approved: false`, `url: null`, iar
+    `GET /ads?count` a răspuns `{total:1, approved:0, pending:1}`. Deci adresa publică a unui anunț
+    NU există în clipa creării — vine după aprobare, iar singurul mod de a o afla e să recitim
+    lista lor (`lotImprospatare`, butonul „Actualizează starea anunțurilor"). La noi
+    `dezro_anunturi.status = 'activ'` înseamnă „trimis", nu „live"; „live" e `aprobat = true`.
+  · **Județul, localitatea și telefonul de pe anunț vin din profilul contului de pe dez.ro**, nu
+    din cod („Location is resolved automatically from the user's profile"). Se verifică ACOLO
+    înainte de prima publicare, altfel toate cele 8.700 de anunțuri arată alt județ.
+- **dez.ro se actualizează SINGUR la fiecare schimbare de piesă** (9 septembrie 2026, migrarea 39,
+  `supabase/dezro-automat.sql` + `app/api/dezro-coada/route.ts` + `lotCoada` din `lib/dezro/motor.mjs`).
+  Un trigger scrie piesa în `dezro_coada` în ACEEAȘI tranzacție cu modificarea, apoi trezește ruta
+  prin pg_net. Aceeași formă ca la e-mailurile automate (migrarea 36) și din același motiv: baza de
+  date e singurul loc care știe sigur că s-a schimbat ceva.
+  · **Ce e de făcut se decide la PROCESARE, din starea piesei de atunci — niciodată din `motiv`-ul
+    scris de trigger.** Între trigger și procesare piesa se mai poate schimba o dată; o coadă care
+    ar ține minte „era de publicat" ar trimite la ei o piesă vândută între timp.
+  · **Piesa ȘTEARSĂ e singurul caz în care coada ține ea informația.** `dezro_anunturi` are
+    `on delete cascade`, deci rândul cu `ad_id` pleacă odată cu piesa; triggerul e BEFORE DELETE și
+    copiază `ad_id` în coadă. Fără asta, anunțul ar rămâne pentru totdeauna la ei, fără să mai știm
+    nici măcar că există.
+  · **Lista de coloane a triggerului de UPDATE nu e „toate, ca să fim siguri".** `vizualizari`
+    crește la FIECARE deschidere a unei pagini de piesă: fără filtru, fiecare vizitator ar pune o
+    piesă în coadă și ar bate la ușa rutei. Lista e exact ce citește `pieseEligibile()` plus
+    `publicat`. Cine adaugă un câmp în anunț îl adaugă și acolo.
+  · **Ordinea de la finalul unui lot e deblocare, APOI recitirea cozii** — niciodată invers. Așa se
+    închide cursa dintre „lotul tocmai s-a terminat" și „a mai intrat o modificare": orice trigger
+    de după deblocare bate singur la ușă, iar orice trigger dinainte și-a lăsat rândul în coadă,
+    unde recitirea îl vede. Ruta se cheamă singură mai departe cât timp mai are de lucru, dar DOAR
+    dacă lotul a închis chiar rânduri — altfel un refuz de la ei ar porni o buclă de funcții.
+  · **Plasa de 20% e aici mai importantă decât la butonul de publicare**, fiindcă nu apasă nimeni
+    nimic: peste prag, sincronizarea se OPREȘTE și scrie motivul în `settings.integrari.dezro.coada_mesaj`,
+    vizibil în panou, cu buton de confirmare. Piesele șterse se numără separat în prag (`pragCoada`),
+    fiindcă ele nu mai apar în `dezro_de_retras`.
+  · **Coada nu poate fi invizibilă**: „4b. Sincronizarea automată" din Admin → Anunțuri dez.ro arată
+    câte așteaptă, câte s-au blocat după 5 încercări și ultima eroare, cu buton de golire manuală.
+    Lecția cozii de e-mail din 7 septembrie 2026, aplicată din prima.
+  · **PORNITĂ pe producție la 10 septembrie 2026.** `webhook_url` și `webhook_secret` sunt în
+    `settings.integrari.dezro`; ruta răspunde pe `https://autopas-dezmembrari.ro/api/dezro-coada`.
+    Cât lipsesc, triggerele scriu în coadă și nu pleacă nimic — nu se pierde nimic, totul pleacă la
+    prima trezire de după completare. Exact așa s-a și întâmplat: ruta n-a fost trimisă în producție
+    odată cu migrarea, a răspuns 404 o zi, iar coada a strâns 91 de rânduri (51 modificări, 38 de
+    piese ȘTERSE, 3 piese noi). La pornire au plecat toate: 38 de anunțuri stinse la ei, 3 retrase,
+    zero erori, zero blocate.
+  · **`net._http_response` va arăta ÎNTOTDEAUNA „Timeout of 3000 ms" pentru trezire, și e normal.**
+    pg_net așteaptă 3 secunde, un lot ține până la 60 — trezirea e fire-and-forget prin construcție.
+    Cine caută dovada că lotul a lucrat o caută în `dezro_coada_stare` și în `dezro_anunturi`,
+    niciodată în codul întors lui pg_net. Un timeout acolo NU e un eșec.
+  · **Un UPDATE cu efect nul NU declanșează triggerul** (corectat 10 septembrie 2026). Funcția
+    `dezro_marcheaza()` nu compară valorile, dar TRIGGERUL are o clauză `when (old.X is distinct
+    from new.X …)`, deci `set publicat = publicat` nu ajunge nici măcar la funcție. Nota veche de aici
+    recomanda exact testul ăsta; „a trecut" doar fiindcă o coadă goală arată la fel cu una prin care
+    nu a trecut nimic. Dovada reală a lanțului e o schimbare REALĂ: la migrarea 40, 73 de piese și-au
+    schimbat categoria, au intrat în coadă și s-au golit singure în câteva minute.
+  · **O mapare nouă NU pune nimic în coadă.** Triggerele stau pe `products`; o piesă care devine
+    publicabilă fiindcă i s-a mapat modelul sau categoria nu s-a schimbat ea însăși. După orice
+    completare de mapări, piesele devenite gata se trimit ori cu `scripts/publica-dezro.mjs`, ori
+    puse direct în coadă: `insert into dezro_coada (product_id, motiv) select … on conflict
+    (product_id) do update …` și apoi `select dezro_trezeste(true)`. Așa au rămas netrimise 396 de
+    piese o zi întreagă, la 10 septembrie 2026.
+  · **Un anunț RETRAS nu mai are poze la ei, deci pozele se compară cu o listă goală**
+    (defect reparat la 15 septembrie 2026, `publicaPiesa` din `lib/dezro/motor.mjs`). La vânzare
+    anunțul se șterge la ei, dar `poze_trimise` rămânea lista veche; la anularea comenzii se crea
+    un anunț nou, pozele păreau „deja trimise" și plecau zero. Găsite 5 anunțuri așa, puse înapoi
+    în coadă. Tot atunci: o recreare eșuată lasă rândul „retras", nu „eroare" — altfel încercarea
+    următoare ar fi actualizat un anunț inexistent.
+  · Ruta refuză să lucreze cât timp există un job de publicare activ: doi scriitori pe aceleași
+    anunțuri ar putea trimite aceeași piesă de două ori, iar la ei un anunț dublat nu se poate uni.
+- Roluri: `client`, `operator`, `contabil`, `admin` (coloana `role` în `profiles`, controlată prin RLS).
+
+
+
+# Sarcini din afara proiectului (starea la 7 septembrie 2026)
+
+
+Lucruri pe care codul le presupune deja făcute, dar care încă nu sunt. Nu le implementa —
+sunt sarcini ale utilizatorului. Verificate din nou la 7 septembrie 2026.
+
+- ~~`NEXT_PUBLIC_SITE_URL` nu e setată~~ — **REZOLVAT.** `sitemap.xml` de pe domeniu scrie
+  adresele corecte.
+- ~~Indexarea e oprită~~ — **PORNITĂ.** `robots.txt` de pe domeniu răspunde cu `Allow: /`,
+  deci `PERMITE_INDEXARE=da` e pus în Vercel. Site-ul e deschis motoarelor de căutare.
+- **`contact@autopas-dezmembrari.ro` — cutia poștală tot nu există** (verificat la
+  7 septembrie 2026: domeniul e înregistrat, DNS-ul e la Vercel, dar **nu există nicio
+  înregistrare MX**, și nici SPF sau DMARC). Adresa e sursa unică din `settings.firma.email`
+  și apare în toate cele 8 documente legale, unde clientul are drept legal să scrie.
+  · Ce se întâmplă azi cu un mesaj trimis acolo: neexistând MX, expeditorul încearcă
+    adresa A a domeniului, care e Vercel; Vercel nu vorbește SMTP, deci mesajul **se
+    întoarce la expeditor** după câteva ore. (Nota veche spunea „se pierd tăcut" — de
+    fapt expeditorul află, târziu.)
+  · Cu indexarea pornită, promisiunea din documentele legale e deja publică în Google.
+    Nu mai e o sarcină de pregătire, e una restantă.
+  · Pașii, scriși pe îndelete: **`docs/email.md`**. Codul de trimitere e gata și așteaptă
+    doar cheia din Admin → Integrări.
+- **pieseauto.ro — de trimis adresa `https://autopas-dezmembrari.ro/feed/pieseauto.csv`** (15
+  septembrie 2026) și de confirmat cu ei, ÎNAINTE de importul zilnic: (1) importul leagă după ID-ul
+  anunțului existent sau creează anunțuri noi? — dacă le dublează, se face întâi proba cu `?test=5`;
+  (2) ce fac cu cantitatea 0 (ascund / șterg); (3) ce fac cu un rând care lipsește din fișier
+  (o piesă ȘTEARSĂ din bază dispare din fișier — de preferat vândută, cu stoc 0, nu ștearsă);
+  (4) categoria trebuie să fie exact numele lor.
+- ~~Contul FAN Courier~~ — **REZOLVAT la 15 septembrie 2026.** Client ID 7108882, utilizatorul
+  `pieseautopas`, parola în `settings.integrari.fancourier`. Testat pe contul REAL: un AWB de
+  verificare (7000166182434, ramburs 1 leu) a ieșit cu expeditorul „PIESE AUTO PAS SRL", serviciul
+  Cont Colector cu IBAN-ul firmei, transport plătit de expeditor, eticheta
+  PDF în 2 exemplare pe pagină (setarea contului lor), apoi a fost șters la FAN.
+- ~~Contul de pe dez.ro~~ — **REZOLVAT la 7 septembrie 2026.** Utilizatorul `autopas` și parola
+  sunt în `settings.integrari.dezro`, integrarea e pornită, autentificarea verificată.
+  · Adresa din profilul lor, pusă de proprietar: „Strada Bistritei 181, loc. Piatra-Neamț, jud.
+    Neamț", telefon 0743627151. Telefonul e cel bun. Strada și localitatea diferă de adresa
+    oficială din `lib/config.ts` („Str. Petru Rareș nr. 181, sat Bistrița, com. Alexandru cel
+    Bun") — de verificat cu proprietarul care e forma corectă, fiindcă ea apare pe toate
+    anunțurile.
+  · Pașii, în ordine: **`docs/dez.ro.md`**.
+
+
+
+# Culorile site-ului — detaliile
+
+
+**Identitate: „Atelier, galben industrial" (#F2B705). DOUĂ teme, din 25 august 2026:
+„Luminos" (implicită din 10 septembrie 2026, griuri reci) și „Întunecat" (negru). Culorile se
+modifică exclusiv din `app/globals.css`: blocul `:root` pentru întunecat,
+`:root[data-tema="luminos"]` pentru luminos.**
+Componentele nu scriu niciodată culori direct, ci folosesc clasele semantice din
+`tailwind.config.ts` (`bg-fundal`, `text-text`, `text-textSecundar`, `bg-accent`,
+`text-accentContrast`, `border-chenar`, `bg-imagineBg`, `bg-heroBg`…), care citesc variabilele.
+O schimbare de nuanță = o linie modificată.
+
+Comutatorul e o iconiță soare/lună în header (`components/ComutatorTema.tsx`). Alegerea stă în
+`localStorage`, cheia `autopas-tema`. Implicit e **LUMINOSUL** (schimbat la 10 septembrie 2026,
+cerut de proprietar; înainte era întunecatul), indiferent de `prefers-color-scheme`.
+
+**Atenție la asimetria dintre CSS și implicit.** Blocul `:root` din `globals.css` e cel
+ÎNTUNECAT, deși implicit se vede luminosul — nu e o scăpare. `data-tema="luminos"` e scris
+direct pe `<html>` în `app/layout.tsx`, pe SERVER, iar scriptul anti-flash din `<head>` doar îl
+SCOATE când în `localStorage` scrie `intunecat`. Trei motive pentru forma asta:
+· tema corectă e în HTML din primul octet, deci nu există licărire nici la prima vizită;
+· merge și cu JavaScript oprit — un implicit lăsat pe seama scriptului n-ar merge;
+· nicio culoare nu e scrisă de două ori: selectorul mai specific câștigă întotdeauna, deci
+  întunecatul rămâne exact abaterea pe care o cere omul din comutator.
+Cine vrea să răstoarne iar implicitul schimbă DOAR cele două locuri (atributul de pe `<html>`
+și valoarea căutată în script), niciodată blocurile de culori.
+
+Reguli care rezultă din asta:
+- **Nu scrie hexa în componente.** `bg-accent`, nu `bg-[#F2B705]`.
+- `--accent-contrast` e **închis** (#101010): textul de pe galben e negru. Alb pe #F2B705 dă
+  1,8:1, ilizibil. Pe butoanele de accent se folosește `text-accentContrast`, niciodată `text-white`.
+- **Galbenul NU e niciodată text pe tema luminoasă** (dă 1,82:1 pe alb). Locurile care îl vor pe
+  tema întunecată — prețuri, săgeți, pictograme, cuvinte scoase în față — folosesc clasele
+  `.accentuat` / `.accentuat-hover` din `globals.css`, care pe tema luminoasă devin culoarea
+  obișnuită a textului. Singurele excepții care scriu `text-accent` direct sunt headerul, subsolul
+  și varianta întunecată a `TrustBar`: sunt negre pe ambele teme.
+- Butonul galben are `border: 1px solid rgb(var(--accent-chenar))`. Pe tema întunecată variabila
+  e egală cu `--accent`, deci regula nu schimbă nimic acolo; pe cea luminoasă e singurul lucru
+  care îi dă butonului o margine vizibilă.
+- `--chenar` (#2A2A2A) e doar pentru linii decorative și separatoare. Pentru chenarele care trebuie
+  să se vadă — câmpuri de formular, butoane secundare, `select`, zone de încărcare — se folosește
+  `--chenar-puternic` (#707070), care trece pragul de 3:1 din WCAG 1.4.11.
+- `--imagine-bg` e fundalul zonei de imagine din cardul de produs și din galerie (pozele de piese
+  sunt fotografiate pe fundal deschis).
+- `color-scheme: dark` în `:root` face ca barele de defilare și controalele native să fie desenate
+  întunecat. `.tema-clasica` declară invers, `color-scheme: light`.
+- `@media print` răstoarnă variabilele pe alb și ascunde `header`, `nav` și `[data-strat-fix]`
+  (bannerul de cookie-uri, butonul de WhatsApp, sertarul de filtre), ca pagina tipărită să nu iasă
+  neagră și să nu care meniuri pe hârtie.
+
+Panoul `/admin` **rămâne luminos**, pe paleta clasică portocalie: containerele lui poartă clasa
+`tema-clasica` din `app/globals.css`, care redeclară toate variabilele. E unealta de lucru a
+operatorului, iar diferența față de site-ul public arată dintr-o privire unde te afli.
+
+⚠️ `.tema-clasica` trebuie să declare și `color: rgb(var(--text))`, nu doar variabilele. `body` are
+`text-text`, iar regula aceea se calculează **pe body**, unde `--text` e alb; culoarea se moștenește
+apoi ca valoare gata calculată, nu ca formulă. Fără linia aceea, tot ce n-are clasă proprie de
+culoare în `/admin` iese alb pe alb. Aceeași grijă la orice clasă nouă care redeclară paleta.
+
+Culorile semantice (verdele `ok`, roșu de eroare, galben de avertizare, badge-urile de status,
+verdele WhatsApp `#25D366`) NU fac parte din temă și nu se ating. La fel bannerele ANPC din `public/`.
+
+Verificarea contrastului: `node scripts/verifica-contrast.mjs` — calculează raporturile pe cele
+**trei** palete (întunecat, luminos, `/admin`) și iese cu cod 1 dacă vreo pereche obligatorie pică.
+
+**Scriptul iese astăzi cu cod 1, și e știut.** Ambele teme ale site-ului trec 14 din 14. Cele 2
+perechi sub prag sunt din paleta clasică a panoului `/admin`: alb pe portocaliul `#FF6B1A` dă
+2,85:1 pe buton și 2,67:1 pe hover. Problema e veche, dinainte de temele noi, și a rămas discuție
+separată despre paleta panoului. Până se rezolvă, scriptul nu poate fi pus în CI ca poartă blocantă.
+
