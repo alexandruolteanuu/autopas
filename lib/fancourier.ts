@@ -622,7 +622,7 @@ export async function comandaCurier(
  */
 export async function anuleazaComandaCurier(id: string, cfgR?: ConfigFanRetur): Promise<"anulata" | "nu_exista"> {
   cfgR = cfgR ?? await configFanRetur();
-  const deja = (m: string) => /already|deleted|not\s*found|nu\s*exist|invalid/i.test(m);
+  const deja = (m: string) => /already\s*deleted|not\s*found|nu\s*(mai\s*)?exist/i.test(m);
   try {
     const d = await cere(caCfg(cfgR), "/order", { metoda: "DELETE", query: { clientId: cfgR.clientId, id } });
     if (d?.status && d.status !== "success") {
@@ -632,7 +632,14 @@ export async function anuleazaComandaCurier(id: string, cfgR?: ConfigFanRetur): 
     }
     return "anulata";
   } catch (e) {
-    if (e instanceof EroareFan && (e.stare === 403 || e.stare === 404 || deja(e.message))) return "nu_exista";
+    // NU orice 403: FAN folosește 403 și pentru alte refuzuri (ex. comandă deja
+    // preluată de curier). Doar mesajul „already deleted / not found” înseamnă
+    // că nu mai e nimic de anulat; altfel eroarea urcă și operatorul vede
+    // „ATENȚIE … anuleaz-o din selfawb.ro”, în loc de un succes fals.
+    // (24 noiembrie 2026: pe contul de probă FAN, orice comandă nouă răspunde
+    // deja „This order was already deleted” — anularea reală nu se poate
+    // verifica acolo, doar pe contul nostru.)
+    if (e instanceof EroareFan && (e.stare === 404 || deja(e.message))) return "nu_exista";
     throw e;
   }
 }
